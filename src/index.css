@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-brand-dark text-white font-sans antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-wide uppercase;
+  }
+}
+
+@layer components {
+    .glass-panel {
+        @apply bg-glass backdrop-blur-md border border-white/10 rounded-xl shadow-lg;
+    }
+    .neon-text {
+        @apply text-brand-green drop-shadow-[0_0_8px_rgba(204,255,0,0.5)];
+    }
+    .btn-primary {
+        @apply px-6 py-2 bg-brand-green text-brand-dark font-display font-bold text-lg rounded skew-x-[-10deg] hover:scale-105 transition-transform uppercase tracking-wider shadow-[0_0_15px_rgba(204,255,0,0.4)];
+    }
+}

@@ -1,0 +1,39 @@
+-- Function for users to join a team using a code
+-- This replaces the need for complex trigger logic, as it can be called explicitly from the UI
+-
+-CREATE OR REPLACE FUNCTION join_team_via_code(input_code TEXT)
+-RETURNS JSONB
+-LANGUAGE plpgsql SECURITY DEFINER
+-AS $$
+-DECLARE
+-  invite_record RECORD;
+-  user_id UUID;
+-BEGIN
+-  user_id := auth.uid();
+-  
+-  -- 1. Find the invite
+-  SELECT * INTO invite_record
+-  FROM team_invites
+-  WHERE code = input_code;
+-
+-  IF invite_record IS NULL THEN
+-    RAISE EXCEPTION 'Invalid invite code.';
+-  END IF;
+-
+-  -- 2. Update the User Profile
+-  -- We allow them to update their role/team ONLY here securely
+-  UPDATE profiles
+-  SET 
+-    team_id = invite_record.team_id,
+-    role = invite_record.role
+-  WHERE id = user_id;
+-
+-  -- 3. Return success info
+-  RETURN json_build_object(
+-    'success', true,
+-    'team_id', invite_record.team_id,
+-    'role', invite_record.role
+-  );
+-END;
+-$$;
+-
