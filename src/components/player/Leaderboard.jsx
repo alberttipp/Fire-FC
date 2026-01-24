@@ -1,14 +1,14 @@
 import React from 'react';
-import { Crown, Trophy, Medal } from 'lucide-react';
+import { Crown, Trophy, Medal, Clock } from 'lucide-react';
 
 const Leaderboard = () => {
-    // Mock Data
+    // Mock Data - using training minutes
     const players = [
-        { rank: 1, name: "Leo M.", xp: 450, team: "U10 Boys", change: 0 },
-        { rank: 2, name: "Cristiano R.", xp: 420, team: "U10 Boys", change: 1 },
-        { rank: 3, name: "Neymar J.", xp: 390, team: "U10 Boys", change: -1 },
-        { rank: 4, name: "Bo Tipp", xp: 350, team: "U10 Boys", change: 2, isUser: true }, // Current User
-        { rank: 5, name: "Kylian M.", xp: 310, team: "U10 Boys", change: 0 },
+        { rank: 1, name: "Leo M.", minutes: 120, team: "U11 Boys", change: 0 },
+        { rank: 2, name: "Cristiano R.", minutes: 105, team: "U11 Boys", change: 1 },
+        { rank: 3, name: "Neymar J.", minutes: 90, team: "U11 Boys", change: -1 },
+        { rank: 4, name: "Bo Tipp", minutes: 75, team: "U11 Boys", change: 2, isUser: true }, // Current User
+        { rank: 5, name: "Kylian M.", minutes: 60, team: "U11 Boys", change: 0 },
     ];
 
     const getRankIcon = (rank) => {
@@ -36,7 +36,9 @@ const Leaderboard = () => {
                 <div className="grid grid-cols-12 text-xs text-gray-500 uppercase font-bold tracking-widest px-4">
                     <div className="col-span-2 text-center">Rank</div>
                     <div className="col-span-7">Player</div>
-                    <div className="col-span-3 text-right">XP</div>
+                    <div className="col-span-3 text-right flex items-center justify-end gap-1">
+                        <Clock className="w-3 h-3" /> MIN
+                    </div>
                 </div>
 
                 {players.map((player) => (
@@ -57,7 +59,7 @@ const Leaderboard = () => {
                             </div>
                         </div>
                         <div className="col-span-3 text-right font-display font-bold text-white">
-                            {player.xp}
+                            {player.minutes}
                         </div>
                     </div>
                 ))}
@@ -65,7 +67,7 @@ const Leaderboard = () => {
 
             <div className="mt-6 pt-4 border-t border-white/5 text-center">
                 <p className="text-xs text-gray-400">
-                    You are <span className="text-brand-gold font-bold">40 XP</span> away from Top 3!
+                    Train <span className="text-brand-gold font-bold">15 more min</span> to reach Top 3!
                 </p>
                 <button className="mt-3 text-xs text-brand-green hover:underline uppercase tracking-widest">
                     View Full Rankings

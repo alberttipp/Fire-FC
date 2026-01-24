@@ -2,58 +2,26 @@ import React, { useState, useEffect } from 'react';
 import PlayerCard from '../components/player/PlayerCard';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Menu, Gamepad2 } from 'lucide-react';
+import { LogOut, Menu, Gamepad2, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
-import FutsalArena from '../components/game/FutsalArena';
+import FireBall from '../game/FireBall';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 
 import { supabase } from '../supabaseClient';
 
 const PlayerDashboard = () => {
-    const { user, profile, signOut } = useAuth(); // Added profile
+    const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
 
-    // Protection/Loading State
-    if (!user) {
-        return (
-            <div className="min-h-screen bg-brand-dark flex items-center justify-center text-white">
-                <div className="text-center">
-                    <div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-brand-green font-display uppercase tracking-widest">Loading Player Profile...</p>
-                </div>
-            </div>
-        );
-    }
-
+    // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
     const [showCelebration, setShowCelebration] = useState(false);
     const [showGame, setShowGame] = useState(false);
     const [showDetails, setShowDetails] = useState(false);
-
-    // Data State
     const [assignments, setAssignments] = useState([]);
     const [earnedBadges, setEarnedBadges] = useState([]);
-
-    // Stats State (fetched from DB)
     const [stats, setStats] = useState(null);
-
-    // Construct Profile Display Object
-    const playerProfile = {
-        id: user?.id,
-        name: profile?.full_name || user?.display_name || "Guest Player",
-        number: stats?.number || "??",
-        position: "PL", // Could store in DB
-        rating: 80 + Math.floor((stats?.level || 1) * 2), // Dynamic Rating
-        pace: 85,
-        shooting: 80,
-        passing: 75,
-        dribbling: 82,
-        defending: 50,
-        physical: 70,
-        messiMode: stats?.messi_mode_unlocked || false,
-        image: profile?.avatar_url || user?.avatar_url || "/branding/roster_photo.jpg"
-    };
 
     useEffect(() => {
         if (!user?.id) return;
@@ -154,6 +122,35 @@ const PlayerDashboard = () => {
         fetchDashboardData();
     }, [user]);
 
+    // Construct Profile Display Object (must be after hooks, before conditional returns)
+    const playerProfile = {
+        id: user?.id,
+        name: profile?.full_name || user?.display_name || "Guest Player",
+        number: stats?.number || profile?.number || "??",
+        position: "PL",
+        rating: stats?.overall_rating || 80 + Math.floor((stats?.level || 1) * 2),
+        pace: stats?.pace || 85,
+        shooting: stats?.shooting || 80,
+        passing: stats?.passing || 75,
+        dribbling: stats?.dribbling || 82,
+        defending: stats?.defending || 50,
+        physical: stats?.physical || 70,
+        messiMode: stats?.messi_mode_unlocked || false,
+        image: profile?.avatar_url || user?.avatar_url || "/players/roster/bo_official.png"
+    };
+
+    // Loading state - shown while user data loads
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-brand-dark flex items-center justify-center text-white">
+                <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-brand-green font-display uppercase tracking-widest">Loading Player Profile...</p>
+                </div>
+            </div>
+        );
+    }
+
     const handleLogout = async () => {
         await signOut();
         navigate('/login');
@@ -183,7 +180,7 @@ const PlayerDashboard = () => {
     return (
         <div className="min-h-screen bg-brand-dark pb-24 relative overflow-hidden">
             {/* Game Modal */}
-            {showGame && <FutsalArena onClose={() => setShowGame(false)} />}
+            {showGame && <FireBall onClose={() => setShowGame(false)} currentPlayer={playerProfile} />}
 
             {/* Player Details Modal */}
             {showDetails && (
@@ -218,9 +215,9 @@ const PlayerDashboard = () => {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setShowGame(true)}
-                        className="bg-brand-gold text-brand-dark font-bold uppercase text-xs px-3 py-1.5 rounded-full flex items-center gap-2 hover:bg-white hover:scale-105 transition-all animate-pulse"
+                        className="bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold uppercase text-xs px-4 py-2 rounded-full flex items-center gap-2 hover:scale-110 transition-all shadow-lg shadow-orange-500/30"
                     >
-                        <Gamepad2 className="w-4 h-4" /> Play Match
+                        <Flame className="w-4 h-4" /> Fire Ball 🔥
                     </button>
                     <button onClick={handleLogout} className="text-gray-500 hover:text-white">
                         <LogOut className="w-5 h-5" />

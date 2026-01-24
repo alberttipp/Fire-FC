@@ -24,3 +24,69 @@
         @apply px-6 py-2 bg-brand-green text-brand-dark font-display font-bold text-lg rounded skew-x-[-10deg] hover:scale-105 transition-transform uppercase tracking-wider shadow-[0_0_15px_rgba(204,255,0,0.4)];
     }
 }
+
+/* Fire Ball Game Animations */
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounce-in {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.05); }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(204, 255, 0, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(204, 255, 0, 0.6); }
+}
+
+@keyframes fire-pulse {
+    0%, 100% { 
+        text-shadow: 0 0 10px #ff6600, 0 0 20px #ff6600, 0 0 30px #ff3300; 
+    }
+    50% { 
+        text-shadow: 0 0 20px #ff6600, 0 0 40px #ff6600, 0 0 60px #ff3300; 
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+}
+
+.animate-bounce-in {
+    animation: bounce-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+.animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-fire-pulse {
+    animation: fire-pulse 1.5s ease-in-out infinite;
+}
+
+/* Touch-friendly styles for game */
+.touch-none {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Prevent pull-to-refresh on game screen */
+.game-container {
+    overscroll-behavior: contain;
+}

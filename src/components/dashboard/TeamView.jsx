@@ -8,6 +8,7 @@ import CreateTeamModal from './CreateTeamModal';
 import InviteManager from './InviteManager';
 import CreatePlayerModal from './CreatePlayerModal';
 import FamilyInviteModal from './FamilyInviteModal';
+import UpcomingWeek from './UpcomingWeek';
 
 const TeamView = () => {
     const { user, profile } = useAuth();
@@ -57,15 +58,16 @@ const TeamView = () => {
                     .eq('team_id', teamData.id)
                     .order('last_name', { ascending: true });
 
-                // Transform
+                // Transform - use rating and minutes instead of XP
                 const formatted = (players || []).map(p => ({
                     id: p.id,
                     name: `${p.first_name} ${p.last_name}`,
                     number: p.number || '#',
-                    xp: p.stats?.xp || 0,
-                    status: (p.stats?.xp > 800) ? 'On Fire' : 'Steady',
+                    rating: p.stats?.overall_rating || p.stats?.rating || '--',
+                    minutes: p.stats?.training_minutes || 0,
+                    status: (p.stats?.training_minutes > 60) ? 'On Fire' : 'Steady',
                     avatar: p.avatar_url
-                })).sort((a, b) => b.xp - a.xp);
+                })).sort((a, b) => b.minutes - a.minutes);
 
                 setRoster(formatted);
             } else {
@@ -180,6 +182,11 @@ const TeamView = () => {
                 />
             )}
 
+            {/* Upcoming Week Calendar */}
+            <div className="mb-6">
+                <UpcomingWeek teamId={myTeam.id} />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Roster List */}
                 <div className="md:col-span-2 glass-panel p-6">
@@ -211,14 +218,17 @@ const TeamView = () => {
                                     onClick={() => setSelectedPlayer(player)}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white overflow-hidden border border-white/10">
-                                            {/* Avatar or Initials */}
-                                            {player.name.charAt(0)}
+                                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white overflow-hidden border-2 border-white/20">
+                                            {player.avatar ? (
+                                                <img src={player.avatar} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                player.name.charAt(0)
+                                            )}
                                         </div>
                                         <div>
                                             <span className="text-white font-bold block">{player.name}</span>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 rounded">{player.number}</span>
+                                                <span className="text-[10px] bg-gray-800 text-gray-400 px-1.5 rounded">#{player.number}</span>
                                                 <span className={`text-[10px] uppercase font-bold ${player.status === 'On Fire' ? 'text-orange-400' : 'text-blue-400'}`}>
                                                     {player.status}
                                                 </span>
@@ -227,7 +237,10 @@ const TeamView = () => {
                                     </div>
 
                                     <div className="flex items-center gap-3">
-                                        <span className="hidden sm:block text-brand-green font-display font-bold text-sm tracking-wider">{player.xp} XP</span>
+                                        <div className="hidden sm:flex items-center gap-3">
+                                            <span className="text-brand-gold font-display font-bold text-lg">{player.rating}</span>
+                                            <span className="text-gray-500 text-xs">OVR</span>
+                                        </div>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setInvitePlayer(player); }}
@@ -257,9 +270,9 @@ const TeamView = () => {
                     <InviteManager teamId={myTeam.id} />
 
                     <div className="glass-panel p-6 border-l-4 border-brand-green">
-                        <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Team XP</h3>
+                        <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Team Training</h3>
                         <div className="text-3xl font-display font-bold text-white">
-                            {roster.reduce((sum, p) => sum + (p.xp || 0), 0).toLocaleString()}
+                            {roster.reduce((sum, p) => sum + (p.minutes || 0), 0).toLocaleString()} <span className="text-lg text-gray-400">min</span>
                         </div>
                     </div>
 

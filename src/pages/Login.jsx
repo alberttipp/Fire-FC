@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Rocket, Shield, Users, User, ArrowRight, Lock, UserCircle } from 'lucide-react';
+import { useToast } from '../components/Toast';
+import { isValidEmail, isValidPassword, isValidName, isValidPin } from '../utils/validation';
+import { Rocket, Shield, Users, User, ArrowRight, Lock, UserCircle, Mail } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 const Login = () => {
+    const toast = useToast();
+    const navigate = useNavigate();
+    const { signIn, signUp, loginDemo, loginPlayer } = useAuth();
+
     // Auth Modes
     const [authMode, setAuthMode] = useState('standard'); // 'standard' (Coach/Parent) or 'player'
 
@@ -22,50 +28,92 @@ const Login = () => {
     const [playerPin, setPlayerPin] = useState('');
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [message, setMessage] = useState(null);
+    const [errors, setErrors] = useState({});
 
-    const { signIn, signUp, loginDemo, loginPlayer } = useAuth();
-    const navigate = useNavigate();
+    // Clear errors when switching modes
+    const switchAuthMode = (mode) => {
+        setAuthMode(mode);
+        setErrors({});
+    };
+
+    // --- Validation ---
+    const validateStandardForm = () => {
+        const newErrors = {};
+
+        if (!email.trim()) {
+            newErrors.email = 'Email is required';
+        } else if (!isValidEmail(email)) {
+            newErrors.email = 'Please enter a valid email';
+        }
+
+        if (!password) {
+            newErrors.password = 'Password is required';
+        } else if (isSignUp && !isValidPassword(password)) {
+            newErrors.password = 'Password must be at least 6 characters';
+        }
+
+        if (isSignUp) {
+            if (!fullName.trim()) {
+                newErrors.fullName = 'Name is required';
+            } else if (!isValidName(fullName)) {
+                newErrors.fullName = 'Please enter a valid name';
+            }
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const validatePlayerPin = () => {
+        if (!isValidPin(playerPin)) {
+            setErrors({ playerPin: 'PIN must be 4 digits' });
+            return false;
+        }
+        setErrors({});
+        return true;
+    };
 
     // --- Standard Auth Handler ---
     const handleAuth = async (e) => {
         e.preventDefault();
+        
+        if (!validateStandardForm()) return;
+
         setLoading(true);
-        setError(null);
-        setMessage(null);
 
         try {
             if (isSignUp) {
                 const { data, error } = await signUp(email, password, {
                     role: joinCode ? 'parent' : 'coach',
-                    full_name: fullName
+                    full_name: fullName.trim()
                 });
 
                 if (error) throw error;
 
                 if (joinCode && data?.user) {
                     try {
-                        const { data: joinData, error: joinError } = await supabase.rpc('join_team_via_code', {
+                        const { error: joinError } = await supabase.rpc('join_team_via_code', {
                             input_code: joinCode
                         });
                         if (joinError) throw joinError;
                     } catch (codeErr) {
                         console.error("Invite Code Error:", codeErr);
-                        setError(`Account created, but failed to join team: ${codeErr.message}`);
+                        toast.warning(`Account created, but failed to join team: ${codeErr.message}`);
                     }
                 }
 
-                setMessage("Account created! You are now logged in.");
+                toast.success("Account created! Welcome to Fire FC!");
                 if (data?.session) navigate('/dashboard');
                 else {
-                    setMessage("Account created! Please check your email for confirmation.");
+                    toast.info("Please check your email to confirm your account.");
                     setIsSignUp(false);
                 }
 
             } else {
                 const { data, error } = await signIn(email, password);
                 if (error) throw error;
+
+                toast.success("Welcome back!");
 
                 if (data?.user) {
                     const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
@@ -76,7 +124,7 @@ const Login = () => {
                 }
             }
         } catch (error) {
-            setError(error.message);
+            toast.error(error.message || 'Authentication failed');
         } finally {
             setLoading(false);
         }
@@ -85,8 +133,14 @@ const Login = () => {
     // --- Player Auth Handlers ---
     const handleFindTeam = async (e) => {
         e.preventDefault();
+        
+        if (!playerTeamCode.trim()) {
+            setErrors({ teamCode: 'Team code is required' });
+            return;
+        }
+
         setLoading(true);
-        setError(null);
+        setErrors({});
         setTeamRoster(null);
 
         try {
@@ -98,8 +152,9 @@ const Login = () => {
             if (!data || data.length === 0) throw new Error("Team not found or no players.");
 
             setTeamRoster(data);
+            toast.success("Team found! Select your name.");
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message);
         } finally {
             setLoading(false);
         }
@@ -107,20 +162,21 @@ const Login = () => {
 
     const handlePlayerLogin = async (e) => {
         e.preventDefault();
-        if (!selectedPlayer || !playerPin) return;
+        if (!selectedPlayer) return;
+        if (!validatePlayerPin()) return;
 
         setLoading(true);
-        setError(null);
 
         try {
             const { data, error } = await loginPlayer(selectedPlayer.id, playerPin);
 
             if (error) throw error;
 
+            toast.success(`Welcome, ${selectedPlayer.first_name}!`);
             navigate('/player-dashboard');
 
         } catch (err) {
-            setError(err.message);
+            toast.error(err.message || 'Invalid PIN');
         } finally {
             setLoading(false);
         }
@@ -130,8 +186,18 @@ const Login = () => {
         setTeamRoster(null);
         setSelectedPlayer(null);
         setPlayerPin('');
-        setError(null);
+        setErrors({});
     };
+
+    // Input class helper
+    const inputClass = (fieldName) => `
+        w-full bg-black/50 border rounded p-3 text-white 
+        focus:ring-1 transition-all outline-none
+        ${errors[fieldName] 
+            ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+            : 'border-white/10 focus:border-brand-green focus:ring-brand-green'
+        }
+    `;
 
     return (
         <div className="min-h-screen flex items-center justify-center relative bg-brand-dark overflow-hidden">
@@ -149,103 +215,112 @@ const Login = () => {
                     </h2>
 
                     {/* Mode Switcher */}
-                    <div className="flex justify-center gap-4mt-2 mb-4">
+                    <div className="flex justify-center mt-2 mb-4">
                         <div className="inline-flex bg-black/40 rounded-full p-1 border border-white/10">
                             <button
-                                onClick={() => { setAuthMode('standard'); setError(null); }}
+                                onClick={() => switchAuthMode('standard')}
                                 className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${authMode === 'standard' ? 'bg-brand-green text-brand-dark' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Member
                             </button>
                             <button
-                                onClick={() => { setAuthMode('player'); setError(null); }}
-                                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${authMode === 'player' ? 'bg-brand-green text-brand-dark' : 'text-gray-400 hover:text-white'}`}
+                                onClick={() => switchAuthMode('player')}
+                                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${authMode === 'player' ? 'bg-brand-gold text-brand-dark' : 'text-gray-400 hover:text-white'}`}
                             >
-                                Athlete
+                                Player
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded mb-6 text-center text-sm animate-pulse-fast">
-                        {error}
-                    </div>
-                )}
-
-                {message && (
-                    <div className="bg-green-500/10 border border-green-500 text-green-500 p-3 rounded mb-6 text-center text-sm">
-                        {message}
-                    </div>
-                )}
-
                 {/* --- PLAYER Login Flow --- */}
                 {authMode === 'player' && (
-                    <div className="space-y-6">
-                        {!teamRoster ? (
-                            <form onSubmit={handleFindTeam} className="animate-fade-in">
-                                <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-2 ml-1">Team Code</label>
-                                <div className="flex gap-2">
+                    <div className="animate-fade-in">
+                        {/* Step 1: Enter Team Code */}
+                        {!teamRoster && (
+                            <form onSubmit={handleFindTeam} className="space-y-6">
+                                <div>
+                                    <label className="block text-brand-gold text-xs font-bold uppercase tracking-widest mb-2 ml-1">Team Code</label>
                                     <input
                                         type="text"
                                         value={playerTeamCode}
                                         onChange={(e) => setPlayerTeamCode(e.target.value.toUpperCase())}
-                                        className="flex-1 bg-black/50 border border-brand-green/30 rounded p-3 text-white placeholder-gray-600 focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all outline-none font-mono tracking-wider text-center"
-                                        placeholder="FIRE-XXXX"
-                                        required
+                                        className={`${inputClass('teamCode')} font-mono tracking-wider text-center text-lg`}
+                                        placeholder="FC-XXXX"
+                                        maxLength={7}
                                     />
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="btn-primary px-4 flex items-center justify-center"
-                                    >
-                                        <ArrowRight className="w-5 h-5" />
-                                    </button>
+                                    {errors.teamCode && (
+                                        <p className="text-red-400 text-xs mt-1 ml-1">{errors.teamCode}</p>
+                                    )}
+                                    <p className="text-xs text-gray-500 mt-2 text-center">Ask your coach for the team code</p>
                                 </div>
-                                <p className="mt-2 text-[10px] text-gray-500 text-center">Ask your coach or manager for the team code.</p>
+
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full btn-primary py-3 flex items-center justify-center gap-2 group bg-brand-gold hover:bg-yellow-400"
+                                >
+                                    {loading ? 'Searching...' : (
+                                        <>
+                                            Find My Team <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
+                                </button>
                             </form>
-                        ) : !selectedPlayer ? (
-                            <div className="animate-fade-in">
-                                <div className="flex justify-between items-center mb-2">
-                                    <label className="block text-brand-green text-xs font-bold uppercase tracking-widest ml-1">Select Athlete</label>
-                                    <button onClick={resetPlayerFlow} className="text-[10px] text-gray-500 hover:text-white underline">Change Team</button>
+                        )}
+
+                        {/* Step 2: Select Player from Roster */}
+                        {teamRoster && !selectedPlayer && (
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-white font-bold uppercase text-sm">Select Your Name</h3>
+                                    <button onClick={resetPlayerFlow} className="text-xs text-gray-500 hover:text-white underline">Change Team</button>
                                 </div>
-                                <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-2">
                                     {teamRoster.map(player => (
-                                        <div
+                                        <button
                                             key={player.id}
                                             onClick={() => setSelectedPlayer(player)}
-                                            className="bg-white/5 border border-white/10 rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-brand-green/20 hover:border-brand-green transition-all group"
+                                            className="bg-white/5 hover:bg-brand-green/20 border border-white/10 hover:border-brand-green rounded-lg p-3 text-left transition-all group"
                                         >
-                                            <div className="w-10 h-10 rounded-full bg-black/50 overflow-hidden mb-2 border border-white/20 group-hover:border-brand-green">
-                                                <img src={player.avatar_url || `https://ui-avatars.com/api/?name=${player.first_name}+${player.last_name}`} alt="Player" className="w-full h-full object-cover" />
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border-2 border-transparent group-hover:border-brand-green">
+                                                    {player.avatar_url ? (
+                                                        <img src={player.avatar_url} alt={player.first_name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs font-bold">
+                                                            {player.first_name?.charAt(0)}{player.last_name?.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div className="text-white text-sm font-medium group-hover:text-brand-green">{player.first_name}</div>
+                                                    <div className="text-gray-500 text-xs">#{player.number}</div>
+                                                </div>
                                             </div>
-                                            <div className="text-center">
-                                                <p className="text-xs font-bold text-white leading-tight">{player.first_name}</p>
-                                                <p className="text-[10px] text-brand-green">#{player.number}</p>
-                                            </div>
-                                        </div>
+                                        </button>
                                     ))}
                                 </div>
                             </div>
-                        ) : (
-                            <form onSubmit={handlePlayerLogin} className="animate-fade-in">
-                                <div className="text-center mb-6">
-                                    <div className="inline-block relative">
-                                        <div className="w-16 h-16 rounded-full bg-brand-green/20 border border-brand-green mx-auto overflow-hidden">
-                                            <img src={selectedPlayer.avatar_url} alt="Selected" className="w-full h-full object-cover" />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedPlayer(null)}
-                                            className="absolute -top-1 -right-1 bg-black rounded-full p-1 border border-white/20 hover:border-red-500 hover:text-red-500 text-gray-400"
-                                        >
-                                            <UserCircle className="w-3 h-3" />
-                                        </button>
+                        )}
+
+                        {/* Step 3: Enter PIN */}
+                        {selectedPlayer && (
+                            <form onSubmit={handlePlayerLogin} className="space-y-6 text-center">
+                                <div className="relative inline-block">
+                                    <div className="w-20 h-20 rounded-full bg-gray-800 overflow-hidden mx-auto border-4 border-brand-green shadow-[0_0_20px_rgba(204,255,0,0.3)]">
+                                        <img src={selectedPlayer.avatar_url || '/branding/roster_photo.jpg'} alt="Selected" className="w-full h-full object-cover" />
                                     </div>
-                                    <h3 className="text-white font-bold mt-2">{selectedPlayer.first_name} {selectedPlayer.last_name}</h3>
-                                    <p className="text-xs text-gray-500">#{selectedPlayer.number}</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedPlayer(null)}
+                                        className="absolute -top-1 -right-1 bg-black rounded-full p-1 border border-white/20 hover:border-red-500 hover:text-red-500 text-gray-400"
+                                    >
+                                        <UserCircle className="w-3 h-3" />
+                                    </button>
                                 </div>
+                                <h3 className="text-white font-bold mt-2">{selectedPlayer.first_name} {selectedPlayer.last_name}</h3>
+                                <p className="text-xs text-gray-500">#{selectedPlayer.number}</p>
 
                                 <div className="max-w-[200px] mx-auto">
                                     <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-2 ml-1 text-center">Enter PIN</label>
@@ -254,14 +329,16 @@ const Login = () => {
                                             type="password"
                                             maxLength={4}
                                             value={playerPin}
-                                            onChange={(e) => setPlayerPin(e.target.value)}
-                                            className="w-full bg-black/50 border border-brand-green/30 rounded p-3 text-white text-center text-xl tracking-[0.5em] focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all outline-none"
+                                            onChange={(e) => setPlayerPin(e.target.value.replace(/\D/g, ''))}
+                                            className={`${inputClass('playerPin')} text-center text-xl tracking-[0.5em]`}
                                             placeholder="••••"
                                             autoFocus
-                                            required
                                         />
                                         <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
                                     </div>
+                                    {errors.playerPin && (
+                                        <p className="text-red-400 text-xs mt-1">{errors.playerPin}</p>
+                                    )}
                                 </div>
 
                                 <button
@@ -282,7 +359,7 @@ const Login = () => {
 
                 {/* --- STANDARD Login Flow (Coach/Parent) --- */}
                 {authMode === 'standard' && (
-                    <form onSubmit={handleAuth} className="space-y-6 animate-fade-in">
+                    <form onSubmit={handleAuth} className="space-y-5 animate-fade-in">
                         {isSignUp && (
                             <div>
                                 <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-2 ml-1">Full Name</label>
@@ -290,35 +367,49 @@ const Login = () => {
                                     type="text"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
-                                    className="w-full bg-black/50 border border-white/10 rounded p-3 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all outline-none"
+                                    className={inputClass('fullName')}
                                     placeholder="Coach Mike"
-                                    required
                                 />
+                                {errors.fullName && (
+                                    <p className="text-red-400 text-xs mt-1 ml-1">{errors.fullName}</p>
+                                )}
                             </div>
                         )}
+                        
                         <div>
                             <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-2 ml-1">Email Address</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-black/50 border border-white/10 rounded p-3 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all outline-none"
-                                placeholder="coach@firefc.com"
-                                required
-                                autoComplete="username"
-                            />
+                            <div className="relative">
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className={`${inputClass('email')} pl-10`}
+                                    placeholder="coach@firefc.com"
+                                    autoComplete="username"
+                                />
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            </div>
+                            {errors.email && (
+                                <p className="text-red-400 text-xs mt-1 ml-1">{errors.email}</p>
+                            )}
                         </div>
+                        
                         <div>
                             <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-2 ml-1">Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-black/50 border border-white/10 rounded p-3 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all outline-none"
-                                placeholder="Min 6 characters"
-                                required
-                                autoComplete="current-password"
-                            />
+                            <div className="relative">
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className={`${inputClass('password')} pl-10`}
+                                    placeholder="Min 6 characters"
+                                    autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                                />
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            </div>
+                            {errors.password && (
+                                <p className="text-red-400 text-xs mt-1 ml-1">{errors.password}</p>
+                            )}
                         </div>
 
                         {isSignUp && (
@@ -346,10 +437,22 @@ const Login = () => {
                             )}
                         </button>
 
-                        <div className="mt-4 text-center">
+                        {/* Forgot Password Link */}
+                        {!isSignUp && (
+                            <div className="text-center">
+                                <Link
+                                    to="/reset-password"
+                                    className="text-gray-500 hover:text-brand-green text-xs uppercase tracking-wider transition-colors"
+                                >
+                                    Forgot Password?
+                                </Link>
+                            </div>
+                        )}
+
+                        <div className="text-center pt-2">
                             <button
                                 type="button"
-                                onClick={() => setIsSignUp(!isSignUp)}
+                                onClick={() => { setIsSignUp(!isSignUp); setErrors({}); }}
                                 className="text-gray-400 hover:text-brand-green text-sm uppercase tracking-wider underline decoration-brand-green/30 hover:decoration-brand-green underline-offset-4 transition-colors"
                             >
                                 {isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}
@@ -358,40 +461,31 @@ const Login = () => {
                     </form>
                 )}
 
-                {/* Demo Actions (Footer) */}
-                <div className="mt-8 pt-4 border-t border-white/5 text-center opacity-50">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">Demo Actions</p>
-                    <div className="flex justify-center gap-4 mt-2">
-                        <Users
-                            className="w-4 h-4 text-white/50 cursor-pointer hover:text-brand-green"
-                            title="Team View"
-                            onClick={async () => { await loginDemo('coach'); navigate('/dashboard'); }}
-                        />
-                        <Shield
-                            className="w-4 h-4 text-white/50 cursor-pointer hover:text-brand-green"
-                            title="Parent View"
-                            onClick={async () => { await loginDemo('parent'); navigate('/parent-dashboard'); }}
-                        />
-                        <div
-                            className="w-4 h-4 flex items-center justify-center text-white/50 cursor-pointer hover:text-brand-gold font-bold text-xs border border-white/30 rounded"
-                            title="Club Manager"
-                            onClick={async () => { await loginDemo('manager'); navigate('/dashboard'); }}
-                        >
-                            M
-                        </div>
-                        {/* DEBUG SEED BUTTON */}
-                        <div
-                            className="w-4 h-4 flex items-center justify-center text-red-500/50 cursor-pointer hover:text-red-500 font-bold text-xs border border-red-500/30 rounded"
-                            title="SEED DATA"
-                            onClick={async () => {
-                                const { seedDemoData } = await import('../seed_data');
-                                await seedDemoData();
-                            }}
-                        >
-                            !
+                {/* Demo Actions (Footer) - Only show in development */}
+                {import.meta.env.DEV && (
+                    <div className="mt-8 pt-4 border-t border-white/5 text-center opacity-50">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Dev Mode</p>
+                        <div className="flex justify-center gap-4 mt-2">
+                            <Users
+                                className="w-4 h-4 text-white/50 cursor-pointer hover:text-brand-green"
+                                title="Coach View"
+                                onClick={async () => { await loginDemo('coach'); navigate('/dashboard'); }}
+                            />
+                            <Shield
+                                className="w-4 h-4 text-white/50 cursor-pointer hover:text-brand-green"
+                                title="Parent View"
+                                onClick={async () => { await loginDemo('parent'); navigate('/parent-dashboard'); }}
+                            />
+                            <div
+                                className="w-4 h-4 flex items-center justify-center text-white/50 cursor-pointer hover:text-brand-gold font-bold text-xs border border-white/30 rounded"
+                                title="Club Manager"
+                                onClick={async () => { await loginDemo('manager'); navigate('/dashboard'); }}
+                            >
+                                M
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
