@@ -37,6 +37,7 @@ const Dashboard = () => {
 
     // Check profile.role (Real User) or user.role (Demo User)
     const isManager = profile?.role === 'manager' || user?.role === 'manager';
+    const isStaff = isManager || profile?.role === 'coach' || user?.role === 'coach';
 
     return (
         <div className="min-h-screen bg-brand-dark pb-20">
@@ -133,8 +134,8 @@ const Dashboard = () => {
                             </div>
                         </div>
 
-                        {/* Admin Panel Button (Manager Only) */}
-                        {isManager && (
+                        {/* Admin Panel Button (Staff Only - Manager or Coach) */}
+                        {isStaff && (
                             <button 
                                 onClick={() => setShowAdminPanel(true)} 
                                 className="text-red-400 hover:text-red-300 transition-colors p-1.5 rounded hover:bg-red-500/10" 
