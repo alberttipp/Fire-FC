@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield } from 'lucide-react';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
 import TrainingView from '../components/dashboard/TrainingView';
@@ -9,11 +9,13 @@ import ChatView from '../components/dashboard/ChatView';
 import CalendarHub from '../components/dashboard/CalendarHub';
 import FinancialView from '../components/dashboard/FinancialView';
 import TryoutHub from '../components/dashboard/TryoutHub';
+import AdminPanel from '../components/AdminPanel';
 
 const Dashboard = () => {
     const { user, profile, signOut } = useAuth(); // Added profile
     const navigate = useNavigate();
     const [currentView, setCurrentView] = useState('club');
+    const [showAdminPanel, setShowAdminPanel] = useState(false);
 
     const handleLogout = async () => {
         await signOut();
@@ -131,6 +133,17 @@ const Dashboard = () => {
                             </div>
                         </div>
 
+                        {/* Admin Panel Button (Manager Only) */}
+                        {isManager && (
+                            <button 
+                                onClick={() => setShowAdminPanel(true)} 
+                                className="text-red-400 hover:text-red-300 transition-colors p-1.5 rounded hover:bg-red-500/10" 
+                                title="Admin Panel"
+                            >
+                                <Shield className="w-5 h-5" />
+                            </button>
+                        )}
+
                         <button onClick={handleLogout} className="text-gray-400 hover:text-red-400 transition-colors" title="Logout">
                             <LogOut className="w-5 h-5" />
                         </button>
@@ -142,6 +155,9 @@ const Dashboard = () => {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
                 {renderView()}
             </main>
+
+            {/* Admin Panel Modal */}
+            {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
         </div>
     );
 };

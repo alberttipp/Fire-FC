@@ -461,10 +461,10 @@ const Login = () => {
                     </form>
                 )}
 
-                {/* Demo Actions (Footer) - Only show in development */}
-                {import.meta.env.DEV && (
+                {/* Demo Actions (Footer) - Only show if VITE_USE_DEMO_DATA is true */}
+                {import.meta.env.VITE_USE_DEMO_DATA === 'true' && (
                     <div className="mt-8 pt-4 border-t border-white/5 text-center opacity-50">
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Dev Mode</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Demo Mode</p>
                         <div className="flex justify-center gap-4 mt-2">
                             <Users
                                 className="w-4 h-4 text-white/50 cursor-pointer hover:text-brand-green"

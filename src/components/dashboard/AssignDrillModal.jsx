@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Sparkles, User, Users, Check, Search, Filter } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { drills as mockDrills } from '../../data/drills';
 import { useAuth } from '../../context/AuthContext';
 
 const AssignDrillModal = ({ onClose }) => {
@@ -15,17 +14,18 @@ const AssignDrillModal = ({ onClose }) => {
     const [timeframe, setTimeframe] = useState(7); // Default 1 week
     const [generating, setGenerating] = useState(false);
 
-    // Fetch Drills on Mount
+    // Fetch Drills on Mount - NO mock fallback
     useEffect(() => {
         const fetchDrills = async () => {
             const { data, error } = await supabase
                 .from('drills')
                 .select('*');
 
-            if (error || !data || data.length === 0) {
-                setDrills(mockDrills);
+            if (error) {
+                console.error("Error fetching drills:", error.message);
+                setDrills([]);
             } else {
-                setDrills(data);
+                setDrills(data || []);
             }
         };
         fetchDrills();

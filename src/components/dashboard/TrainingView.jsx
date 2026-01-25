@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, Play, Plus, Calendar, Users, ClipboardList, Mic } from 'lucide-react';
+import { Dumbbell, Play, Plus, Calendar, Users, ClipboardList, Mic, AlertCircle } from 'lucide-react';
 import AssignDrillModal from './AssignDrillModal';
 import CreateEventModal from './CreateEventModal';
 import PracticeSessionBuilder from './PracticeSessionBuilder';
 import TrainingClients from './TrainingClients';
-import { drills as mockDrills } from '../../data/drills';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
@@ -14,11 +13,14 @@ const TrainingView = () => {
     const [showCreateTrainingModal, setShowCreateTrainingModal] = useState(false);
     const [showPracticeBuilder, setShowPracticeBuilder] = useState(false);
     const [drills, setDrills] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('drills');
     const [teamId, setTeamId] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
+            setLoading(true);
+            
             // Get team ID
             if (profile?.team_id) {
                 setTeamId(profile.team_id);
@@ -30,17 +32,19 @@ const TrainingView = () => {
                 if (teams?.length) setTeamId(teams[0].id);
             }
 
-            // Fetch drills
+            // Fetch drills from database only - NO mock fallback
             const { data, error } = await supabase
                 .from('drills')
                 .select('*');
 
-            if (error || !data || data.length === 0) {
-                console.log("Using mock drills due to:", error?.message || "No data");
-                setDrills(mockDrills);
+            if (error) {
+                console.error("Error fetching drills:", error.message);
+                setDrills([]);
             } else {
-                setDrills(data);
+                setDrills(data || []);
             }
+            
+            setLoading(false);
         };
 
         fetchData();
