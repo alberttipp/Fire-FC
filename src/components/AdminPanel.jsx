@@ -55,16 +55,16 @@ const AdminPanel = ({ onClose }) => {
             setResult({ status: 'progress', message: 'Step 1/7: Clearing existing data...' });
 
             // Clear FK references first
-            await supabase.from('profiles').update({ team_id: null }).neq('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('profiles').update({ team_id: null }).not('id', 'is', null);
 
-            // Delete in correct order for FK constraints
-            await supabase.from('event_rsvps').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('practice_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('scouting_notes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('tryout_waitlist').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('teams').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // Delete in correct order for FK constraints - use gte to match all UUIDs
+            await supabase.from('event_rsvps').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('practice_sessions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('scouting_notes').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('tryout_waitlist').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('events').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('players').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('teams').delete().gte('id', '00000000-0000-0000-0000-000000000000');
 
             // ============================================================
             // STEP 2: Create Teams
@@ -108,62 +108,62 @@ const AdminPanel = ({ onClose }) => {
 
             // ============================================================
             // STEP 3: Create Players
-            // SCHEMA: id, team_id, first_name, last_name, number (TEXT!), avatar_url, pin_code, stats (JSONB)
+            // SCHEMA: id, team_id, first_name, last_name, jersey_number (INT), position, avatar_url, overall_rating, training_minutes, pace, shooting, passing, dribbling, defending, physical
             // ============================================================
             setResult({ status: 'progress', message: 'Step 3/7: Creating 42 players...' });
 
             // U11 Players (Bo's team)
             const u11Players = [
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Bo', last_name: 'Tipp', number: '58', stats: { position: 'Forward', overall_rating: 72, training_minutes: 340 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Marcus', last_name: 'Chen', number: '10', stats: { position: 'Midfielder', overall_rating: 70, training_minutes: 310 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Jake', last_name: 'Williams', number: '4', stats: { position: 'Defender', overall_rating: 68, training_minutes: 290 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Tyler', last_name: 'Johnson', number: '1', stats: { position: 'Goalkeeper', overall_rating: 71, training_minutes: 320 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Ethan', last_name: 'Brown', number: '9', stats: { position: 'Forward', overall_rating: 67, training_minutes: 275 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Lucas', last_name: 'Garcia', number: '8', stats: { position: 'Midfielder', overall_rating: 66, training_minutes: 260 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Noah', last_name: 'Martinez', number: '5', stats: { position: 'Defender', overall_rating: 65, training_minutes: 245 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Liam', last_name: 'Davis', number: '6', stats: { position: 'Midfielder', overall_rating: 64, training_minutes: 230 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Mason', last_name: 'Rodriguez', number: '11', stats: { position: 'Forward', overall_rating: 63, training_minutes: 215 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Oliver', last_name: 'Wilson', number: '3', stats: { position: 'Defender', overall_rating: 62, training_minutes: 200 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'James', last_name: 'Anderson', number: '7', stats: { position: 'Midfielder', overall_rating: 61, training_minutes: 185 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Benjamin', last_name: 'Thomas', number: '2', stats: { position: 'Defender', overall_rating: 60, training_minutes: 170 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Henry', last_name: 'Jackson', number: '14', stats: { position: 'Midfielder', overall_rating: 59, training_minutes: 155 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Alexander', last_name: 'White', number: '22', stats: { position: 'Goalkeeper', overall_rating: 58, training_minutes: 140 } },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Bo', last_name: 'Tipp', jersey_number: 58, position: 'Forward', overall_rating: 72, training_minutes: 340, pace: 75, shooting: 78, passing: 70, dribbling: 74, defending: 45, physical: 68 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Marcus', last_name: 'Chen', jersey_number: 10, position: 'Midfielder', overall_rating: 70, training_minutes: 310, pace: 68, shooting: 65, passing: 78, dribbling: 75, defending: 60, physical: 62 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Jake', last_name: 'Williams', jersey_number: 4, position: 'Defender', overall_rating: 68, training_minutes: 290, pace: 65, shooting: 45, passing: 62, dribbling: 55, defending: 78, physical: 72 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Tyler', last_name: 'Johnson', jersey_number: 1, position: 'Goalkeeper', overall_rating: 71, training_minutes: 320, pace: 55, shooting: 35, passing: 58, dribbling: 40, defending: 75, physical: 70 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Ethan', last_name: 'Brown', jersey_number: 9, position: 'Forward', overall_rating: 67, training_minutes: 275, pace: 72, shooting: 70, passing: 62, dribbling: 68, defending: 42, physical: 65 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Lucas', last_name: 'Garcia', jersey_number: 8, position: 'Midfielder', overall_rating: 66, training_minutes: 260, pace: 65, shooting: 60, passing: 72, dribbling: 68, defending: 58, physical: 60 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Noah', last_name: 'Martinez', jersey_number: 5, position: 'Defender', overall_rating: 65, training_minutes: 245, pace: 62, shooting: 40, passing: 58, dribbling: 52, defending: 75, physical: 70 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Liam', last_name: 'Davis', jersey_number: 6, position: 'Midfielder', overall_rating: 64, training_minutes: 230, pace: 64, shooting: 58, passing: 68, dribbling: 65, defending: 55, physical: 58 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Mason', last_name: 'Rodriguez', jersey_number: 11, position: 'Forward', overall_rating: 63, training_minutes: 215, pace: 70, shooting: 65, passing: 58, dribbling: 62, defending: 40, physical: 60 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Oliver', last_name: 'Wilson', jersey_number: 3, position: 'Defender', overall_rating: 62, training_minutes: 200, pace: 60, shooting: 38, passing: 55, dribbling: 50, defending: 72, physical: 68 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'James', last_name: 'Anderson', jersey_number: 7, position: 'Midfielder', overall_rating: 61, training_minutes: 185, pace: 62, shooting: 55, passing: 65, dribbling: 60, defending: 52, physical: 55 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Benjamin', last_name: 'Thomas', jersey_number: 2, position: 'Defender', overall_rating: 60, training_minutes: 170, pace: 58, shooting: 35, passing: 52, dribbling: 48, defending: 70, physical: 65 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Henry', last_name: 'Jackson', jersey_number: 14, position: 'Midfielder', overall_rating: 59, training_minutes: 155, pace: 60, shooting: 52, passing: 62, dribbling: 58, defending: 50, physical: 52 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Alexander', last_name: 'White', jersey_number: 22, position: 'Goalkeeper', overall_rating: 58, training_minutes: 140, pace: 50, shooting: 30, passing: 52, dribbling: 35, defending: 68, physical: 62 },
             ];
 
             // U10 Players
             const u10Players = [
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Ryan', last_name: 'Smith', number: '10', stats: { position: 'Midfielder', overall_rating: 62, training_minutes: 220 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Dylan', last_name: 'Lee', number: '7', stats: { position: 'Forward', overall_rating: 60, training_minutes: 205 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Jack', last_name: 'Harris', number: '4', stats: { position: 'Defender', overall_rating: 58, training_minutes: 190 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Owen', last_name: 'Clark', number: '1', stats: { position: 'Goalkeeper', overall_rating: 60, training_minutes: 210 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Daniel', last_name: 'Lewis', number: '9', stats: { position: 'Forward', overall_rating: 57, training_minutes: 175 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Matthew', last_name: 'Walker', number: '8', stats: { position: 'Midfielder', overall_rating: 56, training_minutes: 160 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Joseph', last_name: 'Hall', number: '5', stats: { position: 'Defender', overall_rating: 55, training_minutes: 145 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Samuel', last_name: 'Allen', number: '11', stats: { position: 'Forward', overall_rating: 54, training_minutes: 130 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'David', last_name: 'Young', number: '6', stats: { position: 'Midfielder', overall_rating: 53, training_minutes: 115 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Andrew', last_name: 'King', number: '3', stats: { position: 'Defender', overall_rating: 52, training_minutes: 100 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Christopher', last_name: 'Wright', number: '14', stats: { position: 'Midfielder', overall_rating: 51, training_minutes: 85 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Joshua', last_name: 'Lopez', number: '2', stats: { position: 'Defender', overall_rating: 50, training_minutes: 70 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Jayden', last_name: 'Hill', number: '17', stats: { position: 'Forward', overall_rating: 49, training_minutes: 55 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Aiden', last_name: 'Scott', number: '22', stats: { position: 'Goalkeeper', overall_rating: 48, training_minutes: 40 } },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Ryan', last_name: 'Smith', jersey_number: 10, position: 'Midfielder', overall_rating: 62, training_minutes: 220, pace: 60, shooting: 55, passing: 68, dribbling: 65, defending: 52, physical: 55 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Dylan', last_name: 'Lee', jersey_number: 7, position: 'Forward', overall_rating: 60, training_minutes: 205, pace: 65, shooting: 62, passing: 55, dribbling: 60, defending: 38, physical: 52 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Jack', last_name: 'Harris', jersey_number: 4, position: 'Defender', overall_rating: 58, training_minutes: 190, pace: 55, shooting: 35, passing: 52, dribbling: 48, defending: 68, physical: 62 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Owen', last_name: 'Clark', jersey_number: 1, position: 'Goalkeeper', overall_rating: 60, training_minutes: 210, pace: 48, shooting: 28, passing: 50, dribbling: 35, defending: 65, physical: 58 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Daniel', last_name: 'Lewis', jersey_number: 9, position: 'Forward', overall_rating: 57, training_minutes: 175, pace: 62, shooting: 58, passing: 50, dribbling: 55, defending: 35, physical: 50 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Matthew', last_name: 'Walker', jersey_number: 8, position: 'Midfielder', overall_rating: 56, training_minutes: 160, pace: 55, shooting: 50, passing: 60, dribbling: 58, defending: 48, physical: 48 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Joseph', last_name: 'Hall', jersey_number: 5, position: 'Defender', overall_rating: 55, training_minutes: 145, pace: 52, shooting: 32, passing: 48, dribbling: 45, defending: 65, physical: 58 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Samuel', last_name: 'Allen', jersey_number: 11, position: 'Forward', overall_rating: 54, training_minutes: 130, pace: 58, shooting: 55, passing: 48, dribbling: 52, defending: 32, physical: 45 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'David', last_name: 'Young', jersey_number: 6, position: 'Midfielder', overall_rating: 53, training_minutes: 115, pace: 52, shooting: 48, passing: 58, dribbling: 55, defending: 45, physical: 45 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Andrew', last_name: 'King', jersey_number: 3, position: 'Defender', overall_rating: 52, training_minutes: 100, pace: 50, shooting: 30, passing: 45, dribbling: 42, defending: 62, physical: 55 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Christopher', last_name: 'Wright', jersey_number: 14, position: 'Midfielder', overall_rating: 51, training_minutes: 85, pace: 50, shooting: 45, passing: 55, dribbling: 52, defending: 42, physical: 42 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Joshua', last_name: 'Lopez', jersey_number: 2, position: 'Defender', overall_rating: 50, training_minutes: 70, pace: 48, shooting: 28, passing: 42, dribbling: 40, defending: 60, physical: 52 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Jayden', last_name: 'Hill', jersey_number: 17, position: 'Forward', overall_rating: 49, training_minutes: 55, pace: 55, shooting: 50, passing: 42, dribbling: 48, defending: 28, physical: 42 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Aiden', last_name: 'Scott', jersey_number: 22, position: 'Goalkeeper', overall_rating: 48, training_minutes: 40, pace: 42, shooting: 22, passing: 42, dribbling: 30, defending: 58, physical: 50 },
             ];
 
             // U12 Players
             const u12Players = [
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'William', last_name: 'Green', number: '10', stats: { position: 'Midfielder', overall_rating: 74, training_minutes: 380 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Michael', last_name: 'Adams', number: '9', stats: { position: 'Forward', overall_rating: 73, training_minutes: 365 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Elijah', last_name: 'Baker', number: '4', stats: { position: 'Defender', overall_rating: 72, training_minutes: 350 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Sebastian', last_name: 'Gonzalez', number: '1', stats: { position: 'Goalkeeper', overall_rating: 74, training_minutes: 370 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Carter', last_name: 'Nelson', number: '11', stats: { position: 'Forward', overall_rating: 70, training_minutes: 320 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Wyatt', last_name: 'Carter', number: '8', stats: { position: 'Midfielder', overall_rating: 69, training_minutes: 305 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Jack', last_name: 'Mitchell', number: '5', stats: { position: 'Defender', overall_rating: 68, training_minutes: 290 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Luke', last_name: 'Perez', number: '7', stats: { position: 'Forward', overall_rating: 67, training_minutes: 275 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Grayson', last_name: 'Roberts', number: '6', stats: { position: 'Midfielder', overall_rating: 66, training_minutes: 260 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Levi', last_name: 'Turner', number: '3', stats: { position: 'Defender', overall_rating: 65, training_minutes: 245 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Isaac', last_name: 'Phillips', number: '14', stats: { position: 'Midfielder', overall_rating: 64, training_minutes: 230 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Gabriel', last_name: 'Campbell', number: '2', stats: { position: 'Defender', overall_rating: 63, training_minutes: 215 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Julian', last_name: 'Parker', number: '17', stats: { position: 'Forward', overall_rating: 62, training_minutes: 200 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Lincoln', last_name: 'Evans', number: '22', stats: { position: 'Goalkeeper', overall_rating: 61, training_minutes: 185 } },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'William', last_name: 'Green', jersey_number: 10, position: 'Midfielder', overall_rating: 74, training_minutes: 380, pace: 72, shooting: 68, passing: 80, dribbling: 78, defending: 62, physical: 68 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Michael', last_name: 'Adams', jersey_number: 9, position: 'Forward', overall_rating: 73, training_minutes: 365, pace: 78, shooting: 80, passing: 68, dribbling: 75, defending: 42, physical: 70 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Elijah', last_name: 'Baker', jersey_number: 4, position: 'Defender', overall_rating: 72, training_minutes: 350, pace: 68, shooting: 45, passing: 65, dribbling: 58, defending: 82, physical: 75 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Sebastian', last_name: 'Gonzalez', jersey_number: 1, position: 'Goalkeeper', overall_rating: 74, training_minutes: 370, pace: 58, shooting: 35, passing: 62, dribbling: 42, defending: 80, physical: 72 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Carter', last_name: 'Nelson', jersey_number: 11, position: 'Forward', overall_rating: 70, training_minutes: 320, pace: 75, shooting: 72, passing: 65, dribbling: 70, defending: 40, physical: 65 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Wyatt', last_name: 'Carter', jersey_number: 8, position: 'Midfielder', overall_rating: 69, training_minutes: 305, pace: 68, shooting: 62, passing: 75, dribbling: 72, defending: 58, physical: 62 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Jack', last_name: 'Mitchell', jersey_number: 5, position: 'Defender', overall_rating: 68, training_minutes: 290, pace: 65, shooting: 42, passing: 60, dribbling: 55, defending: 78, physical: 72 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Luke', last_name: 'Perez', jersey_number: 7, position: 'Forward', overall_rating: 67, training_minutes: 275, pace: 72, shooting: 70, passing: 62, dribbling: 68, defending: 38, physical: 62 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Grayson', last_name: 'Roberts', jersey_number: 6, position: 'Midfielder', overall_rating: 66, training_minutes: 260, pace: 65, shooting: 58, passing: 72, dribbling: 68, defending: 55, physical: 58 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Levi', last_name: 'Turner', jersey_number: 3, position: 'Defender', overall_rating: 65, training_minutes: 245, pace: 62, shooting: 38, passing: 58, dribbling: 52, defending: 75, physical: 70 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Isaac', last_name: 'Phillips', jersey_number: 14, position: 'Midfielder', overall_rating: 64, training_minutes: 230, pace: 62, shooting: 55, passing: 68, dribbling: 65, defending: 52, physical: 55 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Gabriel', last_name: 'Campbell', jersey_number: 2, position: 'Defender', overall_rating: 63, training_minutes: 215, pace: 60, shooting: 35, passing: 55, dribbling: 50, defending: 72, physical: 68 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Julian', last_name: 'Parker', jersey_number: 17, position: 'Forward', overall_rating: 62, training_minutes: 200, pace: 68, shooting: 65, passing: 58, dribbling: 62, defending: 35, physical: 58 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Lincoln', last_name: 'Evans', jersey_number: 22, position: 'Goalkeeper', overall_rating: 61, training_minutes: 185, pace: 52, shooting: 30, passing: 55, dribbling: 38, defending: 70, physical: 65 },
             ];
 
             const { error: playersError } = await supabase.from('players').insert([...u11Players, ...u10Players, ...u12Players]);
