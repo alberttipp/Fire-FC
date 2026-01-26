@@ -72,8 +72,8 @@ const FireBall = ({ onClose }) => {
             try {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('id, first_name, last_name, number, avatar_url')
-                    .order('number');
+                    .select('id, first_name, last_name, jersey_number, avatar_url')
+                    .order('jersey_number');
 
                 if (error) {
                     console.error('Error fetching roster:', error);
@@ -87,7 +87,7 @@ const FireBall = ({ onClose }) => {
                         firstName: p.first_name,
                         lastName: p.last_name,
                         photo: p.avatar_url || null,
-                        number: p.number || 0,
+                        number: p.jersey_number || 0,
                     }));
                     setRoster(players);
                 }
