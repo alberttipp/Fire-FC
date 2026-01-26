@@ -58,6 +58,13 @@ const AdminPanel = ({ onClose }) => {
             await supabase.from('profiles').update({ team_id: null }).not('id', 'is', null);
 
             // Delete in correct order for FK constraints - use gte to match all UUIDs
+            await supabase.from('message_read_receipts').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('messages').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('channels').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('player_stats').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('player_badges').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('evaluations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('assignments').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('event_rsvps').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('practice_sessions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('scouting_notes').delete().gte('id', '00000000-0000-0000-0000-000000000000');
@@ -65,6 +72,8 @@ const AdminPanel = ({ onClose }) => {
             await supabase.from('events').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('players').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('teams').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('badges').delete().not('id', 'is', null);
+            await supabase.from('drills').delete().gte('id', '00000000-0000-0000-0000-000000000000');
 
             // ============================================================
             // STEP 2: Create Teams
@@ -341,13 +350,173 @@ const AdminPanel = ({ onClose }) => {
             // tryout_waitlist SCHEMA: name, email, phone, age_group, notes, status
             await supabase.from('tryout_waitlist').insert([
                 { name: 'Tommy Richards', email: 'tommy@email.com', phone: '815-555-0101', age_group: 'U11', notes: 'Midfielder - club experience', status: 'pending' },
-                { name: 'Kevin Park', email: 'kpark@email.com', phone: '815-555-0102', age_group: 'U10', notes: 'Athletic forward', status: 'contacted' }
+                { name: 'Kevin Park', email: 'kpark@email.com', phone: '815-555-0102', age_group: 'U10', notes: 'Athletic forward', status: 'contacted' },
+                { name: 'Sofia Garcia', email: 'sofia@email.com', phone: '815-555-0103', age_group: 'U11', notes: 'Strong defender, rec league star', status: 'scheduled' },
+                { name: 'Aiden Murphy', email: 'amurphy@email.com', phone: '815-555-0104', age_group: 'U12', notes: 'Goalkeeper with travel experience', status: 'pending' }
             ]);
 
             // ============================================================
-            // STEP 7: Reassign current user to U11 team
+            // STEP 7: Seed Drills Library (19 drills)
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 7/7: Assigning your profile to U11 team...' });
+            setResult({ status: 'progress', message: 'Step 7/12: Creating drill library...' });
+
+            const drillsToInsert = [
+                { title: 'Foundation Taps', description: 'Basic ball control with alternating feet taps on top of ball.', skill: 'Ball Control', category: 'Technical', players: 'Solo', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Toe Taps (Stationary)', description: 'Quick toe taps on ball while stationary to build foot speed.', skill: 'Agility', category: 'Technical', players: 'Solo', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Juggling Challenge', description: 'Keep ball in air using feet, thighs, and head. Track personal best.', skill: 'Ball Control', category: 'Technical', players: 'Solo', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Figure 8 Dribbling', description: 'Dribble ball in figure 8 pattern around two cones.', skill: 'Dribbling', category: 'Technical', players: 'Solo', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
+                { title: 'L-Turns & Cruyffs', description: 'Practice L-turn and Cruyff turn moves to beat defenders.', skill: 'Dribbling', category: 'Technical', players: 'Solo', duration_minutes: 12, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Wall Passing', description: 'Pass against wall and control return. Work both feet.', skill: 'Passing', category: 'Technical', players: 'Solo', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
+                { title: '1-Minute Speed Dribble', description: 'Dribble through cone course as fast as possible. Time yourself.', skill: 'Speed', category: 'Fitness', players: 'Solo', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Turn & Burn', description: 'Receive ball, turn quickly, and accelerate away.', skill: 'Transitions', category: 'Technical', players: 'Solo', duration_minutes: 8, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Triangle Passing', description: 'Two players pass in triangle pattern, moving to next cone after pass.', skill: 'Passing', category: 'Technical', players: '2 Players', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Mirror Drill', description: 'One player leads, other mirrors movements. Switch roles.', skill: 'Agility/Defense', category: 'Technical', players: '2 Players', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
+                { title: 'One-Touch Circle', description: 'Quick one-touch passing in circular pattern.', skill: 'Passing', category: 'Technical', players: '2 Players', duration_minutes: 12, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Pressure Shielding', description: 'Shield ball from defender using body position.', skill: 'Strength', category: 'Physical', players: '2 Players', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Shadow Defending', description: 'Stay goal-side and track attacker movements.', skill: 'Positioning', category: 'Tactical', players: 'w/ Sibling', duration_minutes: 8, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Reactive Sprinting', description: 'React to partner commands and sprint in different directions.', skill: 'Speed', category: 'Fitness', players: 'w/ Sibling', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Fox Tails (Chasey)', description: 'Tuck shirt in back and try to grab opponents tail while protecting yours.', skill: 'Agility', category: 'Fun', players: 'w/ Sibling', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Parent Feed Volleys', description: 'Parent tosses ball, player volleys back. Work on technique.', skill: 'Control/Shooting', category: 'Technical', players: 'w/ Parent', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Red Light, Green Light', description: 'Dribble on green light, stop ball on red light.', skill: 'Dribbling', category: 'Fun', players: 'w/ Parent', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Target Passing', description: 'Pass ball to hit targets set up by parent.', skill: 'Passing', category: 'Technical', players: 'w/ Parent', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Penalty Shootout', description: 'Practice penalty kicks with parent as keeper.', skill: 'Shooting', category: 'Fun', players: 'w/ Parent', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' }
+            ];
+
+            const { data: insertedDrills, error: drillsError } = await supabase.from('drills').insert(drillsToInsert).select();
+            if (drillsError) throw new Error(`Drills: ${drillsError.message}`);
+
+            // ============================================================
+            // STEP 8: Seed Badges (15 badges)
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 8/12: Creating badges...' });
+
+            const badgesToInsert = [
+                { id: 'clinical_finisher', name: 'Clinical Finisher', icon: '🎯', description: 'Scored a goal or showed excellent shooting technique.', category: 'Performance' },
+                { id: 'lockdown_defender', name: 'Lockdown Defender', icon: '🛡️', description: 'Unbeatable in 1v1 situations or made game-saving tackles.', category: 'Performance' },
+                { id: 'the_great_wall', name: 'The Great Wall', icon: '🧱', description: 'Clean sheet or commanded the box effectively (GK).', category: 'Performance' },
+                { id: 'playmaker', name: 'Playmaker', icon: '🪄', description: 'Unlocked the defense with creative passing or assists.', category: 'Performance' },
+                { id: 'interceptor', name: 'Interceptor', icon: '🛑', description: 'Consistently read the game to break up opponent play.', category: 'Performance' },
+                { id: 'two_footed', name: 'Two-Footed', icon: '🔄', description: 'Successfully used weak foot to pass or shoot.', category: 'Technical' },
+                { id: 'most_improved', name: 'Most Improved', icon: '📈', description: 'Showed the most progress in a specific skill.', category: 'Technical' },
+                { id: 'skill_master', name: 'Skill Master', icon: '🧪', description: 'Mastered a new skill move and used it effectively.', category: 'Technical' },
+                { id: 'engine_room', name: 'Engine Room', icon: '🏃', description: 'Highest work rate and covered the most ground.', category: 'Technical' },
+                { id: 'composure', name: 'Composure', icon: '🧘', description: 'Stayed calm under heavy pressure.', category: 'Technical' },
+                { id: 'the_general', name: 'The General', icon: '📣', description: 'Exceptional communication and organization.', category: 'Culture' },
+                { id: 'ultimate_teammate', name: 'Ultimate Teammate', icon: '🤝', description: 'Encouraged teammates and lifted spirits.', category: 'Culture' },
+                { id: 'fire_starter', name: 'Fire Starter', icon: '🔥', description: 'Brought the most energy and hype to the session.', category: 'Culture' },
+                { id: 'student_of_the_game', name: 'Student of the Game', icon: '📚', description: 'Asked great questions and understood the "Why".', category: 'Culture' },
+                { id: 'the_professional', name: 'The Professional', icon: '⏰', description: 'Arrived early, fully geared up, and ready to work.', category: 'Culture' }
+            ];
+
+            const { error: badgesError } = await supabase.from('badges').insert(badgesToInsert);
+            if (badgesError) throw new Error(`Badges: ${badgesError.message}`);
+
+            // ============================================================
+            // STEP 9: Seed Assignments (Homework for players)
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 9/12: Creating homework assignments...' });
+
+            // Get players and drills for assignments
+            const { data: allPlayersForAssign } = await supabase.from('players').select('id, team_id, first_name');
+            const u11PlayersForAssign = allPlayersForAssign?.filter(p => p.team_id === 'd02aba3e-3c30-430f-9377-3b334cffcd04') || [];
+
+            if (insertedDrills && insertedDrills.length > 0 && u11PlayersForAssign.length > 0) {
+                const assignmentsToInsert = [];
+                const today = new Date();
+
+                // Assign first 5 drills to first 5 U11 players
+                for (let i = 0; i < Math.min(5, u11PlayersForAssign.length); i++) {
+                    const dueDate = new Date(today);
+                    dueDate.setDate(dueDate.getDate() + 3 + i);
+
+                    assignmentsToInsert.push({
+                        drill_id: insertedDrills[i % insertedDrills.length].id,
+                        player_id: u11PlayersForAssign[i].id,
+                        team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04',
+                        due_date: dueDate.toISOString(),
+                        status: i < 2 ? 'completed' : 'pending',
+                        completed_at: i < 2 ? new Date().toISOString() : null
+                    });
+                }
+
+                await supabase.from('assignments').insert(assignmentsToInsert);
+            }
+
+            // ============================================================
+            // STEP 10: Seed Player Badges (Earned badges)
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 10/12: Awarding player badges...' });
+
+            if (u11PlayersForAssign.length > 0) {
+                const playerBadgesToInsert = [
+                    { player_id: u11PlayersForAssign[0]?.id, badge_id: 'clinical_finisher', notes: 'Hat trick vs Lions FC!' },
+                    { player_id: u11PlayersForAssign[0]?.id, badge_id: 'fire_starter', notes: 'Amazing energy at Tuesday practice' },
+                    { player_id: u11PlayersForAssign[1]?.id, badge_id: 'playmaker', notes: '3 assists in last game' },
+                    { player_id: u11PlayersForAssign[2]?.id, badge_id: 'lockdown_defender', notes: 'Shutdown their best player' },
+                    { player_id: u11PlayersForAssign[3]?.id, badge_id: 'the_great_wall', notes: 'Clean sheet!' },
+                    { player_id: u11PlayersForAssign[4]?.id, badge_id: 'most_improved', notes: 'Huge improvement in passing' },
+                ].filter(b => b.player_id);
+
+                await supabase.from('player_badges').insert(playerBadgesToInsert);
+            }
+
+            // ============================================================
+            // STEP 11: Seed Chat Channels & Messages
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 11/12: Creating chat channels & messages...' });
+
+            // Create channels for U11 team
+            const channelsToInsert = [
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', name: 'Team Chat', type: 'team', description: 'General team discussion' },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', name: 'Parents Only', type: 'parents', description: 'Parent coordination' },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', name: 'Announcements', type: 'announcement', description: 'Important team announcements' }
+            ];
+
+            const { data: insertedChannels, error: channelsError } = await supabase.from('channels').insert(channelsToInsert).select();
+            if (channelsError) console.log('Channels may already exist:', channelsError.message);
+
+            // Seed sample messages
+            if (insertedChannels && insertedChannels.length > 0) {
+                const teamChannel = insertedChannels.find(c => c.type === 'team');
+                const announcementChannel = insertedChannels.find(c => c.type === 'announcement');
+
+                const messagesToInsert = [
+                    { channel_id: announcementChannel?.id, sender_name: 'Coach Dave', sender_role: 'coach', content: '📢 REMINDER: Saturday game vs Eagles at 10am. Arrive by 9:15am. Wear HOME kit (red).', message_type: 'announcement', is_urgent: true },
+                    { channel_id: announcementChannel?.id, sender_name: 'Coach Dave', sender_role: 'coach', content: 'Great practice today everyone! Keep working on those first touches at home.', message_type: 'announcement' },
+                    { channel_id: teamChannel?.id, sender_name: 'Coach Dave', sender_role: 'coach', content: 'Looking forward to seeing everyone at practice Tuesday!', message_type: 'text' },
+                    { channel_id: teamChannel?.id, sender_name: 'Sarah (Bo\'s Mom)', sender_role: 'parent', content: 'Bo will be 5 minutes late on Tuesday - dentist appointment.', message_type: 'text' },
+                    { channel_id: teamChannel?.id, sender_name: 'Coach Dave', sender_role: 'coach', content: 'No problem Sarah, thanks for letting me know!', message_type: 'text' },
+                    { channel_id: teamChannel?.id, sender_name: 'Mike (Marcus\'s Dad)', sender_role: 'parent', content: 'Can someone carpool from the north side on Saturday?', message_type: 'text' },
+                    { channel_id: teamChannel?.id, sender_name: 'Lisa (Jake\'s Mom)', sender_role: 'parent', content: 'We can pick up Marcus! We drive right by your area.', message_type: 'text' }
+                ].filter(m => m.channel_id);
+
+                await supabase.from('messages').insert(messagesToInsert);
+            }
+
+            // ============================================================
+            // STEP 12: Seed Player Stats & Evaluations
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 12/12: Creating player stats & evaluations...' });
+
+            // Player stats
+            if (u11PlayersForAssign.length > 0) {
+                const statsToInsert = u11PlayersForAssign.map((player, idx) => ({
+                    player_id: player.id,
+                    xp: Math.floor(Math.random() * 500) + 100,
+                    level: Math.floor(idx / 3) + 1,
+                    games_played: Math.floor(Math.random() * 10) + 5,
+                    goals: player.first_name === 'Bo' ? 8 : Math.floor(Math.random() * 5),
+                    assists: Math.floor(Math.random() * 4),
+                    clean_sheets: 0
+                }));
+
+                await supabase.from('player_stats').insert(statsToInsert);
+            }
+
+            // ============================================================
+            // STEP 13: Reassign current user to U11 team
+            // ============================================================
+            setResult({ status: 'progress', message: 'Finalizing: Assigning your profile to U11 team...' });
 
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             if (currentUser) {
@@ -486,7 +655,7 @@ const AdminPanel = ({ onClose }) => {
                         </button>
                     )}
 
-                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • ~60 events • RSVPs</p>
+                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • 60+ events • 19 drills • 15 badges • chat channels</p>
                 </div>
             </div>
         </div>
