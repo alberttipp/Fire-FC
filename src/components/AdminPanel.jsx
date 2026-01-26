@@ -76,43 +76,9 @@ const AdminPanel = ({ onClose }) => {
             await supabase.from('drills').delete().gte('id', '00000000-0000-0000-0000-000000000000');
 
             // ============================================================
-            // STEP 1.5: Create Demo Profiles (needed for FK constraints)
-            // ============================================================
-            setResult({ status: 'progress', message: 'Step 1.5/7: Creating demo profiles...' });
-
-            // Demo user IDs
-            const DEMO_COACH_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-            const DEMO_PARENT_ID = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c33';
-            const DEMO_MANAGER_ID = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d44';
-
-            // Delete existing demo profiles first, then recreate
-            await supabase.from('profiles').delete().in('id', [DEMO_COACH_ID, DEMO_PARENT_ID, DEMO_MANAGER_ID]);
-
-            const { error: profilesError } = await supabase.from('profiles').insert([
-                {
-                    id: DEMO_COACH_ID,
-                    email: 'coach@firefc.com',
-                    full_name: 'Coach Mike',
-                    role: 'coach'
-                },
-                {
-                    id: DEMO_PARENT_ID,
-                    email: 'parent@firefc.com',
-                    full_name: 'Demo Parent',
-                    role: 'parent'
-                },
-                {
-                    id: DEMO_MANAGER_ID,
-                    email: 'manager@firefc.com',
-                    full_name: 'Club Director',
-                    role: 'manager'
-                }
-            ]);
-            if (profilesError) throw new Error(`Profiles: ${profilesError.message}`);
-
-            // ============================================================
             // STEP 2: Create Teams
             // SCHEMA: id, name, age_group, logo_url, coach_id, join_code, team_type, season
+            // Note: coach_id left null - demo users will see all teams
             // ============================================================
             setResult({ status: 'progress', message: 'Step 2/7: Creating 3 teams...' });
 
@@ -123,8 +89,7 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U11 Boys',
                     join_code: 'FIRE11',
                     team_type: 'club',
-                    season: 'Spring 2026',
-                    coach_id: DEMO_COACH_ID
+                    season: 'Spring 2026'
                 },
                 {
                     id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5',
@@ -132,8 +97,7 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U10 Boys',
                     join_code: 'FIRE10',
                     team_type: 'club',
-                    season: 'Spring 2026',
-                    coach_id: DEMO_COACH_ID
+                    season: 'Spring 2026'
                 },
                 {
                     id: 'f24cdc50-5e52-652b-b599-5d556df502f6',
@@ -141,8 +105,7 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U12 Boys',
                     join_code: 'FIRE12',
                     team_type: 'club',
-                    season: 'Spring 2026',
-                    coach_id: DEMO_COACH_ID
+                    season: 'Spring 2026'
                 },
             ]);
             if (teamsError) throw new Error(`Teams: ${teamsError.message}`);
