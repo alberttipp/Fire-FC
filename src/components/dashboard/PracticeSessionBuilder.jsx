@@ -22,27 +22,7 @@ const DRILL_CATEGORIES = [
     { id: 'cooldown', name: 'Cool Down', icon: Shield, color: 'text-teal-400', bg: 'bg-teal-500/20' },
 ];
 
-// Pre-built drills
-const DRILL_TEMPLATES = [
-    { id: 'wu1', category: 'warmup', name: 'Dynamic Stretching', duration: 5, description: 'Leg swings, arm circles' },
-    { id: 'wu2', category: 'warmup', name: 'Jog & Ball Work', duration: 10, description: 'Light jog with ball' },
-    { id: 'wu3', category: 'warmup', name: 'Rondo (4v1)', duration: 10, description: 'Keep away, 1-2 touch' },
-    { id: 'pa1', category: 'passing', name: 'Passing Pairs', duration: 10, description: 'Inside foot, first touch' },
-    { id: 'pa2', category: 'passing', name: 'Triangle Passing', duration: 10, description: 'Movement after pass' },
-    { id: 'pa3', category: 'passing', name: 'Long Ball Accuracy', duration: 15, description: 'Switching play' },
-    { id: 'te1', category: 'technical', name: 'Dribbling Gates', duration: 10, description: 'Cone weaving' },
-    { id: 'te2', category: 'technical', name: '1v1 Moves', duration: 15, description: 'Step overs, scissors' },
-    { id: 'sh1', category: 'shooting', name: 'Finishing Drill', duration: 15, description: 'Various angles' },
-    { id: 'sh2', category: 'shooting', name: 'Volleys & Headers', duration: 10, description: 'Crossing and finishing' },
-    { id: 'ta1', category: 'tactical', name: 'Positional Play', duration: 15, description: 'Finding space' },
-    { id: 'ta2', category: 'tactical', name: 'Defensive Shape', duration: 15, description: 'Pressing triggers' },
-    { id: 'fi1', category: 'fitness', name: 'Sprint Intervals', duration: 10, description: '30s on, 30s off' },
-    { id: 'fi2', category: 'fitness', name: 'Agility Ladder', duration: 10, description: 'Quick feet' },
-    { id: 'ga1', category: 'game', name: '3v3 Small Sided', duration: 15, description: 'Small goals' },
-    { id: 'ga2', category: 'game', name: 'Full Scrimmage', duration: 20, description: 'Apply concepts' },
-    { id: 'cd1', category: 'cooldown', name: 'Static Stretching', duration: 5, description: 'Hold 20-30 seconds' },
-    { id: 'cd2', category: 'cooldown', name: 'Team Talk', duration: 5, description: 'Recap, questions' },
-];
+// Drills will be loaded from database
 
 // Play alarm sound
 const playAlarm = () => {
@@ -77,6 +57,7 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
     const [showSavedSessions, setShowSavedSessions] = useState(false);
     const [customDrill, setCustomDrill] = useState({ name: '', duration: 10, category: 'technical', description: '' });
     const [expandedCategory, setExpandedCategory] = useState(null);
+    const [drillTemplates, setDrillTemplates] = useState([]);
     
     // Voice input state
     const [isListening, setIsListening] = useState(false);
@@ -131,6 +112,24 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
 
             const { data: sessions } = await sessionsQuery;
             setSavedSessions(sessions || []);
+
+            // Get drills from database
+            const { data: drills } = await supabase
+                .from('drills')
+                .select('*')
+                .order('category', { ascending: true });
+
+            if (drills && drills.length > 0) {
+                // Transform to match expected format
+                const transformed = drills.map(d => ({
+                    id: d.id,
+                    category: d.category || 'technical',
+                    name: d.title,
+                    duration: d.duration_minutes || 10,
+                    description: d.description || ''
+                }));
+                setDrillTemplates(transformed);
+            }
         };
 
         fetchData();
@@ -559,7 +558,7 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                             <div className="p-4 overflow-y-auto max-h-[60vh]">
                                 {DRILL_CATEGORIES.map(cat => {
                                     const Icon = cat.icon;
-                                    const drills = DRILL_TEMPLATES.filter(d => d.category === cat.id);
+                                    const drills = drillTemplates.filter(d => d.category === cat.id);
                                     const isExpanded = expandedCategory === cat.id;
                                     return (
                                         <div key={cat.id} className="mb-2">
