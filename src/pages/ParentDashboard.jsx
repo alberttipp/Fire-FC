@@ -23,6 +23,7 @@ const ParentDashboard = () => {
     const [upcomingEvents, setUpcomingEvents] = useState([]);
     const [assignments, setAssignments] = useState([]);
     const [attendanceStats, setAttendanceStats] = useState({ attended: 0, missed: 0, rate: 0 });
+    const [eventRsvps, setEventRsvps] = useState({}); // { eventId: 'going' | 'not_going' | 'maybe' }
 
     // Fetch children linked to parent
     useEffect(() => {
@@ -153,6 +154,40 @@ const ParentDashboard = () => {
     const handleLogout = async () => {
         await signOut();
         navigate('/login');
+    };
+
+    // Handle RSVP for events
+    const handleRsvp = async (eventId, status) => {
+        if (!selectedChild?.id) return;
+
+        // Optimistic update
+        setEventRsvps(prev => ({ ...prev, [eventId]: status }));
+
+        try {
+            // Upsert RSVP
+            const { error } = await supabase
+                .from('event_rsvps')
+                .upsert({
+                    event_id: eventId,
+                    player_id: selectedChild.id,
+                    status: status,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'event_id,player_id'
+                });
+
+            if (error) {
+                console.error('Error saving RSVP:', error);
+                // Revert on error
+                setEventRsvps(prev => {
+                    const copy = { ...prev };
+                    delete copy[eventId];
+                    return copy;
+                });
+            }
+        } catch (err) {
+            console.error('RSVP Error:', err);
+        }
     };
 
     // Format player data for PlayerCard component
@@ -348,26 +383,62 @@ const ParentDashboard = () => {
                                     <div className="space-y-3">
                                         {upcomingEvents.slice(0, 3).map(event => {
                                             const date = new Date(event.start_time);
+                                            const currentRsvp = eventRsvps[event.id];
                                             return (
-                                                <div key={event.id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
-                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                                        event.type === 'game' ? 'bg-red-500/20 text-red-400' :
-                                                        event.type === 'practice' ? 'bg-brand-green/20 text-brand-green' :
-                                                        'bg-blue-500/20 text-blue-400'
-                                                    }`}>
-                                                        <span className="text-xs font-bold uppercase">{date.getDate()}</span>
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="text-sm text-white font-medium">{event.title}</div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                <div key={event.id} className="p-3 bg-white/5 rounded-lg space-y-2">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                                            event.type === 'game' ? 'bg-red-500/20 text-red-400' :
+                                                            event.type === 'practice' ? 'bg-brand-green/20 text-brand-green' :
+                                                            'bg-blue-500/20 text-blue-400'
+                                                        }`}>
+                                                            <span className="text-xs font-bold uppercase">{date.getDate()}</span>
                                                         </div>
+                                                        <div className="flex-1">
+                                                            <div className="text-sm text-white font-medium">{event.title}</div>
+                                                            <div className="text-xs text-gray-500">
+                                                                {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                            </div>
+                                                        </div>
+                                                        {event.kit_color && (
+                                                            <span className="text-xs text-gray-400 px-2 py-1 bg-white/10 rounded">
+                                                                {event.kit_color}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    {event.kit_color && (
-                                                        <span className="text-xs text-gray-400 px-2 py-1 bg-white/10 rounded">
-                                                            {event.kit_color}
-                                                        </span>
-                                                    )}
+                                                    {/* RSVP Buttons */}
+                                                    <div className="flex gap-2 pl-13">
+                                                        <button
+                                                            onClick={() => handleRsvp(event.id, 'going')}
+                                                            className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
+                                                                currentRsvp === 'going'
+                                                                    ? 'bg-green-500 text-white'
+                                                                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/40'
+                                                            }`}
+                                                        >
+                                                            ✓ Going
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRsvp(event.id, 'maybe')}
+                                                            className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
+                                                                currentRsvp === 'maybe'
+                                                                    ? 'bg-yellow-500 text-white'
+                                                                    : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40'
+                                                            }`}
+                                                        >
+                                                            ? Maybe
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRsvp(event.id, 'not_going')}
+                                                            className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
+                                                                currentRsvp === 'not_going'
+                                                                    ? 'bg-red-500 text-white'
+                                                                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/40'
+                                                            }`}
+                                                        >
+                                                            ✗ Can't Go
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             );
                                         })}

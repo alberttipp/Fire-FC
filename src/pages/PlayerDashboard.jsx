@@ -156,7 +156,9 @@ const PlayerDashboard = () => {
         navigate('/login');
     }
 
-    const handleDrillComplete = async (assignmentId) => {
+    const handleDrillComplete = async (drillOrId) => {
+        // Handle both drill object and plain ID
+        const assignmentId = typeof drillOrId === 'object' ? drillOrId.id : drillOrId;
         console.log("Completing Assignment:", assignmentId);
 
         // Optimistic update
@@ -164,12 +166,22 @@ const PlayerDashboard = () => {
             a.id === assignmentId ? { ...a, status: 'completed' } : a
         ));
 
-        // DB Update
-        if (typeof assignmentId === 'string' && assignmentId.length > 5) {
-            await supabase
-                .from('assignments')
-                .update({ status: 'completed', completed_at: new Date() })
-                .eq('id', assignmentId);
+        // DB Update - only for valid UUIDs
+        if (assignmentId && typeof assignmentId === 'string' && assignmentId.length > 20) {
+            try {
+                const { error } = await supabase
+                    .from('assignments')
+                    .update({ status: 'completed', completed_at: new Date().toISOString() })
+                    .eq('id', assignmentId);
+
+                if (error) {
+                    console.error('Error completing assignment:', error);
+                } else {
+                    console.log('Assignment completed successfully!');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
         }
 
         triggerMessiMode();
