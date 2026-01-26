@@ -81,6 +81,9 @@ const AdminPanel = ({ onClose }) => {
             // ============================================================
             setResult({ status: 'progress', message: 'Step 2/7: Creating 3 teams...' });
 
+            // Demo user IDs for linking
+            const DEMO_COACH_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+
             const { error: teamsError } = await supabase.from('teams').insert([
                 {
                     id: 'd02aba3e-3c30-430f-9377-3b334cffcd04',
@@ -88,7 +91,8 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U11 Boys',
                     join_code: 'FIRE11',
                     team_type: 'club',
-                    season: 'Spring 2026'
+                    season: 'Spring 2026',
+                    coach_id: DEMO_COACH_ID
                 },
                 {
                     id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5',
@@ -96,7 +100,8 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U10 Boys',
                     join_code: 'FIRE10',
                     team_type: 'club',
-                    season: 'Spring 2026'
+                    season: 'Spring 2026',
+                    coach_id: DEMO_COACH_ID
                 },
                 {
                     id: 'f24cdc50-5e52-652b-b599-5d556df502f6',
@@ -104,7 +109,8 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U12 Boys',
                     join_code: 'FIRE12',
                     team_type: 'club',
-                    season: 'Spring 2026'
+                    season: 'Spring 2026',
+                    coach_id: DEMO_COACH_ID
                 },
             ]);
             if (teamsError) throw new Error(`Teams: ${teamsError.message}`);
