@@ -32,6 +32,7 @@ const TeamView = () => {
             // 1. Fetch the Team assigned to this user (Coach)
             // If profile.team_id is set, get that team.
             // Or look up teams where coach_id = user.id
+            // For demo users: fall back to first available team
 
             let teamId = profile?.team_id;
             let teamData = null;
@@ -40,11 +41,25 @@ const TeamView = () => {
                 const { data } = await supabase.from('teams').select('*').eq('id', teamId).single();
                 teamData = data;
             } else {
-                // Should also check if they are the coach of any team (just in case profile isn't updated)
+                // Check if they are the coach of any team
                 const { data } = await supabase.from('teams').select('*').eq('coach_id', user.id).single();
                 if (data) {
                     teamData = data;
                     teamId = data.id;
+                }
+            }
+
+            // Fallback for demo users: get the first available team
+            if (!teamData) {
+                const { data: firstTeam } = await supabase
+                    .from('teams')
+                    .select('*')
+                    .order('age_group', { ascending: true })
+                    .limit(1)
+                    .single();
+                if (firstTeam) {
+                    teamData = firstTeam;
+                    teamId = firstTeam.id;
                 }
             }
 
