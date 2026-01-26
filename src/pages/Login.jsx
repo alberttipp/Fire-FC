@@ -461,31 +461,30 @@ const Login = () => {
                     </form>
                 )}
 
-                {/* Demo Actions (Footer) - Only show if VITE_USE_DEMO_DATA is true */}
-                {import.meta.env.VITE_USE_DEMO_DATA === 'true' && (
-                    <div className="mt-8 pt-4 border-t border-white/5 text-center opacity-50">
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Demo Mode</p>
-                        <div className="flex justify-center gap-4 mt-2">
-                            <Users
-                                className="w-4 h-4 text-white/50 cursor-pointer hover:text-brand-green"
-                                title="Coach View"
-                                onClick={async () => { await loginDemo('coach'); navigate('/dashboard'); }}
-                            />
-                            <Shield
-                                className="w-4 h-4 text-white/50 cursor-pointer hover:text-brand-green"
-                                title="Parent View"
-                                onClick={async () => { await loginDemo('parent'); navigate('/parent-dashboard'); }}
-                            />
-                            <div
-                                className="w-4 h-4 flex items-center justify-center text-white/50 cursor-pointer hover:text-brand-gold font-bold text-xs border border-white/30 rounded"
-                                title="Club Manager"
-                                onClick={async () => { await loginDemo('manager'); navigate('/dashboard'); }}
-                            >
-                                M
-                            </div>
-                        </div>
+                {/* Demo Quick Access - Large visible buttons */}
+                <div className="mt-6 pt-6 border-t-2 border-brand-green/30">
+                    <p className="text-sm text-brand-green font-bold uppercase tracking-widest mb-4 text-center">Quick Demo Access</p>
+                    <div className="grid grid-cols-3 gap-3">
+                        <button
+                            onClick={async () => { await loginDemo('coach'); navigate('/dashboard'); }}
+                            className="py-3 px-2 bg-brand-green/20 hover:bg-brand-green/40 border border-brand-green rounded-lg text-brand-green font-bold text-sm transition-all"
+                        >
+                            Coach
+                        </button>
+                        <button
+                            onClick={async () => { await loginDemo('parent'); navigate('/parent-dashboard'); }}
+                            className="py-3 px-2 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500 rounded-lg text-blue-400 font-bold text-sm transition-all"
+                        >
+                            Parent
+                        </button>
+                        <button
+                            onClick={async () => { await loginDemo('manager'); navigate('/dashboard'); }}
+                            className="py-3 px-2 bg-brand-gold/20 hover:bg-brand-gold/40 border border-brand-gold rounded-lg text-brand-gold font-bold text-sm transition-all"
+                        >
+                            Manager
+                        </button>
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );

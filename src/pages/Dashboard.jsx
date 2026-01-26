@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield, Mic } from 'lucide-react';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
 import TrainingView from '../components/dashboard/TrainingView';
@@ -16,6 +17,16 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const [currentView, setCurrentView] = useState('club');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+    // Voice command integration
+    const voiceCommand = useVoiceCommand();
+
+    // Register dashboard controls with voice command system
+    useEffect(() => {
+        if (voiceCommand?.registerDashboardControls) {
+            voiceCommand.registerDashboardControls(setCurrentView, setShowAdminPanel);
+        }
+    }, [voiceCommand]);
 
     const handleLogout = async () => {
         await signOut();
@@ -37,6 +48,7 @@ const Dashboard = () => {
 
     // Check profile.role (Real User) or user.role (Demo User)
     const isManager = profile?.role === 'manager' || user?.role === 'manager';
+    const isStaff = isManager || profile?.role === 'coach' || user?.role === 'coach';
 
     return (
         <div className="min-h-screen bg-brand-dark pb-20">
@@ -133,8 +145,8 @@ const Dashboard = () => {
                             </div>
                         </div>
 
-                        {/* Admin Panel Button (Manager Only) */}
-                        {isManager && (
+                        {/* Admin Panel Button (Staff Only - Manager or Coach) */}
+                        {isStaff && (
                             <button 
                                 onClick={() => setShowAdminPanel(true)} 
                                 className="text-red-400 hover:text-red-300 transition-colors p-1.5 rounded hover:bg-red-500/10" 

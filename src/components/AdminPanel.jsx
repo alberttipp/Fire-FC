@@ -55,16 +55,25 @@ const AdminPanel = ({ onClose }) => {
             setResult({ status: 'progress', message: 'Step 1/7: Clearing existing data...' });
 
             // Clear FK references first
-            await supabase.from('profiles').update({ team_id: null }).neq('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('profiles').update({ team_id: null }).not('id', 'is', null);
 
-            // Delete in correct order for FK constraints
-            await supabase.from('event_rsvps').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('practice_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('scouting_notes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('tryout_waitlist').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('teams').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+            // Delete in correct order for FK constraints - use gte to match all UUIDs
+            await supabase.from('message_read_receipts').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('messages').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('channels').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('player_stats').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('player_badges').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('evaluations').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('assignments').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('event_rsvps').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('practice_sessions').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('scouting_notes').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('tryout_waitlist').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('events').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('players').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('teams').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            await supabase.from('badges').delete().not('id', 'is', null);
+            await supabase.from('drills').delete().gte('id', '00000000-0000-0000-0000-000000000000');
 
             // ============================================================
             // STEP 2: Create Teams
@@ -108,62 +117,62 @@ const AdminPanel = ({ onClose }) => {
 
             // ============================================================
             // STEP 3: Create Players
-            // SCHEMA: id, team_id, first_name, last_name, number (TEXT!), avatar_url, pin_code, stats (JSONB)
+            // SCHEMA: id, team_id, first_name, last_name, jersey_number (INT), position, avatar_url, overall_rating, training_minutes, pace, shooting, passing, dribbling, defending, physical
             // ============================================================
             setResult({ status: 'progress', message: 'Step 3/7: Creating 42 players...' });
 
             // U11 Players (Bo's team)
             const u11Players = [
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Bo', last_name: 'Tipp', number: '58', stats: { position: 'Forward', overall_rating: 72, training_minutes: 340 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Marcus', last_name: 'Chen', number: '10', stats: { position: 'Midfielder', overall_rating: 70, training_minutes: 310 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Jake', last_name: 'Williams', number: '4', stats: { position: 'Defender', overall_rating: 68, training_minutes: 290 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Tyler', last_name: 'Johnson', number: '1', stats: { position: 'Goalkeeper', overall_rating: 71, training_minutes: 320 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Ethan', last_name: 'Brown', number: '9', stats: { position: 'Forward', overall_rating: 67, training_minutes: 275 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Lucas', last_name: 'Garcia', number: '8', stats: { position: 'Midfielder', overall_rating: 66, training_minutes: 260 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Noah', last_name: 'Martinez', number: '5', stats: { position: 'Defender', overall_rating: 65, training_minutes: 245 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Liam', last_name: 'Davis', number: '6', stats: { position: 'Midfielder', overall_rating: 64, training_minutes: 230 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Mason', last_name: 'Rodriguez', number: '11', stats: { position: 'Forward', overall_rating: 63, training_minutes: 215 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Oliver', last_name: 'Wilson', number: '3', stats: { position: 'Defender', overall_rating: 62, training_minutes: 200 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'James', last_name: 'Anderson', number: '7', stats: { position: 'Midfielder', overall_rating: 61, training_minutes: 185 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Benjamin', last_name: 'Thomas', number: '2', stats: { position: 'Defender', overall_rating: 60, training_minutes: 170 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Henry', last_name: 'Jackson', number: '14', stats: { position: 'Midfielder', overall_rating: 59, training_minutes: 155 } },
-                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Alexander', last_name: 'White', number: '22', stats: { position: 'Goalkeeper', overall_rating: 58, training_minutes: 140 } },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Bo', last_name: 'Tipp', jersey_number: 58, position: 'Forward', overall_rating: 72, training_minutes: 340, pace: 75, shooting: 78, passing: 70, dribbling: 74, defending: 45, physical: 68 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Marcus', last_name: 'Chen', jersey_number: 10, position: 'Midfielder', overall_rating: 70, training_minutes: 310, pace: 68, shooting: 65, passing: 78, dribbling: 75, defending: 60, physical: 62 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Jake', last_name: 'Williams', jersey_number: 4, position: 'Defender', overall_rating: 68, training_minutes: 290, pace: 65, shooting: 45, passing: 62, dribbling: 55, defending: 78, physical: 72 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Tyler', last_name: 'Johnson', jersey_number: 1, position: 'Goalkeeper', overall_rating: 71, training_minutes: 320, pace: 55, shooting: 35, passing: 58, dribbling: 40, defending: 75, physical: 70 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Ethan', last_name: 'Brown', jersey_number: 9, position: 'Forward', overall_rating: 67, training_minutes: 275, pace: 72, shooting: 70, passing: 62, dribbling: 68, defending: 42, physical: 65 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Lucas', last_name: 'Garcia', jersey_number: 8, position: 'Midfielder', overall_rating: 66, training_minutes: 260, pace: 65, shooting: 60, passing: 72, dribbling: 68, defending: 58, physical: 60 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Noah', last_name: 'Martinez', jersey_number: 5, position: 'Defender', overall_rating: 65, training_minutes: 245, pace: 62, shooting: 40, passing: 58, dribbling: 52, defending: 75, physical: 70 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Liam', last_name: 'Davis', jersey_number: 6, position: 'Midfielder', overall_rating: 64, training_minutes: 230, pace: 64, shooting: 58, passing: 68, dribbling: 65, defending: 55, physical: 58 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Mason', last_name: 'Rodriguez', jersey_number: 11, position: 'Forward', overall_rating: 63, training_minutes: 215, pace: 70, shooting: 65, passing: 58, dribbling: 62, defending: 40, physical: 60 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Oliver', last_name: 'Wilson', jersey_number: 3, position: 'Defender', overall_rating: 62, training_minutes: 200, pace: 60, shooting: 38, passing: 55, dribbling: 50, defending: 72, physical: 68 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'James', last_name: 'Anderson', jersey_number: 7, position: 'Midfielder', overall_rating: 61, training_minutes: 185, pace: 62, shooting: 55, passing: 65, dribbling: 60, defending: 52, physical: 55 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Benjamin', last_name: 'Thomas', jersey_number: 2, position: 'Defender', overall_rating: 60, training_minutes: 170, pace: 58, shooting: 35, passing: 52, dribbling: 48, defending: 70, physical: 65 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Henry', last_name: 'Jackson', jersey_number: 14, position: 'Midfielder', overall_rating: 59, training_minutes: 155, pace: 60, shooting: 52, passing: 62, dribbling: 58, defending: 50, physical: 52 },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Alexander', last_name: 'White', jersey_number: 22, position: 'Goalkeeper', overall_rating: 58, training_minutes: 140, pace: 50, shooting: 30, passing: 52, dribbling: 35, defending: 68, physical: 62 },
             ];
 
             // U10 Players
             const u10Players = [
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Ryan', last_name: 'Smith', number: '10', stats: { position: 'Midfielder', overall_rating: 62, training_minutes: 220 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Dylan', last_name: 'Lee', number: '7', stats: { position: 'Forward', overall_rating: 60, training_minutes: 205 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Jack', last_name: 'Harris', number: '4', stats: { position: 'Defender', overall_rating: 58, training_minutes: 190 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Owen', last_name: 'Clark', number: '1', stats: { position: 'Goalkeeper', overall_rating: 60, training_minutes: 210 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Daniel', last_name: 'Lewis', number: '9', stats: { position: 'Forward', overall_rating: 57, training_minutes: 175 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Matthew', last_name: 'Walker', number: '8', stats: { position: 'Midfielder', overall_rating: 56, training_minutes: 160 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Joseph', last_name: 'Hall', number: '5', stats: { position: 'Defender', overall_rating: 55, training_minutes: 145 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Samuel', last_name: 'Allen', number: '11', stats: { position: 'Forward', overall_rating: 54, training_minutes: 130 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'David', last_name: 'Young', number: '6', stats: { position: 'Midfielder', overall_rating: 53, training_minutes: 115 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Andrew', last_name: 'King', number: '3', stats: { position: 'Defender', overall_rating: 52, training_minutes: 100 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Christopher', last_name: 'Wright', number: '14', stats: { position: 'Midfielder', overall_rating: 51, training_minutes: 85 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Joshua', last_name: 'Lopez', number: '2', stats: { position: 'Defender', overall_rating: 50, training_minutes: 70 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Jayden', last_name: 'Hill', number: '17', stats: { position: 'Forward', overall_rating: 49, training_minutes: 55 } },
-                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Aiden', last_name: 'Scott', number: '22', stats: { position: 'Goalkeeper', overall_rating: 48, training_minutes: 40 } },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Ryan', last_name: 'Smith', jersey_number: 10, position: 'Midfielder', overall_rating: 62, training_minutes: 220, pace: 60, shooting: 55, passing: 68, dribbling: 65, defending: 52, physical: 55 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Dylan', last_name: 'Lee', jersey_number: 7, position: 'Forward', overall_rating: 60, training_minutes: 205, pace: 65, shooting: 62, passing: 55, dribbling: 60, defending: 38, physical: 52 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Jack', last_name: 'Harris', jersey_number: 4, position: 'Defender', overall_rating: 58, training_minutes: 190, pace: 55, shooting: 35, passing: 52, dribbling: 48, defending: 68, physical: 62 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Owen', last_name: 'Clark', jersey_number: 1, position: 'Goalkeeper', overall_rating: 60, training_minutes: 210, pace: 48, shooting: 28, passing: 50, dribbling: 35, defending: 65, physical: 58 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Daniel', last_name: 'Lewis', jersey_number: 9, position: 'Forward', overall_rating: 57, training_minutes: 175, pace: 62, shooting: 58, passing: 50, dribbling: 55, defending: 35, physical: 50 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Matthew', last_name: 'Walker', jersey_number: 8, position: 'Midfielder', overall_rating: 56, training_minutes: 160, pace: 55, shooting: 50, passing: 60, dribbling: 58, defending: 48, physical: 48 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Joseph', last_name: 'Hall', jersey_number: 5, position: 'Defender', overall_rating: 55, training_minutes: 145, pace: 52, shooting: 32, passing: 48, dribbling: 45, defending: 65, physical: 58 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Samuel', last_name: 'Allen', jersey_number: 11, position: 'Forward', overall_rating: 54, training_minutes: 130, pace: 58, shooting: 55, passing: 48, dribbling: 52, defending: 32, physical: 45 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'David', last_name: 'Young', jersey_number: 6, position: 'Midfielder', overall_rating: 53, training_minutes: 115, pace: 52, shooting: 48, passing: 58, dribbling: 55, defending: 45, physical: 45 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Andrew', last_name: 'King', jersey_number: 3, position: 'Defender', overall_rating: 52, training_minutes: 100, pace: 50, shooting: 30, passing: 45, dribbling: 42, defending: 62, physical: 55 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Christopher', last_name: 'Wright', jersey_number: 14, position: 'Midfielder', overall_rating: 51, training_minutes: 85, pace: 50, shooting: 45, passing: 55, dribbling: 52, defending: 42, physical: 42 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Joshua', last_name: 'Lopez', jersey_number: 2, position: 'Defender', overall_rating: 50, training_minutes: 70, pace: 48, shooting: 28, passing: 42, dribbling: 40, defending: 60, physical: 52 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Jayden', last_name: 'Hill', jersey_number: 17, position: 'Forward', overall_rating: 49, training_minutes: 55, pace: 55, shooting: 50, passing: 42, dribbling: 48, defending: 28, physical: 42 },
+                { team_id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5', first_name: 'Aiden', last_name: 'Scott', jersey_number: 22, position: 'Goalkeeper', overall_rating: 48, training_minutes: 40, pace: 42, shooting: 22, passing: 42, dribbling: 30, defending: 58, physical: 50 },
             ];
 
             // U12 Players
             const u12Players = [
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'William', last_name: 'Green', number: '10', stats: { position: 'Midfielder', overall_rating: 74, training_minutes: 380 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Michael', last_name: 'Adams', number: '9', stats: { position: 'Forward', overall_rating: 73, training_minutes: 365 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Elijah', last_name: 'Baker', number: '4', stats: { position: 'Defender', overall_rating: 72, training_minutes: 350 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Sebastian', last_name: 'Gonzalez', number: '1', stats: { position: 'Goalkeeper', overall_rating: 74, training_minutes: 370 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Carter', last_name: 'Nelson', number: '11', stats: { position: 'Forward', overall_rating: 70, training_minutes: 320 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Wyatt', last_name: 'Carter', number: '8', stats: { position: 'Midfielder', overall_rating: 69, training_minutes: 305 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Jack', last_name: 'Mitchell', number: '5', stats: { position: 'Defender', overall_rating: 68, training_minutes: 290 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Luke', last_name: 'Perez', number: '7', stats: { position: 'Forward', overall_rating: 67, training_minutes: 275 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Grayson', last_name: 'Roberts', number: '6', stats: { position: 'Midfielder', overall_rating: 66, training_minutes: 260 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Levi', last_name: 'Turner', number: '3', stats: { position: 'Defender', overall_rating: 65, training_minutes: 245 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Isaac', last_name: 'Phillips', number: '14', stats: { position: 'Midfielder', overall_rating: 64, training_minutes: 230 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Gabriel', last_name: 'Campbell', number: '2', stats: { position: 'Defender', overall_rating: 63, training_minutes: 215 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Julian', last_name: 'Parker', number: '17', stats: { position: 'Forward', overall_rating: 62, training_minutes: 200 } },
-                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Lincoln', last_name: 'Evans', number: '22', stats: { position: 'Goalkeeper', overall_rating: 61, training_minutes: 185 } },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'William', last_name: 'Green', jersey_number: 10, position: 'Midfielder', overall_rating: 74, training_minutes: 380, pace: 72, shooting: 68, passing: 80, dribbling: 78, defending: 62, physical: 68 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Michael', last_name: 'Adams', jersey_number: 9, position: 'Forward', overall_rating: 73, training_minutes: 365, pace: 78, shooting: 80, passing: 68, dribbling: 75, defending: 42, physical: 70 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Elijah', last_name: 'Baker', jersey_number: 4, position: 'Defender', overall_rating: 72, training_minutes: 350, pace: 68, shooting: 45, passing: 65, dribbling: 58, defending: 82, physical: 75 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Sebastian', last_name: 'Gonzalez', jersey_number: 1, position: 'Goalkeeper', overall_rating: 74, training_minutes: 370, pace: 58, shooting: 35, passing: 62, dribbling: 42, defending: 80, physical: 72 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Carter', last_name: 'Nelson', jersey_number: 11, position: 'Forward', overall_rating: 70, training_minutes: 320, pace: 75, shooting: 72, passing: 65, dribbling: 70, defending: 40, physical: 65 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Wyatt', last_name: 'Carter', jersey_number: 8, position: 'Midfielder', overall_rating: 69, training_minutes: 305, pace: 68, shooting: 62, passing: 75, dribbling: 72, defending: 58, physical: 62 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Jack', last_name: 'Mitchell', jersey_number: 5, position: 'Defender', overall_rating: 68, training_minutes: 290, pace: 65, shooting: 42, passing: 60, dribbling: 55, defending: 78, physical: 72 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Luke', last_name: 'Perez', jersey_number: 7, position: 'Forward', overall_rating: 67, training_minutes: 275, pace: 72, shooting: 70, passing: 62, dribbling: 68, defending: 38, physical: 62 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Grayson', last_name: 'Roberts', jersey_number: 6, position: 'Midfielder', overall_rating: 66, training_minutes: 260, pace: 65, shooting: 58, passing: 72, dribbling: 68, defending: 55, physical: 58 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Levi', last_name: 'Turner', jersey_number: 3, position: 'Defender', overall_rating: 65, training_minutes: 245, pace: 62, shooting: 38, passing: 58, dribbling: 52, defending: 75, physical: 70 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Isaac', last_name: 'Phillips', jersey_number: 14, position: 'Midfielder', overall_rating: 64, training_minutes: 230, pace: 62, shooting: 55, passing: 68, dribbling: 65, defending: 52, physical: 55 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Gabriel', last_name: 'Campbell', jersey_number: 2, position: 'Defender', overall_rating: 63, training_minutes: 215, pace: 60, shooting: 35, passing: 55, dribbling: 50, defending: 72, physical: 68 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Julian', last_name: 'Parker', jersey_number: 17, position: 'Forward', overall_rating: 62, training_minutes: 200, pace: 68, shooting: 65, passing: 58, dribbling: 62, defending: 35, physical: 58 },
+                { team_id: 'f24cdc50-5e52-652b-b599-5d556df502f6', first_name: 'Lincoln', last_name: 'Evans', jersey_number: 22, position: 'Goalkeeper', overall_rating: 61, training_minutes: 185, pace: 52, shooting: 30, passing: 55, dribbling: 38, defending: 70, physical: 65 },
             ];
 
             const { error: playersError } = await supabase.from('players').insert([...u11Players, ...u10Players, ...u12Players]);
@@ -341,13 +350,173 @@ const AdminPanel = ({ onClose }) => {
             // tryout_waitlist SCHEMA: name, email, phone, age_group, notes, status
             await supabase.from('tryout_waitlist').insert([
                 { name: 'Tommy Richards', email: 'tommy@email.com', phone: '815-555-0101', age_group: 'U11', notes: 'Midfielder - club experience', status: 'pending' },
-                { name: 'Kevin Park', email: 'kpark@email.com', phone: '815-555-0102', age_group: 'U10', notes: 'Athletic forward', status: 'contacted' }
+                { name: 'Kevin Park', email: 'kpark@email.com', phone: '815-555-0102', age_group: 'U10', notes: 'Athletic forward', status: 'contacted' },
+                { name: 'Sofia Garcia', email: 'sofia@email.com', phone: '815-555-0103', age_group: 'U11', notes: 'Strong defender, rec league star', status: 'scheduled' },
+                { name: 'Aiden Murphy', email: 'amurphy@email.com', phone: '815-555-0104', age_group: 'U12', notes: 'Goalkeeper with travel experience', status: 'pending' }
             ]);
 
             // ============================================================
-            // STEP 7: Reassign current user to U11 team
+            // STEP 7: Seed Drills Library (19 drills)
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 7/7: Assigning your profile to U11 team...' });
+            setResult({ status: 'progress', message: 'Step 7/12: Creating drill library...' });
+
+            const drillsToInsert = [
+                { title: 'Foundation Taps', description: 'Basic ball control with alternating feet taps on top of ball.', skill: 'Ball Control', category: 'Technical', players: 'Solo', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Toe Taps (Stationary)', description: 'Quick toe taps on ball while stationary to build foot speed.', skill: 'Agility', category: 'Technical', players: 'Solo', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Juggling Challenge', description: 'Keep ball in air using feet, thighs, and head. Track personal best.', skill: 'Ball Control', category: 'Technical', players: 'Solo', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Figure 8 Dribbling', description: 'Dribble ball in figure 8 pattern around two cones.', skill: 'Dribbling', category: 'Technical', players: 'Solo', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
+                { title: 'L-Turns & Cruyffs', description: 'Practice L-turn and Cruyff turn moves to beat defenders.', skill: 'Dribbling', category: 'Technical', players: 'Solo', duration_minutes: 12, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Wall Passing', description: 'Pass against wall and control return. Work both feet.', skill: 'Passing', category: 'Technical', players: 'Solo', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
+                { title: '1-Minute Speed Dribble', description: 'Dribble through cone course as fast as possible. Time yourself.', skill: 'Speed', category: 'Fitness', players: 'Solo', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Turn & Burn', description: 'Receive ball, turn quickly, and accelerate away.', skill: 'Transitions', category: 'Technical', players: 'Solo', duration_minutes: 8, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Triangle Passing', description: 'Two players pass in triangle pattern, moving to next cone after pass.', skill: 'Passing', category: 'Technical', players: '2 Players', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Mirror Drill', description: 'One player leads, other mirrors movements. Switch roles.', skill: 'Agility/Defense', category: 'Technical', players: '2 Players', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
+                { title: 'One-Touch Circle', description: 'Quick one-touch passing in circular pattern.', skill: 'Passing', category: 'Technical', players: '2 Players', duration_minutes: 12, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Pressure Shielding', description: 'Shield ball from defender using body position.', skill: 'Strength', category: 'Physical', players: '2 Players', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Shadow Defending', description: 'Stay goal-side and track attacker movements.', skill: 'Positioning', category: 'Tactical', players: 'w/ Sibling', duration_minutes: 8, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Reactive Sprinting', description: 'React to partner commands and sprint in different directions.', skill: 'Speed', category: 'Fitness', players: 'w/ Sibling', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Fox Tails (Chasey)', description: 'Tuck shirt in back and try to grab opponents tail while protecting yours.', skill: 'Agility', category: 'Fun', players: 'w/ Sibling', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Parent Feed Volleys', description: 'Parent tosses ball, player volleys back. Work on technique.', skill: 'Control/Shooting', category: 'Technical', players: 'w/ Parent', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Red Light, Green Light', description: 'Dribble on green light, stop ball on red light.', skill: 'Dribbling', category: 'Fun', players: 'w/ Parent', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Target Passing', description: 'Pass ball to hit targets set up by parent.', skill: 'Passing', category: 'Technical', players: 'w/ Parent', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
+                { title: 'Penalty Shootout', description: 'Practice penalty kicks with parent as keeper.', skill: 'Shooting', category: 'Fun', players: 'w/ Parent', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' }
+            ];
+
+            const { data: insertedDrills, error: drillsError } = await supabase.from('drills').insert(drillsToInsert).select();
+            if (drillsError) throw new Error(`Drills: ${drillsError.message}`);
+
+            // ============================================================
+            // STEP 8: Seed Badges (15 badges)
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 8/12: Creating badges...' });
+
+            const badgesToInsert = [
+                { id: 'clinical_finisher', name: 'Clinical Finisher', icon: '🎯', description: 'Scored a goal or showed excellent shooting technique.', category: 'Performance' },
+                { id: 'lockdown_defender', name: 'Lockdown Defender', icon: '🛡️', description: 'Unbeatable in 1v1 situations or made game-saving tackles.', category: 'Performance' },
+                { id: 'the_great_wall', name: 'The Great Wall', icon: '🧱', description: 'Clean sheet or commanded the box effectively (GK).', category: 'Performance' },
+                { id: 'playmaker', name: 'Playmaker', icon: '🪄', description: 'Unlocked the defense with creative passing or assists.', category: 'Performance' },
+                { id: 'interceptor', name: 'Interceptor', icon: '🛑', description: 'Consistently read the game to break up opponent play.', category: 'Performance' },
+                { id: 'two_footed', name: 'Two-Footed', icon: '🔄', description: 'Successfully used weak foot to pass or shoot.', category: 'Technical' },
+                { id: 'most_improved', name: 'Most Improved', icon: '📈', description: 'Showed the most progress in a specific skill.', category: 'Technical' },
+                { id: 'skill_master', name: 'Skill Master', icon: '🧪', description: 'Mastered a new skill move and used it effectively.', category: 'Technical' },
+                { id: 'engine_room', name: 'Engine Room', icon: '🏃', description: 'Highest work rate and covered the most ground.', category: 'Technical' },
+                { id: 'composure', name: 'Composure', icon: '🧘', description: 'Stayed calm under heavy pressure.', category: 'Technical' },
+                { id: 'the_general', name: 'The General', icon: '📣', description: 'Exceptional communication and organization.', category: 'Culture' },
+                { id: 'ultimate_teammate', name: 'Ultimate Teammate', icon: '🤝', description: 'Encouraged teammates and lifted spirits.', category: 'Culture' },
+                { id: 'fire_starter', name: 'Fire Starter', icon: '🔥', description: 'Brought the most energy and hype to the session.', category: 'Culture' },
+                { id: 'student_of_the_game', name: 'Student of the Game', icon: '📚', description: 'Asked great questions and understood the "Why".', category: 'Culture' },
+                { id: 'the_professional', name: 'The Professional', icon: '⏰', description: 'Arrived early, fully geared up, and ready to work.', category: 'Culture' }
+            ];
+
+            const { error: badgesError } = await supabase.from('badges').insert(badgesToInsert);
+            if (badgesError) throw new Error(`Badges: ${badgesError.message}`);
+
+            // ============================================================
+            // STEP 9: Seed Assignments (Homework for players)
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 9/12: Creating homework assignments...' });
+
+            // Get players and drills for assignments
+            const { data: allPlayersForAssign } = await supabase.from('players').select('id, team_id, first_name');
+            const u11PlayersForAssign = allPlayersForAssign?.filter(p => p.team_id === 'd02aba3e-3c30-430f-9377-3b334cffcd04') || [];
+
+            if (insertedDrills && insertedDrills.length > 0 && u11PlayersForAssign.length > 0) {
+                const assignmentsToInsert = [];
+                const today = new Date();
+
+                // Assign first 5 drills to first 5 U11 players
+                for (let i = 0; i < Math.min(5, u11PlayersForAssign.length); i++) {
+                    const dueDate = new Date(today);
+                    dueDate.setDate(dueDate.getDate() + 3 + i);
+
+                    assignmentsToInsert.push({
+                        drill_id: insertedDrills[i % insertedDrills.length].id,
+                        player_id: u11PlayersForAssign[i].id,
+                        team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04',
+                        due_date: dueDate.toISOString(),
+                        status: i < 2 ? 'completed' : 'pending',
+                        completed_at: i < 2 ? new Date().toISOString() : null
+                    });
+                }
+
+                await supabase.from('assignments').insert(assignmentsToInsert);
+            }
+
+            // ============================================================
+            // STEP 10: Seed Player Badges (Earned badges)
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 10/12: Awarding player badges...' });
+
+            if (u11PlayersForAssign.length > 0) {
+                const playerBadgesToInsert = [
+                    { player_id: u11PlayersForAssign[0]?.id, badge_id: 'clinical_finisher', notes: 'Hat trick vs Lions FC!' },
+                    { player_id: u11PlayersForAssign[0]?.id, badge_id: 'fire_starter', notes: 'Amazing energy at Tuesday practice' },
+                    { player_id: u11PlayersForAssign[1]?.id, badge_id: 'playmaker', notes: '3 assists in last game' },
+                    { player_id: u11PlayersForAssign[2]?.id, badge_id: 'lockdown_defender', notes: 'Shutdown their best player' },
+                    { player_id: u11PlayersForAssign[3]?.id, badge_id: 'the_great_wall', notes: 'Clean sheet!' },
+                    { player_id: u11PlayersForAssign[4]?.id, badge_id: 'most_improved', notes: 'Huge improvement in passing' },
+                ].filter(b => b.player_id);
+
+                await supabase.from('player_badges').insert(playerBadgesToInsert);
+            }
+
+            // ============================================================
+            // STEP 11: Seed Chat Channels & Messages
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 11/12: Creating chat channels & messages...' });
+
+            // Create channels for U11 team
+            const channelsToInsert = [
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', name: 'Team Chat', type: 'team', description: 'General team discussion' },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', name: 'Parents Only', type: 'parents', description: 'Parent coordination' },
+                { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', name: 'Announcements', type: 'announcement', description: 'Important team announcements' }
+            ];
+
+            const { data: insertedChannels, error: channelsError } = await supabase.from('channels').insert(channelsToInsert).select();
+            if (channelsError) console.log('Channels may already exist:', channelsError.message);
+
+            // Seed sample messages
+            if (insertedChannels && insertedChannels.length > 0) {
+                const teamChannel = insertedChannels.find(c => c.type === 'team');
+                const announcementChannel = insertedChannels.find(c => c.type === 'announcement');
+
+                const messagesToInsert = [
+                    { channel_id: announcementChannel?.id, sender_name: 'Coach Dave', sender_role: 'coach', content: '📢 REMINDER: Saturday game vs Eagles at 10am. Arrive by 9:15am. Wear HOME kit (red).', message_type: 'announcement', is_urgent: true },
+                    { channel_id: announcementChannel?.id, sender_name: 'Coach Dave', sender_role: 'coach', content: 'Great practice today everyone! Keep working on those first touches at home.', message_type: 'announcement' },
+                    { channel_id: teamChannel?.id, sender_name: 'Coach Dave', sender_role: 'coach', content: 'Looking forward to seeing everyone at practice Tuesday!', message_type: 'text' },
+                    { channel_id: teamChannel?.id, sender_name: 'Sarah (Bo\'s Mom)', sender_role: 'parent', content: 'Bo will be 5 minutes late on Tuesday - dentist appointment.', message_type: 'text' },
+                    { channel_id: teamChannel?.id, sender_name: 'Coach Dave', sender_role: 'coach', content: 'No problem Sarah, thanks for letting me know!', message_type: 'text' },
+                    { channel_id: teamChannel?.id, sender_name: 'Mike (Marcus\'s Dad)', sender_role: 'parent', content: 'Can someone carpool from the north side on Saturday?', message_type: 'text' },
+                    { channel_id: teamChannel?.id, sender_name: 'Lisa (Jake\'s Mom)', sender_role: 'parent', content: 'We can pick up Marcus! We drive right by your area.', message_type: 'text' }
+                ].filter(m => m.channel_id);
+
+                await supabase.from('messages').insert(messagesToInsert);
+            }
+
+            // ============================================================
+            // STEP 12: Seed Player Stats & Evaluations
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 12/12: Creating player stats & evaluations...' });
+
+            // Player stats
+            if (u11PlayersForAssign.length > 0) {
+                const statsToInsert = u11PlayersForAssign.map((player, idx) => ({
+                    player_id: player.id,
+                    xp: Math.floor(Math.random() * 500) + 100,
+                    level: Math.floor(idx / 3) + 1,
+                    games_played: Math.floor(Math.random() * 10) + 5,
+                    goals: player.first_name === 'Bo' ? 8 : Math.floor(Math.random() * 5),
+                    assists: Math.floor(Math.random() * 4),
+                    clean_sheets: 0
+                }));
+
+                await supabase.from('player_stats').insert(statsToInsert);
+            }
+
+            // ============================================================
+            // STEP 13: Reassign current user to U11 team
+            // ============================================================
+            setResult({ status: 'progress', message: 'Finalizing: Assigning your profile to U11 team...' });
 
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             if (currentUser) {
@@ -486,7 +655,7 @@ const AdminPanel = ({ onClose }) => {
                         </button>
                     )}
 
-                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • ~60 events • RSVPs</p>
+                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • 60+ events • 19 drills • 15 badges • chat channels</p>
                 </div>
             </div>
         </div>
