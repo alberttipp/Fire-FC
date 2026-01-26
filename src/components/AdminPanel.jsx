@@ -77,7 +77,7 @@ const AdminPanel = ({ onClose }) => {
 
             // ============================================================
             // STEP 2: Create Teams
-            // SCHEMA: id, name, age_group, logo_url, coach_id, join_code, team_type, season, year_season, sub_season
+            // SCHEMA: id, name, age_group, logo_url, coach_id, join_code, team_type, season
             // ============================================================
             setResult({ status: 'progress', message: 'Step 2/7: Creating 3 teams...' });
 
@@ -88,9 +88,7 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U11 Boys',
                     join_code: 'FIRE11',
                     team_type: 'club',
-                    season: 'Spring 2026',
-                    year_season: '2025-2026',
-                    sub_season: 'spring'
+                    season: 'Spring 2026'
                 },
                 {
                     id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5',
@@ -98,9 +96,7 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U10 Boys',
                     join_code: 'FIRE10',
                     team_type: 'club',
-                    season: 'Spring 2026',
-                    year_season: '2025-2026',
-                    sub_season: 'spring'
+                    season: 'Spring 2026'
                 },
                 {
                     id: 'f24cdc50-5e52-652b-b599-5d556df502f6',
@@ -108,9 +104,7 @@ const AdminPanel = ({ onClose }) => {
                     age_group: 'U12 Boys',
                     join_code: 'FIRE12',
                     team_type: 'club',
-                    season: 'Spring 2026',
-                    year_season: '2025-2026',
-                    sub_season: 'spring'
+                    season: 'Spring 2026'
                 },
             ]);
             if (teamsError) throw new Error(`Teams: ${teamsError.message}`);
