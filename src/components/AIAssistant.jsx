@@ -162,9 +162,14 @@ const AIAssistant = () => {
         setLoading(true);
 
         try {
+            // Check if API key exists
+            if (!GEMINI_API_KEY) {
+                throw new Error('AI not configured. Please add VITE_GEMINI_API_KEY to environment variables.');
+            }
+
             // Build context for AI
             const systemContext = buildSystemContext();
-            
+
             // Call Gemini API
             const response = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -188,19 +193,33 @@ const AIAssistant = () => {
                 }
             );
 
+            // Check if response is OK
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Gemini API Error:', response.status, errorText);
+                throw new Error(`API Error: ${response.status}`);
+            }
+
             const data = await response.json();
-            
+
+            // Check for errors in response
+            if (data.error) {
+                console.error('Gemini Error:', data.error);
+                throw new Error(data.error.message || 'AI returned an error');
+            }
+
             if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
                 const aiResponse = data.candidates[0].content.parts[0].text;
                 setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
             } else {
+                console.error('Unexpected response format:', data);
                 throw new Error('No response from AI');
             }
         } catch (err) {
             console.error('AI Error:', err);
-            setMessages(prev => [...prev, { 
-                role: 'assistant', 
-                content: "Sorry, I couldn't process that request. Please try again." 
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Sorry, I couldn't process that request. ${err.message}`
             }]);
         } finally {
             setLoading(false);

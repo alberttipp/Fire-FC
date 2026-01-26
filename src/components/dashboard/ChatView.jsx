@@ -16,9 +16,9 @@ const ChatView = () => {
     const messagesEndRef = useRef(null);
     const channelSubscription = useRef(null);
 
-    // Get current user display info
-    const currentUserName = profile?.full_name || user?.email?.split('@')[0] || 'User';
-    const currentUserRole = profile?.role || 'coach';
+    // Get current user display info (works for both real and demo users)
+    const currentUserName = profile?.full_name || user?.display_name || user?.email?.split('@')[0] || 'User';
+    const currentUserRole = profile?.role || user?.role || 'coach';
     const currentTeamId = profile?.team_id || 'd02aba3e-3c30-430f-9377-3b334cffcd04'; // Default to U11
 
     // Scroll to bottom when messages change

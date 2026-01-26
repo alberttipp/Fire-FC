@@ -102,7 +102,7 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
             const nextMonth = new Date(today);
             nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-            const { data: events } = await supabase
+            let eventsQuery = supabase
                 .from('events')
                 .select('*')
                 .in('type', ['practice', 'training'])
@@ -110,20 +110,31 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
                 .order('start_time', { ascending: true })
                 .limit(20);
 
+            // Filter by team if provided
+            if (teamId) {
+                eventsQuery = eventsQuery.eq('team_id', teamId);
+            }
+
+            const { data: events } = await eventsQuery;
             setUpcomingEvents(events || []);
 
             // Get saved sessions
-            const { data: sessions } = await supabase
+            let sessionsQuery = supabase
                 .from('practice_sessions')
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(20);
 
+            if (teamId) {
+                sessionsQuery = sessionsQuery.eq('team_id', teamId);
+            }
+
+            const { data: sessions } = await sessionsQuery;
             setSavedSessions(sessions || []);
         };
 
         fetchData();
-    }, []);
+    }, [teamId]);
 
     // Speech recognition setup
     useEffect(() => {
@@ -206,7 +217,7 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
                             parts: [{ text: `Convert this practice plan to JSON drills. Voice: "${transcript}"
 Categories: warmup, passing, technical, shooting, tactical, fitness, game, cooldown
 Return ONLY JSON array: [{"name":"Drill","duration":10,"category":"warmup","description":"Brief"}]
-Total 45-90 min. Include warmup and cooldown.` }]
+Total should be approximately 100 minutes. MUST include warmup (10min) at start and cooldown (5min) at end.` }]
                         }],
                         generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
                     })

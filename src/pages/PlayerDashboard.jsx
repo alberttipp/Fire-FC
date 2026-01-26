@@ -8,6 +8,7 @@ import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
 import FireBall from '../game/FireBall';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
+import BadgeCelebration from '../components/BadgeCelebration';
 
 import { supabase } from '../supabaseClient';
 
@@ -22,6 +23,8 @@ const PlayerDashboard = () => {
     const [assignments, setAssignments] = useState([]);
     const [earnedBadges, setEarnedBadges] = useState([]);
     const [stats, setStats] = useState(null);
+    const [newBadge, setNewBadge] = useState(null);
+    const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -120,6 +123,38 @@ const PlayerDashboard = () => {
         };
 
         fetchDashboardData();
+
+        // Subscribe to new badges in realtime
+        const badgeChannel = supabase
+            .channel('player-badges')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'player_badges',
+                    filter: `player_id=eq.${user.id}`
+                },
+                async (payload) => {
+                    console.log('New badge awarded!', payload);
+                    // Fetch the badge details
+                    const { data: badgeData } = await supabase
+                        .from('badges')
+                        .select('*')
+                        .eq('id', payload.new.badge_id)
+                        .single();
+
+                    if (badgeData) {
+                        setNewBadge(badgeData);
+                        setShowBadgeCelebration(true);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(badgeChannel);
+        };
     }, [user]);
 
     // Construct Profile Display Object (must be after hooks, before conditional returns)
@@ -156,7 +191,9 @@ const PlayerDashboard = () => {
         navigate('/login');
     }
 
-    const handleDrillComplete = async (assignmentId) => {
+    const handleDrillComplete = async (drillOrId) => {
+        // Handle both drill object and plain ID
+        const assignmentId = typeof drillOrId === 'object' ? drillOrId.id : drillOrId;
         console.log("Completing Assignment:", assignmentId);
 
         // Optimistic update
@@ -164,12 +201,22 @@ const PlayerDashboard = () => {
             a.id === assignmentId ? { ...a, status: 'completed' } : a
         ));
 
-        // DB Update
-        if (typeof assignmentId === 'string' && assignmentId.length > 5) {
-            await supabase
-                .from('assignments')
-                .update({ status: 'completed', completed_at: new Date() })
-                .eq('id', assignmentId);
+        // DB Update - only for valid UUIDs
+        if (assignmentId && typeof assignmentId === 'string' && assignmentId.length > 20) {
+            try {
+                const { error } = await supabase
+                    .from('assignments')
+                    .update({ status: 'completed', completed_at: new Date().toISOString() })
+                    .eq('id', assignmentId);
+
+                if (error) {
+                    console.error('Error completing assignment:', error);
+                } else {
+                    console.log('Assignment completed successfully!');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
         }
 
         triggerMessiMode();
@@ -179,6 +226,17 @@ const PlayerDashboard = () => {
 
     return (
         <div className="min-h-screen bg-brand-dark pb-24 relative overflow-hidden">
+            {/* Badge Celebration */}
+            {showBadgeCelebration && (
+                <BadgeCelebration
+                    badge={newBadge}
+                    onClose={() => {
+                        setShowBadgeCelebration(false);
+                        setNewBadge(null);
+                    }}
+                />
+            )}
+
             {/* Game Modal */}
             {showGame && <FireBall onClose={() => setShowGame(false)} currentPlayer={playerProfile} />}
 

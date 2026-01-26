@@ -30,16 +30,19 @@ const TrainingClients = () => {
         fetchData();
     }, [user]);
 
+    const DEMO_COACH_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+
     const fetchData = async () => {
         if (!user?.id) return;
         setLoading(true);
-        
+
         try {
-            // Fetch clients
+            // Fetch clients - include demo coach's clients for demo users
+            const coachId = user.id;
             const { data: clientData } = await supabase
                 .from('training_clients')
                 .select('*')
-                .eq('coach_id', user.id)
+                .or(`coach_id.eq.${coachId},coach_id.eq.${DEMO_COACH_ID}`)
                 .order('last_name');
 
             setClients(clientData || []);

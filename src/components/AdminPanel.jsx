@@ -509,7 +509,38 @@ const AdminPanel = ({ onClose }) => {
             }
 
             // ============================================================
-            // STEP 13: Reassign current user to U11 team
+            // STEP 13: Seed Training Clients
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 13/15: Creating training clients...' });
+
+            const DEMO_COACH_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+            const DEMO_PARENT_ID = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c33';
+
+            const trainingClientsToInsert = [
+                { coach_id: DEMO_COACH_ID, first_name: 'Tommy', last_name: 'Richards', email: 'tommy@email.com', phone: '815-555-1001', parent_name: 'Sarah Richards', notes: 'Private training - shooting focus', status: 'active' },
+                { coach_id: DEMO_COACH_ID, first_name: 'Kevin', last_name: 'Park', email: 'kevin@email.com', phone: '815-555-2001', parent_name: 'David Park', notes: 'Small group sessions preferred', status: 'active' },
+                { coach_id: DEMO_COACH_ID, first_name: 'Jose', last_name: 'Ramirez', email: 'jose@email.com', phone: '815-555-3001', parent_name: 'Maria Ramirez', notes: 'Goalkeeper training', status: 'active' },
+                { coach_id: DEMO_COACH_ID, first_name: 'Emily', last_name: 'Chen', email: 'emily@email.com', phone: '815-555-4001', parent_name: 'Linda Chen', notes: 'Technical development', status: 'active' },
+                { coach_id: DEMO_COACH_ID, first_name: 'Marcus', last_name: 'Johnson', email: 'marcus@email.com', phone: '815-555-5001', parent_name: 'Mike Johnson', notes: 'Speed and agility focus', status: 'active' }
+            ];
+
+            await supabase.from('training_clients').insert(trainingClientsToInsert);
+
+            // ============================================================
+            // STEP 14: Seed Family Links (Parent-Player relationships)
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 14/15: Creating family links...' });
+
+            // Find Bo Tipp's player ID
+            const boTipp = u11PlayersForAssign?.find(p => p.first_name === 'Bo');
+            if (boTipp) {
+                await supabase.from('family_links').insert([
+                    { parent_id: DEMO_PARENT_ID, player_id: boTipp.id, relationship: 'parent' }
+                ]).select();
+            }
+
+            // ============================================================
+            // STEP 15: Reassign current user to U11 team
             // ============================================================
             setResult({ status: 'progress', message: 'Finalizing: Assigning your profile to U11 team...' });
 
