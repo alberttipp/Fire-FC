@@ -483,7 +483,6 @@ const Login = () => {
                                 M
                             </div>
                         </div>
-                    </div>
                 </div>
             </div>
         </div>
