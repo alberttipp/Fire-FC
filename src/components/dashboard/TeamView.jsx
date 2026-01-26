@@ -13,6 +13,8 @@ import UpcomingWeek from './UpcomingWeek';
 const TeamView = () => {
     const { user, profile } = useAuth();
     const [myTeam, setMyTeam] = useState(null);
+    const [allTeams, setAllTeams] = useState([]);
+    const [selectedTeamId, setSelectedTeamId] = useState(null);
     const [roster, setRoster] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -24,63 +26,96 @@ const TeamView = () => {
     const [feedbackRecipient, setFeedbackRecipient] = useState(null);
     const [copied, setCopied] = useState(false);
 
+    // Check if user is manager or coach
+    const isManager = profile?.role === 'manager' || user?.role === 'manager';
+    const isCoach = profile?.role === 'coach' || user?.role === 'coach';
+
     const fetchTeamData = async () => {
         if (!user) return;
         setLoading(true);
 
         try {
-            // 1. Fetch the Team assigned to this user (Coach)
-            // If profile.team_id is set, get that team.
-            // Or look up teams where coach_id = user.id
-            // For demo users: fall back to first available team
-
-            let teamId = profile?.team_id;
-            let teamData = null;
-
-            if (teamId) {
-                const { data } = await supabase.from('teams').select('*').eq('id', teamId).single();
-                teamData = data;
-            } else {
-                // Check if they are the coach of any team
-                const { data } = await supabase.from('teams').select('*').eq('coach_id', user.id).single();
-                if (data) {
-                    teamData = data;
-                    teamId = data.id;
-                }
-            }
-
-            // Fallback for demo users: get the first available team
-            if (!teamData) {
+            // For managers and coaches, fetch ALL teams they can access
+            if (isManager) {
+                // Managers see ALL teams in the club
                 const { data: teams } = await supabase
                     .from('teams')
                     .select('*')
-                    .order('age_group', { ascending: true })
-                    .limit(1);
-                if (teams && teams.length > 0) {
-                    teamData = teams[0];
-                    teamId = teams[0].id;
+                    .order('age_group', { ascending: true });
+
+                setAllTeams(teams || []);
+
+                if (teams?.length > 0) {
+                    const teamToSelect = selectedTeamId
+                        ? teams.find(t => t.id === selectedTeamId) || teams[0]
+                        : teams[0];
+                    setSelectedTeamId(teamToSelect.id);
+                    setMyTeam(teamToSelect);
                 }
+            } else if (isCoach) {
+                // Coaches see all teams (for demo, coach manages all)
+                const { data: teams } = await supabase
+                    .from('teams')
+                    .select('*')
+                    .order('age_group', { ascending: true });
+
+                setAllTeams(teams || []);
+
+                if (teams?.length > 0) {
+                    const teamToSelect = selectedTeamId
+                        ? teams.find(t => t.id === selectedTeamId) || teams[0]
+                        : teams[0];
+                    setSelectedTeamId(teamToSelect.id);
+                    setMyTeam(teamToSelect);
+                }
+            } else {
+                // Regular users - single team
+                let teamId = profile?.team_id;
+                let teamData = null;
+
+                if (teamId) {
+                    const { data } = await supabase.from('teams').select('*').eq('id', teamId).single();
+                    teamData = data;
+                }
+
+                // Fallback for demo users: get the first available team
+                if (!teamData) {
+                    const { data: teams } = await supabase
+                        .from('teams')
+                        .select('*')
+                        .order('age_group', { ascending: true })
+                        .limit(1);
+                    if (teams && teams.length > 0) {
+                        teamData = teams[0];
+                        teamId = teams[0].id;
+                    }
+                }
+
+                setMyTeam(teamData);
+                setAllTeams(teamData ? [teamData] : []);
             }
 
-            setMyTeam(teamData);
-
-            if (teamData) {
-                // 2. Fetch Roster from PLAYERS table
+            // Fetch roster for selected/current team
+            const currentTeamId = selectedTeamId || myTeam?.id;
+            if (currentTeamId) {
                 const { data: players } = await supabase
                     .from('players')
                     .select('*')
-                    .eq('team_id', teamData.id)
+                    .eq('team_id', currentTeamId)
                     .order('last_name', { ascending: true });
 
                 // Transform - use rating and minutes instead of XP
                 const formatted = (players || []).map(p => ({
                     id: p.id,
                     name: `${p.first_name} ${p.last_name}`,
-                    number: p.number || '#',
-                    rating: p.stats?.overall_rating || p.stats?.rating || '--',
-                    minutes: p.stats?.training_minutes || 0,
-                    status: (p.stats?.training_minutes > 60) ? 'On Fire' : 'Steady',
-                    avatar: p.avatar_url
+                    firstName: p.first_name,
+                    lastName: p.last_name,
+                    number: p.jersey_number || '#',
+                    rating: p.overall_rating || '--',
+                    minutes: p.training_minutes || 0,
+                    status: (p.training_minutes > 60) ? 'On Fire' : 'Steady',
+                    avatar: p.avatar_url,
+                    position: p.position
                 })).sort((a, b) => b.minutes - a.minutes);
 
                 setRoster(formatted);
@@ -92,6 +127,41 @@ const TeamView = () => {
             console.error("Error loading team:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Fetch roster when selected team changes
+    const fetchRosterForTeam = async (teamId) => {
+        if (!teamId) return;
+
+        const { data: players } = await supabase
+            .from('players')
+            .select('*')
+            .eq('team_id', teamId)
+            .order('last_name', { ascending: true });
+
+        const formatted = (players || []).map(p => ({
+            id: p.id,
+            name: `${p.first_name} ${p.last_name}`,
+            firstName: p.first_name,
+            lastName: p.last_name,
+            number: p.jersey_number || '#',
+            rating: p.overall_rating || '--',
+            minutes: p.training_minutes || 0,
+            status: (p.training_minutes > 60) ? 'On Fire' : 'Steady',
+            avatar: p.avatar_url,
+            position: p.position
+        })).sort((a, b) => b.minutes - a.minutes);
+
+        setRoster(formatted);
+    };
+
+    const handleTeamSelect = (teamId) => {
+        const team = allTeams.find(t => t.id === teamId);
+        if (team) {
+            setSelectedTeamId(teamId);
+            setMyTeam(team);
+            fetchRosterForTeam(teamId);
         }
     };
 
@@ -143,6 +213,26 @@ const TeamView = () => {
     // --- ACTIVE TEAM VIEW ---
     return (
         <div className="space-y-6 animate-fade-in-up">
+            {/* Team Selector - Shows when user has access to multiple teams */}
+            {allTeams.length > 1 && (
+                <div className="flex flex-wrap gap-2 p-3 bg-black/30 rounded-xl border border-white/10">
+                    <span className="text-gray-400 text-sm font-bold uppercase tracking-wider mr-2 self-center">Select Team:</span>
+                    {allTeams.map(team => (
+                        <button
+                            key={team.id}
+                            onClick={() => handleTeamSelect(team.id)}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                selectedTeamId === team.id
+                                    ? 'bg-brand-green text-brand-dark shadow-lg shadow-brand-green/30'
+                                    : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                            }`}
+                        >
+                            {team.age_group}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Header with Team Code */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-brand-green/5 p-6 rounded-xl border border-brand-green/20">
                 <div>

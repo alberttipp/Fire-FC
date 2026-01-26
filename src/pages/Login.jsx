@@ -464,7 +464,7 @@ const Login = () => {
                 {/* Demo Quick Access - Large visible buttons */}
                 <div className="mt-6 pt-6 border-t-2 border-brand-green/30">
                     <p className="text-sm text-brand-green font-bold uppercase tracking-widest mb-4 text-center">Quick Demo Access</p>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-4 gap-2">
                         <button
                             onClick={async () => { await loginDemo('coach'); navigate('/dashboard'); }}
                             className="py-3 px-2 bg-brand-green/20 hover:bg-brand-green/40 border border-brand-green rounded-lg text-brand-green font-bold text-sm transition-all"
@@ -482,6 +482,12 @@ const Login = () => {
                             className="py-3 px-2 bg-brand-gold/20 hover:bg-brand-gold/40 border border-brand-gold rounded-lg text-brand-gold font-bold text-sm transition-all"
                         >
                             Manager
+                        </button>
+                        <button
+                            onClick={async () => { await loginDemo('player'); navigate('/player-dashboard'); }}
+                            className="py-3 px-2 bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500 rounded-lg text-orange-400 font-bold text-sm transition-all"
+                        >
+                            Player
                         </button>
                     </div>
                 </div>
