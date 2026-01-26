@@ -76,13 +76,45 @@ const AdminPanel = ({ onClose }) => {
             await supabase.from('drills').delete().gte('id', '00000000-0000-0000-0000-000000000000');
 
             // ============================================================
+            // STEP 1.5: Create Demo Profiles (needed for FK constraints)
+            // ============================================================
+            setResult({ status: 'progress', message: 'Step 1.5/7: Creating demo profiles...' });
+
+            // Demo user IDs
+            const DEMO_COACH_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+            const DEMO_PARENT_ID = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c33';
+            const DEMO_MANAGER_ID = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d44';
+
+            // Delete existing demo profiles first, then recreate
+            await supabase.from('profiles').delete().in('id', [DEMO_COACH_ID, DEMO_PARENT_ID, DEMO_MANAGER_ID]);
+
+            const { error: profilesError } = await supabase.from('profiles').insert([
+                {
+                    id: DEMO_COACH_ID,
+                    email: 'coach@firefc.com',
+                    full_name: 'Coach Mike',
+                    role: 'coach'
+                },
+                {
+                    id: DEMO_PARENT_ID,
+                    email: 'parent@firefc.com',
+                    full_name: 'Demo Parent',
+                    role: 'parent'
+                },
+                {
+                    id: DEMO_MANAGER_ID,
+                    email: 'manager@firefc.com',
+                    full_name: 'Club Director',
+                    role: 'manager'
+                }
+            ]);
+            if (profilesError) throw new Error(`Profiles: ${profilesError.message}`);
+
+            // ============================================================
             // STEP 2: Create Teams
             // SCHEMA: id, name, age_group, logo_url, coach_id, join_code, team_type, season
             // ============================================================
             setResult({ status: 'progress', message: 'Step 2/7: Creating 3 teams...' });
-
-            // Demo user IDs for linking
-            const DEMO_COACH_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
             const { error: teamsError } = await supabase.from('teams').insert([
                 {
