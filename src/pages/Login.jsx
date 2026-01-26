@@ -461,9 +461,8 @@ const Login = () => {
                     </form>
                 )}
 
-                {/* Demo Actions (Footer) - Only show if VITE_USE_DEMO_DATA is true */}
-                {import.meta.env.VITE_USE_DEMO_DATA === 'true' && (
-                    <div className="mt-8 pt-4 border-t border-white/5 text-center opacity-50">
+                {/* Demo Actions (Footer) - Always visible for easy testing */}
+                <div className="mt-8 pt-4 border-t border-white/5 text-center">
                         <p className="text-[10px] text-gray-500 uppercase tracking-widest">Demo Mode</p>
                         <div className="flex justify-center gap-4 mt-2">
                             <Users
@@ -485,7 +484,7 @@ const Login = () => {
                             </div>
                         </div>
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );
