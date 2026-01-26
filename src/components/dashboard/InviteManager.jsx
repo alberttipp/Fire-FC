@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Copy, Plus, RefreshCw, Key, Shield, User } from 'lucide-react';
 
 const InviteManager = ({ teamId }) => {
-    const { profile } = useAuth();
+    const { user, profile } = useAuth();
     const [invites, setInvites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -82,9 +82,9 @@ const InviteManager = ({ teamId }) => {
 
     const canManageRole = (roleKey) => {
         // Manager can do all
-        if (profile.role === 'manager') return true;
+        if (profile?.role === 'manager' || user?.role === 'manager') return true;
         // Coach can do player/assistant
-        if (profile.role === 'coach') return roleKey === 'player' || roleKey === 'assistant_coach';
+        if (profile?.role === 'coach' || user?.role === 'coach') return roleKey === 'player' || roleKey === 'assistant_coach';
         return false;
     };
 
