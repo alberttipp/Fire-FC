@@ -51,15 +51,14 @@ const TeamView = () => {
 
             // Fallback for demo users: get the first available team
             if (!teamData) {
-                const { data: firstTeam } = await supabase
+                const { data: teams } = await supabase
                     .from('teams')
                     .select('*')
                     .order('age_group', { ascending: true })
-                    .limit(1)
-                    .single();
-                if (firstTeam) {
-                    teamData = firstTeam;
-                    teamId = firstTeam.id;
+                    .limit(1);
+                if (teams && teams.length > 0) {
+                    teamData = teams[0];
+                    teamId = teams[0].id;
                 }
             }
 
