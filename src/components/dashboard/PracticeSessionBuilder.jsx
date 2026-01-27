@@ -78,31 +78,47 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
     // Fetch events and saved sessions
     useEffect(() => {
         const fetchData = async () => {
+            if (!profile?.id) return;
+
             // Get upcoming practices/training events
             const today = new Date();
-            const nextMonth = new Date(today);
-            nextMonth.setMonth(nextMonth.getMonth() + 1);
 
+            // Get teams where this coach is the coach
+            const { data: coachTeams } = await supabase
+                .from('teams')
+                .select('id')
+                .eq('coach_id', profile.id);
+
+            const coachTeamIds = coachTeams?.map(t => t.id) || [];
+
+            // Get events for coach's teams OR events created by this coach
             let eventsQuery = supabase
                 .from('events')
-                .select('*')
+                .select('*, teams(name)')
                 .in('type', ['practice', 'training'])
                 .gte('start_time', today.toISOString())
                 .order('start_time', { ascending: true })
-                .limit(20);
+                .limit(50);
 
-            // Filter by team if provided
+            // Filter by specific team if provided, otherwise get all coach's events
             if (teamId) {
                 eventsQuery = eventsQuery.eq('team_id', teamId);
+            } else if (coachTeamIds.length > 0) {
+                // Get events for coach's teams OR events created by coach (personal training)
+                eventsQuery = eventsQuery.or(`team_id.in.(${coachTeamIds.join(',')}),created_by.eq.${profile.id}`);
+            } else {
+                // No teams, just get events created by this coach
+                eventsQuery = eventsQuery.eq('created_by', profile.id);
             }
 
             const { data: events } = await eventsQuery;
             setUpcomingEvents(events || []);
 
-            // Get saved sessions
+            // Get saved sessions created by this coach
             let sessionsQuery = supabase
                 .from('practice_sessions')
                 .select('*')
+                .eq('created_by', profile.id)
                 .order('created_at', { ascending: false })
                 .limit(20);
 
@@ -133,7 +149,7 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
         };
 
         fetchData();
-    }, [teamId]);
+    }, [teamId, profile?.id]);
 
     // Speech recognition setup
     useEffect(() => {
@@ -286,13 +302,19 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
             return;
         }
 
+        // Validate that we have a profile ID (required FK)
+        if (!profile?.id) {
+            alert('Error: No profile found. Please make sure you are logged in.');
+            return;
+        }
+
         try {
             const { data, error } = await supabase
                 .from('practice_sessions')
                 .insert([{
                     team_id: teamId || null,
                     event_id: selectedEventId || null,
-                    created_by: user?.id || null,
+                    created_by: profile.id,
                     name: sessionName,
                     total_duration: totalDuration,
                     drills: blocks,
@@ -444,11 +466,17 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                                 className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white mt-1"
                             >
                                 <option value="">-- Standalone (not linked) --</option>
-                                {upcomingEvents.map(ev => (
-                                    <option key={ev.id} value={ev.id}>
-                                        {new Date(ev.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} - {ev.title}
-                                    </option>
-                                ))}
+                                {upcomingEvents.length === 0 && <option disabled>No upcoming events found</option>}
+                                {upcomingEvents.map(ev => {
+                                    const date = new Date(ev.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                                    const time = new Date(ev.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                                    const teamName = ev.teams?.name || '';
+                                    return (
+                                        <option key={ev.id} value={ev.id}>
+                                            {date} @ {time} - {ev.title} {teamName && `(${teamName})`}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                     </div>
