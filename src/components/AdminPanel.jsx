@@ -73,7 +73,7 @@ const AdminPanel = ({ onClose }) => {
             await supabase.from('players').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('teams').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('badges').delete().not('id', 'is', null);
-            await supabase.from('drills').delete().gte('id', '00000000-0000-0000-0000-000000000000');
+            // NOTE: Drills are PERMANENT data - never deleted during seeding
 
             // ============================================================
             // STEP 2: Create Teams
@@ -350,40 +350,13 @@ const AdminPanel = ({ onClose }) => {
                 { name: 'Aiden Murphy', email: 'amurphy@email.com', phone: '815-555-0104', age_group: 'U12', notes: 'Goalkeeper with travel experience', status: 'pending' }
             ]);
 
-            // ============================================================
-            // STEP 7: Seed Drills Library (19 drills)
-            // ============================================================
-            setResult({ status: 'progress', message: 'Step 7/12: Creating drill library...' });
-
-            const drillsToInsert = [
-                { title: 'Foundation Taps', description: 'Basic ball control with alternating feet taps on top of ball.', skill: 'Ball Control', category: 'Technical', players: 'Solo', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Toe Taps (Stationary)', description: 'Quick toe taps on ball while stationary to build foot speed.', skill: 'Agility', category: 'Technical', players: 'Solo', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Juggling Challenge', description: 'Keep ball in air using feet, thighs, and head. Track personal best.', skill: 'Ball Control', category: 'Technical', players: 'Solo', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Figure 8 Dribbling', description: 'Dribble ball in figure 8 pattern around two cones.', skill: 'Dribbling', category: 'Technical', players: 'Solo', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
-                { title: 'L-Turns & Cruyffs', description: 'Practice L-turn and Cruyff turn moves to beat defenders.', skill: 'Dribbling', category: 'Technical', players: 'Solo', duration_minutes: 12, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Wall Passing', description: 'Pass against wall and control return. Work both feet.', skill: 'Passing', category: 'Technical', players: 'Solo', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
-                { title: '1-Minute Speed Dribble', description: 'Dribble through cone course as fast as possible. Time yourself.', skill: 'Speed', category: 'Fitness', players: 'Solo', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Turn & Burn', description: 'Receive ball, turn quickly, and accelerate away.', skill: 'Transitions', category: 'Technical', players: 'Solo', duration_minutes: 8, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Triangle Passing', description: 'Two players pass in triangle pattern, moving to next cone after pass.', skill: 'Passing', category: 'Technical', players: '2 Players', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Mirror Drill', description: 'One player leads, other mirrors movements. Switch roles.', skill: 'Agility/Defense', category: 'Technical', players: '2 Players', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
-                { title: 'One-Touch Circle', description: 'Quick one-touch passing in circular pattern.', skill: 'Passing', category: 'Technical', players: '2 Players', duration_minutes: 12, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Pressure Shielding', description: 'Shield ball from defender using body position.', skill: 'Strength', category: 'Physical', players: '2 Players', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Shadow Defending', description: 'Stay goal-side and track attacker movements.', skill: 'Positioning', category: 'Tactical', players: 'w/ Sibling', duration_minutes: 8, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Reactive Sprinting', description: 'React to partner commands and sprint in different directions.', skill: 'Speed', category: 'Fitness', players: 'w/ Sibling', duration_minutes: 5, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Fox Tails (Chasey)', description: 'Tuck shirt in back and try to grab opponents tail while protecting yours.', skill: 'Agility', category: 'Fun', players: 'w/ Sibling', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1628157588553-5eeea00af15c?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Parent Feed Volleys', description: 'Parent tosses ball, player volleys back. Work on technique.', skill: 'Control/Shooting', category: 'Technical', players: 'w/ Parent', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Red Light, Green Light', description: 'Dribble on green light, stop ball on red light.', skill: 'Dribbling', category: 'Fun', players: 'w/ Parent', duration_minutes: 10, image_url: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Target Passing', description: 'Pass ball to hit targets set up by parent.', skill: 'Passing', category: 'Technical', players: 'w/ Parent', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&q=80&w=500' },
-                { title: 'Penalty Shootout', description: 'Practice penalty kicks with parent as keeper.', skill: 'Shooting', category: 'Fun', players: 'w/ Parent', duration_minutes: 15, image_url: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=500' }
-            ];
-
-            const { data: insertedDrills, error: drillsError } = await supabase.from('drills').insert(drillsToInsert).select();
-            if (drillsError) throw new Error(`Drills: ${drillsError.message}`);
+            // NOTE: Drills are PERMANENT data - seeded via SEED_DRILLS_PERMANENT.sql
+            // Do not seed drills here - they should already exist in the database
 
             // ============================================================
-            // STEP 8: Seed Badges (15 badges)
+            // STEP 7: Seed Badges (15 badges)
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 8/12: Creating badges...' });
+            setResult({ status: 'progress', message: 'Step 7/11: Creating badges...' });
 
             const badgesToInsert = [
                 { id: 'clinical_finisher', name: 'Clinical Finisher', icon: '🎯', description: 'Scored a goal or showed excellent shooting technique.', category: 'Performance' },
@@ -415,7 +388,10 @@ const AdminPanel = ({ onClose }) => {
             const { data: allPlayersForAssign } = await supabase.from('players').select('id, team_id, first_name');
             const u11PlayersForAssign = allPlayersForAssign?.filter(p => p.team_id === 'd02aba3e-3c30-430f-9377-3b334cffcd04') || [];
 
-            if (insertedDrills && insertedDrills.length > 0 && u11PlayersForAssign.length > 0) {
+            // Fetch existing drills from database (drills are permanent data)
+            const { data: existingDrills } = await supabase.from('drills').select('id').limit(10);
+
+            if (existingDrills && existingDrills.length > 0 && u11PlayersForAssign.length > 0) {
                 const assignmentsToInsert = [];
                 const today = new Date();
 
@@ -425,7 +401,7 @@ const AdminPanel = ({ onClose }) => {
                     dueDate.setDate(dueDate.getDate() + 3 + i);
 
                     assignmentsToInsert.push({
-                        drill_id: insertedDrills[i % insertedDrills.length].id,
+                        drill_id: existingDrills[i % existingDrills.length].id,
                         player_id: u11PlayersForAssign[i].id,
                         team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04',
                         due_date: dueDate.toISOString(),
@@ -681,7 +657,7 @@ const AdminPanel = ({ onClose }) => {
                         </button>
                     )}
 
-                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • 60+ events • 19 drills • 15 badges • chat channels</p>
+                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • 60+ events • 15 badges • chat channels (drills preserved)</p>
                 </div>
             </div>
         </div>
