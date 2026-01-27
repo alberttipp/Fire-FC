@@ -23,7 +23,18 @@ export const AuthProvider = ({ children }) => {
                 // Check for virtual user (Demo or Player PIN)
                 const storedUser = localStorage.getItem('user');
                 if (storedUser) {
-                    setUser(JSON.parse(storedUser));
+                    const parsedUser = JSON.parse(storedUser);
+                    setUser(parsedUser);
+
+                    // Create profile for demo/virtual user
+                    const virtualProfile = {
+                        id: parsedUser.id,
+                        full_name: parsedUser.display_name || 'User',
+                        email: parsedUser.email,
+                        role: parsedUser.role,
+                        avatar_url: parsedUser.avatar_url || null
+                    };
+                    setProfile(virtualProfile);
                 }
                 setLoading(false);
             }
@@ -118,6 +129,17 @@ export const AuthProvider = ({ children }) => {
 
         setUser(demoUser);
         localStorage.setItem('user', JSON.stringify(demoUser));
+
+        // Create demo profile object (demo profiles don't exist in DB)
+        const demoProfile = {
+            id: demoUser.id,
+            full_name: demoUser.display_name,
+            email: demoUser.email,
+            role: role,
+            avatar_url: demoUser.avatar_url || null
+        };
+        setProfile(demoProfile);
+
         return { data: { user: demoUser }, error: null };
     };
 
@@ -144,6 +166,16 @@ export const AuthProvider = ({ children }) => {
             setUser(playerUser);
             // Persist to local storage so it survives refresh (simple version)
             localStorage.setItem('user', JSON.stringify(playerUser));
+
+            // Create profile for player
+            const playerProfile = {
+                id: playerUser.id,
+                full_name: playerUser.display_name,
+                email: playerUser.email,
+                role: 'player',
+                avatar_url: playerUser.avatar_url || null
+            };
+            setProfile(playerProfile);
 
             return { data: playerUser, error: null };
 
