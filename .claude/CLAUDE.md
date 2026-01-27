@@ -36,3 +36,25 @@
 ## If Uncertain
 - STOP and ask before proceeding.
 - Never claim a change was made without proof.
+
+---
+
+## Skills
+
+### Skill 1: Evidence-only completion
+Do not claim done without showing build/test output and listing files changed.
+
+### Skill 2: No demo data rule
+Supabase is the only source of truth; empty state is allowed; no fake fallback arrays.
+
+### Skill 3: Scoped change
+You may only edit files I explicitly list. If another file is needed, ask.
+
+### Skill 4: Two-phase execution
+First respond with PLAN (files + commands). Then execute.
+
+### Skill 5: Root cause only
+Don't patch symptoms. Identify root cause and show how you verified it.
+
+### Skill 6: Rollback plan
+If your change fails smoke tests, revert and propose a smaller change.
