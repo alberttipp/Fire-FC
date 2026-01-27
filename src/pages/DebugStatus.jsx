@@ -57,7 +57,7 @@ const DebugStatus = () => {
         }
 
         // DRILL DIAGNOSTICS - Count and sample
-        const { data: drillsCount, error: drillsCountErr } = await supabase
+        const { count: drillsCount, error: drillsCountErr } = await supabase
             .from('drills')
             .select('*', { count: 'exact', head: true });
 
@@ -74,7 +74,7 @@ const DebugStatus = () => {
         });
 
         // BADGE DIAGNOSTICS - Count
-        const { data: badgesCount, error: badgesCountErr } = await supabase
+        const { count: badgesCount, error: badgesCountErr } = await supabase
             .from('badges')
             .select('*', { count: 'exact', head: true });
 

@@ -188,7 +188,8 @@ const TeamView = () => {
                         onClose={() => setShowCreateModal(false)}
                         onTeamCreated={(newTeam) => {
                             setMyTeam(newTeam);
-                            // Ideally trigger a profile refresh here too, but local state update helps immediately
+                            setAllTeams([...allTeams, newTeam]);
+                            fetchTeamData();
                         }}
                     />
                 )}
@@ -213,23 +214,43 @@ const TeamView = () => {
     // --- ACTIVE TEAM VIEW ---
     return (
         <div className="space-y-6 animate-fade-in-up">
-            {/* Team Selector - Shows when user has access to multiple teams */}
-            {allTeams.length > 1 && (
-                <div className="flex flex-wrap gap-2 p-3 bg-black/30 rounded-xl border border-white/10">
-                    <span className="text-gray-400 text-sm font-bold uppercase tracking-wider mr-2 self-center">Select Team:</span>
-                    {allTeams.map(team => (
-                        <button
-                            key={team.id}
-                            onClick={() => handleTeamSelect(team.id)}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                                selectedTeamId === team.id
-                                    ? 'bg-brand-green text-brand-dark shadow-lg shadow-brand-green/30'
-                                    : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-                            }`}
-                        >
-                            {team.age_group}
-                        </button>
-                    ))}
+            {/* Create Team Modal - Available in active view too */}
+            {showCreateModal && (
+                <CreateTeamModal
+                    onClose={() => setShowCreateModal(false)}
+                    onTeamCreated={(newTeam) => {
+                        setAllTeams([...allTeams, newTeam]);
+                        setSelectedTeamId(newTeam.id);
+                        setMyTeam(newTeam);
+                        fetchTeamData();
+                    }}
+                />
+            )}
+            {/* Team Selector - Shows when user has access to teams (managers/coaches) */}
+            {(isManager || isCoach) && (
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-black/30 rounded-xl border border-white/10">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-gray-400 text-sm font-bold uppercase tracking-wider mr-2">Select Team:</span>
+                        {allTeams.map(team => (
+                            <button
+                                key={team.id}
+                                onClick={() => handleTeamSelect(team.id)}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                    selectedTeamId === team.id
+                                        ? 'bg-brand-green text-brand-dark shadow-lg shadow-brand-green/30'
+                                        : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                {team.age_group}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="bg-brand-green/10 text-brand-green border border-brand-green/30 px-3 py-2 rounded-lg text-xs font-bold uppercase hover:bg-brand-green/20 transition-colors flex items-center gap-2"
+                    >
+                        <Plus className="w-4 h-4" /> New Team
+                    </button>
                 </div>
             )}
 

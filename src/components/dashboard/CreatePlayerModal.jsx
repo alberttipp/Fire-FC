@@ -20,7 +20,7 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
                         team_id: teamId,
                         first_name: firstName,
                         last_name: lastName,
-                        number: number,
+                        jersey_number: number,
                         stats: { xp: 0, level: 1 }
                     }
                 ])
