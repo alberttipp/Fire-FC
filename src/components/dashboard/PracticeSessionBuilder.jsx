@@ -80,16 +80,31 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
     // Fetch events and saved sessions
     useEffect(() => {
         const fetchData = async () => {
-            if (!profile?.id) return;
+            console.log('🔍 PracticeSessionBuilder: Starting data fetch');
+            console.log('  Profile ID:', profile?.id);
+            console.log('  Team ID prop:', teamId);
+
+            if (!profile?.id) {
+                console.warn('⚠️  No profile ID - skipping fetch');
+                return;
+            }
 
             // Get upcoming practices/training events
             const today = new Date();
+            console.log('  Today:', today.toISOString());
 
             // Get teams where this coach is the coach
-            const { data: coachTeams } = await supabase
+            console.log('🔍 Fetching coach teams...');
+            const { data: coachTeams, error: teamsError } = await supabase
                 .from('teams')
-                .select('id')
+                .select('id, name')
                 .eq('coach_id', profile.id);
+
+            if (teamsError) {
+                console.error('❌ Error fetching coach teams:', teamsError);
+            } else {
+                console.log(`✅ Coach has ${coachTeams?.length || 0} teams:`, coachTeams);
+            }
 
             const coachTeamIds = coachTeams?.map(t => t.id) || [];
 
@@ -102,25 +117,42 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
                 .order('start_time', { ascending: true })
                 .limit(50);
 
-            // Filter by specific team if provided, otherwise get all coach's events
-            if (teamId) {
+            // Filter by specific team if provided AND it's one of coach's teams, otherwise get all coach's events
+            const isValidTeam = teamId && coachTeamIds.includes(teamId);
+
+            if (isValidTeam) {
+                console.log('🔍 Query: Filtering by specific teamId:', teamId);
                 eventsQuery = eventsQuery.eq('team_id', teamId);
             } else if (coachTeamIds.length > 0) {
                 // Get events for coach's teams OR events created by coach (personal training)
-                eventsQuery = eventsQuery.or(`team_id.in.(${coachTeamIds.join(',')}),created_by.eq.${profile.id}`);
+                const orClause = `team_id.in.(${coachTeamIds.join(',')}),created_by.eq.${profile.id}`;
+                console.log('🔍 Query: Using OR clause:', orClause);
+                if (teamId && !isValidTeam) {
+                    console.warn(`⚠️  teamId ${teamId} is not in coach's teams, using all coach teams instead`);
+                }
+                eventsQuery = eventsQuery.or(orClause);
             } else {
-                // No teams, just get events created by this coach
+                console.log('🔍 Query: No teams, filtering by created_by:', profile.id);
                 eventsQuery = eventsQuery.eq('created_by', profile.id);
             }
 
+            console.log('🔍 Executing events query...');
             const { data: events, error: eventsError } = await eventsQuery;
 
             if (eventsError) {
-                console.error('Error fetching events:', eventsError);
+                console.error('❌ Error fetching events:', eventsError);
+                console.error('   Error details:', JSON.stringify(eventsError, null, 2));
             } else {
-                console.log(`📅 Found ${events?.length || 0} upcoming events for coach ${profile.id}`);
+                console.log(`✅ Found ${events?.length || 0} upcoming events`);
                 if (events && events.length > 0) {
-                    console.log('Events:', events.map(e => ({ title: e.title, start: e.start_time, team: e.teams?.name })));
+                    console.log('📋 Events:', events.map(e => ({
+                        id: e.id,
+                        title: e.title,
+                        start: e.start_time,
+                        team: e.teams?.name
+                    })));
+                } else {
+                    console.log('⚠️  Query returned empty array');
                 }
             }
 

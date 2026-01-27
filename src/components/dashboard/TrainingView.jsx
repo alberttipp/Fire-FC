@@ -20,11 +20,20 @@ const TrainingView = () => {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            
-            // Get team ID
+
+            // Get team ID - prioritize coach's teams
             if (profile?.team_id) {
                 setTeamId(profile.team_id);
+            } else if (profile?.id && profile?.role === 'coach') {
+                // For coaches, get their first team
+                const { data: coachTeams } = await supabase
+                    .from('teams')
+                    .select('id')
+                    .eq('coach_id', profile.id)
+                    .limit(1);
+                if (coachTeams?.length) setTeamId(coachTeams[0].id);
             } else {
+                // For other roles, get first available team
                 const { data: teams } = await supabase
                     .from('teams')
                     .select('id')
