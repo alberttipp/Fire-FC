@@ -80,7 +80,11 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
     // Fetch events and saved sessions
     useEffect(() => {
         const fetchData = async () => {
-            if (!profile?.id) return;
+            console.log('[PracticeBuilder] useEffect triggered', { profileId: profile?.id, teamId });
+            if (!profile?.id) {
+                console.warn('[PracticeBuilder] ⚠️ No profile.id, skipping data fetch');
+                return;
+            }
 
             // Get upcoming practices/training events
             const today = new Date();
@@ -142,13 +146,20 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
             setSavedSessions(sessions || []);
 
             // Get drills from database
+            console.log('[PracticeBuilder] 🔍 Fetching drills from Supabase...');
             const { data: drills, error: drillsError } = await supabase
                 .from('drills')
                 .select('*')
                 .order('category', { ascending: true });
 
+            console.log('[PracticeBuilder] Drills query result:', {
+                drillsCount: drills?.length,
+                hasError: !!drillsError,
+                errorDetails: drillsError
+            });
+
             if (drillsError) {
-                console.error('Error fetching drills:', drillsError);
+                console.error('[PracticeBuilder] ❌ Error fetching drills:', drillsError);
                 setNoDrillsWarning(true);
             } else if (drills && drills.length > 0) {
                 // Transform to match expected format
@@ -159,11 +170,23 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
                     duration: d.duration_minutes || 10,
                     description: d.description || ''
                 }));
+
+                console.log('[PracticeBuilder] 🔄 Transformed drills:', {
+                    originalCount: drills.length,
+                    transformedCount: transformed.length,
+                    sampleDrill: drills[0],
+                    sampleTransformed: transformed[0],
+                    categoryCounts: transformed.reduce((acc, d) => {
+                        acc[d.category] = (acc[d.category] || 0) + 1;
+                        return acc;
+                    }, {})
+                });
+
                 setDrillTemplates(transformed);
                 setDrillsLoaded(true);
-                console.log(`✅ Loaded ${drills.length} drills from database`);
+                console.log(`[PracticeBuilder] ✅ Loaded ${drills.length} drills from database`);
             } else {
-                console.warn('⚠️ No drills found in database. Run: npm run seed:permanent');
+                console.warn('[PracticeBuilder] ⚠️ No drills found in database. Query returned empty. Run: npm run seed:permanent');
                 setNoDrillsWarning(true);
             }
         };
@@ -655,7 +678,13 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                 </div>
 
                 {/* Drill Picker Modal */}
-                {showDrillPicker && (
+                {showDrillPicker && (() => {
+                    console.log('[PracticeBuilder] 🎯 Drill Picker Modal rendering', {
+                        drillTemplatesCount: drillTemplates.length,
+                        drillTemplates: drillTemplates.slice(0, 3),
+                        allCategories: DRILL_CATEGORIES.map(c => c.id)
+                    });
+                    return (
                     <div className="absolute inset-0 bg-black/90 flex items-center justify-center p-4 z-10">
                         <div className="bg-brand-dark border border-white/10 rounded-xl w-full max-w-lg max-h-[80vh] overflow-hidden">
                             <div className="p-4 border-b border-white/10 flex items-center justify-between">
@@ -667,6 +696,7 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                                     const Icon = cat.icon;
                                     const drills = drillTemplates.filter(d => d.category === cat.id);
                                     const isExpanded = expandedCategory === cat.id;
+                                    console.log(`[PracticeBuilder] Category "${cat.id}": ${drills.length} drills`);
                                     return (
                                         <div key={cat.id} className="mb-2">
                                             <button onClick={() => setExpandedCategory(isExpanded ? null : cat.id)} className={`w-full flex items-center justify-between p-3 rounded-lg ${cat.bg} ${cat.color}`}>
@@ -692,7 +722,8 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                             </div>
                         </div>
                     </div>
-                )}
+                    );
+                })()}
 
                 {/* Custom Drill Modal */}
                 {showCustomDrill && (
