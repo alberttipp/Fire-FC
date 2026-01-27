@@ -72,8 +72,8 @@ const AdminPanel = ({ onClose }) => {
             await supabase.from('events').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('players').delete().gte('id', '00000000-0000-0000-0000-000000000000');
             await supabase.from('teams').delete().gte('id', '00000000-0000-0000-0000-000000000000');
-            await supabase.from('badges').delete().not('id', 'is', null);
-            // NOTE: Drills are PERMANENT data - never deleted during seeding
+            // NOTE: Drills and badges are PERMANENT data - never deleted during seeding
+            // If drills or badges are missing, run: npm run seed:permanent
 
             // ============================================================
             // STEP 2: Create Teams
@@ -350,39 +350,14 @@ const AdminPanel = ({ onClose }) => {
                 { name: 'Aiden Murphy', email: 'amurphy@email.com', phone: '815-555-0104', age_group: 'U12', notes: 'Goalkeeper with travel experience', status: 'pending' }
             ]);
 
-            // NOTE: Drills are PERMANENT data - seeded via SEED_DRILLS_PERMANENT.sql
-            // Do not seed drills here - they should already exist in the database
+            // NOTE: Drills and badges are PERMANENT data - seeded via seed_permanent.sql
+            // Do not seed drills or badges here - they should already exist in the database
+            // If missing, run: npm run seed:permanent
 
             // ============================================================
-            // STEP 7: Seed Badges (15 badges)
+            // STEP 7: Seed Assignments (Homework for players)
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 7/11: Creating badges...' });
-
-            const badgesToInsert = [
-                { id: 'clinical_finisher', name: 'Clinical Finisher', icon: '🎯', description: 'Scored a goal or showed excellent shooting technique.', category: 'Performance' },
-                { id: 'lockdown_defender', name: 'Lockdown Defender', icon: '🛡️', description: 'Unbeatable in 1v1 situations or made game-saving tackles.', category: 'Performance' },
-                { id: 'the_great_wall', name: 'The Great Wall', icon: '🧱', description: 'Clean sheet or commanded the box effectively (GK).', category: 'Performance' },
-                { id: 'playmaker', name: 'Playmaker', icon: '🪄', description: 'Unlocked the defense with creative passing or assists.', category: 'Performance' },
-                { id: 'interceptor', name: 'Interceptor', icon: '🛑', description: 'Consistently read the game to break up opponent play.', category: 'Performance' },
-                { id: 'two_footed', name: 'Two-Footed', icon: '🔄', description: 'Successfully used weak foot to pass or shoot.', category: 'Technical' },
-                { id: 'most_improved', name: 'Most Improved', icon: '📈', description: 'Showed the most progress in a specific skill.', category: 'Technical' },
-                { id: 'skill_master', name: 'Skill Master', icon: '🧪', description: 'Mastered a new skill move and used it effectively.', category: 'Technical' },
-                { id: 'engine_room', name: 'Engine Room', icon: '🏃', description: 'Highest work rate and covered the most ground.', category: 'Technical' },
-                { id: 'composure', name: 'Composure', icon: '🧘', description: 'Stayed calm under heavy pressure.', category: 'Technical' },
-                { id: 'the_general', name: 'The General', icon: '📣', description: 'Exceptional communication and organization.', category: 'Culture' },
-                { id: 'ultimate_teammate', name: 'Ultimate Teammate', icon: '🤝', description: 'Encouraged teammates and lifted spirits.', category: 'Culture' },
-                { id: 'fire_starter', name: 'Fire Starter', icon: '🔥', description: 'Brought the most energy and hype to the session.', category: 'Culture' },
-                { id: 'student_of_the_game', name: 'Student of the Game', icon: '📚', description: 'Asked great questions and understood the "Why".', category: 'Culture' },
-                { id: 'the_professional', name: 'The Professional', icon: '⏰', description: 'Arrived early, fully geared up, and ready to work.', category: 'Culture' }
-            ];
-
-            const { error: badgesError } = await supabase.from('badges').insert(badgesToInsert);
-            if (badgesError) throw new Error(`Badges: ${badgesError.message}`);
-
-            // ============================================================
-            // STEP 9: Seed Assignments (Homework for players)
-            // ============================================================
-            setResult({ status: 'progress', message: 'Step 9/12: Creating homework assignments...' });
+            setResult({ status: 'progress', message: 'Step 7/12: Creating homework assignments...' });
 
             // Get players and drills for assignments
             const { data: allPlayersForAssign } = await supabase.from('players').select('id, team_id, first_name');
@@ -414,9 +389,9 @@ const AdminPanel = ({ onClose }) => {
             }
 
             // ============================================================
-            // STEP 10: Seed Player Badges (Earned badges)
+            // STEP 8: Seed Player Badges (Earned badges)
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 10/12: Awarding player badges...' });
+            setResult({ status: 'progress', message: 'Step 8/12: Awarding player badges...' });
 
             if (u11PlayersForAssign.length > 0) {
                 const playerBadgesToInsert = [
@@ -432,9 +407,9 @@ const AdminPanel = ({ onClose }) => {
             }
 
             // ============================================================
-            // STEP 11: Seed Chat Channels & Messages
+            // STEP 9: Seed Chat Channels & Messages
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 11/12: Creating chat channels & messages...' });
+            setResult({ status: 'progress', message: 'Step 9/12: Creating chat channels & messages...' });
 
             // Create channels for U11 team
             const channelsToInsert = [
@@ -465,9 +440,9 @@ const AdminPanel = ({ onClose }) => {
             }
 
             // ============================================================
-            // STEP 12: Seed Player Stats & Evaluations
+            // STEP 10: Seed Player Stats & Evaluations
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 12/12: Creating player stats & evaluations...' });
+            setResult({ status: 'progress', message: 'Step 10/12: Creating player stats & evaluations...' });
 
             // Player stats
             if (u11PlayersForAssign.length > 0) {
@@ -485,9 +460,9 @@ const AdminPanel = ({ onClose }) => {
             }
 
             // ============================================================
-            // STEP 13: Seed Training Clients
+            // STEP 11: Seed Training Clients
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 13/15: Creating training clients...' });
+            setResult({ status: 'progress', message: 'Step 11/12: Creating training clients...' });
 
             const DEMO_COACH_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
             const DEMO_PARENT_ID = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c33';
@@ -503,9 +478,9 @@ const AdminPanel = ({ onClose }) => {
             await supabase.from('training_clients').insert(trainingClientsToInsert);
 
             // ============================================================
-            // STEP 14: Seed Family Links (Parent-Player relationships)
+            // STEP 12: Seed Family Links (Parent-Player relationships)
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 14/15: Creating family links...' });
+            setResult({ status: 'progress', message: 'Step 12/12: Creating family links...' });
 
             // Find Bo Tipp's player ID
             const boTipp = u11PlayersForAssign?.find(p => p.first_name === 'Bo');
@@ -515,21 +490,8 @@ const AdminPanel = ({ onClose }) => {
                 ]).select();
             }
 
-            // ============================================================
-            // STEP 15: Reassign current user to U11 team
-            // ============================================================
-            setResult({ status: 'progress', message: 'Finalizing: Assigning your profile to U11 team...' });
-
-            const { data: { user: currentUser } } = await supabase.auth.getUser();
-            if (currentUser) {
-                await supabase
-                    .from('profiles')
-                    .update({ team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04' })
-                    .eq('id', currentUser.id);
-            }
-
             // DONE!
-            setResult({ status: 'success', message: '✅ Database seeded! Refresh the page to see changes.' });
+            setResult({ status: 'success', message: '✅ Staging data seeded! Drills and badges preserved. Refresh the page to see changes.' });
             setConfirmReset(false);
             fetchStats();
 
@@ -657,7 +619,8 @@ const AdminPanel = ({ onClose }) => {
                         </button>
                     )}
 
-                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • 60+ events • 15 badges • chat channels (drills preserved)</p>
+                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • 60+ events • chat channels (drills & badges preserved)</p>
+                    <p className="text-xs text-gray-500 text-center mt-2">💡 Missing drills or badges? Run: <code className="text-brand-gold bg-white/5 px-1 rounded">npm run seed:permanent</code></p>
                 </div>
             </div>
         </div>
