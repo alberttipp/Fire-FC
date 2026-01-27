@@ -20,28 +20,41 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
         const joinCode = `FC-${randomStr}`;
 
         try {
-            // 1. Insert Team
+            // Check if user profile exists in database (real users have profiles, demo users don't)
+            const { data: profileExists } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', user.id)
+                .single();
+
+            // 1. Insert Team (only set coach_id if profile exists)
+            const teamInsert = {
+                name,
+                age_group: ageGroup,
+                join_code: joinCode,
+            };
+
+            if (profileExists) {
+                teamInsert.coach_id = user.id;
+            }
+
             const { data: teamData, error: teamError } = await supabase
                 .from('teams')
-                .insert({
-                    name,
-                    age_group: ageGroup,
-                    coach_id: user.id,
-                    join_code: joinCode,
-                    // logo_url: ... could add later
-                })
+                .insert(teamInsert)
                 .select()
                 .single();
 
             if (teamError) throw teamError;
 
-            // 2. Update Coach's Profile with correct team_id
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({ team_id: teamData.id })
-                .eq('id', user.id);
+            // 2. Update Coach's Profile with correct team_id (only if profile exists)
+            if (profileExists) {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update({ team_id: teamData.id })
+                    .eq('id', user.id);
 
-            if (profileError) throw profileError;
+                if (profileError) throw profileError;
+            }
 
             // Success
             onTeamCreated(teamData);
