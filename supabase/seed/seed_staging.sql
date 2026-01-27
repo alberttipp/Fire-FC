@@ -208,45 +208,49 @@ INSERT INTO tryout_waitlist (name, email, phone, age_group, notes, status) VALUE
     ('Jose Ramirez', 'jramirez@email.com', '815-555-0103', 'U12', 'Goalkeeper with futsal experience.', 'scheduled');
 
 -- ============================================================
--- STEP 7: ENSURE DEMO PROFILES EXIST
+-- STEP 7: SEED TRAINING CLIENTS (without FK dependency)
 -- ============================================================
 
--- Create demo user profiles if they don't exist (required for FK constraints)
-INSERT INTO profiles (id, email, full_name, role) VALUES
-    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'coach@firefc.demo', 'Coach Demo', 'coach'),
-    ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b22', 'player@firefc.demo', 'Player Demo', 'player'),
-    ('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c33', 'parent@firefc.demo', 'Parent Demo', 'parent'),
-    ('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d44', 'manager@firefc.demo', 'Manager Demo', 'manager')
-ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email,
-    full_name = EXCLUDED.full_name,
-    role = EXCLUDED.role;
+-- Note: Training clients can be seeded without coach profiles
+-- The coach_id will be set when real coaches log in
+DO $$
+DECLARE
+    demo_coach_id UUID;
+BEGIN
+    -- Try to find an existing coach profile (from real auth users)
+    SELECT id INTO demo_coach_id FROM profiles WHERE role = 'coach' LIMIT 1;
+
+    -- If a coach profile exists, use it; otherwise skip training clients
+    IF demo_coach_id IS NOT NULL THEN
+        INSERT INTO training_clients (coach_id, first_name, last_name, email, phone, parent_name, notes, status) VALUES
+            (demo_coach_id, 'Tommy', 'Richards', 'tommy@email.com', '815-555-1001', 'Sarah Richards', 'Private training - shooting focus', 'active'),
+            (demo_coach_id, 'Kevin', 'Park', 'kevin@email.com', '815-555-2001', 'David Park', 'Small group sessions preferred', 'active'),
+            (demo_coach_id, 'Jose', 'Ramirez', 'jose@email.com', '815-555-3001', 'Maria Ramirez', 'Goalkeeper training', 'active'),
+            (demo_coach_id, 'Emily', 'Chen', 'emily@email.com', '815-555-4001', 'Linda Chen', 'Technical development', 'active'),
+            (demo_coach_id, 'Marcus', 'Johnson', 'marcus@email.com', '815-555-5001', 'Mike Johnson', 'Speed and agility focus', 'active');
+    END IF;
+END $$;
 
 -- ============================================================
--- STEP 8: SEED TRAINING CLIENTS
--- ============================================================
-
-INSERT INTO training_clients (coach_id, first_name, last_name, email, phone, parent_name, notes, status) VALUES
-    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Tommy', 'Richards', 'tommy@email.com', '815-555-1001', 'Sarah Richards', 'Private training - shooting focus', 'active'),
-    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Kevin', 'Park', 'kevin@email.com', '815-555-2001', 'David Park', 'Small group sessions preferred', 'active'),
-    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Jose', 'Ramirez', 'jose@email.com', '815-555-3001', 'Maria Ramirez', 'Goalkeeper training', 'active'),
-    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Emily', 'Chen', 'emily@email.com', '815-555-4001', 'Linda Chen', 'Technical development', 'active'),
-    ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Marcus', 'Johnson', 'marcus@email.com', '815-555-5001', 'Mike Johnson', 'Speed and agility focus', 'active');
-
--- ============================================================
--- STEP 9: SEED FAMILY LINKS (Parent-Player relationships)
+-- STEP 8: SEED FAMILY LINKS (if parent profile exists)
 -- ============================================================
 
 DO $$
 DECLARE
     bo_player_id UUID;
+    demo_parent_id UUID;
 BEGIN
     -- Find Bo Tipp's player ID
     SELECT id INTO bo_player_id FROM players WHERE first_name = 'Bo' AND last_name = 'Tipp' LIMIT 1;
 
-    IF bo_player_id IS NOT NULL THEN
+    -- Try to find an existing parent profile
+    SELECT id INTO demo_parent_id FROM profiles WHERE role = 'parent' LIMIT 1;
+
+    -- Only create family link if both exist
+    IF bo_player_id IS NOT NULL AND demo_parent_id IS NOT NULL THEN
         INSERT INTO family_links (parent_id, player_id, relationship) VALUES
-            ('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c33', bo_player_id, 'parent');
+            (demo_parent_id, bo_player_id, 'parent')
+        ON CONFLICT DO NOTHING;
     END IF;
 END $$;
 
