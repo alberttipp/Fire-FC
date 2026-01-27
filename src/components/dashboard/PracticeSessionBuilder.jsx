@@ -58,7 +58,9 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
     const [customDrill, setCustomDrill] = useState({ name: '', duration: 10, category: 'technical', description: '' });
     const [expandedCategory, setExpandedCategory] = useState(null);
     const [drillTemplates, setDrillTemplates] = useState([]);
-    
+    const [drillsLoaded, setDrillsLoaded] = useState(false);
+    const [noDrillsWarning, setNoDrillsWarning] = useState(false);
+
     // Voice input state
     const [isListening, setIsListening] = useState(false);
     const [voiceInput, setVoiceInput] = useState('');
@@ -111,7 +113,17 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
                 eventsQuery = eventsQuery.eq('created_by', profile.id);
             }
 
-            const { data: events } = await eventsQuery;
+            const { data: events, error: eventsError } = await eventsQuery;
+
+            if (eventsError) {
+                console.error('Error fetching events:', eventsError);
+            } else {
+                console.log(`📅 Found ${events?.length || 0} upcoming events for coach ${profile.id}`);
+                if (events && events.length > 0) {
+                    console.log('Events:', events.map(e => ({ title: e.title, start: e.start_time, team: e.teams?.name })));
+                }
+            }
+
             setUpcomingEvents(events || []);
 
             // Get saved sessions created by this coach
@@ -130,12 +142,15 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
             setSavedSessions(sessions || []);
 
             // Get drills from database
-            const { data: drills } = await supabase
+            const { data: drills, error: drillsError } = await supabase
                 .from('drills')
                 .select('*')
                 .order('category', { ascending: true });
 
-            if (drills && drills.length > 0) {
+            if (drillsError) {
+                console.error('Error fetching drills:', drillsError);
+                setNoDrillsWarning(true);
+            } else if (drills && drills.length > 0) {
                 // Transform to match expected format
                 const transformed = drills.map(d => ({
                     id: d.id,
@@ -145,6 +160,11 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
                     description: d.description || ''
                 }));
                 setDrillTemplates(transformed);
+                setDrillsLoaded(true);
+                console.log(`✅ Loaded ${drills.length} drills from database`);
+            } else {
+                console.warn('⚠️ No drills found in database. Run: npm run seed:permanent');
+                setNoDrillsWarning(true);
             }
         };
 
@@ -205,22 +225,44 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
 
     const toggleListening = () => {
         if (!recognitionRef.current) {
-            alert('Speech recognition not supported');
+            console.error('❌ Speech recognition not supported in this browser');
+            alert('Speech recognition not supported. Use Chrome or Edge browser.');
             return;
         }
         if (isListening) {
+            console.log('🛑 Stopping voice recording...');
             recognitionRef.current.stop();
-            if (voiceInput.trim()) processVoiceWithAI(voiceInput);
+            if (voiceInput.trim()) {
+                console.log('🎤 Voice input captured:', voiceInput);
+                processVoiceWithAI(voiceInput);
+            } else {
+                console.warn('⚠️ No voice input captured');
+            }
         } else {
+            console.log('🎤 Starting voice recording...');
             setVoiceInput('');
-            recognitionRef.current.start();
-            setIsListening(true);
+            try {
+                recognitionRef.current.start();
+                setIsListening(true);
+            } catch (err) {
+                console.error('❌ Error starting recognition:', err);
+                alert('Could not start microphone. Check browser permissions.');
+            }
         }
     };
 
     const processVoiceWithAI = async (transcript) => {
+        console.log('🤖 Processing with AI:', transcript);
+
+        if (!GEMINI_API_KEY) {
+            console.error('❌ Gemini API key not found in environment');
+            alert('Gemini API key missing. Check .env file for VITE_GEMINI_API_KEY');
+            return;
+        }
+
         setAiProcessing(true);
         try {
+            console.log('📡 Calling Gemini API...');
             const response = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
                 {
@@ -238,16 +280,31 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                     })
                 }
             );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Gemini API error:', response.status, errorText);
+                throw new Error(`API error: ${response.status}`);
+            }
+
             const data = await response.json();
+            console.log('✅ Gemini response:', data);
+
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            console.log('📝 Generated text:', text);
+
             const match = text.match(/\[[\s\S]*\]/);
             if (match) {
                 const drills = JSON.parse(match[0]);
+                console.log(`✅ Generated ${drills.length} drills:`, drills);
                 setBlocks(drills.map((d, i) => ({ ...d, id: `ai-${i}-${Date.now()}` })));
+            } else {
+                console.error('❌ No JSON array found in response');
+                alert('AI could not generate drills. Try being more specific or add drills manually.');
             }
         } catch (err) {
-            console.error('AI error:', err);
-            alert('Could not process voice. Add drills manually.');
+            console.error('❌ AI processing error:', err);
+            alert(`Could not process voice: ${err.message}. Add drills manually.`);
         } finally {
             setAiProcessing(false);
             setVoiceInput('');
@@ -443,6 +500,28 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                         </button>
                     </div>
                 </div>
+
+                {/* Drills Warning Banner */}
+                {noDrillsWarning && (
+                    <div className="mx-4 sm:mx-6 mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                        <div className="flex items-start gap-3">
+                            <div className="text-red-400 text-2xl">⚠️</div>
+                            <div className="flex-1">
+                                <h3 className="text-red-400 font-bold mb-1">No Drills Found in Database</h3>
+                                <p className="text-sm text-gray-300 mb-2">
+                                    The drills table is empty. You need to seed permanent data before you can build practice sessions.
+                                </p>
+                                <div className="text-xs text-gray-400 space-y-1">
+                                    <p><strong className="text-white">Step 1:</strong> Run <code className="bg-black/30 px-1 rounded">npm run seed:permanent</code> in your terminal</p>
+                                    <p><strong className="text-white">Step 2:</strong> Open Supabase Dashboard → SQL Editor</p>
+                                    <p><strong className="text-white">Step 3:</strong> Copy/paste contents of <code className="bg-black/30 px-1 rounded">supabase/seed/seed_permanent.sql</code></p>
+                                    <p><strong className="text-white">Step 4:</strong> Click "Run" - should seed 156 drills and 15 badges</p>
+                                    <p className="text-brand-gold mt-2">See <code className="bg-black/30 px-1 rounded">supabase/seed/SEED_POLICY.md</code> for full instructions</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">

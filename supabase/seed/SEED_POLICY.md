@@ -4,6 +4,54 @@
 
 ---
 
+## 🚀 FIRST TIME SETUP (CRITICAL!)
+
+**If you're seeing "No drills to pick from" or empty data, follow these steps in order:**
+
+### Step 1: Seed Permanent Data (ONE TIME ONLY)
+```bash
+npm run seed:permanent
+```
+
+**What this does:**
+- Shows you the file path: `supabase/seed/seed_permanent.sql`
+- You MUST manually run this SQL in Supabase Dashboard:
+  1. Open [Supabase Dashboard](https://supabase.com/dashboard) → SQL Editor
+  2. Copy ALL contents of `supabase/seed/seed_permanent.sql`
+  3. Paste and click "Run"
+  4. Verify: Should see "156 drills" and "15 badges"
+
+**⚠️ WARNING:** Without this step, the app will NOT work. You'll see:
+- ❌ "No drills to pick from" in Practice Builder
+- ❌ Empty drill library everywhere
+- ❌ Cannot assign homework or build practice sessions
+
+### Step 2: Seed Staging Data (OPTIONAL - for testing)
+```bash
+npm run seed:staging
+```
+
+**What this does:**
+- Shows you the file path: `supabase/seed/seed_staging.sql`
+- Run in Supabase Dashboard SQL Editor (same process as Step 1)
+- Creates: 3 teams, 42 players, 60+ events, practice sessions
+
+**OR use AdminPanel:**
+- Go to Admin Panel in app
+- Click "Reset & Reseed Database"
+- This does the same thing as `seed_staging.sql`
+
+### Step 3: Verify Everything Works
+Run these queries in Supabase SQL Editor:
+```sql
+SELECT COUNT(*) FROM drills;   -- Should return 156
+SELECT COUNT(*) FROM badges;   -- Should return 15
+SELECT COUNT(*) FROM teams;    -- Should return 3 (if you ran staging seed)
+SELECT COUNT(*) FROM players;  -- Should return 42 (if you ran staging seed)
+```
+
+---
+
 ## 🔒 PERMANENT TABLES
 
 These tables contain **production data** that must NEVER be deleted during seeding operations.
