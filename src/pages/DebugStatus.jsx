@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, Link, Users, User, Database, CheckCircle, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Link, Users, User, Database, CheckCircle, AlertTriangle, GitCommit, Clock, Globe, Box } from 'lucide-react';
+import { BUILD_INFO } from '../utils/buildInfo';
 
 const DebugStatus = () => {
     const { user, profile } = useAuth();
@@ -9,6 +10,8 @@ const DebugStatus = () => {
     const [players, setPlayers] = useState([]);
     const [profiles, setProfiles] = useState([]);
     const [myProfile, setMyProfile] = useState(null);
+    const [drillsData, setDrillsData] = useState({ count: null, sample: null, error: null });
+    const [badgesData, setBadgesData] = useState({ count: null, error: null });
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
 
@@ -21,7 +24,7 @@ const DebugStatus = () => {
             .from('teams')
             .select('*')
             .order('name');
-        
+
         if (teamsErr) console.error('Teams error:', teamsErr);
         setTeams(teamsData || []);
 
@@ -30,7 +33,7 @@ const DebugStatus = () => {
             .from('players')
             .select('*, teams(name)')
             .order('last_name');
-        
+
         if (playersErr) console.error('Players error:', playersErr);
         setPlayers(playersData || []);
 
@@ -39,7 +42,7 @@ const DebugStatus = () => {
             .from('profiles')
             .select('*')
             .order('full_name');
-        
+
         if (profilesErr) console.error('Profiles error:', profilesErr);
         setProfiles(profilesData || []);
 
@@ -52,6 +55,33 @@ const DebugStatus = () => {
                 .single();
             setMyProfile(myData);
         }
+
+        // DRILL DIAGNOSTICS - Count and sample
+        const { data: drillsCount, error: drillsCountErr } = await supabase
+            .from('drills')
+            .select('*', { count: 'exact', head: true });
+
+        const { data: drillSample, error: drillSampleErr } = await supabase
+            .from('drills')
+            .select('*')
+            .limit(1)
+            .single();
+
+        setDrillsData({
+            count: drillsCountErr ? null : drillsCount,
+            sample: drillSample,
+            error: drillsCountErr || drillSampleErr
+        });
+
+        // BADGE DIAGNOSTICS - Count
+        const { data: badgesCount, error: badgesCountErr } = await supabase
+            .from('badges')
+            .select('*', { count: 'exact', head: true });
+
+        setBadgesData({
+            count: badgesCountErr ? null : badgesCount,
+            error: badgesCountErr
+        });
 
         setLoading(false);
     };
@@ -129,6 +159,168 @@ const DebugStatus = () => {
                         {message}
                     </div>
                 )}
+
+                {/* BUILD INFO */}
+                <div className="bg-gray-900 rounded-xl p-6 mb-6 border border-gray-700">
+                    <h2 className="text-xl font-bold text-brand-gold mb-4 flex items-center gap-2">
+                        <GitCommit className="w-5 h-5" /> Build Information
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-gray-400 text-sm">Commit SHA</p>
+                            <p className="text-white font-mono text-sm">{BUILD_INFO.commitSha}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Short SHA</p>
+                            <p className="text-brand-green font-mono font-bold">{BUILD_INFO.shortSha}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Branch</p>
+                            <p className="text-white">{BUILD_INFO.branch}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Environment</p>
+                            <p className={`font-bold ${BUILD_INFO.isProduction ? 'text-brand-gold' : 'text-blue-400'}`}>
+                                {BUILD_INFO.environment}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Build Time</p>
+                            <p className="text-white text-sm">{new Date(BUILD_INFO.buildTime).toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Deployment URL</p>
+                            <p className="text-white text-sm truncate">{BUILD_INFO.deploymentUrl}</p>
+                        </div>
+                        <div className="md:col-span-2">
+                            <p className="text-gray-400 text-sm">Commit Message</p>
+                            <p className="text-white text-sm">{BUILD_INFO.commitMessage}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Commit Author</p>
+                            <p className="text-white">{BUILD_INFO.commitAuthor}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* SUPABASE CONNECTION */}
+                <div className="bg-gray-900 rounded-xl p-6 mb-6 border border-gray-700">
+                    <h2 className="text-xl font-bold text-brand-gold mb-4 flex items-center gap-2">
+                        <Database className="w-5 h-5" /> Supabase Connection
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-gray-400 text-sm">Project Reference</p>
+                            <p className="text-brand-green font-mono font-bold">{BUILD_INFO.projectRef}</p>
+                        </div>
+                        <div>
+                            <p className="text-gray-400 text-sm">Supabase URL</p>
+                            <p className="text-white text-sm font-mono truncate">{BUILD_INFO.supabaseUrl}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* PERMANENT DATA DIAGNOSTICS */}
+                <div className="bg-gray-900 rounded-xl p-6 mb-6 border border-gray-700">
+                    <h2 className="text-xl font-bold text-brand-gold mb-4 flex items-center gap-2">
+                        <Box className="w-5 h-5" /> Permanent Data Status
+                    </h2>
+
+                    {/* DRILLS */}
+                    <div className="mb-6 p-4 rounded-lg bg-black/50 border border-gray-800">
+                        <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                            {drillsData.error ? (
+                                <AlertTriangle className="w-5 h-5 text-red-500" />
+                            ) : drillsData.count === 156 ? (
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                            ) : (
+                                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                            )}
+                            Drills Table
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p className="text-gray-400 text-sm">Count</p>
+                                <p className={`text-2xl font-bold ${drillsData.count === 156 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {drillsData.count !== null ? drillsData.count : '❌'}
+                                    <span className="text-sm text-gray-400 ml-2">(expected: 156)</span>
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-gray-400 text-sm">Sample Drill</p>
+                                {drillsData.sample ? (
+                                    <p className="text-white text-sm">{drillsData.sample.name}</p>
+                                ) : (
+                                    <p className="text-red-400">❌ No drills found</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {drillsData.error && (
+                            <div className="p-3 bg-red-900/30 border border-red-500 rounded">
+                                <p className="text-red-400 font-bold mb-1">⚠️ Error querying drills table:</p>
+                                <pre className="text-xs text-red-300 overflow-x-auto">
+                                    {JSON.stringify(drillsData.error, null, 2)}
+                                </pre>
+                            </div>
+                        )}
+
+                        {!drillsData.error && drillsData.count === 0 && (
+                            <div className="p-3 bg-yellow-900/30 border border-yellow-500 rounded">
+                                <p className="text-yellow-400 font-bold mb-1">⚠️ Drills table is empty!</p>
+                                <p className="text-sm text-gray-300">Run seed_permanent.sql in Supabase Dashboard → SQL Editor</p>
+                            </div>
+                        )}
+
+                        {!drillsData.error && drillsData.count > 0 && drillsData.count !== 156 && (
+                            <div className="p-3 bg-yellow-900/30 border border-yellow-500 rounded">
+                                <p className="text-yellow-400 font-bold mb-1">⚠️ Unexpected drill count</p>
+                                <p className="text-sm text-gray-300">Expected 156 drills, found {drillsData.count}. You may need to re-run seed_permanent.sql</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* BADGES */}
+                    <div className="p-4 rounded-lg bg-black/50 border border-gray-800">
+                        <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                            {badgesData.error ? (
+                                <AlertTriangle className="w-5 h-5 text-red-500" />
+                            ) : badgesData.count === 15 ? (
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                            ) : (
+                                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                            )}
+                            Badges Table
+                        </h3>
+
+                        <div>
+                            <p className="text-gray-400 text-sm">Count</p>
+                            <p className={`text-2xl font-bold ${badgesData.count === 15 ? 'text-green-400' : 'text-red-400'}`}>
+                                {badgesData.count !== null ? badgesData.count : '❌'}
+                                <span className="text-sm text-gray-400 ml-2">(expected: 15)</span>
+                            </p>
+                        </div>
+
+                        {badgesData.error && (
+                            <div className="mt-3 p-3 bg-red-900/30 border border-red-500 rounded">
+                                <p className="text-red-400 font-bold mb-1">⚠️ Error querying badges table:</p>
+                                <pre className="text-xs text-red-300 overflow-x-auto">
+                                    {JSON.stringify(badgesData.error, null, 2)}
+                                </pre>
+                            </div>
+                        )}
+
+                        {!badgesData.error && badgesData.count === 0 && (
+                            <div className="mt-3 p-3 bg-yellow-900/30 border border-yellow-500 rounded">
+                                <p className="text-yellow-400 font-bold mb-1">⚠️ Badges table is empty!</p>
+                                <p className="text-sm text-gray-300">Run seed_permanent.sql in Supabase Dashboard → SQL Editor</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 {/* YOUR STATUS */}
                 <div className="bg-gray-900 rounded-xl p-6 mb-6 border border-gray-700">

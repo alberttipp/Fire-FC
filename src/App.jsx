@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -12,6 +12,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { VoiceCommandProvider } from './context/VoiceCommandContext';
 import AIAssistant from './components/AIAssistant';
 import VoiceCommandOverlay from './components/VoiceCommandOverlay';
+import BuildStamp from './components/BuildStamp';
+import { logBuildInfo } from './utils/buildInfo';
 
 // Wrapper to conditionally show AI Assistant and Voice Commands
 const AIAssistantWrapper = () => {
@@ -47,6 +49,11 @@ const VoiceCommandWrapper = ({ children }) => {
 };
 
 function App() {
+  // Log build info on app load
+  useEffect(() => {
+    logBuildInfo();
+  }, []);
+
   return (
     <ErrorBoundary>
       <ToastProvider>
@@ -71,19 +78,20 @@ function App() {
                     <ParentDashboard />
                   </PrivateRoute>
                 } />
-                {/* Debug route only in development */}
-                {import.meta.env.DEV && (
-                  <Route path="/debug" element={
-                    <Suspense fallback={<div className="min-h-screen bg-brand-dark flex items-center justify-center text-white">Loading...</div>}>
-                      {React.createElement(React.lazy(() => import('./pages/DebugStatus')))}
-                    </Suspense>
-                  } />
-                )}
+                {/* Debug route - available in all environments */}
+                <Route path="/debug" element={
+                  <Suspense fallback={<div className="min-h-screen bg-brand-dark flex items-center justify-center text-white">Loading...</div>}>
+                    {React.createElement(React.lazy(() => import('./pages/DebugStatus')))}
+                  </Suspense>
+                } />
                 <Route path="/" element={<Navigate to="/login" />} />
               </Routes>
 
               {/* AI Assistant & Voice Commands - appears on all logged-in pages */}
               <AIAssistantWrapper />
+
+              {/* Build Stamp - visible indicator of deployed version */}
+              <BuildStamp />
             </VoiceCommandWrapper>
           </AuthProvider>
         </Router>
