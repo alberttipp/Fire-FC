@@ -321,19 +321,34 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             }
 
             console.log('📡 Calling Supabase Edge Function...');
-            const { data, error } = await supabase.functions.invoke('ai-practice-session', {
-                body: {
+
+            // Get supabase URL and key from the client
+            const supabaseUrl = supabase.supabaseUrl;
+            const supabaseKey = supabase.supabaseKey;
+
+            // Call edge function with explicit headers
+            const response = await fetch(`${supabaseUrl}/functions/v1/ai-practice-session`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`
+                },
+                body: JSON.stringify({
                     transcript,
                     selectedEventId,
                     eventContext,
                     candidates: topCandidates
-                }
+                })
             });
 
-            if (error) {
-                console.error('❌ Edge function error:', error);
-                throw new Error(error.message || 'Failed to call AI function');
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ Edge function HTTP error:', response.status, errorText);
+                throw new Error(`Edge function returned ${response.status}: ${errorText}`);
             }
+
+            const data = await response.json();
 
             if (data.error) {
                 console.error('❌ AI processing error:', data.error);
