@@ -111,7 +111,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             // Simple query: Get events for coach's teams
             const { data: events, error: eventsError } = await supabase
                 .from('events')
-                .select('*, teams(name)')
+                .select('*, teams(name, age_group)')
                 .in('type', ['practice', 'training'])
                 .in('team_id', coachTeamIds)
                 .gte('start_time', today.toISOString())
@@ -556,9 +556,11 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                                     const date = new Date(ev.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                                     const time = new Date(ev.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                                     const teamName = ev.teams?.name || '';
+                                    const ageGroup = ev.teams?.age_group || '';
+                                    const teamDisplay = ageGroup ? `${teamName} ${ageGroup}` : teamName;
                                     return (
                                         <option key={ev.id} value={ev.id}>
-                                            {date} @ {time} - {ev.title} {teamName && `(${teamName})`}
+                                            {date} @ {time} - {ev.title} {teamDisplay && `(${teamDisplay})`}
                                         </option>
                                     );
                                 })}
