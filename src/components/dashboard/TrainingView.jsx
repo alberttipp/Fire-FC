@@ -123,9 +123,8 @@ const TrainingView = () => {
             )}
 
             {showPracticeBuilder && (
-                <PracticeSessionBuilder 
+                <PracticeSessionBuilder
                     onClose={() => setShowPracticeBuilder(false)}
-                    teamId={teamId}
                     onSave={(session) => console.log('Session saved:', session)}
                 />
             )}

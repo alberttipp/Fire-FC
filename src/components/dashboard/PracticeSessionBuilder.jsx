@@ -43,7 +43,7 @@ const playAlarm = () => {
     } catch (e) { console.log('Audio not supported'); }
 };
 
-const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
+const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const { user, profile } = useAuth();
     
     // Build mode state
@@ -82,14 +82,12 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
         const fetchData = async () => {
             console.log('🔍 PracticeSessionBuilder: Starting data fetch');
             console.log('  Profile ID:', profile?.id);
-            console.log('  Team ID prop:', teamId);
 
             if (!profile?.id) {
                 console.warn('⚠️  No profile ID - skipping fetch');
                 return;
             }
 
-            // Get upcoming practices/training events
             const today = new Date();
             console.log('  Today:', today.toISOString());
 
@@ -108,7 +106,7 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
 
             const coachTeamIds = coachTeams?.map(t => t.id) || [];
 
-            // Get events for coach's teams OR events created by this coach
+            // Get ALL events for coach's teams OR created by coach - no filtering by specific team
             let eventsQuery = supabase
                 .from('events')
                 .select('*, teams(name)')
@@ -117,21 +115,13 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
                 .order('start_time', { ascending: true })
                 .limit(50);
 
-            // Filter by specific team if provided AND it's one of coach's teams, otherwise get all coach's events
-            const isValidTeam = teamId && coachTeamIds.includes(teamId);
-
-            if (isValidTeam) {
-                console.log('🔍 Query: Filtering by specific teamId:', teamId);
-                eventsQuery = eventsQuery.eq('team_id', teamId);
-            } else if (coachTeamIds.length > 0) {
-                // Get events for coach's teams OR events created by coach (personal training)
+            if (coachTeamIds.length > 0) {
+                // Show all events for ANY of coach's teams OR created by coach
                 const orClause = `team_id.in.(${coachTeamIds.join(',')}),created_by.eq.${profile.id}`;
                 console.log('🔍 Query: Using OR clause:', orClause);
-                if (teamId && !isValidTeam) {
-                    console.warn(`⚠️  teamId ${teamId} is not in coach's teams, using all coach teams instead`);
-                }
                 eventsQuery = eventsQuery.or(orClause);
             } else {
+                // No teams, just get events created by this coach
                 console.log('🔍 Query: No teams, filtering by created_by:', profile.id);
                 eventsQuery = eventsQuery.eq('created_by', profile.id);
             }
@@ -159,18 +149,13 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
             setUpcomingEvents(events || []);
 
             // Get saved sessions created by this coach
-            let sessionsQuery = supabase
+            const { data: sessions } = await supabase
                 .from('practice_sessions')
                 .select('*')
                 .eq('created_by', profile.id)
                 .order('created_at', { ascending: false })
                 .limit(20);
 
-            if (teamId) {
-                sessionsQuery = sessionsQuery.eq('team_id', teamId);
-            }
-
-            const { data: sessions } = await sessionsQuery;
             setSavedSessions(sessions || []);
 
             // Get drills from database
@@ -201,7 +186,7 @@ const PracticeSessionBuilder = ({ onClose, teamId, onSave }) => {
         };
 
         fetchData();
-    }, [teamId, profile?.id]);
+    }, [profile?.id]);
 
     // Speech recognition setup
     useEffect(() => {
@@ -401,7 +386,7 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
             const { data, error } = await supabase
                 .from('practice_sessions')
                 .insert([{
-                    team_id: teamId || null,
+                    team_id: null, // Not team-specific, can be used for any coach's team
                     event_id: selectedEventId || null,
                     created_by: profile.id,
                     name: sessionName,
