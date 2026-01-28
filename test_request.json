@@ -1,0 +1,10 @@
+﻿{
+  "transcript": "Create a 60 minute practice with warmup, passing, shooting, scrimmage, and cooldown",
+  "selectedEventId": null,
+  "eventContext": null,
+  "candidates": [
+    {"id":"00000000-0000-0000-0000-000000000001","name":"Warmup Dribble","category":"warmup","duration":10,"description":"Light dribbling warmup"},
+    {"id":"00000000-0000-0000-0000-000000000002","name":"Passing Gates","category":"passing","duration":15,"description":"Pass through gates"},
+    {"id":"00000000-0000-0000-0000-000000000003","name":"Shooting Line","category":"shooting","duration":15,"description":"Finish from top of box"}
+  ]
+}

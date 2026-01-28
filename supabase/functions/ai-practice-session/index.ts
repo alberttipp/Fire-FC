@@ -353,19 +353,26 @@ CRITICAL: Return STRICT JSON. No trailing commas. No markdown. Double quotes onl
       throw new Error('Invalid session structure: missing or invalid drills array')
     }
 
-    // Validate drill IDs
+    // Validate drill IDs and ensure custom drills always have drillId: null
     const allowedIds = new Set(candidates.map(c => c.id))
     session.drills.forEach((drill, i) => {
-      if (!drill.custom && drill.drillId) {
-        if (!allowedIds.has(drill.drillId)) {
-          console.warn(`⚠️ Drill ${i} has invalid drillId ${drill.drillId}, forcing custom=true`)
+      // If drill is marked as custom, ensure drillId is null (not empty string or undefined)
+      if (drill.custom) {
+        if (drill.drillId !== null) {
+          console.warn(`⚠️ Drill ${i} "${drill.name}" is custom, setting drillId to null`)
+          drill.drillId = null
+        }
+      } else {
+        // If drill is not custom, validate drillId exists and is in allowed list
+        if (!drill.drillId) {
+          console.warn(`⚠️ Drill ${i} "${drill.name}" is not custom but has no drillId, forcing custom=true`)
+          drill.custom = true
+          drill.drillId = null
+        } else if (!allowedIds.has(drill.drillId)) {
+          console.warn(`⚠️ Drill ${i} "${drill.name}" has invalid drillId ${drill.drillId}, forcing custom=true`)
           drill.custom = true
           drill.drillId = null
         }
-      }
-      if (drill.custom && drill.drillId) {
-        console.warn(`⚠️ Drill ${i} is custom but has drillId, clearing it`)
-        drill.drillId = null
       }
     })
 
