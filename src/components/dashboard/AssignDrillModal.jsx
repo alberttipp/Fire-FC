@@ -129,7 +129,6 @@ const AssignDrillModal = ({ onClose }) => {
                         assigned_by: user?.id,
                         status: 'pending',
                         custom_duration: customDurations[drillId] || 15, // Default Fallback
-                        custom_duration: customDurations[drillId] || 15, // Default Fallback
                         due_date: new Date(Date.now() + timeframe * 24 * 60 * 60 * 1000) // Calculated Due Date
                     });
                 });
