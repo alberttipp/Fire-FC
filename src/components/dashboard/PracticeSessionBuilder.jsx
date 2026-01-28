@@ -106,28 +106,17 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
 
             const coachTeamIds = coachTeams?.map(t => t.id) || [];
 
-            // Get ALL events for coach's teams OR created by coach - no filtering by specific team
-            let eventsQuery = supabase
+            console.log('🔍 Executing events query for team IDs:', coachTeamIds);
+
+            // Simple query: Get events for coach's teams
+            const { data: events, error: eventsError } = await supabase
                 .from('events')
                 .select('*, teams(name)')
                 .in('type', ['practice', 'training'])
+                .in('team_id', coachTeamIds)
                 .gte('start_time', today.toISOString())
                 .order('start_time', { ascending: true })
                 .limit(50);
-
-            if (coachTeamIds.length > 0) {
-                // Show all events for ANY of coach's teams OR created by coach
-                const orClause = `team_id.in.(${coachTeamIds.join(',')}),created_by.eq.${profile.id}`;
-                console.log('🔍 Query: Using OR clause:', orClause);
-                eventsQuery = eventsQuery.or(orClause);
-            } else {
-                // No teams, just get events created by this coach
-                console.log('🔍 Query: No teams, filtering by created_by:', profile.id);
-                eventsQuery = eventsQuery.eq('created_by', profile.id);
-            }
-
-            console.log('🔍 Executing events query...');
-            const { data: events, error: eventsError } = await eventsQuery;
 
             if (eventsError) {
                 console.error('❌ Error fetching events:', eventsError);
