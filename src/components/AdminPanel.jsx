@@ -85,7 +85,7 @@ const AdminPanel = ({ onClose }) => {
             const { error: teamsError } = await supabase.from('teams').insert([
                 {
                     id: 'd02aba3e-3c30-430f-9377-3b334cffcd04',
-                    name: 'Rockford Fire FC',
+                    name: '[SEED] Rockford Fire FC',
                     age_group: 'U11 Boys',
                     join_code: 'FIRE11',
                     team_type: 'club',
@@ -93,7 +93,7 @@ const AdminPanel = ({ onClose }) => {
                 },
                 {
                     id: 'e13bcb4f-4d41-541a-a488-4c445ce491e5',
-                    name: 'Rockford Fire FC',
+                    name: '[SEED] Rockford Fire FC',
                     age_group: 'U10 Boys',
                     join_code: 'FIRE10',
                     team_type: 'club',
@@ -101,7 +101,7 @@ const AdminPanel = ({ onClose }) => {
                 },
                 {
                     id: 'f24cdc50-5e52-652b-b599-5d556df502f6',
-                    name: 'Rockford Fire FC',
+                    name: '[SEED] Rockford Fire FC',
                     age_group: 'U12 Boys',
                     join_code: 'FIRE12',
                     team_type: 'club',
@@ -202,7 +202,7 @@ const AdminPanel = ({ onClose }) => {
 
                         eventsToInsert.push({
                             team_id: teamId,
-                            title: 'Tuesday Practice',
+                            title: '[SEED] Tuesday Practice',
                             type: 'practice',
                             start_time: startTime.toISOString(),
                             end_time: endTime.toISOString(),
@@ -220,7 +220,7 @@ const AdminPanel = ({ onClose }) => {
 
                         eventsToInsert.push({
                             team_id: teamId,
-                            title: 'Thursday Practice',
+                            title: '[SEED] Thursday Practice',
                             type: 'practice',
                             start_time: startTime.toISOString(),
                             end_time: endTime.toISOString(),
@@ -239,7 +239,7 @@ const AdminPanel = ({ onClose }) => {
 
                         eventsToInsert.push({
                             team_id: teamId,
-                            title: `Game vs ${opponents[Math.abs(dayOffset) % 8]}`,
+                            title: `[SEED] Game vs ${opponents[Math.abs(dayOffset) % 8]}`,
                             type: 'game',
                             start_time: startTime.toISOString(),
                             end_time: endTime.toISOString(),
@@ -304,7 +304,7 @@ const AdminPanel = ({ onClose }) => {
             await supabase.from('practice_sessions').insert([
                 {
                     team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04',
-                    name: 'Standard Tuesday Technical',
+                    name: '[SEED] Standard Tuesday Technical',
                     scheduled_date: new Date().toISOString().split('T')[0],
                     total_duration: 75,
                     drills: [
@@ -316,11 +316,11 @@ const AdminPanel = ({ onClose }) => {
                         { name: 'Cooldown', duration: 5, category: 'cooldown' }
                     ],
                     status: 'draft',
-                    notes: 'Focus on first touch'
+                    notes: '[SEED] Focus on first touch'
                 },
                 {
                     team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04',
-                    name: 'Thursday Tactical Session',
+                    name: '[SEED] Thursday Tactical Session',
                     scheduled_date: new Date().toISOString().split('T')[0],
                     total_duration: 75,
                     drills: [
@@ -331,7 +331,7 @@ const AdminPanel = ({ onClose }) => {
                         { name: 'Team Talk', duration: 5, category: 'cooldown' }
                     ],
                     status: 'draft',
-                    notes: 'Work on transitions'
+                    notes: '[SEED] Work on transitions'
                 }
             ]);
 
@@ -491,7 +491,7 @@ const AdminPanel = ({ onClose }) => {
             }
 
             // DONE!
-            setResult({ status: 'success', message: '✅ Staging data seeded! Drills and badges preserved. Refresh the page to see changes.' });
+            setResult({ status: 'success', message: '✅ Staging data seeded! All seed records tagged with [SEED] prefix. Drills and badges preserved. Refresh the page to see changes.' });
             setConfirmReset(false);
             fetchStats();
 
@@ -619,7 +619,7 @@ const AdminPanel = ({ onClose }) => {
                         </button>
                     )}
 
-                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • 60+ events • chat channels (drills & badges preserved)</p>
+                    <p className="text-xs text-gray-600 text-center">Creates: 3 teams • 42 players • 60+ events • chat channels (all tagged with [SEED], drills & badges preserved)</p>
                     <p className="text-xs text-gray-500 text-center mt-2">💡 Missing drills or badges? Run: <code className="text-brand-gold bg-white/5 px-1 rounded">npm run seed:permanent</code></p>
                 </div>
             </div>
