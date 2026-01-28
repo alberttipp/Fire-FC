@@ -119,20 +119,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                 .limit(50);
 
             if (eventsError) {
-                console.error('❌ Error fetching events:', eventsError);
-                console.error('   Error details:', JSON.stringify(eventsError, null, 2));
-            } else {
-                console.log(`✅ Found ${events?.length || 0} upcoming events`);
-                if (events && events.length > 0) {
-                    console.log('📋 Events:', events.map(e => ({
-                        id: e.id,
-                        title: e.title,
-                        start: e.start_time,
-                        team: e.teams?.name
-                    })));
-                } else {
-                    console.log('⚠️  Query returned empty array');
-                }
+                console.error('Error fetching events:', eventsError);
             }
 
             setUpcomingEvents(events || []);
@@ -552,24 +539,18 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                             >
                                 <option value="" className="bg-gray-800 text-white">-- Standalone (not linked) --</option>
                                 {upcomingEvents.length === 0 && <option disabled className="bg-gray-800 text-white">No upcoming events found</option>}
-                                {(() => {
-                                    console.log('🎨 RENDERING dropdown with upcomingEvents:', upcomingEvents.length, 'events');
-                                    return upcomingEvents.map((ev, idx) => {
-                                        console.log(`  Event ${idx + 1}:`, { id: ev.id, title: ev.title, team: ev.teams });
-                                        const date = new Date(ev.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-                                        const time = new Date(ev.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                                        const teamName = ev.teams?.name || '';
-                                        const ageGroup = ev.teams?.age_group || '';
-                                        const teamDisplay = ageGroup ? `${teamName} ${ageGroup}` : teamName;
-                                        const displayText = `${date} @ ${time} - ${ev.title} ${teamDisplay ? `(${teamDisplay})` : ''}`;
-                                        console.log(`  Display text: "${displayText}"`);
-                                        return (
-                                            <option key={ev.id} value={ev.id} className="bg-gray-800 text-white">
-                                                {displayText}
-                                            </option>
-                                        );
-                                    });
-                                })()}
+                                {upcomingEvents.map(ev => {
+                                    const date = new Date(ev.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                                    const time = new Date(ev.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                                    const teamName = ev.teams?.name || '';
+                                    const ageGroup = ev.teams?.age_group || '';
+                                    const teamDisplay = ageGroup ? `${teamName} ${ageGroup}` : teamName;
+                                    return (
+                                        <option key={ev.id} value={ev.id} className="bg-gray-800 text-white">
+                                            {date} @ {time} - {ev.title} {teamDisplay && `(${teamDisplay})`}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                     </div>
