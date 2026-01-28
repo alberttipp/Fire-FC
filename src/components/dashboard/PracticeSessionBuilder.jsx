@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-    Plus, Mic, MicOff, Trash2, Clock, Save, Play, Pause, 
-    ChevronDown, ChevronUp, Sparkles, X, Dumbbell, Target, 
-    Users, Zap, Shield, Brain, Calendar, Bell, BellOff, 
-    Timer, RotateCcw, SkipForward, Link, FolderOpen
+import {
+    Plus, Mic, MicOff, Trash2, Clock, Save, Play, Pause,
+    ChevronDown, ChevronUp, Sparkles, X, Dumbbell, Target,
+    Users, Zap, Shield, Brain, Bell, BellOff,
+    Timer, RotateCcw, SkipForward, Link, FolderOpen, Printer,
+    Package, ListChecks, Lightbulb, TrendingUp, AlertCircle, CheckSquare
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // Drill categories
 const DRILL_CATEGORIES = [
@@ -21,8 +20,6 @@ const DRILL_CATEGORIES = [
     { id: 'game', name: 'Scrimmage', icon: Users, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
     { id: 'cooldown', name: 'Cool Down', icon: Shield, color: 'text-teal-400', bg: 'bg-teal-500/20' },
 ];
-
-// Drills will be loaded from database
 
 // Play alarm sound
 const playAlarm = () => {
@@ -43,9 +40,40 @@ const playAlarm = () => {
     } catch (e) { console.log('Audio not supported'); }
 };
 
+// Score drill candidates based on transcript keywords
+const scoreDrillCandidate = (drill, transcript) => {
+    const lowerTranscript = transcript.toLowerCase();
+    const drillText = `${drill.name} ${drill.description} ${drill.category}`.toLowerCase();
+
+    let score = 0;
+
+    // Category match bonus
+    if (lowerTranscript.includes(drill.category)) score += 10;
+
+    // Name word matches
+    const nameWords = drill.name.toLowerCase().split(' ');
+    nameWords.forEach(word => {
+        if (word.length > 3 && lowerTranscript.includes(word)) score += 5;
+    });
+
+    // Description keyword matches
+    const keywords = drill.description.toLowerCase().split(' ').filter(w => w.length > 4);
+    keywords.forEach(word => {
+        if (lowerTranscript.includes(word)) score += 2;
+    });
+
+    // Common drill types
+    const commonTypes = ['passing', 'shooting', 'dribbling', 'defending', 'pressing', 'possession', 'finishing', 'crossing'];
+    commonTypes.forEach(type => {
+        if (lowerTranscript.includes(type) && drillText.includes(type)) score += 8;
+    });
+
+    return score;
+};
+
 const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const { user, profile } = useAuth();
-    
+
     // Build mode state
     const [sessionName, setSessionName] = useState('');
     const [blocks, setBlocks] = useState([]);
@@ -55,18 +83,26 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const [showDrillPicker, setShowDrillPicker] = useState(false);
     const [showCustomDrill, setShowCustomDrill] = useState(false);
     const [showSavedSessions, setShowSavedSessions] = useState(false);
+    const [showPrintView, setShowPrintView] = useState(false);
     const [customDrill, setCustomDrill] = useState({ name: '', duration: 10, category: 'technical', description: '' });
     const [expandedCategory, setExpandedCategory] = useState(null);
+    const [expandedDrills, setExpandedDrills] = useState(new Set());
     const [drillTemplates, setDrillTemplates] = useState([]);
     const [drillsLoaded, setDrillsLoaded] = useState(false);
     const [noDrillsWarning, setNoDrillsWarning] = useState(false);
+
+    // Session-level metadata
+    const [sessionEquipment, setSessionEquipment] = useState([]);
+    const [sessionSetup, setSessionSetup] = useState([]);
+    const [sessionNotes, setSessionNotes] = useState([]);
+    const [customDrillsConfirmed, setCustomDrillsConfirmed] = useState(false);
 
     // Voice input state
     const [isListening, setIsListening] = useState(false);
     const [voiceInput, setVoiceInput] = useState('');
     const [aiProcessing, setAiProcessing] = useState(false);
     const recognitionRef = useRef(null);
-    
+
     // Timer/Run mode state
     const [mode, setMode] = useState('build'); // 'build' or 'run'
     const [isRunning, setIsRunning] = useState(false);
@@ -76,6 +112,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const timerRef = useRef(null);
 
     const totalDuration = blocks.reduce((sum, b) => sum + (b.duration || 0), 0);
+    const hasCustomDrills = blocks.some(b => b.custom === true);
 
     // Fetch events and saved sessions
     useEffect(() => {
@@ -194,7 +231,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                     if (prev <= 1) {
                         // Drill complete - play alarm
                         if (alarmsEnabled) playAlarm();
-                        
+
                         // Move to next drill
                         if (currentDrillIndex < blocks.length - 1) {
                             setCurrentDrillIndex(i => i + 1);
@@ -247,54 +284,100 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const processVoiceWithAI = async (transcript) => {
         console.log('🤖 Processing with AI:', transcript);
 
-        if (!GEMINI_API_KEY) {
-            console.error('❌ Gemini API key not found in environment');
-            alert('Gemini API key missing. Check .env file for VITE_GEMINI_API_KEY');
+        if (drillTemplates.length === 0) {
+            alert('No drills available. Please seed the database with drills first.');
             return;
         }
 
         setAiProcessing(true);
         try {
-            console.log('📡 Calling Gemini API...');
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            role: 'user',
-                            parts: [{ text: `Convert this practice plan to JSON drills. Voice: "${transcript}"
-Categories: warmup, passing, technical, shooting, tactical, fitness, game, cooldown
-Return ONLY JSON array: [{"name":"Drill","duration":10,"category":"warmup","description":"Brief"}]
-Total should be approximately 100 minutes. MUST include warmup (10min) at start and cooldown (5min) at end.` }]
-                        }],
-                        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 }
-                    })
+            // Score and select top 20 drill candidates
+            const scoredDrills = drillTemplates.map(drill => ({
+                ...drill,
+                score: scoreDrillCandidate(drill, transcript)
+            }));
+
+            scoredDrills.sort((a, b) => b.score - a.score);
+            const topCandidates = scoredDrills.slice(0, 20).map(({ id, name, category, duration, description }) => ({
+                id,
+                name,
+                category,
+                duration,
+                description
+            }));
+
+            console.log('📊 Top 20 drill candidates:', topCandidates.map(c => `${c.name} (score: ${scoredDrills.find(s => s.id === c.id)?.score})`));
+
+            // Build event context if event is selected
+            let eventContext = null;
+            if (selectedEventId) {
+                const event = upcomingEvents.find(e => e.id === selectedEventId);
+                if (event) {
+                    const date = new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    const time = new Date(event.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                    const teamDisplay = event.teams?.age_group ? `${event.teams.name} ${event.teams.age_group}` : event.teams?.name || '';
+                    eventContext = `${event.title} - ${date} @ ${time}${teamDisplay ? ` (${teamDisplay})` : ''}`;
                 }
-            );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Gemini API error:', response.status, errorText);
-                throw new Error(`API error: ${response.status}`);
             }
 
-            const data = await response.json();
-            console.log('✅ Gemini response:', data);
+            console.log('📡 Calling Supabase Edge Function...');
+            const { data, error } = await supabase.functions.invoke('ai-practice-session', {
+                body: {
+                    transcript,
+                    selectedEventId,
+                    eventContext,
+                    candidates: topCandidates
+                }
+            });
 
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            console.log('📝 Generated text:', text);
-
-            const match = text.match(/\[[\s\S]*\]/);
-            if (match) {
-                const drills = JSON.parse(match[0]);
-                console.log(`✅ Generated ${drills.length} drills:`, drills);
-                setBlocks(drills.map((d, i) => ({ ...d, id: `ai-${i}-${Date.now()}` })));
-            } else {
-                console.error('❌ No JSON array found in response');
-                alert('AI could not generate drills. Try being more specific or add drills manually.');
+            if (error) {
+                console.error('❌ Edge function error:', error);
+                throw new Error(error.message || 'Failed to call AI function');
             }
+
+            if (data.error) {
+                console.error('❌ AI processing error:', data.error);
+                throw new Error(data.error);
+            }
+
+            console.log('✅ AI response:', data);
+
+            // Apply AI-generated session
+            if (!sessionName) {
+                setSessionName(data.sessionName);
+            }
+
+            if (data.attachToEventId) {
+                setSelectedEventId(data.attachToEventId);
+            }
+
+            setSessionEquipment(data.equipment || []);
+            setSessionSetup(data.setup || []);
+            setSessionNotes(data.notesForCoach || []);
+
+            // Transform drills to component format
+            const newBlocks = data.drills.map((drill, i) => ({
+                id: drill.drillId || `custom-ai-${i}-${Date.now()}`,
+                drillId: drill.drillId,
+                custom: drill.custom,
+                name: drill.name,
+                duration: drill.minutes,
+                category: drill.category,
+                description: drill.description,
+                setup: drill.setup || [],
+                coachingPoints: drill.coachingPoints || [],
+                progressions: drill.progressions || []
+            }));
+
+            setBlocks(newBlocks);
+
+            // Reset custom confirmation if new custom drills added
+            if (newBlocks.some(b => b.custom)) {
+                setCustomDrillsConfirmed(false);
+            }
+
+            console.log(`✅ Created ${newBlocks.length} drills, ${newBlocks.filter(b => b.custom).length} custom`);
+
         } catch (err) {
             console.error('❌ AI processing error:', err);
             alert(`Could not process voice: ${err.message}. Add drills manually.`);
@@ -305,15 +388,32 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
     };
 
     const addDrill = (template) => {
-        setBlocks([...blocks, { ...template, id: `${template.id}-${Date.now()}` }]);
+        setBlocks([...blocks, {
+            ...template,
+            id: `${template.id}-${Date.now()}`,
+            drillId: template.id,
+            custom: false,
+            setup: [],
+            coachingPoints: [],
+            progressions: []
+        }]);
         setShowDrillPicker(false);
     };
 
     const addCustomDrill = () => {
         if (!customDrill.name) return;
-        setBlocks([...blocks, { ...customDrill, id: `custom-${Date.now()}` }]);
+        setBlocks([...blocks, {
+            ...customDrill,
+            id: `custom-${Date.now()}`,
+            drillId: null,
+            custom: true,
+            setup: [],
+            coachingPoints: [],
+            progressions: []
+        }]);
         setCustomDrill({ name: '', duration: 10, category: 'technical', description: '' });
         setShowCustomDrill(false);
+        setCustomDrillsConfirmed(false);
     };
 
     const removeDrill = (index) => setBlocks(blocks.filter((_, i) => i !== index));
@@ -330,6 +430,16 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
         const newBlocks = [...blocks];
         [newBlocks[index], newBlocks[newIndex]] = [newBlocks[newIndex], newBlocks[index]];
         setBlocks(newBlocks);
+    };
+
+    const toggleDrillExpand = (index) => {
+        const newExpanded = new Set(expandedDrills);
+        if (newExpanded.has(index)) {
+            newExpanded.delete(index);
+        } else {
+            newExpanded.add(index);
+        }
+        setExpandedDrills(newExpanded);
     };
 
     const startTimer = () => {
@@ -352,37 +462,53 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
             return;
         }
 
-        // Validate that we have a profile ID (required FK)
+        if (hasCustomDrills && !customDrillsConfirmed) {
+            alert('Please confirm custom drills before saving');
+            return;
+        }
+
         if (!profile?.id) {
             alert('Error: No profile found. Please make sure you are logged in.');
             return;
         }
 
         try {
+            // Package drills with metadata
+            const drillsPayload = {
+                sessionMeta: {
+                    equipment: sessionEquipment,
+                    setup: sessionSetup,
+                    notesForCoach: sessionNotes
+                },
+                drills: blocks
+            };
+
             const { data, error } = await supabase
                 .from('practice_sessions')
                 .insert([{
-                    team_id: null, // Not team-specific, can be used for any coach's team
+                    team_id: null,
                     event_id: selectedEventId || null,
                     created_by: profile.id,
                     name: sessionName,
                     total_duration: totalDuration,
-                    drills: blocks,
+                    drills: drillsPayload,
                     status: selectedEventId ? 'scheduled' : 'draft'
                 }])
                 .select()
                 .single();
 
             if (error) throw error;
-            
+
             alert('✓ Session saved!');
             if (onSave) onSave(data);
-            
+
             // Refresh saved sessions
             const { data: sessions } = await supabase
                 .from('practice_sessions')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .eq('created_by', profile.id)
+                .order('created_at', { ascending: false })
+                .limit(20);
             setSavedSessions(sessions || []);
         } catch (err) {
             console.error('Save error:', err);
@@ -392,12 +518,30 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
 
     const loadSession = (session) => {
         setSessionName(session.name);
-        setBlocks(session.drills || []);
+
+        // Handle both old and new formats
+        if (session.drills?.sessionMeta) {
+            setSessionEquipment(session.drills.sessionMeta.equipment || []);
+            setSessionSetup(session.drills.sessionMeta.setup || []);
+            setSessionNotes(session.drills.sessionMeta.notesForCoach || []);
+            setBlocks(session.drills.drills || []);
+        } else {
+            setBlocks(session.drills || []);
+            setSessionEquipment([]);
+            setSessionSetup([]);
+            setSessionNotes([]);
+        }
+
         setSelectedEventId(session.event_id);
         setShowSavedSessions(false);
     };
 
     const getCategoryStyle = (catId) => DRILL_CATEGORIES.find(c => c.id === catId) || DRILL_CATEGORIES[1];
+
+    const handlePrint = () => {
+        setShowPrintView(true);
+        setTimeout(() => window.print(), 100);
+    };
 
     // ========== RUN MODE UI ==========
     if (mode === 'run') {
@@ -422,7 +566,7 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                 <div className={`p-6 rounded-2xl ${style?.bg} mb-6`}>
                     <Icon className={`w-16 h-16 ${style?.color} mx-auto`} />
                 </div>
-                
+
                 <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 text-center">{drill?.name}</h1>
                 <p className="text-gray-400 mb-6 text-center">{drill?.description}</p>
 
@@ -485,6 +629,11 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                         <p className="text-gray-400 text-sm">Coach only • Build & run training sessions</p>
                     </div>
                     <div className="flex gap-2">
+                        {blocks.length > 0 && (
+                            <button onClick={handlePrint} className="p-2 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white">
+                                <Printer className="w-5 h-5" />
+                            </button>
+                        )}
                         <button onClick={() => setShowSavedSessions(true)} className="p-2 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white">
                             <FolderOpen className="w-5 h-5" />
                         </button>
@@ -498,7 +647,7 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                 {noDrillsWarning && (
                     <div className="mx-4 sm:mx-6 mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
                         <div className="flex items-start gap-3">
-                            <div className="text-red-400 text-2xl">⚠️</div>
+                            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
                             <div className="flex-1">
                                 <h3 className="text-red-400 font-bold mb-1">No Drills Found in Database</h3>
                                 <p className="text-sm text-gray-300 mb-2">
@@ -509,7 +658,6 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                                     <p><strong className="text-white">Step 2:</strong> Open Supabase Dashboard → SQL Editor</p>
                                     <p><strong className="text-white">Step 3:</strong> Copy/paste contents of <code className="bg-black/30 px-1 rounded">supabase/seed/seed_permanent.sql</code></p>
                                     <p><strong className="text-white">Step 4:</strong> Click "Run" - should seed 156 drills and 15 badges</p>
-                                    <p className="text-brand-gold mt-2">See <code className="bg-black/30 px-1 rounded">supabase/seed/SEED_POLICY.md</code> for full instructions</p>
                                 </div>
                             </div>
                         </div>
@@ -565,8 +713,8 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                             onClick={toggleListening}
                             disabled={aiProcessing}
                             className={`w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all ${
-                                isListening 
-                                    ? 'bg-red-500/20 border-2 border-red-500 text-red-400 animate-pulse' 
+                                isListening
+                                    ? 'bg-red-500/20 border-2 border-red-500 text-red-400 animate-pulse'
                                     : 'bg-brand-green/10 border-2 border-brand-green/30 text-brand-green hover:bg-brand-green/20'
                             }`}
                         >
@@ -581,6 +729,63 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                         {voiceInput && <p className="mt-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">"{voiceInput}"</p>}
                         <p className="text-xs text-gray-600 mt-2">Try: "60 minute practice with warmup, passing, shooting, scrimmage, cooldown"</p>
                     </div>
+
+                    {/* Session Equipment & Setup */}
+                    {(sessionEquipment.length > 0 || sessionSetup.length > 0 || sessionNotes.length > 0) && (
+                        <div className="glass-panel p-4 space-y-3">
+                            <h3 className="text-white font-bold text-sm">Session Overview</h3>
+
+                            {sessionEquipment.length > 0 && (
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Package className="w-4 h-4 text-brand-gold" />
+                                        <span className="text-xs text-gray-400 uppercase font-bold">Equipment</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {sessionEquipment.map((item, i) => (
+                                            <span key={i} className="px-2 py-1 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-xs rounded">
+                                                {item}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {sessionSetup.length > 0 && (
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <ListChecks className="w-4 h-4 text-blue-400" />
+                                        <span className="text-xs text-gray-400 uppercase font-bold">Setup Steps</span>
+                                    </div>
+                                    <ol className="space-y-1 text-sm text-gray-300">
+                                        {sessionSetup.map((step, i) => (
+                                            <li key={i} className="flex gap-2">
+                                                <span className="text-blue-400 font-mono">{i + 1}.</span>
+                                                <span>{step}</span>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </div>
+                            )}
+
+                            {sessionNotes.length > 0 && (
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Lightbulb className="w-4 h-4 text-yellow-400" />
+                                        <span className="text-xs text-gray-400 uppercase font-bold">Coach Notes</span>
+                                    </div>
+                                    <ul className="space-y-1 text-sm text-gray-300">
+                                        {sessionNotes.map((note, i) => (
+                                            <li key={i} className="flex gap-2">
+                                                <span className="text-yellow-400">•</span>
+                                                <span>{note}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Drills */}
                     <div>
@@ -606,29 +811,104 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                                 {blocks.map((block, i) => {
                                     const style = getCategoryStyle(block.category);
                                     const Icon = style.icon;
+                                    const isExpanded = expandedDrills.has(i);
+                                    const hasDetails = (block.setup?.length > 0) || (block.coachingPoints?.length > 0) || (block.progressions?.length > 0);
+
                                     return (
-                                        <div key={block.id} className="flex items-center gap-3 p-3 rounded-lg border border-white/10 bg-white/5">
-                                            <div className="flex flex-col gap-0.5">
-                                                <button onClick={() => moveDrill(i, -1)} disabled={i === 0} className="p-1 hover:bg-white/10 rounded disabled:opacity-30"><ChevronUp className="w-3 h-3 text-gray-500" /></button>
-                                                <button onClick={() => moveDrill(i, 1)} disabled={i === blocks.length - 1} className="p-1 hover:bg-white/10 rounded disabled:opacity-30"><ChevronDown className="w-3 h-3 text-gray-500" /></button>
+                                        <div key={block.id} className="border border-white/10 bg-white/5 rounded-lg">
+                                            <div className="flex items-center gap-3 p-3">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <button onClick={() => moveDrill(i, -1)} disabled={i === 0} className="p-1 hover:bg-white/10 rounded disabled:opacity-30"><ChevronUp className="w-3 h-3 text-gray-500" /></button>
+                                                    <button onClick={() => moveDrill(i, 1)} disabled={i === blocks.length - 1} className="p-1 hover:bg-white/10 rounded disabled:opacity-30"><ChevronDown className="w-3 h-3 text-gray-500" /></button>
+                                                </div>
+                                                <div className={`p-2 rounded-lg ${style.bg}`}><Icon className={`w-4 h-4 ${style.color}`} /></div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-white font-bold text-sm truncate">{block.name}</p>
+                                                        {block.custom && <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded border border-yellow-500/30">Custom</span>}
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 truncate">{block.description}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={() => updateDuration(i, block.duration - 5)} className="w-6 h-6 rounded bg-white/10 text-gray-400 text-xs">-</button>
+                                                    <span className="text-brand-green font-mono font-bold w-10 text-center">{block.duration}m</span>
+                                                    <button onClick={() => updateDuration(i, block.duration + 5)} className="w-6 h-6 rounded bg-white/10 text-gray-400 text-xs">+</button>
+                                                </div>
+                                                {hasDetails && (
+                                                    <button onClick={() => toggleDrillExpand(i)} className="p-1.5 hover:bg-white/10 rounded text-gray-500">
+                                                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                    </button>
+                                                )}
+                                                <button onClick={() => removeDrill(i)} className="p-1.5 hover:bg-red-500/20 rounded text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                                             </div>
-                                            <div className={`p-2 rounded-lg ${style.bg}`}><Icon className={`w-4 h-4 ${style.color}`} /></div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-white font-bold text-sm truncate">{block.name}</p>
-                                                <p className="text-xs text-gray-500 truncate">{block.description}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => updateDuration(i, block.duration - 5)} className="w-6 h-6 rounded bg-white/10 text-gray-400 text-xs">-</button>
-                                                <span className="text-brand-green font-mono font-bold w-10 text-center">{block.duration}m</span>
-                                                <button onClick={() => updateDuration(i, block.duration + 5)} className="w-6 h-6 rounded bg-white/10 text-gray-400 text-xs">+</button>
-                                            </div>
-                                            <button onClick={() => removeDrill(i)} className="p-1.5 hover:bg-red-500/20 rounded text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+
+                                            {/* Expanded drill details */}
+                                            {isExpanded && hasDetails && (
+                                                <div className="px-3 pb-3 pt-0 space-y-3 border-t border-white/10 mt-2">
+                                                    {block.setup?.length > 0 && (
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <ListChecks className="w-3 h-3 text-blue-400" />
+                                                                <span className="text-xs text-gray-400 uppercase font-bold">Setup</span>
+                                                            </div>
+                                                            <ul className="space-y-0.5 text-xs text-gray-300 pl-5">
+                                                                {block.setup.map((s, idx) => <li key={idx} className="list-disc">{s}</li>)}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                    {block.coachingPoints?.length > 0 && (
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <Lightbulb className="w-3 h-3 text-yellow-400" />
+                                                                <span className="text-xs text-gray-400 uppercase font-bold">Coaching Points</span>
+                                                            </div>
+                                                            <ul className="space-y-0.5 text-xs text-gray-300 pl-5">
+                                                                {block.coachingPoints.map((cp, idx) => <li key={idx} className="list-disc">{cp}</li>)}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                    {block.progressions?.length > 0 && (
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <TrendingUp className="w-3 h-3 text-green-400" />
+                                                                <span className="text-xs text-gray-400 uppercase font-bold">Progressions</span>
+                                                            </div>
+                                                            <ul className="space-y-0.5 text-xs text-gray-300 pl-5">
+                                                                {block.progressions.map((p, idx) => <li key={idx} className="list-disc">{p}</li>)}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
                     </div>
+
+                    {/* Custom Drills Confirmation */}
+                    {hasCustomDrills && (
+                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={customDrillsConfirmed}
+                                    onChange={(e) => setCustomDrillsConfirmed(e.target.checked)}
+                                    className="mt-1"
+                                />
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <CheckSquare className="w-4 h-4 text-yellow-400" />
+                                        <span className="text-yellow-400 font-bold text-sm">Confirm Custom Drills</span>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        This session contains {blocks.filter(b => b.custom).length} custom drill(s). Please review them before saving.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -643,7 +923,7 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                                 <Timer className="w-4 h-4" /> Run with Timers
                             </button>
                         )}
-                        <button onClick={handleSave} disabled={!sessionName || blocks.length === 0} className="px-6 py-2 bg-brand-green text-brand-dark rounded-lg font-bold hover:bg-brand-green/90 disabled:opacity-50 flex items-center gap-2">
+                        <button onClick={handleSave} disabled={!sessionName || blocks.length === 0 || (hasCustomDrills && !customDrillsConfirmed)} className="px-6 py-2 bg-brand-green text-brand-dark rounded-lg font-bold hover:bg-brand-green/90 disabled:opacity-50 flex items-center gap-2">
                             <Save className="w-4 h-4" /> Save
                         </button>
                     </div>
@@ -745,11 +1025,100 @@ Total should be approximately 100 minutes. MUST include warmup (10min) at start 
                                                     <p className="text-white font-bold">{session.name}</p>
                                                     <span className="text-brand-green text-sm">{session.total_duration}m</span>
                                                 </div>
-                                                <p className="text-xs text-gray-500 mt-1">{session.drills?.length || 0} drills • {new Date(session.created_at).toLocaleDateString()}</p>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    {(session.drills?.drills?.length || session.drills?.length || 0)} drills • {new Date(session.created_at).toLocaleDateString()}
+                                                </p>
                                             </button>
                                         ))}
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Print View Modal */}
+                {showPrintView && (
+                    <div className="fixed inset-0 bg-white z-50 overflow-auto print:block" onClick={() => setShowPrintView(false)}>
+                        <div className="max-w-4xl mx-auto p-8 print:p-0">
+                            <button onClick={() => setShowPrintView(false)} className="mb-4 px-4 py-2 bg-gray-200 rounded print:hidden">Close</button>
+
+                            <div className="bg-white text-black">
+                                <h1 className="text-3xl font-bold mb-2">{sessionName}</h1>
+                                <div className="text-sm text-gray-600 mb-6">
+                                    <p>Total Duration: {totalDuration} minutes</p>
+                                    <p>Drills: {blocks.length}</p>
+                                    {selectedEventId && upcomingEvents.find(e => e.id === selectedEventId) && (
+                                        <p>Event: {upcomingEvents.find(e => e.id === selectedEventId).title}</p>
+                                    )}
+                                </div>
+
+                                {sessionEquipment.length > 0 && (
+                                    <div className="mb-6">
+                                        <h2 className="text-xl font-bold mb-2">Equipment</h2>
+                                        <ul className="list-disc list-inside">
+                                            {sessionEquipment.map((item, i) => <li key={i}>{item}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {sessionSetup.length > 0 && (
+                                    <div className="mb-6">
+                                        <h2 className="text-xl font-bold mb-2">Session Setup</h2>
+                                        <ol className="list-decimal list-inside">
+                                            {sessionSetup.map((step, i) => <li key={i}>{step}</li>)}
+                                        </ol>
+                                    </div>
+                                )}
+
+                                {sessionNotes.length > 0 && (
+                                    <div className="mb-6">
+                                        <h2 className="text-xl font-bold mb-2">Coach Notes</h2>
+                                        <ul className="list-disc list-inside">
+                                            {sessionNotes.map((note, i) => <li key={i}>{note}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                <h2 className="text-xl font-bold mb-4">Drills</h2>
+                                {blocks.map((block, i) => (
+                                    <div key={i} className="mb-6 pb-6 border-b border-gray-300">
+                                        <h3 className="text-lg font-bold flex items-center gap-2">
+                                            {i + 1}. {block.name}
+                                            <span className="text-sm font-normal text-gray-600">({block.duration} min)</span>
+                                            {block.custom && <span className="text-xs px-2 py-1 bg-yellow-100 border border-yellow-400 rounded">Custom</span>}
+                                        </h3>
+                                        <p className="text-sm text-gray-700 mt-1">{block.description}</p>
+                                        <p className="text-xs text-gray-500 uppercase mt-2">Category: {block.category}</p>
+
+                                        {block.setup?.length > 0 && (
+                                            <div className="mt-3">
+                                                <p className="font-bold text-sm">Setup:</p>
+                                                <ul className="list-disc list-inside text-sm">
+                                                    {block.setup.map((s, idx) => <li key={idx}>{s}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {block.coachingPoints?.length > 0 && (
+                                            <div className="mt-3">
+                                                <p className="font-bold text-sm">Coaching Points:</p>
+                                                <ul className="list-disc list-inside text-sm">
+                                                    {block.coachingPoints.map((cp, idx) => <li key={idx}>{cp}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {block.progressions?.length > 0 && (
+                                            <div className="mt-3">
+                                                <p className="font-bold text-sm">Progressions:</p>
+                                                <ul className="list-disc list-inside text-sm">
+                                                    {block.progressions.map((p, idx) => <li key={idx}>{p}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
