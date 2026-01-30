@@ -47,74 +47,90 @@ const ChatView = () => {
 
     const fetchChannels = async () => {
         try {
-            const { data, error } = await supabase
-                .from('channels')
-                .select('*')
-                .eq('team_id', currentTeamId)
+            // PLAYER CHAT RESTRICTION: Players can only see player_dm conversations
+            const isPlayer = currentUserRole === 'player';
+            const isStaff = ['manager', 'coach', 'parent'].includes(currentUserRole);
+
+            // Query conversations based on role
+            let query = supabase
+                .from('conversations')
+                .select(`
+                    id,
+                    team_id,
+                    type,
+                    name,
+                    created_at,
+                    conversation_members!inner(user_id)
+                `)
+                .eq('conversation_members.user_id', user.id)
                 .order('created_at', { ascending: true });
 
-            if (error) throw error;
+            // RLS will handle filtering, but we add type filter for clarity
+            if (isPlayer) {
+                query = query.eq('type', 'player_dm');
+            } else if (isStaff) {
+                query = query.in('type', ['team', 'staff_dm']);
+            }
+
+            const { data, error } = await query;
+
+            if (error) {
+                console.error('RLS or query error:', error);
+                throw error;
+            }
 
             if (data && data.length > 0) {
                 setChannels(data);
                 setActiveChannel(data[0]);
             } else {
-                // Create default channels if none exist
-                const defaultChannels = [
-                    { team_id: currentTeamId, name: 'Team Chat', type: 'team', description: 'General team discussion' },
-                    { team_id: currentTeamId, name: 'Announcements', type: 'announcement', description: 'Important updates' },
-                    { team_id: currentTeamId, name: 'Parents', type: 'parents', description: 'Parent coordination' }
-                ];
-
-                const { data: newChannels, error: insertError } = await supabase
-                    .from('channels')
-                    .insert(defaultChannels)
-                    .select();
-
-                if (!insertError && newChannels) {
-                    setChannels(newChannels);
-                    setActiveChannel(newChannels[0]);
-                }
+                // No conversations available (RLS enforced)
+                setChannels([]);
+                setActiveChannel(null);
             }
         } catch (err) {
-            console.error('Error fetching channels:', err);
+            console.error('Error fetching conversations:', err);
+            setChannels([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchMessages = async (channelId) => {
+    const fetchMessages = async (conversationId) => {
         try {
             const { data, error } = await supabase
                 .from('messages')
                 .select('*')
-                .eq('channel_id', channelId)
+                .eq('conversation_id', conversationId)
                 .order('created_at', { ascending: true })
                 .limit(100);
 
-            if (error) throw error;
+            if (error) {
+                console.error('RLS blocked or error fetching messages:', error);
+                throw error;
+            }
             setMessages(data || []);
         } catch (err) {
             console.error('Error fetching messages:', err);
+            setMessages([]);
         }
     };
 
-    const subscribeToMessages = (channelId) => {
+    const subscribeToMessages = (conversationId) => {
         // Clean up previous subscription
         if (channelSubscription.current) {
             supabase.removeChannel(channelSubscription.current);
         }
 
-        // Subscribe to new messages
+        // Subscribe to new messages in this conversation
         channelSubscription.current = supabase
-            .channel(`messages:${channelId}`)
+            .channel(`messages:${conversationId}`)
             .on(
                 'postgres_changes',
                 {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'messages',
-                    filter: `channel_id=eq.${channelId}`
+                    filter: `conversation_id=eq.${conversationId}`
                 },
                 (payload) => {
                     setMessages(prev => [...prev, payload.new]);
@@ -131,17 +147,21 @@ const ChatView = () => {
     const handleSend = async () => {
         if (!newMessage.trim() || !activeChannel) return;
 
+        // PLAYER RESTRICTION: RLS will block if player tries to send to team/staff_dm
+        const isPlayer = currentUserRole === 'player';
+        if (isPlayer && activeChannel.type !== 'player_dm') {
+            alert('Players can only send messages in player DMs.');
+            return;
+        }
+
         setSending(true);
 
         const messageData = {
-            channel_id: activeChannel.id,
+            conversation_id: activeChannel.id,
             sender_id: user?.id || null,
-            sender_name: currentUserName,
-            sender_role: currentUserRole,
             content: newMessage.trim(),
             message_type: isUrgent ? 'announcement' : 'text',
-            is_urgent: isUrgent,
-            is_pinned: false
+            is_urgent: isUrgent
         };
 
         try {
@@ -149,13 +169,16 @@ const ChatView = () => {
                 .from('messages')
                 .insert([messageData]);
 
-            if (error) throw error;
+            if (error) {
+                console.error('RLS blocked or error:', error);
+                throw error;
+            }
 
             setNewMessage('');
             setIsUrgent(false);
         } catch (err) {
             console.error('Error sending message:', err);
-            alert('Failed to send message. Please try again.');
+            alert('Failed to send message. You may not have permission to post here.');
         } finally {
             setSending(false);
         }
@@ -163,11 +186,11 @@ const ChatView = () => {
 
     const getChannelIcon = (type) => {
         switch (type) {
-            case 'announcement':
-                return <Megaphone className="w-4 h-4 text-yellow-500" />;
-            case 'parents':
-                return <Users className="w-4 h-4 text-blue-400" />;
-            case 'coaches':
+            case 'team':
+                return <Hash className="w-4 h-4 text-brand-green" />;
+            case 'player_dm':
+                return <MessageSquare className="w-4 h-4 text-blue-400" />;
+            case 'staff_dm':
                 return <Lock className="w-4 h-4 text-purple-400" />;
             default:
                 return <Hash className="w-4 h-4" />;
