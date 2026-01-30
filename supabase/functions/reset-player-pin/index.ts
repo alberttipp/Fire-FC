@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // Update player_credentials with service role
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SERVICE_ROLE_KEY')!
     )
 
     const { error: updateError } = await supabaseAdmin
