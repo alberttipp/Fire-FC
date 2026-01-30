@@ -27,16 +27,12 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     // Fetch Badges & Player's Earned Badges
     useEffect(() => {
         const fetchData = async () => {
-            // 1. Get Definitions
+            // 1. Get Definitions - Real data only, no mock fallbacks
             const { data: badgeDefs, error: badgeError } = await supabase.from('badges').select('*');
             if (badgeError) {
                 console.error("Error fetching badge definitions:", badgeError);
-                setAllBadges(mockBadges); // Fallback to mock data on error
-            } else if (badgeDefs && badgeDefs.length > 0) {
-                setAllBadges(badgeDefs);
-            } else {
-                setAllBadges(mockBadges); // Fallback if no data
             }
+            setAllBadges(badgeDefs || []);
 
             // 2. Get Earned (if valid player ID)
             if (player?.id) {

@@ -87,15 +87,8 @@ const PlayerDashboard = () => {
                 .eq('player_id', user.id)
                 .order('created_at', { ascending: false });
 
-            if (assignData && assignData.length > 0) {
-                setAssignments(assignData);
-            } else {
-                // Mock Assignments Fallback
-                setAssignments([
-                    { id: 'mock1', status: 'pending', drills: { title: 'Juggling Masterclass', duration_minutes: 15 } },
-                    { id: 'mock2', status: 'completed', drills: { title: 'Cone Weave Sprint', duration_minutes: 20 } }
-                ]);
-            }
+            // Real data only - no mock fallbacks
+            setAssignments(assignData || []);
 
             // 2. Fetch Badges
             const { data: badgeData } = await supabase
@@ -110,16 +103,8 @@ const PlayerDashboard = () => {
                 `)
                 .eq('player_id', user.id);
 
-            // Safe set (default to empty array)
-            if (badgeData && badgeData.length > 0) {
-                setEarnedBadges(badgeData);
-            } else {
-                // Mock Badges Fallback
-                setEarnedBadges([
-                    { id: 'b1', badges: { id: 1, name: 'First Goal', icon: '⚽' } },
-                    { id: 'b2', badges: { id: 2, name: 'Speed Demon', icon: '⚡' } }
-                ]);
-            }
+            // Real data only - no mock fallbacks
+            setEarnedBadges(badgeData || []);
         };
 
         fetchDashboardData();

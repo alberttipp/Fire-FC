@@ -461,8 +461,9 @@ const Login = () => {
                     </form>
                 )}
 
-                {/* Demo Quick Access - Large visible buttons */}
-                <div className="mt-6 pt-6 border-t-2 border-brand-green/30">
+                {/* Demo Quick Access - DISABLED FOR PROD */}
+                {/* Uncomment for local dev testing only */}
+                {/* <div className="mt-6 pt-6 border-t-2 border-brand-green/30">
                     <p className="text-sm text-brand-green font-bold uppercase tracking-widest mb-4 text-center">Quick Demo Access</p>
                     <div className="grid grid-cols-4 gap-2">
                         <button
@@ -490,7 +491,7 @@ const Login = () => {
                             Player
                         </button>
                     </div>
-                </div>
+                </div> */}
             </div>
         </div>
     );
