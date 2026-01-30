@@ -100,3 +100,6 @@ dist/
 check_drills.sql
 test_drills.sql
 test_gemini.sh
+
+# Supabase temp files
+supabase/.temp/
