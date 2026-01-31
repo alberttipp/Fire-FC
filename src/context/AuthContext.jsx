@@ -67,7 +67,23 @@ export const AuthProvider = ({ children }) => {
                 console.warn('Error fetching profile:', error);
             }
 
-            setProfile(data);
+            // Fetch user's role from team_memberships
+            const { data: membership } = await supabase
+                .from('team_memberships')
+                .select('role, team_id')
+                .eq('user_id', userId)
+                .order('joined_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            // Merge role into profile
+            const profileWithRole = {
+                ...data,
+                role: membership?.role || null,
+                team_id: membership?.team_id || null
+            };
+
+            setProfile(profileWithRole);
         } catch (error) {
             console.error('Error:', error);
         } finally {
