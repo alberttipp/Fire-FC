@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get Manager Token</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .token-box {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            word-break: break-all;
+        }
+        button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #00dd77;
+        }
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #004400;
+            border: 1px solid #00ff88;
+        }
+        .error {
+            background: #440000;
+            border: 1px solid #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔑 Get Manager Access Token</h1>
+
+    <div id="status"></div>
+
+    <div id="loginSection">
+        <p>Enter your manager credentials:</p>
+        <input type="email" id="email" placeholder="manager@firefc.com" style="width: 100%; padding: 10px; margin: 5px 0; background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 4px;">
+        <input type="password" id="password" placeholder="Password" style="width: 100%; padding: 10px; margin: 5px 0; background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 4px;">
+        <button onclick="login()">Login & Get Token</button>
+    </div>
+
+    <div id="tokenSection" style="display:none;">
+        <h2>✅ Your Access Token:</h2>
+        <div class="token-box" id="tokenDisplay"></div>
+        <button onclick="copyToken()">📋 Copy Token</button>
+        <button onclick="openPowerShell()">▶ Run Test Script</button>
+        <p style="color: #888; margin-top: 20px;">Token expires in 1 hour. Copy it now and paste into PowerShell when prompted.</p>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bcfemytoburctssnemwn.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjZmVteXRvYnVyY3Rzc25lbXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3Nzg5MzUsImV4cCI6MjA4NTM1NDkzNX0.XeLv-xF-7Nm5kOlOT8e5_JUkYCy-hZwVEp9sN5WkdVc';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentToken = '';
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const status = document.getElementById('status');
+
+            if (!email || !password) {
+                status.className = 'error';
+                status.textContent = '❌ Please enter email and password';
+                return;
+            }
+
+            status.className = '';
+            status.textContent = '⏳ Logging in...';
+
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) throw error;
+
+                if (data.session && data.session.access_token) {
+                    currentToken = data.session.access_token;
+                    document.getElementById('tokenDisplay').textContent = currentToken;
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('tokenSection').style.display = 'block';
+                    status.className = 'success';
+                    status.textContent = '✅ Login successful! Token retrieved.';
+                } else {
+                    throw new Error('No session returned');
+                }
+            } catch (error) {
+                status.className = 'error';
+                status.textContent = '❌ Login failed: ' + error.message;
+            }
+        }
+
+        function copyToken() {
+            navigator.clipboard.writeText(currentToken).then(() => {
+                alert('✅ Token copied to clipboard!\n\nNow run: .\\test_create_bo.ps1');
+            }).catch(err => {
+                alert('❌ Copy failed. Please select and copy manually.');
+            });
+        }
+
+        function openPowerShell() {
+            alert('Steps:\n1. Open PowerShell in your project directory\n2. Run: .\\test_create_bo.ps1\n3. Paste the token when prompted\n\nToken is already in your clipboard!');
+            copyToken();
+        }
+
+        // Check if already logged in
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session && session.access_token) {
+                currentToken = session.access_token;
+                document.getElementById('tokenDisplay').textContent = currentToken;
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('tokenSection').style.display = 'block';
+                document.getElementById('status').className = 'success';
+                document.getElementById('status').textContent = '✅ Already logged in! Token retrieved.';
+            }
+        })();
+    </script>
+</body>
+</html>
