@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
             }
 
             // Fetch user's role from team_memberships
-            const { data: membership } = await supabase
+            const { data: membership, error: membershipError } = await supabase
                 .from('team_memberships')
                 .select('role, team_id')
                 .eq('user_id', userId)
@@ -76,12 +76,18 @@ export const AuthProvider = ({ children }) => {
                 .limit(1)
                 .single();
 
+            console.log('[AuthContext] userId:', userId);
+            console.log('[AuthContext] Fetched membership:', membership);
+            console.log('[AuthContext] Membership error:', membershipError);
+
             // Merge role into profile
             const profileWithRole = {
                 ...data,
                 role: membership?.role || null,
                 team_id: membership?.team_id || null
             };
+
+            console.log('[AuthContext] Profile with role:', profileWithRole);
 
             setProfile(profileWithRole);
         } catch (error) {

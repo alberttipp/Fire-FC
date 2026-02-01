@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,16 +63,14 @@ Deno.serve(async (req) => {
         full_name: `${firstName} ${lastName}`,
         display_name: displayName,
         role: 'player',
-        jersey_number: jerseyNumber
+        jersey_number: jerseyNumber,
+        player_pin: pin
       }
     })
 
     if (authError) throw authError
 
     try {
-      // Hash PIN with bcrypt
-      const pinHash = await bcrypt.hash(pin)
-
       // Create player record
       const { error: playerError } = await supabaseAdmin.from('players').insert({
         user_id: authUser.user.id,
@@ -85,14 +82,6 @@ Deno.serve(async (req) => {
       })
 
       if (playerError) throw playerError
-
-      // Create player_credentials record
-      const { error: credError } = await supabaseAdmin.from('player_credentials').insert({
-        player_user_id: authUser.user.id,
-        pin_hash: pinHash
-      })
-
-      if (credError) throw credError
 
       // Create team membership
       const { error: membershipError } = await supabaseAdmin.from('team_memberships').insert({

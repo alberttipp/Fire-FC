@@ -100,6 +100,15 @@ dist/
 check_drills.sql
 test_drills.sql
 test_gemini.sh
+check_existing_tables.sql
+check_player_tables.sql
+check_user_team_setup.sql
+create_player_credentials_table.sql
+create_player_credentials_table_fixed.sql
+debug_teamid.sql
+essential_tables_setup.sql
+fix_rls_infinite_recursion.sql
+verify_database_tables.sql
 
 # Supabase temp files
 supabase/.temp/
