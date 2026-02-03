@@ -33,24 +33,29 @@ Deno.serve(async (req) => {
     )
 
     const { data: { user: caller } } = await supabaseClient.auth.getUser()
-    if (!caller) throw new Error('Unauthorized')
+    console.log('[create-player] Caller:', caller?.id, caller?.email)
+    if (!caller) throw new Error('Unauthorized - no valid session')
 
-    // Verify caller is guardian/coach/manager for this team
-    const { data: membership } = await supabaseClient
+    // Verify caller is guardian/coach/manager/director for this team
+    const { data: membership, error: membershipError } = await supabaseClient
       .from('team_memberships')
       .select('role')
       .eq('team_id', teamId)
       .eq('user_id', caller.id)
       .single()
 
-    if (!membership || !['parent', 'coach', 'manager'].includes(membership.role)) {
-      throw new Error('Not authorized to create players for this team')
+    console.log('[create-player] Team ID:', teamId)
+    console.log('[create-player] Membership lookup:', membership, 'Error:', membershipError)
+
+    const allowedRoles = ['parent', 'coach', 'manager', 'director']
+    if (!membership || !allowedRoles.includes(membership.role)) {
+      throw new Error(`Not authorized to create players for this team. Role: ${membership?.role || 'none'}`)
     }
 
     // Create auth user with service role (no password)
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
     const displayName = `${firstName}${jerseyNumber}`
