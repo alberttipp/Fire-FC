@@ -128,20 +128,21 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             const today = new Date();
             console.log('  Today:', today.toISOString());
 
-            // Get teams where this coach is the coach
-            console.log('🔍 Fetching coach teams...');
-            const { data: coachTeams, error: teamsError } = await supabase
-                .from('teams')
-                .select('id, name')
-                .eq('coach_id', profile.id);
+            // Get teams where this user is a coach or manager via team_memberships
+            console.log('🔍 Fetching coach teams via memberships...');
+            const { data: memberships, error: membershipError } = await supabase
+                .from('team_memberships')
+                .select('team_id, teams(id, name)')
+                .eq('user_id', profile.id)
+                .in('role', ['coach', 'manager']);
 
-            if (teamsError) {
-                console.error('❌ Error fetching coach teams:', teamsError);
+            if (membershipError) {
+                console.error('❌ Error fetching coach teams:', membershipError);
             } else {
-                console.log(`✅ Coach has ${coachTeams?.length || 0} teams:`, coachTeams);
+                console.log(`✅ Coach has ${memberships?.length || 0} team memberships:`, memberships);
             }
 
-            const coachTeamIds = coachTeams?.map(t => t.id) || [];
+            const coachTeamIds = memberships?.map(m => m.team_id) || [];
 
             console.log('🔍 Executing events query for team IDs:', coachTeamIds);
 
@@ -181,12 +182,28 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                 console.error('Error fetching drills:', drillsError);
                 setNoDrillsWarning(true);
             } else if (drills && drills.length > 0) {
+                // Map database categories to UI category IDs
+                const categoryMap = {
+                    'Warm-Up': 'warmup',
+                    'First Touch': 'technical',
+                    'Ball Mastery (Solo)': 'technical',
+                    'Passing & Receiving': 'passing',
+                    'Finishing & Shooting': 'shooting',
+                    'Tactical / Game Intelligence': 'tactical',
+                    'Defending': 'tactical',
+                    'Conditioning': 'fitness',
+                    'Speed & Agility': 'fitness',
+                    'Small-Sided Games': 'game',
+                    'Cool Down': 'cooldown'
+                };
+
                 // Transform to match expected format
                 const transformed = drills.map(d => ({
                     id: d.id,
-                    category: d.category || 'technical',
-                    name: d.title,
-                    duration: d.duration_minutes || 10,
+                    category: categoryMap[d.category] || 'technical',
+                    originalCategory: d.category,
+                    name: d.name,
+                    duration: d.duration || 10,
                     description: d.description || ''
                 }));
                 setDrillTemplates(transformed);

@@ -26,7 +26,7 @@ const TeamView = () => {
     const [feedbackRecipient, setFeedbackRecipient] = useState(null);
     const [copied, setCopied] = useState(false);
 
-    // Check if user is manager or coach
+    // Check if user is manager or coach (used for UI)
     const isManager = profile?.role === 'manager' || user?.role === 'manager';
     const isCoach = profile?.role === 'coach' || user?.role === 'coach';
 
@@ -34,9 +34,18 @@ const TeamView = () => {
         if (!user) return;
         setLoading(true);
 
+        // Re-check roles inside function to get current values
+        const currentIsManager = profile?.role === 'manager';
+        const currentIsCoach = profile?.role === 'coach';
+
+        console.log('[TeamView] fetchTeamData - profile:', profile);
+        console.log('[TeamView] fetchTeamData - role:', profile?.role, 'isManager:', currentIsManager, 'isCoach:', currentIsCoach);
+
+        let currentTeamId = null; // Track locally to avoid state timing issues
+
         try {
             // For managers and coaches, fetch ALL teams they can access
-            if (isManager) {
+            if (currentIsManager) {
                 // Managers see ALL teams in the club
                 const { data: teams } = await supabase
                     .from('teams')
@@ -51,8 +60,9 @@ const TeamView = () => {
                         : teams[0];
                     setSelectedTeamId(teamToSelect.id);
                     setMyTeam(teamToSelect);
+                    currentTeamId = teamToSelect.id; // Use local variable
                 }
-            } else if (isCoach) {
+            } else if (currentIsCoach) {
                 // Coaches see all teams (for demo, coach manages all)
                 const { data: teams } = await supabase
                     .from('teams')
@@ -67,6 +77,7 @@ const TeamView = () => {
                         : teams[0];
                     setSelectedTeamId(teamToSelect.id);
                     setMyTeam(teamToSelect);
+                    currentTeamId = teamToSelect.id; // Use local variable
                 }
             } else {
                 // Regular users - single team
@@ -93,10 +104,10 @@ const TeamView = () => {
 
                 setMyTeam(teamData);
                 setAllTeams(teamData ? [teamData] : []);
+                currentTeamId = teamData?.id; // Use local variable
             }
 
-            // Fetch roster for selected/current team
-            const currentTeamId = selectedTeamId || myTeam?.id;
+            // Fetch roster using local variable (not stale state)
             if (currentTeamId) {
                 const { data: players } = await supabase
                     .from('players')
