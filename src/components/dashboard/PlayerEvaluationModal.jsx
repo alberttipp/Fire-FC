@@ -9,41 +9,82 @@ import { useAuth } from '../../context/AuthContext';
 const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('eval'); // 'eval' or 'awards'
+    const [saving, setSaving] = useState(false);
+    const [coachNotes, setCoachNotes] = useState('');
+    const [season, setSeason] = useState('Spring 2026');
+    const [existingEvalId, setExistingEvalId] = useState(null);
 
     // Badge Data State
     const [allBadges, setAllBadges] = useState([]);
     const [awardedBadges, setAwardedBadges] = useState({}); // { badgeId: count }
 
-    // Mock Stats (Keep for now as fallback/demo)
+    // Stats - will load from DB if exists
     const [stats, setStats] = useState({
-        Pace: 75,
-        Shooting: 60,
-        Passing: 65,
-        Dribbling: 70,
-        Defending: 40,
-        Physical: 55,
+        Pace: 50,
+        Shooting: 50,
+        Passing: 50,
+        Dribbling: 50,
+        Defending: 50,
+        Physical: 50,
     });
 
-    // Fetch Badges & Player's Earned Badges
+    // Fetch Badges, Evaluations & Player's Earned Badges
     useEffect(() => {
         const fetchData = async () => {
-            // 1. Get Definitions - Real data only, no mock fallbacks
+            // 1. Get Badge Definitions
             const { data: badgeDefs, error: badgeError } = await supabase.from('badges').select('*');
             if (badgeError) {
                 console.error("Error fetching badge definitions:", badgeError);
             }
             setAllBadges(badgeDefs || []);
 
-            // 2. Get Earned (if valid player ID)
             if (player?.id) {
-                const { data: earned, error: earnedError } = await supabase
+                // 2. Get Latest Evaluation for this player
+                const { data: evalData, error: evalError } = await supabase
+                    .from('evaluations')
+                    .select('*')
+                    .eq('player_id', player.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (evalError && evalError.code !== 'PGRST116') {
+                    // PGRST116 = no rows returned, which is fine
+                    console.error("Error fetching evaluation:", evalError);
+                } else if (evalData) {
+                    // Load existing evaluation
+                    setExistingEvalId(evalData.id);
+                    setStats({
+                        Pace: evalData.pace || 50,
+                        Shooting: evalData.shooting || 50,
+                        Passing: evalData.passing || 50,
+                        Dribbling: evalData.dribbling || 50,
+                        Defending: evalData.defending || 50,
+                        Physical: evalData.physical || 50,
+                    });
+                    setCoachNotes(evalData.notes || '');
+                    setSeason(evalData.season || 'Spring 2026');
+                }
+
+                // 3. Get Earned Badges (try both player_id and player_user_id)
+                let earned = null;
+                const { data: earnedById, error: err1 } = await supabase
                     .from('player_badges')
                     .select('badge_id')
                     .eq('player_id', player.id);
 
-                if (earnedError) {
-                    console.error("Error fetching earned badges:", earnedError);
-                } else if (earned) {
+                if (!err1) {
+                    earned = earnedById;
+                } else {
+                    // Try alternate column name
+                    const { data: earnedByUserId, error: err2 } = await supabase
+                        .from('player_badges')
+                        .select('badge_id')
+                        .eq('player_user_id', player.id);
+                    if (!err2) earned = earnedByUserId;
+                }
+
+                if (earned) {
                     const counts = {};
                     earned.forEach(row => {
                         counts[row.badge_id] = (counts[row.badge_id] || 0) + 1;
@@ -144,24 +185,87 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
             zIndex: 10000
         });
 
-        // Database Insert
+        // Database Insert - try player_id first, fallback to player_user_id
         if (player?.id && user?.id) {
             try {
-                await supabase.from('player_badges').insert({
+                const { error } = await supabase.from('player_badges').insert({
                     player_id: player.id,
                     badge_id: badgeId,
                     awarded_by: user.id
                 });
+
+                // If player_id column doesn't exist, try player_user_id
+                if (error && error.message.includes('player_id')) {
+                    await supabase.from('player_badges').insert({
+                        player_user_id: player.id,
+                        badge_id: badgeId,
+                        awarded_by: user.id
+                    });
+                } else if (error) {
+                    throw error;
+                }
             } catch (err) {
                 console.error("Error awarding badge:", err);
             }
         }
     };
 
-    const handleSave = () => {
-        // TODO: Save to Supabase (Evaluations)
-        console.log("Saving stats for", player.name, stats, awardedBadges);
-        onClose();
+    const handleSave = async () => {
+        if (!player?.id || !user?.id) {
+            alert('Missing player or user information');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const evaluationData = {
+                player_id: player.id,
+                coach_id: user.id,
+                season: season,
+                pace: stats.Pace,
+                shooting: stats.Shooting,
+                passing: stats.Passing,
+                dribbling: stats.Dribbling,
+                defending: stats.Defending,
+                physical: stats.Physical,
+                notes: coachNotes,
+            };
+
+            let error;
+            if (existingEvalId) {
+                // Update existing evaluation
+                const { error: updateError } = await supabase
+                    .from('evaluations')
+                    .update(evaluationData)
+                    .eq('id', existingEvalId);
+                error = updateError;
+            } else {
+                // Insert new evaluation
+                const { error: insertError } = await supabase
+                    .from('evaluations')
+                    .insert([evaluationData]);
+                error = insertError;
+            }
+
+            if (error) throw error;
+
+            // Confetti on success
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#ccff00', '#FFD700', '#ffffff'],
+                zIndex: 10000
+            });
+
+            alert('✓ Evaluation saved!');
+            onClose();
+        } catch (err) {
+            console.error('Error saving evaluation:', err);
+            alert('Failed to save evaluation: ' + err.message);
+        } finally {
+            setSaving(false);
+        }
     }
 
     return (
@@ -257,12 +361,29 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                     </div>
                                 ))}
                                 {!readOnly && (
-                                    <div className="mt-8 pt-6 border-t border-white/10">
-                                        <label className="block text-xs text-gray-400 uppercase font-bold mb-2">Coach Notes</label>
-                                        <textarea
-                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white text-sm focus:border-brand-green outline-none resize-none h-24"
-                                            placeholder="Great improvement in pace this week..."
-                                        ></textarea>
+                                    <div className="mt-8 pt-6 border-t border-white/10 space-y-4">
+                                        <div>
+                                            <label className="block text-xs text-gray-400 uppercase font-bold mb-2">Season</label>
+                                            <select
+                                                value={season}
+                                                onChange={(e) => setSeason(e.target.value)}
+                                                className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white text-sm focus:border-brand-green outline-none"
+                                            >
+                                                <option value="Spring 2026">Spring 2026</option>
+                                                <option value="Fall 2025">Fall 2025</option>
+                                                <option value="Summer 2025">Summer 2025</option>
+                                                <option value="Spring 2025">Spring 2025</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-400 uppercase font-bold mb-2">Coach Notes</label>
+                                            <textarea
+                                                value={coachNotes}
+                                                onChange={(e) => setCoachNotes(e.target.value)}
+                                                className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white text-sm focus:border-brand-green outline-none resize-none h-24"
+                                                placeholder="Great improvement in pace this week..."
+                                            ></textarea>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -319,9 +440,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                             </span>
                             <button
                                 onClick={handleSave}
-                                className="btn-primary flex items-center gap-2"
+                                disabled={saving}
+                                className="btn-primary flex items-center gap-2 disabled:opacity-50"
                             >
-                                <Save className="w-4 h-4" /> Save {activeTab === 'awards' ? 'Badges' : 'Evaluation'}
+                                <Save className="w-4 h-4" /> {saving ? 'Saving...' : `Save ${activeTab === 'awards' ? 'Badges' : 'Evaluation'}`}
                             </button>
                         </div>
                     )}

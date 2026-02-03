@@ -115,19 +115,47 @@ const TeamView = () => {
                     .eq('team_id', currentTeamId)
                     .order('last_name', { ascending: true });
 
-                // Transform - use rating and minutes instead of XP
-                const formatted = (players || []).map(p => ({
-                    id: p.id,
-                    name: `${p.first_name} ${p.last_name}`,
-                    firstName: p.first_name,
-                    lastName: p.last_name,
-                    number: p.jersey_number || '#',
-                    rating: p.overall_rating || '--',
-                    minutes: p.training_minutes || 0,
-                    status: (p.training_minutes > 60) ? 'On Fire' : 'Steady',
-                    avatar: p.avatar_url,
-                    position: p.position
-                })).sort((a, b) => b.minutes - a.minutes);
+                // Fetch evaluations for all players
+                const playerIds = (players || []).map(p => p.id);
+                let evaluationsMap = {};
+                if (playerIds.length > 0) {
+                    const { data: evaluations } = await supabase
+                        .from('evaluations')
+                        .select('*')
+                        .in('player_id', playerIds)
+                        .order('created_at', { ascending: false });
+
+                    // Group by player_id, keep only latest
+                    (evaluations || []).forEach(e => {
+                        if (!evaluationsMap[e.player_id]) {
+                            evaluationsMap[e.player_id] = e;
+                        }
+                    });
+                }
+
+                // Transform - use evaluation OVR if available
+                const formatted = (players || []).map(p => {
+                    const eval_ = evaluationsMap[p.id];
+                    let ovr = '--';
+                    if (eval_) {
+                        const stats = [eval_.pace, eval_.shooting, eval_.passing, eval_.dribbling, eval_.defending, eval_.physical].filter(s => s != null);
+                        if (stats.length > 0) {
+                            ovr = Math.round(stats.reduce((a, b) => a + b, 0) / stats.length);
+                        }
+                    }
+                    return {
+                        id: p.id,
+                        name: `${p.first_name} ${p.last_name}`,
+                        firstName: p.first_name,
+                        lastName: p.last_name,
+                        number: p.jersey_number || '#',
+                        rating: ovr,
+                        minutes: p.training_minutes || 0,
+                        status: (p.training_minutes > 60) ? 'On Fire' : 'Steady',
+                        avatar: p.avatar_url,
+                        position: p.position
+                    };
+                }).sort((a, b) => b.minutes - a.minutes);
 
                 setRoster(formatted);
             } else {
@@ -151,18 +179,47 @@ const TeamView = () => {
             .eq('team_id', teamId)
             .order('last_name', { ascending: true });
 
-        const formatted = (players || []).map(p => ({
-            id: p.id,
-            name: `${p.first_name} ${p.last_name}`,
-            firstName: p.first_name,
-            lastName: p.last_name,
-            number: p.jersey_number || '#',
-            rating: p.overall_rating || '--',
-            minutes: p.training_minutes || 0,
-            status: (p.training_minutes > 60) ? 'On Fire' : 'Steady',
-            avatar: p.avatar_url,
-            position: p.position
-        })).sort((a, b) => b.minutes - a.minutes);
+        // Fetch evaluations for all players
+        const playerIds = (players || []).map(p => p.id);
+        let evaluationsMap = {};
+        if (playerIds.length > 0) {
+            const { data: evaluations } = await supabase
+                .from('evaluations')
+                .select('*')
+                .in('player_id', playerIds)
+                .order('created_at', { ascending: false });
+
+            // Group by player_id, keep only latest
+            (evaluations || []).forEach(e => {
+                if (!evaluationsMap[e.player_id]) {
+                    evaluationsMap[e.player_id] = e;
+                }
+            });
+        }
+
+        // Transform - use evaluation OVR if available
+        const formatted = (players || []).map(p => {
+            const eval_ = evaluationsMap[p.id];
+            let ovr = '--';
+            if (eval_) {
+                const stats = [eval_.pace, eval_.shooting, eval_.passing, eval_.dribbling, eval_.defending, eval_.physical].filter(s => s != null);
+                if (stats.length > 0) {
+                    ovr = Math.round(stats.reduce((a, b) => a + b, 0) / stats.length);
+                }
+            }
+            return {
+                id: p.id,
+                name: `${p.first_name} ${p.last_name}`,
+                firstName: p.first_name,
+                lastName: p.last_name,
+                number: p.jersey_number || '#',
+                rating: ovr,
+                minutes: p.training_minutes || 0,
+                status: (p.training_minutes > 60) ? 'On Fire' : 'Steady',
+                avatar: p.avatar_url,
+                position: p.position
+            };
+        }).sort((a, b) => b.minutes - a.minutes);
 
         setRoster(formatted);
     };
@@ -296,7 +353,7 @@ const TeamView = () => {
             </div>
 
             {selectedPlayer && (
-                <PlayerEvaluationModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
+                <PlayerEvaluationModal player={selectedPlayer} onClose={() => { setSelectedPlayer(null); if (myTeam?.id) fetchRosterForTeam(myTeam.id); }} />
             )}
 
             {feedbackRecipient && (
