@@ -23,7 +23,11 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
         try {
             // Get current session token
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('Not authenticated');
+            console.log('[CreatePlayer] Session:', session);
+            console.log('[CreatePlayer] Access Token:', session?.access_token?.substring(0, 20) + '...');
+            console.log('[CreatePlayer] Anon Key:', import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 20) + '...');
+            console.log('[CreatePlayer] URL:', import.meta.env.VITE_SUPABASE_URL);
+            if (!session) throw new Error('Not authenticated - no session found');
 
             // Call create-player Edge Function
             const response = await fetch(
