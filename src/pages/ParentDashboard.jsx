@@ -7,6 +7,7 @@ import PlayerCard from '../components/player/PlayerCard';
 import CalendarHub from '../components/dashboard/CalendarHub';
 import ChatView from '../components/dashboard/ChatView';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
+import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 
 const ParentDashboard = () => {
     const { user, profile, signOut } = useAuth();
@@ -42,27 +43,14 @@ const ParentDashboard = () => {
     const fetchChildrenData = async () => {
         setLoading(true);
         try {
-            // First try to get linked children via family_links
+            // Get linked children via family_members table
             const { data: links } = await supabase
-                .from('family_links')
+                .from('family_members')
                 .select('player_id')
-                .eq('parent_id', user.id);
+                .eq('user_id', user.id)
+                .in('relationship', ['guardian', 'fan']);
 
             let playerIds = links?.map(l => l.player_id) || [];
-
-            // If no links, try to find a default player (for demo)
-            if (playerIds.length === 0) {
-                // Get first player from default team for demo
-                const { data: defaultPlayers } = await supabase
-                    .from('players')
-                    .select('id')
-                    .eq('team_id', 'd02aba3e-3c30-430f-9377-3b334cffcd04')
-                    .limit(1);
-
-                if (defaultPlayers?.length > 0) {
-                    playerIds = [defaultPlayers[0].id];
-                }
-            }
 
             if (playerIds.length > 0) {
                 // Fetch full player data
@@ -223,12 +211,12 @@ const ParentDashboard = () => {
 
         if (!selectedChild) {
             return (
-                <div className="glass-panel p-8 max-w-md mx-auto text-center space-y-4">
-                    <Users className="w-12 h-12 text-gray-600 mx-auto" />
-                    <h2 className="text-xl text-white font-bold">No Player Linked</h2>
-                    <p className="text-gray-400 text-sm">
-                        Your account is not linked to any players yet. Please contact your coach or team manager to link your child's profile.
-                    </p>
+                <div className="max-w-md mx-auto">
+                    <GuardianCodeEntry
+                        onSuccess={() => {
+                            fetchChildrenData();
+                        }}
+                    />
                 </div>
             );
         }

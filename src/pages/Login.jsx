@@ -116,8 +116,9 @@ const Login = () => {
                 toast.success("Welcome back!");
 
                 if (data?.user) {
-                    const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
-                    if (profile?.role === 'parent') navigate('/parent-dashboard');
+                    // Check role from user_metadata (not profiles table)
+                    const userRole = data.user.user_metadata?.role;
+                    if (userRole === 'parent') navigate('/parent-dashboard');
                     else navigate('/dashboard');
                 } else {
                     navigate('/dashboard');
