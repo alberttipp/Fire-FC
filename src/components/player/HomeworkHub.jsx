@@ -8,8 +8,8 @@ const HomeworkHub = ({ assignments, onComplete }) => {
     // Map DB Assignments to Display Format
     const displayDrills = (assignments || []).map(a => ({
         id: a.id, // Assignment ID
-        title: a.drills?.title || "Unknown Drill",
-        duration: (a.custom_duration || a.drills?.duration_minutes || 15) + "m",
+        title: a.drills?.name || "Unknown Drill",
+        duration: (a.custom_duration || a.drills?.duration || 15) + "m",
         dueDate: a.due_date, // Pass due date
         xp: 50, // Default reward
         completed: a.status === 'completed',

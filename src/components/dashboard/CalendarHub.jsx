@@ -28,24 +28,59 @@ const CalendarHub = () => {
         try {
             setLoading(true);
 
-            // Determine Team ID
-            let teamId = profile?.team_id;
-            // Fallback for Coaches who haven't refreshed profile
-            if (!teamId && user) {
-                const { data: team } = await supabase.from('teams').select('id').eq('coach_id', user.id).single();
-                if (team) teamId = team.id;
+            // Determine Team ID(s) based on role
+            let teamIds = [];
+            const userRole = profile?.role;
+
+            if (userRole === 'parent') {
+                // Parents: Get teams from their linked children
+                const { data: links } = await supabase
+                    .from('family_members')
+                    .select('player_id')
+                    .eq('user_id', user.id)
+                    .in('relationship', ['guardian', 'fan']);
+
+                if (links && links.length > 0) {
+                    const playerIds = links.map(l => l.player_id);
+                    const { data: players } = await supabase
+                        .from('players')
+                        .select('team_id')
+                        .in('id', playerIds);
+
+                    if (players) {
+                        teamIds = [...new Set(players.map(p => p.team_id).filter(Boolean))];
+                    }
+                }
+            } else if (userRole === 'manager') {
+                // Managers see ALL teams
+                const { data: teams } = await supabase.from('teams').select('id');
+                if (teams) teamIds = teams.map(t => t.id);
+            } else if (userRole === 'coach') {
+                // Coaches see all teams (for now, could be filtered by coach_id later)
+                const { data: teams } = await supabase.from('teams').select('id');
+                if (teams) teamIds = teams.map(t => t.id);
+            } else {
+                // Players or other roles - use profile.team_id
+                if (profile?.team_id) {
+                    teamIds = [profile.team_id];
+                } else if (user) {
+                    // Fallback: look up by coach_id
+                    const { data: team } = await supabase.from('teams').select('id').eq('coach_id', user.id).single();
+                    if (team) teamIds = [team.id];
+                }
             }
 
-            if (!teamId) {
+            if (teamIds.length === 0) {
+                setEvents([]);
                 setLoading(false);
                 return;
             }
 
-            // 1. Fetch Events for this Team
+            // 1. Fetch Events for team(s)
             const { data: eventData, error: eventError } = await supabase
                 .from('events')
                 .select('*')
-                .eq('team_id', teamId)
+                .in('team_id', teamIds)
                 .order('start_time', { ascending: true });
 
             if (eventError) throw eventError;

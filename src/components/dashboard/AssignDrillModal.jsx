@@ -4,17 +4,21 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
 const AssignDrillModal = ({ onClose }) => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [step, setStep] = useState(1); // 1: Select Drill, 2: Select Assignees
     const [drills, setDrills] = useState([]);
     const [selectedDrills, setSelectedDrills] = useState([]); // Array of drill IDs
     const [customDurations, setCustomDurations] = useState({}); // { drillId: minutes }
     const [assigneeType, setAssigneeType] = useState('team'); // 'team' or 'individual'
-    const [selectedTeam, setSelectedTeam] = useState('U10 Boys');
+    const [teams, setTeams] = useState([]); // Real teams from database
+    const [selectedTeamId, setSelectedTeamId] = useState(null);
+    const [teamPlayers, setTeamPlayers] = useState([]); // Players on selected team
+    const [selectedPlayerIds, setSelectedPlayerIds] = useState([]); // For individual selection
     const [timeframe, setTimeframe] = useState(7); // Default 1 week
     const [generating, setGenerating] = useState(false);
+    const [loadingPlayers, setLoadingPlayers] = useState(false);
 
-    // Fetch Drills on Mount - NO mock fallback
+    // Fetch Drills and Teams on Mount
     useEffect(() => {
         const fetchDrills = async () => {
             const { data, error } = await supabase
@@ -28,24 +32,73 @@ const AssignDrillModal = ({ onClose }) => {
                 setDrills(data || []);
             }
         };
+
+        const fetchTeams = async () => {
+            const { data, error } = await supabase
+                .from('teams')
+                .select('id, name, age_group')
+                .order('age_group', { ascending: true });
+
+            if (error) {
+                console.error("Error fetching teams:", error.message);
+                setTeams([]);
+            } else {
+                setTeams(data || []);
+                // Select first team by default if available
+                if (data && data.length > 0) {
+                    setSelectedTeamId(data[0].id);
+                }
+            }
+        };
+
         fetchDrills();
+        fetchTeams();
     }, []);
+
+    // Fetch players when team is selected
+    useEffect(() => {
+        const fetchPlayersForTeam = async () => {
+            if (!selectedTeamId) {
+                setTeamPlayers([]);
+                return;
+            }
+            setLoadingPlayers(true);
+            const { data, error } = await supabase
+                .from('players')
+                .select('id, first_name, last_name, jersey_number')
+                .eq('team_id', selectedTeamId)
+                .order('last_name', { ascending: true });
+
+            if (error) {
+                console.error("Error fetching players:", error.message);
+                setTeamPlayers([]);
+            } else {
+                setTeamPlayers(data || []);
+            }
+            setLoadingPlayers(false);
+        };
+
+        fetchPlayersForTeam();
+    }, [selectedTeamId]);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [skillFilter, setSkillFilter] = useState('All');
     const [playerFilter, setPlayerFilter] = useState('All');
 
-    // Extract unique filter options
-    const skills = ['All', ...new Set(drills.map(d => d.skill))];
-    const playerTypes = ['All', ...new Set(drills.map(d => d.players))];
+    // Extract unique filter options (handle both column naming conventions)
+    const skills = ['All', ...new Set(drills.map(d => d.skill || d.category).filter(Boolean))];
+    const playerTypes = ['All', ...new Set(drills.map(d => d.players || d.group_size).filter(Boolean))];
 
     // Filter Logic
     const filteredDrills = useMemo(() => {
         return drills.filter(drill => {
-            const matchesSearch = drill.title.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesSkill = skillFilter === 'All' || drill.skill === skillFilter;
-            const matchesPlayers = playerFilter === 'All' || drill.players === playerFilter;
+            const drillName = drill.name || drill.title || '';
+            const drillSkill = drill.skill || drill.category || '';
+            const drillPlayers = drill.players || drill.group_size || '';
+            const matchesSearch = drillName.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSkill = skillFilter === 'All' || drillSkill === skillFilter;
+            const matchesPlayers = playerFilter === 'All' || drillPlayers === playerFilter;
             return matchesSearch && matchesSkill && matchesPlayers;
         });
     }, [drills, searchTerm, skillFilter, playerFilter]);
@@ -73,16 +126,55 @@ const AssignDrillModal = ({ onClose }) => {
     const handleAutoGenerate = () => {
         setGenerating(true);
         setTimeout(() => {
-            // Pick 3 random drills from loaded drills
-            if (drills.length > 0) {
-                const shuffled = [...drills].sort(() => 0.5 - Math.random());
-                const selected = shuffled.slice(0, 3);
-                const ids = selected.map(d => d.id);
+            // Filter to solo drills only
+            const soloDrills = drills.filter(d => {
+                const groupSize = (d.players || d.group_size || '').toLowerCase();
+                return groupSize === 'solo' || groupSize === 'individual' || groupSize === '1';
+            });
 
+            // Use solo drills if available, otherwise fall back to all drills
+            const availableDrills = soloDrills.length > 0 ? soloDrills : drills;
+
+            if (availableDrills.length > 0) {
+                // Shuffle drills for variety
+                const shuffled = [...availableDrills].sort(() => 0.5 - Math.random());
+
+                // Keep adding drills until we reach ~100 minutes
+                const TARGET_MINUTES = 100;
+                const selected = [];
+                let totalMinutes = 0;
+
+                for (const drill of shuffled) {
+                    const drillDuration = drill.duration_minutes || drill.duration || 10;
+                    if (totalMinutes + drillDuration <= TARGET_MINUTES + 15) { // Allow slight overflow
+                        selected.push(drill);
+                        totalMinutes += drillDuration;
+                    }
+                    // Stop when we've reached target (allow going slightly over)
+                    if (totalMinutes >= TARGET_MINUTES) break;
+                }
+
+                // If we haven't reached 100 mins, loop through again with remaining drills
+                if (totalMinutes < TARGET_MINUTES && shuffled.length > 0) {
+                    let idx = 0;
+                    while (totalMinutes < TARGET_MINUTES && idx < shuffled.length * 2) {
+                        const drill = shuffled[idx % shuffled.length];
+                        // Only add if not already in selected (avoid duplicates in first pass)
+                        if (!selected.find(s => s.id === drill.id) || idx >= shuffled.length) {
+                            const drillDuration = drill.duration_minutes || drill.duration || 10;
+                            selected.push({ ...drill, _duplicateIndex: idx }); // Mark as potential duplicate
+                            totalMinutes += drillDuration;
+                        }
+                        idx++;
+                    }
+                }
+
+                const ids = selected.map(d => d.id);
                 setSelectedDrills(ids);
+
                 const newDurations = {};
                 selected.forEach(d => {
-                    newDurations[d.id] = d.duration_minutes || d.duration;
+                    newDurations[d.id] = d.duration_minutes || d.duration || 10;
                 });
                 setCustomDurations(newDurations);
             }
@@ -96,29 +188,25 @@ const AssignDrillModal = ({ onClose }) => {
             let targetPlayerIds = [];
 
             if (assigneeType === 'team') {
-                // Fetch all players for now (Implementation of strict Team ID filtering comes later)
-                const { data: players } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('role', 'player');
-
-                if (players) targetPlayerIds = players.map(p => p.id);
+                // Assign to all players on the selected team
+                if (!selectedTeamId) {
+                    alert("Please select a team first.");
+                    return;
+                }
+                // Use already-fetched teamPlayers
+                targetPlayerIds = teamPlayers.map(p => p.id);
             } else {
-                // Mock individual selection (Just pick the first player found for demo)
-                const { data: players } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('role', 'player')
-                    .limit(1);
-                if (players) targetPlayerIds = players.map(p => p.id);
+                // Use the individually selected players
+                targetPlayerIds = selectedPlayerIds;
             }
 
             if (targetPlayerIds.length === 0) {
-                alert("No players found to assign to. Please ensure players exist in the database.");
+                alert("No players selected. Please select at least one player to assign drills to.");
                 return;
             }
 
             // 2. Create Assignment Rows
+            const dueDate = new Date(Date.now() + timeframe * 24 * 60 * 60 * 1000);
             const assignments = [];
 
             targetPlayerIds.forEach(playerId => {
@@ -126,20 +214,23 @@ const AssignDrillModal = ({ onClose }) => {
                     assignments.push({
                         drill_id: drillId,
                         player_id: playerId,
-                        assigned_by: user?.id,
+                        team_id: selectedTeamId,
                         status: 'pending',
-                        custom_duration: customDurations[drillId] || 15, // Default Fallback
-                        due_date: new Date(Date.now() + timeframe * 24 * 60 * 60 * 1000) // Calculated Due Date
+                        due_date: dueDate.toISOString()
                     });
                 });
             });
 
             // 3. Insert to Supabase
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('assignments')
-                .insert(assignments);
+                .insert(assignments)
+                .select();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Insert error details:', error);
+                throw error;
+            }
 
             alert(`Successfully assigned ${selectedDrills.length} drills to ${targetPlayerIds.length} players!`);
             onClose();
@@ -223,11 +314,11 @@ const AssignDrillModal = ({ onClose }) => {
                                         >
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${isSelected ? 'bg-brand-green text-brand-dark' : 'bg-gray-700 text-gray-300'}`}>
-                                                    {drill.skill} - {drill.players}
+                                                    {drill.skill || drill.category || 'General'} - {drill.players || drill.group_size || 'Any'}
                                                 </span>
                                                 {isSelected && <Check className="w-4 h-4 text-brand-green" />}
                                             </div>
-                                            <h4 className="text-white font-bold font-display uppercase text-sm">{drill.title}</h4>
+                                            <h4 className="text-white font-bold font-display uppercase text-sm">{drill.name || drill.title}</h4>
 
                                             {/* Duration Control */}
                                             <div className="mt-3 flex items-center justify-between">
@@ -237,13 +328,13 @@ const AssignDrillModal = ({ onClose }) => {
                                                         type="number"
                                                         min="1"
                                                         max="60"
-                                                        value={customDurations[drill.id] || drill.duration}
+                                                        value={customDurations[drill.id] || drill.duration_minutes || drill.duration || 10}
                                                         onClick={(e) => e.stopPropagation()}
                                                         onChange={(e) => handleDurationChange(e, drill.id)}
                                                         className="w-16 bg-black/50 border border-brand-green rounded px-2 py-1 text-white text-sm text-center font-bold outline-none"
                                                     />
                                                 ) : (
-                                                    <span className="text-xs text-gray-400 font-bold">{drill.duration}</span>
+                                                    <span className="text-xs text-gray-400 font-bold">{drill.duration_minutes || drill.duration || 10}</span>
                                                 )}
                                             </div>
                                         </div>
@@ -278,20 +369,91 @@ const AssignDrillModal = ({ onClose }) => {
                             {assigneeType === 'team' ? (
                                 <div>
                                     <label className="block text-gray-400 text-xs uppercase font-bold mb-2">Select Team</label>
-                                    <select
-                                        value={selectedTeam}
-                                        onChange={(e) => setSelectedTeam(e.target.value)}
-                                        className="w-full bg-black/30 border border-white/10 rounded p-3 text-white focus:border-brand-green outline-none"
-                                    >
-                                        <option>U10 Boys</option>
-                                        <option>U12 Girls</option>
-                                        <option>U14 Elite</option>
-                                    </select>
+                                    {teams.length === 0 ? (
+                                        <div className="text-gray-500 text-sm p-3 border border-dashed border-white/10 rounded">
+                                            No teams found. Create a team first.
+                                        </div>
+                                    ) : (
+                                        <select
+                                            value={selectedTeamId || ''}
+                                            onChange={(e) => setSelectedTeamId(e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded p-3 text-white focus:border-brand-green outline-none"
+                                        >
+                                            {teams.map(team => (
+                                                <option key={team.id} value={team.id}>
+                                                    {team.age_group || team.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    {teamPlayers.length > 0 && (
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            {teamPlayers.length} player{teamPlayers.length !== 1 ? 's' : ''} on this team
+                                        </p>
+                                    )}
                                 </div>
                             ) : (
-                                <div className="text-center py-8 text-gray-500 border border-dashed border-white/10 rounded bg-white/5">
-                                    <p>Player selection list would go here.</p>
-                                    <p className="text-xs mt-2">(Select from Roster...)</p>
+                                <div>
+                                    <label className="block text-gray-400 text-xs uppercase font-bold mb-2">Select Team First</label>
+                                    <select
+                                        value={selectedTeamId || ''}
+                                        onChange={(e) => {
+                                            setSelectedTeamId(e.target.value);
+                                            setSelectedPlayerIds([]); // Reset selection when team changes
+                                        }}
+                                        className="w-full bg-black/30 border border-white/10 rounded p-3 text-white focus:border-brand-green outline-none mb-4"
+                                    >
+                                        {teams.map(team => (
+                                            <option key={team.id} value={team.id}>
+                                                {team.age_group || team.name}
+                                            </option>
+                                        ))}
+                                    </select>
+
+                                    <label className="block text-gray-400 text-xs uppercase font-bold mb-2">Select Players</label>
+                                    {loadingPlayers ? (
+                                        <div className="text-gray-500 text-sm p-4 text-center">Loading players...</div>
+                                    ) : teamPlayers.length === 0 ? (
+                                        <div className="text-center py-4 text-gray-500 border border-dashed border-white/10 rounded bg-white/5">
+                                            <p>No players on this team yet.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="max-h-48 overflow-y-auto space-y-2 p-2 bg-white/5 rounded border border-white/10">
+                                            {teamPlayers.map(player => {
+                                                const isSelected = selectedPlayerIds.includes(player.id);
+                                                return (
+                                                    <label
+                                                        key={player.id}
+                                                        className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-brand-green/20 border border-brand-green/50' : 'hover:bg-white/10 border border-transparent'}`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedPlayerIds(prev => prev.filter(id => id !== player.id));
+                                                                } else {
+                                                                    setSelectedPlayerIds(prev => [...prev, player.id]);
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 accent-brand-green"
+                                                        />
+                                                        <span className="text-white text-sm">
+                                                            {player.first_name} {player.last_name}
+                                                        </span>
+                                                        {player.jersey_number && (
+                                                            <span className="text-xs text-gray-500">#{player.jersey_number}</span>
+                                                        )}
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    {selectedPlayerIds.length > 0 && (
+                                        <p className="text-xs text-brand-green mt-2">
+                                            {selectedPlayerIds.length} player{selectedPlayerIds.length !== 1 ? 's' : ''} selected
+                                        </p>
+                                    )}
                                 </div>
                             )}
 

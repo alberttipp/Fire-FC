@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { X, User, Hash, Save, Lock } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { useToast } from '../Toast';
 
 const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
+    const toast = useToast();
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [number, setNumber] = useState('');
@@ -12,9 +14,22 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // Validate required fields
+        if (!firstName.trim() || !lastName.trim()) {
+            toast.error('First and last name are required');
+            return;
+        }
+
+        // Validate jersey number
+        const jerseyNum = parseInt(number);
+        if (isNaN(jerseyNum) || jerseyNum < 1 || jerseyNum > 99) {
+            toast.error('Jersey number must be between 1 and 99');
+            return;
+        }
+
         // Validate PIN
         if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-            alert('PIN must be exactly 4 digits');
+            toast.error('PIN must be exactly 4 digits');
             return;
         }
 
@@ -23,10 +38,6 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
         try {
             // Get current session token
             const { data: { session } } = await supabase.auth.getSession();
-            console.log('[CreatePlayer] Session:', session);
-            console.log('[CreatePlayer] Access Token:', session?.access_token?.substring(0, 20) + '...');
-            console.log('[CreatePlayer] Anon Key:', import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 20) + '...');
-            console.log('[CreatePlayer] URL:', import.meta.env.VITE_SUPABASE_URL);
             if (!session) throw new Error('Not authenticated - no session found');
 
             // Call create-player Edge Function
@@ -55,14 +66,14 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
                 throw new Error(result.error || 'Failed to create player');
             }
 
-            alert(`✅ Player created!\n\nDisplay Name: ${result.display_name}\nPIN: ${pin}\n\nPlayer can now login using team join code.`);
+            toast.success(`Player ${result.display_name} created! They can now login with their PIN.`);
 
             if (onPlayerCreated) onPlayerCreated(result);
             onClose();
 
         } catch (error) {
             console.error('Error creating player:', error);
-            alert(`Failed to create player: ${error.message}`);
+            toast.error(`Failed to create player: ${error.message}`);
         } finally {
             setLoading(false);
         }

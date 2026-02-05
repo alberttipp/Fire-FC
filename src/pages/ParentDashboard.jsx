@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Users } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import CalendarHub from '../components/dashboard/CalendarHub';
 import ChatView from '../components/dashboard/ChatView';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
+import BadgeCelebration from '../components/BadgeCelebration';
 
 const ParentDashboard = () => {
     const { user, profile, signOut } = useAuth();
@@ -25,6 +26,8 @@ const ParentDashboard = () => {
     const [assignments, setAssignments] = useState([]);
     const [attendanceStats, setAttendanceStats] = useState({ attended: 0, missed: 0, rate: 0 });
     const [eventRsvps, setEventRsvps] = useState({}); // { eventId: 'going' | 'not_going' | 'maybe' }
+    const [newBadge, setNewBadge] = useState(null);
+    const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
 
     // Fetch children linked to parent
     useEffect(() => {
@@ -85,18 +88,56 @@ const ParentDashboard = () => {
 
             setPlayerStats(stats);
 
-            // Fetch badges
-            const { data: badges } = await supabase
+            // Fetch badges - use player_user_id (auth.users UUID linked to this player)
+            // Fetch without FK join to avoid 406 errors, then join with badge definitions
+            const playerUserId = selectedChild?.user_id || playerId;
+
+            // First, get all badge definitions
+            const { data: badgeDefs } = await supabase.from('badges').select('*');
+            const badgeMap = {};
+            (badgeDefs || []).forEach(b => { badgeMap[b.id] = b; });
+
+            // Then get player's earned badges
+            const { data: earnedBadges, error: badgeError } = await supabase
                 .from('player_badges')
-                .select(`
-                    *,
-                    badges:badge_id (*)
-                `)
-                .eq('player_id', playerId)
+                .select('*')
+                .eq('player_user_id', playerUserId)
                 .order('awarded_at', { ascending: false })
                 .limit(5);
 
-            setPlayerBadges(badges || []);
+            if (badgeError) {
+                console.error('Error fetching player badges:', badgeError);
+            }
+
+            // Join badge definitions in JavaScript
+            const badges = (earnedBadges || []).map(pb => ({
+                ...pb,
+                badges: badgeMap[pb.badge_id] || null
+            }));
+
+            setPlayerBadges(badges);
+
+            // Check for unseen badges (show celebration on login)
+            const lastSeenKey = `parent_badges_last_seen_${playerUserId}`;
+            const lastSeenTimestamp = localStorage.getItem(lastSeenKey);
+            const lastSeenDate = lastSeenTimestamp ? new Date(lastSeenTimestamp) : new Date(0);
+
+            // Find badges awarded after last seen
+            const unseenBadges = (badges || []).filter(pb => {
+                const awardedAt = pb.awarded_at ? new Date(pb.awarded_at) : null;
+                return awardedAt && awardedAt > lastSeenDate;
+            });
+
+            // Show celebration for the first unseen badge
+            if (unseenBadges.length > 0 && unseenBadges[0].badges) {
+                setTimeout(() => {
+                    setNewBadge(unseenBadges[0].badges);
+                    setShowBadgeCelebration(true);
+                }, 1000);
+            }
+
+            // Update last seen timestamp
+            localStorage.setItem(lastSeenKey, new Date().toISOString());
 
             // Fetch upcoming events
             const teamId = selectedChild?.team_id;
@@ -182,6 +223,8 @@ const ParentDashboard = () => {
     const formatPlayerForCard = (player) => {
         if (!player) return null;
         return {
+            id: player.id, // players table ID - for fetching evaluations
+            user_id: player.user_id, // auth.users ID - for RLS policies (badges)
             name: `${player.first_name} ${player.last_name}`,
             number: player.jersey_number?.toString() || '0',
             position: player.position || 'MF',
@@ -471,6 +514,17 @@ const ParentDashboard = () => {
 
     return (
         <div className="min-h-screen bg-brand-dark pb-20">
+            {/* Badge Celebration */}
+            {showBadgeCelebration && (
+                <BadgeCelebration
+                    badge={newBadge}
+                    onClose={() => {
+                        setShowBadgeCelebration(false);
+                        setNewBadge(null);
+                    }}
+                />
+            )}
+
             {/* Navbar */}
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
