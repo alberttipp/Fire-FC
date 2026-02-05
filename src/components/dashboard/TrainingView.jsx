@@ -143,7 +143,7 @@ const TrainingView = () => {
                                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
 
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                    <span className="w-10 h-10 rounded-full bg-brand-green flex items-center justify-center shadow-[0_0_10px_#ccff00]">
+                                    <span className="w-10 h-10 rounded-full bg-brand-green flex items-center justify-center shadow-[0_0_10px_#3b82f6]">
                                         <Play className="text-brand-dark w-5 h-5 fill-current ml-0.5" />
                                     </span>
                                 </div>

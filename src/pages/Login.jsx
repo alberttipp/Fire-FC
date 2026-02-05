@@ -208,7 +208,7 @@ const Login = () => {
 
             <div className="relative z-10 w-full max-w-md p-8 glass-panel border-t-4 border-brand-green animate-fade-in-up">
                 <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-24 h-24 mb-4 filter drop-shadow-[0_0_20px_rgba(204,255,0,0.2)] hover:scale-105 transition-transform duration-500">
+                    <div className="inline-flex items-center justify-center w-24 h-24 mb-4 filter drop-shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-transform duration-500">
                         <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
                     </div>
                     <h2 className="text-2xl font-display font-bold text-white tracking-widest uppercase mb-1">
@@ -286,13 +286,11 @@ const Login = () => {
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border-2 border-transparent group-hover:border-brand-green">
-                                                    {player.avatar_url ? (
-                                                        <img src={player.avatar_url} alt={player.first_name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs font-bold">
-                                                            {player.first_name?.charAt(0)}{player.last_name?.charAt(0)}
-                                                        </div>
-                                                    )}
+                                                    <img
+                                                        src={player.avatar_url || '/branding/logo.png'}
+                                                        alt={player.first_name}
+                                                        className="w-full h-full object-cover"
+                                                    />
                                                 </div>
                                                 <div>
                                                     <div className="text-white text-sm font-medium group-hover:text-brand-green">{player.first_name}</div>
@@ -309,8 +307,8 @@ const Login = () => {
                         {selectedPlayer && (
                             <form onSubmit={handlePlayerLogin} className="space-y-6 text-center">
                                 <div className="relative inline-block">
-                                    <div className="w-20 h-20 rounded-full bg-gray-800 overflow-hidden mx-auto border-4 border-brand-green shadow-[0_0_20px_rgba(204,255,0,0.3)]">
-                                        <img src={selectedPlayer.avatar_url || '/branding/roster_photo.jpg'} alt="Selected" className="w-full h-full object-cover" />
+                                    <div className="w-20 h-20 rounded-full bg-gray-800 overflow-hidden mx-auto border-4 border-brand-green shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                                        <img src={selectedPlayer.avatar_url || '/branding/logo.png'} alt="Selected" className="w-full h-full object-cover" />
                                     </div>
                                     <button
                                         type="button"

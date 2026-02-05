@@ -141,7 +141,7 @@ const AIFeedbackModal = ({ recipient, onClose }) => {
             setProcessingStep('Enhancing to professional coach speak...');
 
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -178,6 +178,12 @@ Return ONLY the polished message, nothing else.`
 
             const data = await response.json();
 
+            // Check for API error response
+            if (!response.ok) {
+                console.error('Gemini API error:', data);
+                throw new Error(data.error?.message || `API error: ${response.status}`);
+            }
+
             if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
                 setProcessingStep('Finalizing...');
                 await new Promise(r => setTimeout(r, 300));
@@ -185,7 +191,8 @@ Return ONLY the polished message, nothing else.`
                 setAiSummary(data.candidates[0].content.parts[0].text.trim());
                 setViewState('review');
             } else {
-                throw new Error('Invalid AI response');
+                console.error('Unexpected API response:', data);
+                throw new Error('Invalid AI response structure');
             }
         } catch (err) {
             console.error('AI processing error:', err);
@@ -284,7 +291,7 @@ Return ONLY the polished message, nothing else.`
 
                             <button
                                 onClick={handleStartRecording}
-                                className="w-24 h-24 rounded-full bg-brand-green/10 border-2 border-brand-green flex items-center justify-center hover:bg-brand-green/20 hover:scale-105 transition-all shadow-[0_0_30px_rgba(204,255,0,0.2)] group"
+                                className="w-24 h-24 rounded-full bg-brand-green/10 border-2 border-brand-green flex items-center justify-center hover:bg-brand-green/20 hover:scale-105 transition-all shadow-[0_0_30px_rgba(59,130,246,0.2)] group"
                             >
                                 <Mic className="w-10 h-10 text-brand-green group-hover:text-white transition-colors" />
                             </button>

@@ -78,7 +78,7 @@ const FutsalArena = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-lg flex items-center justify-center p-4">
-            <div className="w-full max-w-4xl h-[80vh] bg-brand-dark/50 rounded-3xl border-2 border-brand-green/30 relative overflow-hidden flex flex-col shadow-[0_0_100px_rgba(204,255,0,0.1)] animate-scale-up">
+            <div className="w-full max-w-4xl h-[80vh] bg-brand-dark/50 rounded-3xl border-2 border-brand-green/30 relative overflow-hidden flex flex-col shadow-[0_0_100px_rgba(59,130,246,0.1)] animate-scale-up">
 
                 {/* HUD */}
                 <div className="absolute top-0 left-0 right-0 z-20 p-6 flex justify-between items-start pointer-events-none">
@@ -193,7 +193,7 @@ const FutsalArena = ({ onClose }) => {
                                 className={`absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 transition-all duration-500 flex flex-col items-center group ${gameState === 'playing' ? 'cursor-pointer hover:scale-110' : ''}`}
                                 style={{ left: `${p.x}%`, top: `${p.y}%` }}
                             >
-                                <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-xs bg-brand-dark ${possession === 'us' ? 'border-brand-green text-brand-green shadow-[0_0_15px_#ccff00]' : 'border-gray-500 text-gray-500'}`}>
+                                <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-xs bg-brand-dark ${possession === 'us' ? 'border-brand-green text-brand-green shadow-[0_0_15px_#3b82f6]' : 'border-gray-500 text-gray-500'}`}>
                                     {p.name.charAt(0)}
                                 </div>
                                 <div className="mt-1 opacity-0 group-hover:opacity-100 bg-black/50 px-2 py-0.5 rounded text-[10px] text-white uppercase font-bold transition-opacity whitespace-nowrap">

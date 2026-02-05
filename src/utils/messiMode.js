@@ -6,12 +6,12 @@ export const triggerMessiMode = () => {
         particleCount: 150,
         spread: 70,
         origin: { y: 0.6 },
-        colors: ['#ccff00', '#D4AF37', '#ffffff'] // Brand colors
+        colors: ['#3b82f6', '#D4AF37', '#ffffff'] // Brand colors
     });
 
     // 2. Side Cannons
     var end = Date.now() + (1 * 1000);
-    var colors = ['#ccff00', '#D4AF37'];
+    var colors = ['#3b82f6', '#D4AF37'];
 
     (function frame() {
         confetti({

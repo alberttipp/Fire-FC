@@ -59,7 +59,7 @@ const DrillDetailModal = ({ drill, onClose, onComplete }) => {
                             onComplete(drill);
                             onClose();
                         }}
-                        className="w-full py-4 bg-brand-green text-brand-dark font-display font-bold uppercase text-lg tracking-wider hover:bg-white hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(204,255,0,0.3)] rounded-lg flex items-center justify-center gap-2"
+                        className="w-full py-4 bg-brand-green text-brand-dark font-display font-bold uppercase text-lg tracking-wider hover:bg-white hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] rounded-lg flex items-center justify-center gap-2"
                     >
                         <CheckCircle className="w-6 h-6" /> Mark Complete
                     </button>

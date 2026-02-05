@@ -505,15 +505,15 @@ const FireBall = ({ onClose }) => {
         ctx.restore();
 
         // Shoes
-        ctx.fillStyle = isP1 ? '#ccff00' : '#ff4444';
+        ctx.fillStyle = isP1 ? '#3b82f6' : '#ff4444';
         ctx.fillRect(x - 15, y + size * 0.5 + 30, 15, 10);
         ctx.fillRect(x + 2 + (kicking ? 10 : 0), y + size * 0.5 + 30, 15, 10);
 
         // Body (jersey)
         const jerseyGrad = ctx.createLinearGradient(x - 20, y, x + 20, y + 40);
         if (isP1) {
-            jerseyGrad.addColorStop(0, '#ccff00');
-            jerseyGrad.addColorStop(1, '#99cc00');
+            jerseyGrad.addColorStop(0, '#3b82f6');
+            jerseyGrad.addColorStop(1, '#2563eb');
         } else {
             jerseyGrad.addColorStop(0, '#ff4444');
             jerseyGrad.addColorStop(1, '#cc0000');
@@ -522,7 +522,7 @@ const FireBall = ({ onClose }) => {
         ctx.beginPath();
         ctx.ellipse(x, y + size * 0.35, 22, 28, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = isP1 ? '#669900' : '#990000';
+        ctx.strokeStyle = isP1 ? '#1d4ed8' : '#990000';
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -651,7 +651,7 @@ const FireBall = ({ onClose }) => {
         ctx.fillText(formatTime(timeLeft), W/2, 35);
 
         // P1 Score (left of scoreboard)
-        ctx.fillStyle = '#ccff00';
+        ctx.fillStyle = '#3b82f6';
         ctx.font = 'bold 32px Arial';
         ctx.textAlign = 'right';
         ctx.fillText(score.p1, W/2 - 110, 38);
@@ -670,7 +670,7 @@ const FireBall = ({ onClose }) => {
             ctx.clip();
             ctx.drawImage(gameRef.current.p1.photo, W/2 - 170, 5, 40, 40);
             ctx.restore();
-            ctx.strokeStyle = '#ccff00';
+            ctx.strokeStyle = '#3b82f6';
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.arc(W/2 - 150, 25, 20, 0, Math.PI * 2);

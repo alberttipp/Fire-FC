@@ -103,7 +103,7 @@ const FinancialView = () => {
                                     itemStyle={{ color: '#fff' }}
                                     formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']}
                                 />
-                                <Bar dataKey="revenue" fill="#ccff00" radius={[4, 4, 0, 0]} barSize={40} />
+                                <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

@@ -19,6 +19,8 @@ const ClubView = () => {
     const [recentNotes, setRecentNotes] = useState([]);
     const [newProspect, setNewProspect] = useState({ name: '', email: '', phone: '', age_group: '', notes: '' });
     const [loading, setLoading] = useState(true);
+    const [addError, setAddError] = useState(null);
+    const [adding, setAdding] = useState(false);
 
     // Fetch club stats
     useEffect(() => {
@@ -93,17 +95,19 @@ const ClubView = () => {
     // Add prospect to waitlist
     const handleAddProspect = async (e) => {
         e.preventDefault();
+        setAddError(null);
+        setAdding(true);
+
         try {
             const { error } = await supabase
                 .from('tryout_waitlist')
                 .insert([{
                     name: newProspect.name,
-                    email: newProspect.email,
-                    phone: newProspect.phone,
-                    age_group: newProspect.age_group,
-                    notes: newProspect.notes,
-                    status: 'pending',
-                    created_at: new Date().toISOString()
+                    email: newProspect.email || null,
+                    phone: newProspect.phone || null,
+                    age_group: newProspect.age_group || null,
+                    notes: newProspect.notes || null,
+                    status: 'pending'
                 }]);
 
             if (error) throw error;
@@ -119,6 +123,9 @@ const ClubView = () => {
             setShowAddWaitlist(false);
         } catch (err) {
             console.error('Error adding prospect:', err);
+            setAddError(err.message || 'Failed to add prospect');
+        } finally {
+            setAdding(false);
         }
     };
 
@@ -354,19 +361,25 @@ const ClubView = () => {
                                             placeholder="Position, experience, referred by..."
                                         />
                                     </div>
+                                    {addError && (
+                                        <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-400 text-sm">
+                                            {addError}
+                                        </div>
+                                    )}
                                     <div className="flex gap-3 pt-2">
                                         <button
                                             type="button"
-                                            onClick={() => setShowAddWaitlist(false)}
+                                            onClick={() => { setShowAddWaitlist(false); setAddError(null); }}
                                             className="flex-1 py-2 border border-white/10 rounded text-gray-400 hover:bg-white/5"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             type="submit"
-                                            className="flex-1 py-2 bg-brand-green text-brand-dark rounded font-bold hover:bg-brand-green/90"
+                                            disabled={adding}
+                                            className="flex-1 py-2 bg-brand-green text-white rounded font-bold hover:bg-brand-green/90 disabled:opacity-50"
                                         >
-                                            Add Prospect
+                                            {adding ? 'Saving...' : 'Add Prospect'}
                                         </button>
                                     </div>
                                 </form>

@@ -223,7 +223,7 @@ const CreateEventModal = ({ onClose, onEventCreated }) => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="px-6 py-2 rounded bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(204,255,0,0.3)] disabled:opacity-50"
+                                className="px-6 py-2 rounded bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)] disabled:opacity-50"
                             >
                                 {loading ? 'Saving...' : 'Create Event'}
                             </button>

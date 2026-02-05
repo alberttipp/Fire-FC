@@ -161,7 +161,7 @@ const ScoutCard = ({ player, onClose }) => {
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-brand-dark/95 backdrop-blur border-t border-white/10 flex items-center gap-4">
                 <button
                     onClick={handleToggleRecord}
-                    className={`flex-1 py-4 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]' : 'bg-brand-green hover:bg-[#b0dd00] text-brand-dark shadow-[0_0_20px_rgba(204,255,0,0.2)]'}`}
+                    className={`flex-1 py-4 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]' : 'bg-brand-green hover:bg-blue-400 text-white shadow-[0_0_20px_rgba(59,130,246,0.2)]'}`}
                 >
                     {isRecording ? (
                         <> <StopCircle className="w-6 h-6 fill-current" /> Stop & Process </>

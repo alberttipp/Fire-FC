@@ -8,7 +8,7 @@ export default {
         extend: {
             colors: {
                 'brand-dark': '#0a0a0a', // Almost black
-                'brand-green': '#ccff00', // Neon/Lime Green (FC 26 vibe)
+                'brand-green': '#3b82f6', // Vibrant Blue accent
                 'brand-gold': '#d4af37',
                 'glass': 'rgba(255, 255, 255, 0.1)',
                 'glass-dark': 'rgba(0, 0, 0, 0.5)',

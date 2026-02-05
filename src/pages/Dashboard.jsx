@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield, Mic } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield, Mic, Bell } from 'lucide-react';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
 import TrainingView from '../components/dashboard/TrainingView';
@@ -11,15 +11,61 @@ import CalendarHub from '../components/dashboard/CalendarHub';
 import FinancialView from '../components/dashboard/FinancialView';
 import TryoutHub from '../components/dashboard/TryoutHub';
 import AdminPanel from '../components/AdminPanel';
+import NotificationPanel from '../components/dashboard/NotificationPanel';
+import { supabase } from '../supabaseClient';
 
 const Dashboard = () => {
     const { user, profile, signOut } = useAuth(); // Added profile
     const navigate = useNavigate();
     const [currentView, setCurrentView] = useState('club');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     // Voice command integration
     const voiceCommand = useVoiceCommand();
+
+    // Fetch unread notification count
+    useEffect(() => {
+        const fetchUnreadCount = async () => {
+            if (!user?.id) return;
+            const { count, error } = await supabase
+                .from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id)
+                .eq('read', false);
+
+            if (!error) {
+                setUnreadCount(count || 0);
+            }
+        };
+
+        fetchUnreadCount();
+
+        // Subscribe to new notifications
+        const channel = supabase
+            .channel('notifications')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'notifications',
+                filter: `user_id=eq.${user?.id}`
+            }, () => {
+                fetchUnreadCount();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user]);
+
+    // Handle auto-generate from notification
+    const handleAutoGenerate = (actionData) => {
+        // Navigate to training view which has the assignment modal
+        setCurrentView('training');
+        // The training view will need to handle opening the modal with auto-generate
+    };
 
     // Register dashboard controls with voice command system
     useEffect(() => {
@@ -56,7 +102,7 @@ const Dashboard = () => {
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(204,255,0,0.4)]">
+                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(59,130,246,0.4)]">
                             <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
                         </div>
                         <h1 className="hidden md:block text-2xl text-white font-display uppercase font-bold tracking-wider">
@@ -145,11 +191,25 @@ const Dashboard = () => {
                             </div>
                         </div>
 
+                        {/* Notification Bell */}
+                        <button
+                            onClick={() => setShowNotifications(true)}
+                            className="relative text-gray-400 hover:text-white transition-colors p-1.5 rounded hover:bg-white/5"
+                            title="Notifications"
+                        >
+                            <Bell className="w-5 h-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-brand-green text-brand-dark text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+
                         {/* Admin Panel Button (Staff Only - Manager or Coach) */}
                         {isStaff && (
-                            <button 
-                                onClick={() => setShowAdminPanel(true)} 
-                                className="text-red-400 hover:text-red-300 transition-colors p-1.5 rounded hover:bg-red-500/10" 
+                            <button
+                                onClick={() => setShowAdminPanel(true)}
+                                className="text-red-400 hover:text-red-300 transition-colors p-1.5 rounded hover:bg-red-500/10"
                                 title="Admin Panel"
                             >
                                 <Shield className="w-5 h-5" />
@@ -170,6 +230,23 @@ const Dashboard = () => {
 
             {/* Admin Panel Modal */}
             {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
+
+            {/* Notification Panel */}
+            {showNotifications && (
+                <NotificationPanel
+                    onClose={() => {
+                        setShowNotifications(false);
+                        // Refresh unread count
+                        supabase
+                            .from('notifications')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('user_id', user?.id)
+                            .eq('read', false)
+                            .then(({ count }) => setUnreadCount(count || 0));
+                    }}
+                    onAutoGenerate={handleAutoGenerate}
+                />
+            )}
         </div>
     );
 };

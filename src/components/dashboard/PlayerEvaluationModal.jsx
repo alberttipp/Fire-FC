@@ -66,22 +66,15 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                     setSeason(evalData.season || 'Spring 2026');
                 }
 
-                // 3. Get Earned Badges (try both player_id and player_user_id)
-                let earned = null;
-                const { data: earnedById, error: err1 } = await supabase
+                // 3. Get Earned Badges - query by player_user_id (auth.users UUID)
+                const playerUserId = player.user_id || player.id;
+                const { data: earned, error: earnedError } = await supabase
                     .from('player_badges')
                     .select('badge_id')
-                    .eq('player_id', player.id);
+                    .eq('player_user_id', playerUserId);
 
-                if (!err1) {
-                    earned = earnedById;
-                } else {
-                    // Try alternate column name
-                    const { data: earnedByUserId, error: err2 } = await supabase
-                        .from('player_badges')
-                        .select('badge_id')
-                        .eq('player_user_id', player.id);
-                    if (!err2) earned = earnedByUserId;
+                if (earnedError) {
+                    console.error("Error fetching earned badges:", earnedError);
                 }
 
                 if (earned) {
@@ -136,7 +129,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 decay: 0.91,
                 scalar: 0.8,
                 shapes: ['square'],
-                colors: ['#ccff00', '#FFD700']
+                colors: ['#3b82f6', '#FFD700']
             });
 
             // Burst 4: Wide Energy
@@ -181,28 +174,34 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
             particleCount: 30,
             spread: 50,
             origin: { y: 0.8 },
-            colors: ['#ccff00', '#FFD700'],
+            colors: ['#3b82f6', '#FFD700'],
             zIndex: 10000
         });
 
-        // Database Insert - try player_id first, fallback to player_user_id
-        if (player?.id && user?.id) {
+        // Database Insert - use player_user_id (the auth.users UUID linked to this player)
+        // RLS policy checks: players.user_id = player_badges.player_user_id
+        const playerUserId = player?.user_id || player?.id;
+
+        if (playerUserId && user?.id) {
             try {
                 const { error } = await supabase.from('player_badges').insert({
-                    player_id: player.id,
+                    player_user_id: playerUserId,
                     badge_id: badgeId,
-                    awarded_by: user.id
+                    awarded_by: user.id,
+                    awarded_at: new Date().toISOString()
                 });
 
-                // If player_id column doesn't exist, try player_user_id
-                if (error && error.message.includes('player_id')) {
-                    await supabase.from('player_badges').insert({
-                        player_user_id: player.id,
-                        badge_id: badgeId,
-                        awarded_by: user.id
+                if (error) {
+                    console.error("Error awarding badge:", error);
+                    // Revert optimistic update on failure
+                    setAwardedBadges(prev => {
+                        const newCount = (prev[badgeId] || 1) - 1;
+                        if (newCount <= 0) {
+                            const { [badgeId]: removed, ...rest } = prev;
+                            return rest;
+                        }
+                        return { ...prev, [badgeId]: newCount };
                     });
-                } else if (error) {
-                    throw error;
                 }
             } catch (err) {
                 console.error("Error awarding badge:", err);
@@ -254,7 +253,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 particleCount: 100,
                 spread: 70,
                 origin: { y: 0.6 },
-                colors: ['#ccff00', '#FFD700', '#ffffff'],
+                colors: ['#3b82f6', '#FFD700', '#ffffff'],
                 zIndex: 10000
             });
 
@@ -289,9 +288,9 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                 <Radar
                                     name="Player Stats"
                                     dataKey="A"
-                                    stroke="#ccff00"
+                                    stroke="#3b82f6"
                                     strokeWidth={2}
-                                    fill="#ccff00"
+                                    fill="#3b82f6"
                                     fillOpacity={0.3}
                                 />
                             </RadarChart>

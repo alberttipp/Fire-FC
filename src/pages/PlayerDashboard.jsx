@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PlayerCard from '../components/player/PlayerCard';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Menu, Gamepad2, Flame } from 'lucide-react';
+import { LogOut, Flame, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
@@ -25,86 +25,206 @@ const PlayerDashboard = () => {
     const [stats, setStats] = useState(null);
     const [newBadge, setNewBadge] = useState(null);
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
+    const [playerRecord, setPlayerRecord] = useState(null); // The player's record from players table
+    const [streakDays, setStreakDays] = useState(0); // Training streak (days in a row with 20+ min training)
 
     useEffect(() => {
         if (!user?.id) return;
 
         const fetchDashboardData = async () => {
-            // Check if user is "Virtual" (PIN Login) -> Use RPC
-            // Standard users have 'aud' in user object usually, or we check AuthContext
-            // Simple check: if user.role === 'player' and internal session is missing/different.
-            // But easier: Just try RPC first? No, standard logic is fine for Real users.
+            // --- STANDARD FETCH (For All Users) ---
+            console.log('[PlayerDashboard] Auth user.id:', user.id);
+            console.log('[PlayerDashboard] User email:', user.email);
 
-            // If user is from PIN login, they are technically "anon".
-            const isVirtualUser = user.email === 'player@firefc.com' && user.role === 'player';
+            // Detect if this is a PIN login (user.id is the players table ID directly)
+            const isPinLogin = user.email === 'player@firefc.com';
+            let playerData = null;
 
-            if (isVirtualUser) {
-                console.log("Fetching Dashboard via RPC (Virtual User)...");
-                try {
-                    const { data, error } = await supabase.rpc('get_player_dashboard', {
-                        target_player_id: user.id
-                    });
+            if (isPinLogin) {
+                // PIN login: user.id IS the players table ID
+                console.log('[PlayerDashboard] PIN login detected - querying by players.id');
+                const { data, error } = await supabase
+                    .from('players')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
 
-                    if (error) throw error;
-                    if (data) {
-                        setStats(data.stats);
-                        setAssignments(data.assignments);
-                        setEarnedBadges(data.badges);
-                    }
-                } catch (err) {
-                    console.error("RPC Dashboard Fetch Error:", err);
+                if (error) {
+                    console.error('[PlayerDashboard] Player lookup by id failed:', error);
+                } else {
+                    playerData = data;
                 }
-                return;
+            } else {
+                // Auth login: user.id is the auth UUID, linked via players.user_id
+                console.log('[PlayerDashboard] Auth login - querying by players.user_id');
+                const { data, error } = await supabase
+                    .from('players')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (error) {
+                    console.error('[PlayerDashboard] Player lookup by user_id failed:', error);
+                } else {
+                    playerData = data;
+                }
             }
 
-            // --- STANDARD FETCH (For Auth Users) ---
+            if (playerData) {
+                console.log('[PlayerDashboard] Found player record:', playerData);
+                setPlayerRecord(playerData);
+            }
 
-            // 0. Fetch Player Stats
-            const { data: statsData } = await supabase
-                .from('player_stats')
+            // Use player record ID if available, fallback to user.id
+            const playerId = playerData?.id || user.id;
+            console.log('[PlayerDashboard] Using player_id:', playerId, 'from playerData:', !!playerData);
+
+            // 1. Fetch Player Evaluation (coach ratings from evaluations table)
+            const { data: evalData, error: evalError } = await supabase
+                .from('evaluations')
                 .select('*')
-                .eq('player_id', user.id)
+                .eq('player_id', playerId)
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .single();
-            if (statsData) setStats(statsData);
 
-            // 1. Fetch Assignments
-            const { data: assignData } = await supabase
-                .from('assignments')
-                .select(`
-                    id, 
-                    status, 
-                    due_date, 
-                    custom_duration, 
-                    drills (
-                        id, 
-                        title, 
-                        duration_minutes, 
-                        skill, 
-                        video_url, 
-                        description
-                    )
-                `)
-                .eq('player_id', user.id)
-                .order('created_at', { ascending: false });
+            if (evalError && evalError.code !== 'PGRST116') {
+                console.error('[PlayerDashboard] Evaluation fetch error:', evalError);
+            }
+
+            if (evalData) {
+                console.log('[PlayerDashboard] Found evaluation:', evalData);
+                setStats({
+                    overall_rating: Math.round((evalData.pace + evalData.shooting + evalData.passing + evalData.dribbling + evalData.defending + evalData.physical) / 6),
+                    pace: evalData.pace,
+                    shooting: evalData.shooting,
+                    passing: evalData.passing,
+                    dribbling: evalData.dribbling,
+                    defending: evalData.defending,
+                    physical: evalData.physical
+                });
+            } else {
+                console.log('[PlayerDashboard] No evaluation found for player');
+            }
+
+            // 1b. Fetch Training Streak from player_stats
+            const { data: streakData, error: streakError } = await supabase
+                .from('player_stats')
+                .select('streak_days, training_minutes, weekly_minutes')
+                .eq('player_id', playerId)
+                .single();
+
+            if (streakError && streakError.code !== 'PGRST116') {
+                console.error('[PlayerDashboard] Streak fetch error:', streakError);
+            }
+
+            if (streakData) {
+                console.log('[PlayerDashboard] Found streak data:', streakData);
+                setStreakDays(streakData.streak_days || 0);
+            }
+
+            // 1c. Process any completed practices (auto-credit training from attended events)
+            const { data: creditedCount, error: practiceError } = await supabase
+                .rpc('process_completed_practices', { p_player_id: playerId });
+
+            if (practiceError) {
+                console.log('[PlayerDashboard] Practice processing not available yet:', practiceError.message);
+            } else if (creditedCount > 0) {
+                console.log('[PlayerDashboard] Credited', creditedCount, 'completed practices');
+                // Refetch streak after crediting practices
+                const { data: updatedStreak } = await supabase
+                    .from('player_stats')
+                    .select('streak_days')
+                    .eq('player_id', playerId)
+                    .single();
+                if (updatedStreak) {
+                    setStreakDays(updatedStreak.streak_days || 0);
+                }
+            }
+
+            // 2. Fetch Assignments (use RPC for PIN login to bypass RLS)
+            console.log('[PlayerDashboard] Fetching assignments for player_id:', playerId, 'isPinLogin:', isPinLogin);
+
+            let assignData = null;
+            let assignError = null;
+
+            // Use RPC function to bypass RLS for PIN-logged players
+            const { data: rpcData, error: rpcError } = await supabase
+                .rpc('get_player_assignments', { target_player_id: playerId });
+
+            if (rpcError) {
+                console.error('[PlayerDashboard] RPC assignments fetch error:', rpcError);
+                assignError = rpcError;
+            } else {
+                // Transform RPC result to match expected format
+                assignData = (rpcData || []).map(row => ({
+                    id: row.id,
+                    status: row.status,
+                    due_date: row.due_date,
+                    custom_duration: row.custom_duration,
+                    drill_id: row.drill_id,
+                    drills: {
+                        id: row.drill_id,
+                        name: row.drill_name,
+                        duration: row.drill_duration,
+                        category: row.drill_category,
+                        video_url: row.drill_video_url,
+                        description: row.drill_description
+                    }
+                }));
+                console.log('[PlayerDashboard] Assignments fetched via RPC:', assignData?.length || 0, 'assignments');
+            }
 
             // Real data only - no mock fallbacks
             setAssignments(assignData || []);
 
-            // 2. Fetch Badges
-            const { data: badgeData } = await supabase
+            // 3. Fetch Badges - use player_user_id (auth.users UUID)
+            // Fetch badge definitions first
+            const { data: badgeDefs } = await supabase.from('badges').select('*');
+            const badgeMap = {};
+            (badgeDefs || []).forEach(b => { badgeMap[b.id] = b; });
+
+            // Then fetch player's earned badges without FK join
+            const { data: earnedBadgeData, error: badgeError } = await supabase
                 .from('player_badges')
-                .select(`
-                    id,
-                    badges (
-                        id,
-                        name,
-                        icon
-                    )
-                `)
-                .eq('player_id', user.id);
+                .select('id, badge_id, awarded_at')
+                .eq('player_user_id', user.id);
+
+            if (badgeError) {
+                console.error('Error fetching player badges:', badgeError);
+            }
+
+            // Join badge definitions in JavaScript
+            const badgeData = (earnedBadgeData || []).map(pb => ({
+                ...pb,
+                badges: badgeMap[pb.badge_id] || null
+            }));
 
             // Real data only - no mock fallbacks
-            setEarnedBadges(badgeData || []);
+            setEarnedBadges(badgeData);
+
+            // Check for unseen badges (show celebration on login)
+            const lastSeenKey = `badges_last_seen_${playerId}`;
+            const lastSeenTimestamp = localStorage.getItem(lastSeenKey);
+            const lastSeenDate = lastSeenTimestamp ? new Date(lastSeenTimestamp) : new Date(0);
+
+            // Find badges awarded after last seen
+            const unseenBadges = (badgeData || []).filter(pb => {
+                const awardedAt = pb.awarded_at ? new Date(pb.awarded_at) : null;
+                return awardedAt && awardedAt > lastSeenDate;
+            });
+
+            // Show celebration for the first unseen badge (queue system could be added for multiple)
+            if (unseenBadges.length > 0 && unseenBadges[0].badges) {
+                // Delay slightly to let the UI load first
+                setTimeout(() => {
+                    setNewBadge(unseenBadges[0].badges);
+                    setShowBadgeCelebration(true);
+                }, 1000);
+            }
+
+            // Update last seen timestamp
+            localStorage.setItem(lastSeenKey, new Date().toISOString());
         };
 
         fetchDashboardData();
@@ -118,7 +238,7 @@ const PlayerDashboard = () => {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'player_badges',
-                    filter: `player_id=eq.${user.id}`
+                    filter: `player_user_id=eq.${user.id}`
                 },
                 async (payload) => {
                     console.log('New badge awarded!', payload);
@@ -143,20 +263,21 @@ const PlayerDashboard = () => {
     }, [user]);
 
     // Construct Profile Display Object (must be after hooks, before conditional returns)
+    // Use playerRecord.id if available (this is the ID used in evaluations table)
     const playerProfile = {
-        id: user?.id,
-        name: profile?.full_name || user?.display_name || "Guest Player",
-        number: stats?.number || profile?.number || "??",
-        position: "PL",
-        rating: stats?.overall_rating || 80 + Math.floor((stats?.level || 1) * 2),
-        pace: stats?.pace || 85,
-        shooting: stats?.shooting || 80,
-        passing: stats?.passing || 75,
-        dribbling: stats?.dribbling || 82,
+        id: playerRecord?.id || user?.id, // Critical: use players table ID for evaluations
+        name: playerRecord ? `${playerRecord.first_name} ${playerRecord.last_name}` : (profile?.full_name || user?.display_name || "Guest Player"),
+        number: playerRecord?.jersey_number?.toString() || stats?.number || profile?.number || "??",
+        position: playerRecord?.position || "MF",
+        rating: stats?.overall_rating || 50,
+        pace: stats?.pace || 50,
+        shooting: stats?.shooting || 50,
+        passing: stats?.passing || 50,
+        dribbling: stats?.dribbling || 50,
         defending: stats?.defending || 50,
-        physical: stats?.physical || 70,
+        physical: stats?.physical || 50,
         messiMode: stats?.messi_mode_unlocked || false,
-        image: profile?.avatar_url || user?.avatar_url || "/players/roster/bo_official.png"
+        image: playerRecord?.avatar_url || profile?.avatar_url || user?.avatar_url || "/players/roster/bo_official.png"
     };
 
     // Loading state - shown while user data loads
@@ -186,18 +307,35 @@ const PlayerDashboard = () => {
             a.id === assignmentId ? { ...a, status: 'completed' } : a
         ));
 
-        // DB Update - only for valid UUIDs
+        // DB Update via RPC (bypasses RLS for PIN login)
         if (assignmentId && typeof assignmentId === 'string' && assignmentId.length > 20) {
             try {
-                const { error } = await supabase
-                    .from('assignments')
-                    .update({ status: 'completed', completed_at: new Date().toISOString() })
-                    .eq('id', assignmentId);
+                const playerId = playerRecord?.id || user.id;
+
+                // Use RPC function to complete assignment and get updated streak
+                const { data: result, error } = await supabase
+                    .rpc('complete_assignment', {
+                        p_assignment_id: assignmentId,
+                        p_player_id: playerId
+                    });
 
                 if (error) {
                     console.error('Error completing assignment:', error);
-                } else {
-                    console.log('Assignment completed successfully!');
+                    // Fallback to direct update for non-PIN users
+                    const { error: directError } = await supabase
+                        .from('assignments')
+                        .update({ status: 'completed', completed_at: new Date().toISOString() })
+                        .eq('id', assignmentId);
+
+                    if (directError) {
+                        console.error('Direct update also failed:', directError);
+                    }
+                } else if (result && result[0]) {
+                    console.log('Assignment completed!', result[0]);
+                    if (result[0].success) {
+                        setStreakDays(result[0].new_streak || 0);
+                        console.log('[Streak] Updated to:', result[0].new_streak, 'Today mins:', result[0].today_minutes);
+                    }
                 }
             } catch (err) {
                 console.error('Error:', err);
@@ -250,7 +388,7 @@ const PlayerDashboard = () => {
             {/* Navbar */}
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur px-6 py-4 flex justify-between items-center border-b border-white/10">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(204,255,0,0.3)]">
+                    <div className="w-10 h-10 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]">
                         <img src="/branding/logo.png" alt="RFC" className="w-full h-full object-contain" />
                     </div>
                     <span className="text-white font-display uppercase font-bold tracking-widest text-sm md:text-base">Rockford Fire <span className="text-brand-gold">Player</span></span>
@@ -280,16 +418,47 @@ const PlayerDashboard = () => {
                             onClick={() => setShowDetails(true)}
                         />
 
-                        {/* Weekly Progress Widget */}
-                        <div className="mt-8 w-full glass-panel p-4">
-                            <h4 className="text-gray-400 text-xs uppercase font-bold mb-2">Weekly Goal</h4>
-                            <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-brand-green w-[33%] shadow-[0_0_10px_#ccff00]"></div>
+                        {/* Training Streak Widget */}
+                        <div className="mt-8 w-full glass-panel p-4 border border-orange-500/20 bg-gradient-to-r from-orange-500/5 to-transparent">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-gray-400 text-xs uppercase font-bold flex items-center gap-2">
+                                    <Zap className="w-4 h-4 text-orange-500" /> Training Streak
+                                </h4>
+                                <span className="text-orange-500 text-xs font-bold">20+ min/day</span>
                             </div>
-                            <div className="flex justify-between mt-1 text-xs text-white">
-                                <span>1/3 Complete</span>
-                                <span className="text-brand-gold">Level 5</span>
+
+                            {/* Streak Display */}
+                            <div className="flex items-center gap-3">
+                                {/* Fire Icons for streak visualization */}
+                                <div className="flex gap-1">
+                                    {[...Array(Math.min(streakDays, 7))].map((_, i) => (
+                                        <span key={i} className="text-2xl animate-pulse" style={{ animationDelay: `${i * 100}ms` }}>
+                                            🔥
+                                        </span>
+                                    ))}
+                                    {streakDays === 0 && (
+                                        <span className="text-2xl opacity-30">🔥</span>
+                                    )}
+                                </div>
+
+                                {/* Streak Count */}
+                                <div className="flex flex-col">
+                                    <span className="text-3xl font-black text-white leading-none">
+                                        {streakDays}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+                                        {streakDays === 1 ? 'day' : 'days'}
+                                    </span>
+                                </div>
                             </div>
+
+                            {/* Motivational Message */}
+                            <p className="text-xs text-gray-500 mt-2 italic">
+                                {streakDays === 0 && "Train today to start your streak!"}
+                                {streakDays >= 1 && streakDays < 3 && "Keep it going! 🔥"}
+                                {streakDays >= 3 && streakDays < 7 && "You're on fire! Don't break the chain!"}
+                                {streakDays >= 7 && "🏆 Legendary streak! Elite mindset!"}
+                            </p>
                         </div>
                     </div>
                 </div>
