@@ -380,6 +380,8 @@ const PlayerDashboard = () => {
                         console.log('[Streak] Updated to:', result[0].new_streak, 'Today mins:', result[0].today_minutes);
                     }
                 }
+                // Dispatch event to notify Leaderboard to refresh
+                window.dispatchEvent(new CustomEvent('drill-completed'));
             } catch (err) {
                 console.error('Error:', err);
             }

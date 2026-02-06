@@ -22,14 +22,23 @@ const Leaderboard = () => {
                     table: 'player_stats'
                 },
                 (payload) => {
-                    console.log('[Leaderboard] Stats updated, refreshing...', payload);
+                    console.log('[Leaderboard] Stats updated via realtime, refreshing...', payload);
                     fetchLeaderboard();
                 }
             )
             .subscribe();
 
+        // Also listen for custom drill-completed events (fallback if realtime isn't working)
+        const handleDrillCompleted = () => {
+            console.log('[Leaderboard] Drill completed event received, refreshing...');
+            // Small delay to allow DB trigger to complete
+            setTimeout(() => fetchLeaderboard(), 500);
+        };
+        window.addEventListener('drill-completed', handleDrillCompleted);
+
         return () => {
             supabase.removeChannel(channel);
+            window.removeEventListener('drill-completed', handleDrillCompleted);
         };
     }, []);
 
