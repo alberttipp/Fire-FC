@@ -21,15 +21,15 @@ const ChatView = () => {
 
     const currentUserName = profile?.full_name || user?.display_name || user?.email?.split('@')[0] || 'User';
     const currentUserRole = profile?.role || user?.role || 'coach';
-    const currentTeamId = profile?.team_id || 'd02aba3e-3c30-430f-9377-3b334cffcd04';
+    const currentTeamId = profile?.team_id || null;
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
     useEffect(() => {
-        fetchChannels();
-    }, [currentTeamId]);
+        if (user?.id) fetchChannels();
+    }, [user?.id]);
 
     useEffect(() => {
         if (activeChannel) {
@@ -52,11 +52,10 @@ const ChatView = () => {
             let allChannels = [];
 
             if (!isPlayer) {
-                // Staff: fetch team conversations via team_id (no conversation_members needed)
+                // Staff: fetch team conversations (RLS filters by team_memberships)
                 const { data: teamConvos, error: teamErr } = await supabase
                     .from('conversations')
                     .select('id, team_id, type, name, created_at')
-                    .eq('team_id', currentTeamId)
                     .eq('type', 'team')
                     .order('created_at', { ascending: true });
 
@@ -202,11 +201,15 @@ const ChatView = () => {
     };
 
     const fetchTeamMembers = async () => {
+        // Use the active channel's team_id, or first available channel's team_id
+        const teamId = activeChannel?.team_id || channels[0]?.team_id || currentTeamId;
+        if (!teamId) return;
+
         try {
             const { data, error } = await supabase
                 .from('team_memberships')
                 .select('user_id, role')
-                .eq('team_id', currentTeamId);
+                .eq('team_id', teamId);
 
             if (!error && data) {
                 // Get profiles for these users
@@ -236,11 +239,12 @@ const ChatView = () => {
     };
 
     const createStaffDM = async (otherUserId, otherName) => {
+        const teamId = activeChannel?.team_id || channels[0]?.team_id || currentTeamId;
         try {
             const { data: convo, error: convoErr } = await supabase
                 .from('conversations')
                 .insert([{
-                    team_id: currentTeamId,
+                    team_id: teamId,
                     type: 'staff_dm',
                     name: `${currentUserName} & ${otherName}`,
                     created_by: user.id
