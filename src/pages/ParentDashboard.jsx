@@ -171,14 +171,26 @@ const ParentDashboard = () => {
 
             setAssignments(assigns || []);
 
-            // Calculate attendance (mock for now - would need attendance tracking table)
-            // Using a reasonable estimate based on training_minutes
-            const trainingMinutes = selectedChild?.training_minutes || 0;
-            const estimatedPractices = Math.floor(trainingMinutes / 60);
-            const attended = estimatedPractices > 0 ? estimatedPractices : 42;
-            const missed = Math.floor(attended * 0.05); // 5% miss rate
-            const rate = Math.round((attended / (attended + missed)) * 100);
-            setAttendanceStats({ attended, missed, rate });
+            // Calculate attendance from real RSVP data
+            if (teamId) {
+                const { data: rsvpData } = await supabase
+                    .from('event_rsvps')
+                    .select('status')
+                    .eq('player_id', playerId);
+
+                if (rsvpData && rsvpData.length > 0) {
+                    const attended = rsvpData.filter(r => r.status === 'going' || r.status === 'attended').length;
+                    const missed = rsvpData.filter(r => r.status === 'not_going' || r.status === 'missed').length;
+                    const total = attended + missed;
+                    const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
+                    setAttendanceStats({ attended, missed, rate });
+                } else {
+                    // No RSVP data yet - show zeros
+                    setAttendanceStats({ attended: 0, missed: 0, rate: 0 });
+                }
+            } else {
+                setAttendanceStats({ attended: 0, missed: 0, rate: 0 });
+            }
 
         } catch (err) {
             console.error('Error fetching child details:', err);
