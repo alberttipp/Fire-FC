@@ -56,23 +56,18 @@ const VoiceScoutingNotes = ({ onClose }) => {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognitionRef.current = new SpeechRecognition();
             recognitionRef.current.continuous = true;
-            recognitionRef.current.interimResults = true;
+            recognitionRef.current.interimResults = false; // Disable interim to prevent duplicates
             recognitionRef.current.lang = 'en-US';
 
             recognitionRef.current.onresult = (event) => {
-                let finalTranscript = '';
-                let interimTranscript = '';
-                
+                // Only process final results to prevent duplicate text
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const result = event.results[i];
                     if (result.isFinal) {
-                        finalTranscript += result[0].transcript;
-                    } else {
-                        interimTranscript += result[0].transcript;
+                        const text = result[0].transcript;
+                        setTranscript(prev => prev + (prev ? ' ' : '') + text.trim());
                     }
                 }
-                
-                setTranscript(prev => prev + finalTranscript + interimTranscript);
             };
 
             recognitionRef.current.onerror = (e) => {
