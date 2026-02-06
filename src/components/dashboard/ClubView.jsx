@@ -339,17 +339,17 @@ const ClubView = () => {
                                         <select
                                             value={newProspect.age_group}
                                             onChange={(e) => setNewProspect({ ...newProspect, age_group: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                            className="w-full bg-[#1a1a2e] border border-white/10 rounded p-2 text-white mt-1"
                                         >
-                                            <option value="">Select...</option>
-                                            <option value="U8">U8</option>
-                                            <option value="U9">U9</option>
-                                            <option value="U10">U10</option>
-                                            <option value="U11">U11</option>
-                                            <option value="U12">U12</option>
-                                            <option value="U13">U13</option>
-                                            <option value="U14">U14</option>
-                                            <option value="U15+">U15+</option>
+                                            <option value="" className="bg-[#1a1a2e]">Select...</option>
+                                            <option value="U8" className="bg-[#1a1a2e]">U8</option>
+                                            <option value="U9" className="bg-[#1a1a2e]">U9</option>
+                                            <option value="U10" className="bg-[#1a1a2e]">U10</option>
+                                            <option value="U11" className="bg-[#1a1a2e]">U11</option>
+                                            <option value="U12" className="bg-[#1a1a2e]">U12</option>
+                                            <option value="U13" className="bg-[#1a1a2e]">U13</option>
+                                            <option value="U14" className="bg-[#1a1a2e]">U14</option>
+                                            <option value="U15+" className="bg-[#1a1a2e]">U15+</option>
                                         </select>
                                     </div>
                                     <div>
