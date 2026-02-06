@@ -383,14 +383,11 @@ const ParentDashboard = () => {
                             <CreditCard className="w-8 h-8 text-brand-green" />
                         </div>
                         <h2 className="text-2xl text-white font-display uppercase">Billing Center</h2>
-                        <div className="bg-white/5 p-6 rounded-xl border border-white/10 text-left">
-                            <h3 className="text-gray-400 text-xs uppercase font-bold mb-4">Current Balance</h3>
-                            <div className="flex justify-between items-end">
-                                <span className="text-4xl text-white font-mono">$0.00</span>
-                                <span className="text-brand-green text-xs font-bold uppercase py-1 px-2 bg-brand-green/10 rounded">Paid in Full</span>
-                            </div>
-                        </div>
-                        <p className="text-gray-500 text-sm">No upcoming invoices.</p>
+                        <p className="text-gray-400">Coming Soon</p>
+                        <p className="text-gray-500 text-sm max-w-md mx-auto">
+                            Online payment and invoicing is on the way. You'll be able to view balances, pay fees, and track payment history here.
+                        </p>
+                        <p className="text-gray-600 text-xs">Stay tuned!</p>
                     </div>
                 );
             case 'overview':
