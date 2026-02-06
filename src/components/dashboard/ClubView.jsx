@@ -22,6 +22,24 @@ const ClubView = () => {
     const [addError, setAddError] = useState(null);
     const [adding, setAdding] = useState(false);
 
+    // Lock body scroll when modal is open (prevents background movement on mobile)
+    useEffect(() => {
+        if (showAddWaitlist || showScoutingNotes) {
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+        } else {
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+        };
+    }, [showAddWaitlist, showScoutingNotes]);
+
     // Fetch club stats
     useEffect(() => {
         const fetchStats = async () => {
@@ -297,95 +315,6 @@ const ClubView = () => {
                             ))}
                         </div>
                     )}
-
-                    {/* Add Prospect Modal */}
-                    {showAddWaitlist && (
-                        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                            <div className="bg-brand-dark border border-white/10 rounded-xl p-6 w-full max-w-md">
-                                <h3 className="text-xl text-white font-bold mb-4">Add to Waitlist</h3>
-                                <form onSubmit={handleAddProspect} className="space-y-4">
-                                    <div>
-                                        <label className="text-xs text-gray-400 uppercase">Name *</label>
-                                        <input
-                                            type="text"
-                                            value={newProspect.name}
-                                            onChange={(e) => setNewProspect({ ...newProspect, name: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs text-gray-400 uppercase">Email</label>
-                                            <input
-                                                type="email"
-                                                value={newProspect.email}
-                                                onChange={(e) => setNewProspect({ ...newProspect, email: e.target.value })}
-                                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-400 uppercase">Phone</label>
-                                            <input
-                                                type="tel"
-                                                value={newProspect.phone}
-                                                onChange={(e) => setNewProspect({ ...newProspect, phone: e.target.value })}
-                                                className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-400 uppercase">Age Group</label>
-                                        <select
-                                            value={newProspect.age_group}
-                                            onChange={(e) => setNewProspect({ ...newProspect, age_group: e.target.value })}
-                                            className="w-full bg-[#1a1a2e] border border-white/10 rounded p-2 text-white mt-1"
-                                        >
-                                            <option value="" className="bg-[#1a1a2e]">Select...</option>
-                                            <option value="U8" className="bg-[#1a1a2e]">U8</option>
-                                            <option value="U9" className="bg-[#1a1a2e]">U9</option>
-                                            <option value="U10" className="bg-[#1a1a2e]">U10</option>
-                                            <option value="U11" className="bg-[#1a1a2e]">U11</option>
-                                            <option value="U12" className="bg-[#1a1a2e]">U12</option>
-                                            <option value="U13" className="bg-[#1a1a2e]">U13</option>
-                                            <option value="U14" className="bg-[#1a1a2e]">U14</option>
-                                            <option value="U15+" className="bg-[#1a1a2e]">U15+</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-400 uppercase">Notes</label>
-                                        <textarea
-                                            value={newProspect.notes}
-                                            onChange={(e) => setNewProspect({ ...newProspect, notes: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1 h-20 resize-none"
-                                            placeholder="Position, experience, referred by..."
-                                        />
-                                    </div>
-                                    {addError && (
-                                        <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-400 text-sm">
-                                            {addError}
-                                        </div>
-                                    )}
-                                    <div className="flex gap-3 pt-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setShowAddWaitlist(false); setAddError(null); }}
-                                            className="flex-1 py-2 border border-white/10 rounded text-gray-400 hover:bg-white/5"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={adding}
-                                            className="flex-1 py-2 bg-brand-green text-white rounded font-bold hover:bg-brand-green/90 disabled:opacity-50"
-                                        >
-                                            {adding ? 'Saving...' : 'Add Prospect'}
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {/* AI Scouting Notes */}
@@ -428,11 +357,104 @@ const ClubView = () => {
                     </div>
                 </div>
 
-                {/* Voice Scouting Notes Modal */}
-                {showScoutingNotes && (
-                    <VoiceScoutingNotes onClose={() => setShowScoutingNotes(false)} />
-                )}
             </div>
+
+            {/* Add Prospect Modal - Moved outside grid to prevent overlap */}
+            {showAddWaitlist && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4" onClick={() => setShowAddWaitlist(false)}>
+                    <div
+                        className="bg-brand-dark border border-white/10 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-xl text-white font-bold mb-4">Add to Waitlist</h3>
+                        <form onSubmit={handleAddProspect} className="space-y-4">
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase">Name *</label>
+                                <input
+                                    type="text"
+                                    value={newProspect.name}
+                                    onChange={(e) => setNewProspect({ ...newProspect, name: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs text-gray-400 uppercase">Email</label>
+                                    <input
+                                        type="email"
+                                        value={newProspect.email}
+                                        onChange={(e) => setNewProspect({ ...newProspect, email: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 uppercase">Phone</label>
+                                    <input
+                                        type="tel"
+                                        value={newProspect.phone}
+                                        onChange={(e) => setNewProspect({ ...newProspect, phone: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase">Age Group</label>
+                                <select
+                                    value={newProspect.age_group}
+                                    onChange={(e) => setNewProspect({ ...newProspect, age_group: e.target.value })}
+                                    className="w-full bg-[#1a1a2e] border border-white/10 rounded p-2 text-white mt-1"
+                                >
+                                    <option value="" className="bg-[#1a1a2e]">Select...</option>
+                                    <option value="U8" className="bg-[#1a1a2e]">U8</option>
+                                    <option value="U9" className="bg-[#1a1a2e]">U9</option>
+                                    <option value="U10" className="bg-[#1a1a2e]">U10</option>
+                                    <option value="U11" className="bg-[#1a1a2e]">U11</option>
+                                    <option value="U12" className="bg-[#1a1a2e]">U12</option>
+                                    <option value="U13" className="bg-[#1a1a2e]">U13</option>
+                                    <option value="U14" className="bg-[#1a1a2e]">U14</option>
+                                    <option value="U15+" className="bg-[#1a1a2e]">U15+</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase">Notes</label>
+                                <textarea
+                                    value={newProspect.notes}
+                                    onChange={(e) => setNewProspect({ ...newProspect, notes: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1 h-20 resize-none"
+                                    placeholder="Position, experience, referred by..."
+                                />
+                            </div>
+                            {addError && (
+                                <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-400 text-sm">
+                                    {addError}
+                                </div>
+                            )}
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowAddWaitlist(false); setAddError(null); }}
+                                    className="flex-1 py-2 border border-white/10 rounded text-gray-400 hover:bg-white/5"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={adding}
+                                    className="flex-1 py-2 bg-brand-green text-white rounded font-bold hover:bg-brand-green/90 disabled:opacity-50"
+                                >
+                                    {adding ? 'Saving...' : 'Add Prospect'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Voice Scouting Notes Modal */}
+            {showScoutingNotes && (
+                <VoiceScoutingNotes onClose={() => setShowScoutingNotes(false)} />
+            )}
         </div>
     );
 };
