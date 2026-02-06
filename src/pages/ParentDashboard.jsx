@@ -42,10 +42,15 @@ const ParentDashboard = () => {
         }
     }, [user?.id]);
 
-    // Fetch selected child's details
+    // Fetch selected child's details when child changes
+    // Also refetch when selecting a different child
     useEffect(() => {
         if (selectedChild?.id) {
-            fetchChildDetails(selectedChild.id);
+            // Set loading while fetching child details (including evaluation)
+            setLoading(true);
+            fetchChildDetails(selectedChild.id).finally(() => {
+                setLoading(false);
+            });
         }
     }, [selectedChild?.id]);
 
@@ -74,16 +79,25 @@ const ParentDashboard = () => {
                 if (players && players.length > 0) {
                     setChildren(players);
                     setSelectedChild(players[0]);
+                    // Don't set loading=false here - the selectedChild useEffect will handle it
+                    // after fetching child details including evaluation
+                    return;
                 }
             }
+            // Only set loading=false if no children found (nothing more to load)
+            setLoading(false);
         } catch (err) {
             console.error('Error fetching children:', err);
-        } finally {
             setLoading(false);
         }
     };
 
     const fetchChildDetails = async (playerId) => {
+        // Clear previous child's data first to avoid showing stale data
+        setPlayerEvaluation(null);
+        setPlayerStats(null);
+        setPlayerBadges([]);
+
         try {
             // Fetch player stats (training minutes, streak, etc.)
             const { data: stats } = await supabase
