@@ -207,6 +207,33 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // Login with access token (parent-generated link)
+    const loginWithToken = async (playerData) => {
+        // playerData comes from verify_player_access_token RPC
+        const playerUser = {
+            id: playerData.id,
+            email: 'player@firefc.com',
+            role: 'player',
+            display_name: `${playerData.first_name} ${playerData.last_name}`,
+            avatar_url: playerData.avatar_url,
+            team_id: playerData.team_id
+        };
+
+        setUser(playerUser);
+        localStorage.setItem('user', JSON.stringify(playerUser));
+
+        const playerProfile = {
+            id: playerUser.id,
+            full_name: playerUser.display_name,
+            email: playerUser.email,
+            role: 'player',
+            avatar_url: playerUser.avatar_url || null
+        };
+        setProfile(playerProfile);
+
+        return { data: playerUser, error: null };
+    };
+
     const value = {
         user: demoUser || user,
         session,
@@ -216,7 +243,8 @@ export const AuthProvider = ({ children }) => {
         signUp,
         loading,
         loginDemo,
-        loginPlayer
+        loginPlayer,
+        loginWithToken
     };
 
     return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

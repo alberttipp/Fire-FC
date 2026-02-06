@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import CalendarHub from '../components/dashboard/CalendarHub';
@@ -28,6 +28,11 @@ const ParentDashboard = () => {
     const [eventRsvps, setEventRsvps] = useState({}); // { eventId: 'going' | 'not_going' | 'maybe' }
     const [newBadge, setNewBadge] = useState(null);
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
+
+    // Player access link state
+    const [playerAccessLink, setPlayerAccessLink] = useState(null);
+    const [generatingLink, setGeneratingLink] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
 
     // Fetch children linked to parent
     useEffect(() => {
@@ -183,6 +188,55 @@ const ParentDashboard = () => {
     const handleLogout = async () => {
         await signOut();
         navigate('/login');
+    };
+
+    // Generate player access link
+    const generatePlayerLink = async () => {
+        if (!selectedChild?.id) return;
+
+        setGeneratingLink(true);
+        setPlayerAccessLink(null);
+
+        try {
+            const { data, error } = await supabase.rpc('generate_player_access_token', {
+                p_player_id: selectedChild.id,
+                p_expires_hours: null // Never expires
+            });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                const token = data[0].token;
+                const link = `${window.location.origin}/player-access/${token}`;
+                setPlayerAccessLink(link);
+            }
+        } catch (err) {
+            console.error('Error generating link:', err);
+            alert('Failed to generate access link. Please try again.');
+        } finally {
+            setGeneratingLink(false);
+        }
+    };
+
+    // Copy link to clipboard
+    const copyLink = async () => {
+        if (!playerAccessLink) return;
+
+        try {
+            await navigator.clipboard.writeText(playerAccessLink);
+            setLinkCopied(true);
+            setTimeout(() => setLinkCopied(false), 2000);
+        } catch (err) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = playerAccessLink;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setLinkCopied(true);
+            setTimeout(() => setLinkCopied(false), 2000);
+        }
     };
 
     // Handle RSVP for events
@@ -342,6 +396,74 @@ const ParentDashboard = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Player Access Link */}
+                            <div className="glass-panel p-4 border-l-4 border-l-brand-gold">
+                                <h4 className="text-brand-gold text-xs uppercase font-bold mb-3 flex items-center gap-2">
+                                    <Link2 className="w-4 h-4" /> Player Access Link
+                                </h4>
+                                <p className="text-gray-400 text-xs mb-3">
+                                    Share this link with {selectedChild?.first_name} so they can access their player dashboard without a PIN.
+                                </p>
+
+                                {!playerAccessLink ? (
+                                    <button
+                                        onClick={generatePlayerLink}
+                                        disabled={generatingLink}
+                                        className="w-full py-3 bg-brand-gold/20 hover:bg-brand-gold/30 border border-brand-gold/50 rounded-lg text-brand-gold font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {generatingLink ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Generating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Link2 className="w-4 h-4" />
+                                                Generate Access Link
+                                            </>
+                                        )}
+                                    </button>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div className="bg-black/30 rounded-lg p-3 border border-white/10">
+                                            <p className="text-xs text-gray-400 font-mono break-all">{playerAccessLink}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={copyLink}
+                                                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                                                    linkCopied
+                                                        ? 'bg-green-500 text-white'
+                                                        : 'bg-white/10 hover:bg-white/20 text-white'
+                                                }`}
+                                            >
+                                                {linkCopied ? (
+                                                    <>
+                                                        <CheckCircle className="w-4 h-4" />
+                                                        Copied!
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Copy className="w-4 h-4" />
+                                                        Copy Link
+                                                    </>
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={generatePlayerLink}
+                                                className="py-2 px-3 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all"
+                                                title="Generate new link"
+                                            >
+                                                <RefreshCw className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 text-center">
+                                            This link never expires. Generate a new one to revoke the old link.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Right Column - Stats & Info */}

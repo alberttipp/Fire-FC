@@ -236,123 +236,43 @@ const Login = () => {
 
                 {/* --- PLAYER Login Flow --- */}
                 {authMode === 'player' && (
-                    <div className="animate-fade-in">
-                        {/* Step 1: Enter Team Code */}
-                        {!teamRoster && (
-                            <form onSubmit={handleFindTeam} className="space-y-6">
-                                <div>
-                                    <label className="block text-brand-gold text-xs font-bold uppercase tracking-widest mb-2 ml-1">Team Code</label>
-                                    <input
-                                        type="text"
-                                        value={playerTeamCode}
-                                        onChange={(e) => setPlayerTeamCode(e.target.value.toUpperCase())}
-                                        className={`${inputClass('teamCode')} font-mono tracking-wider text-center text-lg`}
-                                        placeholder="FC-XXXX"
-                                        maxLength={7}
-                                    />
-                                    {errors.teamCode && (
-                                        <p className="text-red-400 text-xs mt-1 ml-1">{errors.teamCode}</p>
-                                    )}
-                                    <p className="text-xs text-gray-500 mt-2 text-center">Ask your coach for the team code</p>
-                                </div>
+                    <div className="animate-fade-in text-center space-y-6">
+                        <div className="w-20 h-20 rounded-full bg-brand-gold/20 flex items-center justify-center mx-auto border-2 border-brand-gold">
+                            <User className="w-10 h-10 text-brand-gold" />
+                        </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="w-full btn-primary py-3 flex items-center justify-center gap-2 group bg-brand-gold hover:bg-yellow-400"
-                                >
-                                    {loading ? 'Searching...' : (
-                                        <>
-                                            Find My Team <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                        </>
-                                    )}
-                                </button>
-                            </form>
-                        )}
+                        <div>
+                            <h3 className="text-xl text-white font-bold mb-2">Player Access</h3>
+                            <p className="text-gray-400 text-sm">
+                                Ask your parent to send you an access link from their Fire FC app.
+                            </p>
+                        </div>
 
-                        {/* Step 2: Select Player from Roster */}
-                        {teamRoster && !selectedPlayer && (
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-white font-bold uppercase text-sm">Select Your Name</h3>
-                                    <button onClick={resetPlayerFlow} className="text-xs text-gray-500 hover:text-white underline">Change Team</button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-2">
-                                    {teamRoster.map(player => (
-                                        <button
-                                            key={player.id}
-                                            onClick={() => setSelectedPlayer(player)}
-                                            className="bg-white/5 hover:bg-brand-green/20 border border-white/10 hover:border-brand-green rounded-lg p-3 text-left transition-all group"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border-2 border-transparent group-hover:border-brand-green">
-                                                    <img
-                                                        src={player.avatar_url || '/branding/logo.png'}
-                                                        alt={player.first_name}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <div className="text-white text-sm font-medium group-hover:text-brand-green">{player.first_name}</div>
-                                                    <div className="text-gray-500 text-xs">#{player.number}</div>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                            <p className="text-xs text-gray-500 mb-3">How it works:</p>
+                            <ol className="text-left text-sm text-gray-400 space-y-2">
+                                <li className="flex items-start gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                                    <span>Your parent logs into their dashboard</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                                    <span>They click "Generate Access Link" on your profile</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                                    <span>They share the link with you via text or email</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
+                                    <span>Click the link to enter your locker room!</span>
+                                </li>
+                            </ol>
+                        </div>
 
-                        {/* Step 3: Enter PIN */}
-                        {selectedPlayer && (
-                            <form onSubmit={handlePlayerLogin} className="space-y-6 text-center">
-                                <div className="relative inline-block">
-                                    <div className="w-20 h-20 rounded-full bg-gray-800 overflow-hidden mx-auto border-4 border-brand-green shadow-[0_0_20px_rgba(59,130,246,0.3)]">
-                                        <img src={selectedPlayer.avatar_url || '/branding/logo.png'} alt="Selected" className="w-full h-full object-cover" />
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedPlayer(null)}
-                                        className="absolute -top-1 -right-1 bg-black rounded-full p-1 border border-white/20 hover:border-red-500 hover:text-red-500 text-gray-400"
-                                    >
-                                        <UserCircle className="w-3 h-3" />
-                                    </button>
-                                </div>
-                                <h3 className="text-white font-bold mt-2">{selectedPlayer.first_name} {selectedPlayer.last_name}</h3>
-                                <p className="text-xs text-gray-500">#{selectedPlayer.number}</p>
-
-                                <div className="max-w-[200px] mx-auto">
-                                    <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-2 ml-1 text-center">Enter PIN</label>
-                                    <div className="relative">
-                                        <input
-                                            type="password"
-                                            maxLength={4}
-                                            value={playerPin}
-                                            onChange={(e) => setPlayerPin(e.target.value.replace(/\D/g, ''))}
-                                            className={`${inputClass('playerPin')} text-center text-xl tracking-[0.5em]`}
-                                            placeholder="••••"
-                                            autoFocus
-                                        />
-                                        <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                                    </div>
-                                    {errors.playerPin && (
-                                        <p className="text-red-400 text-xs mt-1">{errors.playerPin}</p>
-                                    )}
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={loading || playerPin.length < 4}
-                                    className="w-full mt-6 btn-primary py-3 flex items-center justify-center gap-2 group"
-                                >
-                                    {loading ? 'Verifying...' : (
-                                        <>
-                                            Enter Locker Room <Rocket className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                        </>
-                                    )}
-                                </button>
-                            </form>
-                        )}
+                        <p className="text-xs text-gray-600">
+                            Already have a link? Just click it to sign in automatically.
+                        </p>
                     </div>
                 )}
 
