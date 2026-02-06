@@ -343,11 +343,11 @@ Return ONLY valid JSON (no markdown):
                             <select
                                 value={filterTag}
                                 onChange={(e) => setFilterTag(e.target.value)}
-                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                                className="bg-[#1a1a2e] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
                             >
-                                <option value="">All Tags</option>
-                                {allTags.map(tag => (
-                                    <option key={tag} value={tag}>{tag}</option>
+                                <option value="" className="bg-[#1a1a2e] text-white">All Tags</option>
+                                {TAG_OPTIONS.map(tag => (
+                                    <option key={tag} value={tag} className="bg-[#1a1a2e] text-white">{tag}</option>
                                 ))}
                             </select>
                         </div>

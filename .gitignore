@@ -112,3 +112,4 @@ verify_database_tables.sql
 
 # Supabase temp files
 supabase/.temp/
+nul
