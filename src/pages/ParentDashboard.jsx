@@ -21,6 +21,7 @@ const ParentDashboard = () => {
     const [children, setChildren] = useState([]);
     const [selectedChild, setSelectedChild] = useState(null);
     const [playerStats, setPlayerStats] = useState(null);
+    const [playerEvaluation, setPlayerEvaluation] = useState(null); // Coach ratings from evaluations table
     const [playerBadges, setPlayerBadges] = useState([]);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
     const [assignments, setAssignments] = useState([]);
@@ -84,7 +85,7 @@ const ParentDashboard = () => {
 
     const fetchChildDetails = async (playerId) => {
         try {
-            // Fetch player stats
+            // Fetch player stats (training minutes, streak, etc.)
             const { data: stats } = await supabase
                 .from('player_stats')
                 .select('*')
@@ -92,6 +93,23 @@ const ParentDashboard = () => {
                 .single();
 
             setPlayerStats(stats);
+
+            // Fetch player evaluation (coach ratings - same as PlayerDashboard)
+            console.log('[ParentDashboard] Fetching evaluation for player_id:', playerId);
+            const { data: evalData, error: evalError } = await supabase
+                .from('evaluations')
+                .select('*')
+                .eq('player_id', playerId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            console.log('[ParentDashboard] Evaluation result:', evalData, 'Error:', evalError);
+
+            if (evalError && evalError.code !== 'PGRST116') {
+                console.error('[ParentDashboard] Evaluation fetch error:', evalError);
+            }
+            setPlayerEvaluation(evalData || null);
 
             // Fetch badges - use player_user_id (auth.users UUID linked to this player)
             // Fetch without FK join to avoid 406 errors, then join with badge definitions
@@ -286,21 +304,30 @@ const ParentDashboard = () => {
     };
 
     // Format player data for PlayerCard component
+    // Uses playerEvaluation from evaluations table (same as PlayerDashboard)
     const formatPlayerForCard = (player) => {
         if (!player) return null;
+
+        console.log('[ParentDashboard] formatPlayerForCard - playerEvaluation:', playerEvaluation);
+
+        // Calculate overall from evaluation if available
+        const overallRating = playerEvaluation
+            ? Math.round((playerEvaluation.pace + playerEvaluation.shooting + playerEvaluation.passing + playerEvaluation.dribbling + playerEvaluation.defending + playerEvaluation.physical) / 6)
+            : null;
+
         return {
             id: player.id, // players table ID - for fetching evaluations
             user_id: player.user_id, // auth.users ID - for RLS policies (badges)
             name: `${player.first_name} ${player.last_name}`,
             number: player.jersey_number?.toString() || '0',
             position: player.position || 'MF',
-            rating: player.overall_rating || 50,
-            pace: player.pace || 50,
-            shooting: player.shooting || 50,
-            passing: player.passing || 50,
-            dribbling: player.dribbling || 50,
-            defending: player.defending || 50,
-            physical: player.physical || 50,
+            rating: overallRating || playerEvaluation?.overall_rating || 50,
+            pace: playerEvaluation?.pace || 50,
+            shooting: playerEvaluation?.shooting || 50,
+            passing: playerEvaluation?.passing || 50,
+            dribbling: playerEvaluation?.dribbling || 50,
+            defending: playerEvaluation?.defending || 50,
+            physical: playerEvaluation?.physical || 50,
             messiMode: playerStats?.messi_mode_unlocked || false,
             image: player.avatar_url || `/players/${player.first_name?.toLowerCase()}_official.png`
         };

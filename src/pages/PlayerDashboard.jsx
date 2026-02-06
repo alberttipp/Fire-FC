@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PlayerCard from '../components/player/PlayerCard';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Flame, Zap } from 'lucide-react';
+import { LogOut, Flame, Zap, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
@@ -27,11 +27,16 @@ const PlayerDashboard = () => {
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
     const [playerRecord, setPlayerRecord] = useState(null); // The player's record from players table
     const [streakDays, setStreakDays] = useState(0); // Training streak (days in a row with 20+ min training)
+    const [playerError, setPlayerError] = useState(null); // Error if player not found
+    const [playerLoading, setPlayerLoading] = useState(true); // Loading state for player lookup
 
     useEffect(() => {
         if (!user?.id) return;
 
         const fetchDashboardData = async () => {
+            setPlayerLoading(true);
+            setPlayerError(null);
+
             // --- STANDARD FETCH (For All Users) ---
             console.log('[PlayerDashboard] Auth user.id:', user.id);
             console.log('[PlayerDashboard] User email:', user.email);
@@ -73,10 +78,18 @@ const PlayerDashboard = () => {
             if (playerData) {
                 console.log('[PlayerDashboard] Found player record:', playerData);
                 setPlayerRecord(playerData);
+                setPlayerError(null);
+                setPlayerLoading(false);
+            } else {
+                // No player found - set error
+                console.error('[PlayerDashboard] No player record found for user:', user.id);
+                setPlayerError('Player profile not found. Please use a valid player access link from your parent.');
+                setPlayerLoading(false);
+                return; // Don't continue fetching other data
             }
 
-            // Use player record ID if available, fallback to user.id
-            const playerId = playerData?.id || user.id;
+            // Use player record ID
+            const playerId = playerData.id;
             console.log('[PlayerDashboard] Using player_id:', playerId, 'from playerData:', !!playerData);
 
             // 1. Fetch Player Evaluation (coach ratings from evaluations table)
@@ -280,13 +293,43 @@ const PlayerDashboard = () => {
         image: playerRecord?.avatar_url || profile?.avatar_url || user?.avatar_url || "/players/roster/bo_official.png"
     };
 
-    // Loading state - shown while user data loads
-    if (!user) {
+    // Loading state - shown while user or player data loads
+    if (!user || playerLoading) {
         return (
             <div className="min-h-screen bg-brand-dark flex items-center justify-center text-white">
                 <div className="text-center">
                     <div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-brand-green font-display uppercase tracking-widest">Loading Player Profile...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Error state - player not found
+    if (playerError) {
+        return (
+            <div className="min-h-screen bg-brand-dark flex items-center justify-center text-white p-4">
+                <div className="text-center max-w-md">
+                    <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6 border-2 border-red-500">
+                        <AlertTriangle className="w-10 h-10 text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-display font-bold text-white mb-4">Player Not Found</h2>
+                    <p className="text-gray-400 mb-6">{playerError}</p>
+                    <div className="space-y-3">
+                        <button
+                            onClick={() => {
+                                localStorage.removeItem('user');
+                                signOut();
+                                navigate('/login');
+                            }}
+                            className="w-full py-3 bg-brand-green text-brand-dark font-bold rounded-lg hover:bg-brand-green/90 transition-all"
+                        >
+                            Back to Login
+                        </button>
+                        <p className="text-xs text-gray-500">
+                            Ask your parent to generate a new access link from their Fire FC dashboard.
+                        </p>
+                    </div>
                 </div>
             </div>
         );

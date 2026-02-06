@@ -10,50 +10,89 @@ const Leaderboard = () => {
 
     useEffect(() => {
         fetchLeaderboard();
+
+        // Subscribe to realtime updates on player_stats
+        const channel = supabase
+            .channel('leaderboard-updates')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'player_stats'
+                },
+                (payload) => {
+                    console.log('[Leaderboard] Stats updated, refreshing...', payload);
+                    fetchLeaderboard();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const fetchLeaderboard = async () => {
         setLoading(true);
         try {
-            // Fetch player stats with player info, ordered by training minutes
-            // Using simpler query to avoid nested join issues
-            const { data, error } = await supabase
+            // Step 1: Fetch player_stats (no join - avoids RLS issues)
+            const { data: statsData, error: statsError } = await supabase
                 .from('player_stats')
-                .select(`
-                    player_id,
-                    training_minutes,
-                    players (
-                        id,
-                        first_name,
-                        last_name,
-                        user_id,
-                        team_id
-                    )
-                `)
+                .select('player_id, training_minutes')
+                .gt('training_minutes', 0)
                 .order('training_minutes', { ascending: false })
                 .limit(10);
 
-            if (error) {
-                console.error('Error fetching leaderboard:', error);
+            if (statsError) {
+                console.error('[Leaderboard] Stats fetch error:', statsError);
                 setPlayers([]);
                 setLoading(false);
                 return;
             }
 
-            // Transform data for display
-            const leaderboardData = (data || [])
-                .filter(item => item.players) // Only include items with valid player data
-                .map((item, index) => ({
+            console.log('[Leaderboard] Stats data:', statsData);
+
+            if (!statsData || statsData.length === 0) {
+                console.log('[Leaderboard] No stats data found');
+                setPlayers([]);
+                setLoading(false);
+                return;
+            }
+
+            // Step 2: Fetch player names separately
+            const playerIds = statsData.map(s => s.player_id);
+            const { data: playersData, error: playersError } = await supabase
+                .from('players')
+                .select('id, first_name, last_name, user_id')
+                .in('id', playerIds);
+
+            if (playersError) {
+                console.error('[Leaderboard] Players fetch error:', playersError);
+            }
+
+            console.log('[Leaderboard] Players data:', playersData);
+
+            // Step 3: Merge data
+            const playerMap = {};
+            (playersData || []).forEach(p => { playerMap[p.id] = p; });
+
+            const leaderboardData = statsData.map((stat, index) => {
+                const player = playerMap[stat.player_id];
+                return {
                     rank: index + 1,
-                    name: `${item.players?.first_name || 'Unknown'} ${item.players?.last_name?.charAt(0) || ''}.`,
-                    minutes: item.training_minutes || 0,
-                    team: 'Team', // Simplified - can add team lookup later
-                    isUser: item.players?.user_id === user?.id,
-                    playerId: item.player_id
-                }));
+                    name: player ? `${player.first_name} ${player.last_name?.charAt(0) || ''}.` : 'Unknown',
+                    minutes: stat.training_minutes || 0,
+                    team: 'Team',
+                    isUser: player?.id === user?.id || player?.user_id === user?.id,
+                    playerId: stat.player_id
+                };
+            });
+
+            console.log('[Leaderboard] Final data:', leaderboardData);
             setPlayers(leaderboardData);
         } catch (err) {
-            console.error('Leaderboard fetch error:', err);
+            console.error('[Leaderboard] Fetch error:', err);
             setPlayers([]);
         }
         setLoading(false);
