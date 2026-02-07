@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield, Mic, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield, Mic, Bell, Camera } from 'lucide-react';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
 import TrainingView from '../components/dashboard/TrainingView';
@@ -10,6 +10,7 @@ import ChatView from '../components/dashboard/ChatView';
 import CalendarHub from '../components/dashboard/CalendarHub';
 import FinancialView from '../components/dashboard/FinancialView';
 import TryoutHub from '../components/dashboard/TryoutHub';
+import GalleryView from '../components/dashboard/GalleryView';
 import AdminPanel from '../components/AdminPanel';
 import NotificationPanel from '../components/dashboard/NotificationPanel';
 import { supabase } from '../supabaseClient';
@@ -86,6 +87,7 @@ const Dashboard = () => {
             case 'training': return <TrainingView />;
             case 'chat': return <ChatView />;
             case 'calendar': return <CalendarHub />;
+            case 'gallery': return <GalleryView />;
             case 'financial': return <FinancialView />;
             case 'tryouts': return <TryoutHub />;
             default: return <ClubView />;
@@ -143,6 +145,12 @@ const Dashboard = () => {
                             >
                                 Schedule
                             </button>
+                            <button
+                                onClick={() => setCurrentView('gallery')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'gallery' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <Camera className="w-3 h-3" /> Gallery
+                            </button>
 
                             {/* Manager Only Tabs */}
                             {isManager && (
@@ -182,6 +190,7 @@ const Dashboard = () => {
                                 <button onClick={() => setCurrentView('training')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Training</button>
                                 <button onClick={() => setCurrentView('chat')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Chat</button>
                                 <button onClick={() => setCurrentView('calendar')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Schedule</button>
+                                <button onClick={() => setCurrentView('gallery')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Gallery</button>
                                 {isManager && (
                                     <>
                                         <button onClick={() => setCurrentView('tryouts')} className="block w-full text-left px-4 py-2 text-sm text-brand-gold hover:bg-white/5 uppercase">Tryouts</button>

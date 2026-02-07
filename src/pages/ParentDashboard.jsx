@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import CalendarHub from '../components/dashboard/CalendarHub';
 import ChatView from '../components/dashboard/ChatView';
+import GalleryView from '../components/dashboard/GalleryView';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import BadgeCelebration from '../components/BadgeCelebration';
@@ -376,6 +377,8 @@ const ParentDashboard = () => {
                 return <CalendarHub />;
             case 'messages':
                 return <ChatView />;
+            case 'gallery':
+                return <GalleryView />;
             case 'billing':
                 return (
                     <div className="glass-panel p-8 max-w-2xl mx-auto text-center space-y-6">
@@ -720,6 +723,7 @@ const ParentDashboard = () => {
                                 { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                                 { id: 'schedule', label: 'Schedule', icon: Calendar },
                                 { id: 'messages', label: 'Messages', icon: MessageSquare },
+                                { id: 'gallery', label: 'Gallery', icon: Camera },
                                 { id: 'billing', label: 'Billing', icon: CreditCard },
                             ].map(tab => (
                                 <button
@@ -741,6 +745,7 @@ const ParentDashboard = () => {
                                 { id: 'overview', icon: LayoutDashboard },
                                 { id: 'schedule', icon: Calendar },
                                 { id: 'messages', icon: MessageSquare },
+                                { id: 'gallery', icon: Camera },
                             ].map(tab => (
                                 <button
                                     key={tab.id}
