@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield, Mic, Bell, Camera } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield, Mic, Bell, Camera, Tv, Car } from 'lucide-react';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
 import TrainingView from '../components/dashboard/TrainingView';
@@ -11,6 +11,8 @@ import CalendarHub from '../components/dashboard/CalendarHub';
 import FinancialView from '../components/dashboard/FinancialView';
 import TryoutHub from '../components/dashboard/TryoutHub';
 import GalleryView from '../components/dashboard/GalleryView';
+import LiveScoringView from '../components/dashboard/LiveScoringView';
+import CarpoolVolunteerView from '../components/dashboard/CarpoolVolunteerView';
 import AdminPanel from '../components/AdminPanel';
 import NotificationPanel from '../components/dashboard/NotificationPanel';
 import { supabase } from '../supabaseClient';
@@ -88,6 +90,8 @@ const Dashboard = () => {
             case 'chat': return <ChatView />;
             case 'calendar': return <CalendarHub />;
             case 'gallery': return <GalleryView />;
+            case 'live': return <LiveScoringView />;
+            case 'carpool': return <CarpoolVolunteerView />;
             case 'financial': return <FinancialView />;
             case 'tryouts': return <TryoutHub />;
             default: return <ClubView />;
@@ -151,6 +155,18 @@ const Dashboard = () => {
                             >
                                 <Camera className="w-3 h-3" /> Gallery
                             </button>
+                            <button
+                                onClick={() => setCurrentView('live')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'live' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <Tv className="w-3 h-3" /> Live
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('carpool')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'carpool' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <Car className="w-3 h-3" /> Carpool
+                            </button>
 
                             {/* Manager Only Tabs */}
                             {isManager && (
@@ -191,6 +207,8 @@ const Dashboard = () => {
                                 <button onClick={() => setCurrentView('chat')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Chat</button>
                                 <button onClick={() => setCurrentView('calendar')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Schedule</button>
                                 <button onClick={() => setCurrentView('gallery')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Gallery</button>
+                                <button onClick={() => setCurrentView('live')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Live</button>
+                                <button onClick={() => setCurrentView('carpool')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Carpool</button>
                                 {isManager && (
                                     <>
                                         <button onClick={() => setCurrentView('tryouts')} className="block w-full text-left px-4 py-2 text-sm text-brand-gold hover:bg-white/5 uppercase">Tryouts</button>

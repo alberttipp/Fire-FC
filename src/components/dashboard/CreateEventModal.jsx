@@ -15,7 +15,9 @@ const CreateEventModal = ({ onClose, onEventCreated }) => {
         startTime: '',
         endTime: '',
         location: '',
-        notes: ''
+        notes: '',
+        opponentName: '',
+        videoUrl: ''
     });
 
     // Preset Titles based on type
@@ -71,7 +73,9 @@ const CreateEventModal = ({ onClose, onEventCreated }) => {
                     end_time: endDateTime.toISOString(),
                     location_name: formData.location,
                     notes: formData.notes,
-                    created_by: user.id
+                    created_by: user.id,
+                    opponent_name: eventType === 'game' ? (formData.opponentName || null) : null,
+                    video_url: eventType === 'game' ? (formData.videoUrl || null) : null
                 })
                 .select()
                 .single();
@@ -210,6 +214,32 @@ const CreateEventModal = ({ onClose, onEventCreated }) => {
                                     className="w-full bg-black/30 border border-white/10 rounded px-4 py-2 text-white text-sm focus:border-brand-green outline-none resize-none"
                                 />
                             </div>
+
+                            {/* Game-specific fields */}
+                            {eventType === 'game' && (
+                                <>
+                                    <div>
+                                        <label className="block text-gray-500 text-xs uppercase font-bold mb-1">Opponent</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Rapids FC"
+                                            value={formData.opponentName}
+                                            onChange={(e) => setFormData({ ...formData, opponentName: e.target.value })}
+                                            className="w-full bg-black/30 border border-white/10 rounded px-4 py-2 text-white text-sm focus:border-brand-green outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-gray-500 text-xs uppercase font-bold mb-1">YouTube Stream URL (Optional)</label>
+                                        <input
+                                            type="url"
+                                            placeholder="https://youtube.com/watch?v=..."
+                                            value={formData.videoUrl}
+                                            onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                                            className="w-full bg-black/30 border border-white/10 rounded px-4 py-2 text-white text-sm focus:border-brand-green outline-none"
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <div className="pt-2 flex justify-end gap-3">

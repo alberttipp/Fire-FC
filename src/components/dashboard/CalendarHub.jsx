@@ -1,8 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar as CalendarIcon, MapPin, Clock, Users, Plus, CheckCircle, XCircle, HelpCircle, Shirt, StickyNote, Download, ChevronLeft, ChevronRight, X, ClipboardList, Play, Pause, SkipForward, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Clock, Users, Plus, CheckCircle, XCircle, HelpCircle, Shirt, StickyNote, Download, ChevronLeft, ChevronRight, X, ClipboardList, Play, Pause, SkipForward, RotateCcw, Volume2, VolumeX, Video } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import CreateEventModal from './CreateEventModal';
+
+const getYouTubeEmbedUrl = (url) => {
+    if (!url) return null;
+    try {
+        const urlObj = new URL(url);
+        if (urlObj.hostname.includes('youtu.be')) {
+            return `https://www.youtube.com/embed/${urlObj.pathname.slice(1)}`;
+        }
+        if (urlObj.hostname.includes('youtube.com')) {
+            const videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop();
+            return `https://www.youtube.com/embed/${videoId}`;
+        }
+    } catch (e) { /* ignore */ }
+    return url;
+};
 
 const CalendarHub = () => {
     const { user, profile } = useAuth();
@@ -520,6 +535,45 @@ END:VCALENDAR`;
                             {selectedEvent.notes && (
                                 <div className="p-3 bg-white/5 rounded-lg text-gray-300 text-sm">
                                     {selectedEvent.notes}
+                                </div>
+                            )}
+
+                            {/* Live Score Display (for games) */}
+                            {selectedEvent.type === 'game' && selectedEvent.game_status && selectedEvent.game_status !== 'scheduled' && (
+                                <div className="flex items-center justify-center gap-6 py-4 bg-white/5 rounded-xl">
+                                    <div className="text-center">
+                                        <p className="text-xs text-gray-400 uppercase font-bold">Fire FC</p>
+                                        <p className="text-3xl font-mono font-bold text-white">{selectedEvent.home_score || 0}</p>
+                                    </div>
+                                    <span className="text-xl text-gray-600">—</span>
+                                    <div className="text-center">
+                                        <p className="text-xs text-gray-400 uppercase font-bold">{selectedEvent.opponent_name || 'Away'}</p>
+                                        <p className="text-3xl font-mono font-bold text-white">{selectedEvent.away_score || 0}</p>
+                                    </div>
+                                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-bold uppercase ${
+                                        selectedEvent.game_status === 'live' ? 'bg-green-500/20 text-green-400' :
+                                        selectedEvent.game_status === 'halftime' ? 'bg-yellow-500/20 text-yellow-400' :
+                                        'bg-red-500/20 text-red-400'
+                                    }`}>{selectedEvent.game_status === 'finished' ? 'Final' : selectedEvent.game_status}</span>
+                                </div>
+                            )}
+
+                            {/* YouTube Stream Embed */}
+                            {selectedEvent.video_url && (
+                                <div className="border-t border-white/10 pt-4 mt-4">
+                                    <h4 className="text-white font-bold flex items-center gap-2 mb-3">
+                                        <Video className="w-5 h-5 text-red-500" />
+                                        Game Stream
+                                    </h4>
+                                    <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                                        <iframe
+                                            src={getYouTubeEmbedUrl(selectedEvent.video_url)}
+                                            className="w-full h-full"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                            title="Game Stream"
+                                        />
+                                    </div>
                                 </div>
                             )}
 
