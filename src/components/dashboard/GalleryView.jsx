@@ -17,7 +17,7 @@ const GalleryView = () => {
     const [teamId, setTeamId] = useState(null);
     const fileInputRef = useRef(null);
 
-    const currentRole = profile?.role || user?.role || 'player';
+    const [currentRole, setCurrentRole] = useState(profile?.role || user?.role || 'player');
     const canUpload = ['manager', 'coach', 'parent'].includes(currentRole);
 
     // Lock body scroll when lightbox or upload modal is open
@@ -52,17 +52,18 @@ const GalleryView = () => {
         // Try via team_memberships
         const { data: membership } = await supabase
             .from('team_memberships')
-            .select('team_id')
+            .select('team_id, role')
             .eq('user_id', user.id)
             .limit(1)
             .single();
 
         if (membership?.team_id) {
+            if (membership.role) setCurrentRole(membership.role);
             setTeamId(membership.team_id);
             return;
         }
 
-        // Try via family_members → players
+        // Try via family_members → players (this means user is a parent/guardian)
         const { data: family } = await supabase
             .from('family_members')
             .select('player_id')
@@ -78,6 +79,7 @@ const GalleryView = () => {
                 .single();
 
             if (player?.team_id) {
+                setCurrentRole('parent');
                 setTeamId(player.team_id);
                 return;
             }
