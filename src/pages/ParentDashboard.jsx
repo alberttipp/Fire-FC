@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
+import Leaderboard from '../components/player/Leaderboard';
 import CalendarHub from '../components/dashboard/CalendarHub';
 import ChatView from '../components/dashboard/ChatView';
 import GalleryView from '../components/dashboard/GalleryView';
 import LiveScoringView from '../components/dashboard/LiveScoringView';
 import CarpoolVolunteerView from '../components/dashboard/CarpoolVolunteerView';
+import DrillLibraryModal from '../components/dashboard/DrillLibraryModal';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import BadgeCelebration from '../components/BadgeCelebration';
@@ -32,6 +34,11 @@ const ParentDashboard = () => {
     const [eventRsvps, setEventRsvps] = useState({}); // { eventId: 'going' | 'not_going' | 'maybe' }
     const [newBadge, setNewBadge] = useState(null);
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
+
+    // Practice minutes state
+    const [practiceMins, setPracticeMins] = useState({ team: 0, solo: 0 });
+    const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const [showDrillLibrary, setShowDrillLibrary] = useState(false);
 
     // Player access link state
     const [playerAccessLink, setPlayerAccessLink] = useState(null);
@@ -100,6 +107,7 @@ const ParentDashboard = () => {
         setPlayerEvaluation(null);
         setPlayerStats(null);
         setPlayerBadges([]);
+        setPracticeMins({ team: 0, solo: 0 });
 
         try {
             // Fetch player stats (training minutes, streak, etc.)
@@ -110,6 +118,9 @@ const ParentDashboard = () => {
                 .single();
 
             setPlayerStats(stats);
+
+            // Solo practice minutes from player_stats (cumulative from completed drill assignments)
+            const soloMins = stats?.training_minutes || 0;
 
             // Fetch player evaluation (coach ratings - same as PlayerDashboard)
             console.log('[ParentDashboard] Fetching evaluation for player_id:', playerId);
@@ -225,6 +236,38 @@ const ParentDashboard = () => {
                 }
             } else {
                 setAttendanceStats({ attended: 0, missed: 0, rate: 0 });
+            }
+
+            // Calculate team practice minutes from attended practice events
+            if (teamId) {
+                const { data: attendedEvents } = await supabase
+                    .from('event_rsvps')
+                    .select('event_id')
+                    .eq('player_id', playerId)
+                    .in('status', ['going', 'attended']);
+
+                let teamMins = 0;
+                if (attendedEvents && attendedEvents.length > 0) {
+                    const eventIds = attendedEvents.map(e => e.event_id);
+                    const { data: practiceEvents } = await supabase
+                        .from('events')
+                        .select('start_time, end_time')
+                        .in('id', eventIds)
+                        .eq('type', 'practice');
+
+                    if (practiceEvents) {
+                        teamMins = practiceEvents.reduce((sum, ev) => {
+                            if (ev.start_time && ev.end_time) {
+                                const dur = Math.round((new Date(ev.end_time) - new Date(ev.start_time)) / 60000);
+                                return sum + (dur > 0 ? dur : 90);
+                            }
+                            return sum + 90; // default 90 min practice
+                        }, 0);
+                    }
+                }
+                setPracticeMins({ team: teamMins, solo: soloMins });
+            } else {
+                setPracticeMins({ team: 0, solo: soloMins });
             }
 
         } catch (err) {
@@ -400,296 +443,372 @@ const ParentDashboard = () => {
                     </div>
                 );
             case 'overview':
-            default:
+            default: {
+                const completedAssignments = assignments.filter(a => a.status === 'completed').length;
+                const totalAssignments = assignments.length;
+                const homeworkPercent = totalAssignments > 0 ? Math.round((completedAssignments / totalAssignments) * 100) : 0;
+                const totalMins = practiceMins.team + practiceMins.solo;
+
                 return (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Left Column - Player Card */}
-                        <div className="space-y-6">
-                            <h3 className="text-xl text-white font-display uppercase tracking-wider flex items-center gap-2">
-                                <User className="w-5 h-5 text-brand-gold" /> Player Profile
-                            </h3>
+                    <div className="space-y-6">
+                        {/* Child selector if multiple children */}
+                        {children.length > 1 && (
+                            <div className="flex gap-2">
+                                {children.map(child => (
+                                    <button
+                                        key={child.id}
+                                        onClick={() => setSelectedChild(child)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                            selectedChild?.id === child.id
+                                                ? 'bg-blue-600 text-white shadow-lg'
+                                                : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                                        }`}
+                                    >
+                                        {child.first_name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
-                            {/* Child selector if multiple children */}
-                            {children.length > 1 && (
-                                <div className="flex gap-2 mb-4">
-                                    {children.map(child => (
-                                        <button
-                                            key={child.id}
-                                            onClick={() => setSelectedChild(child)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                                                selectedChild?.id === child.id
-                                                    ? 'bg-brand-green text-brand-dark'
-                                                    : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                                            }`}
-                                        >
-                                            {child.first_name}
-                                        </button>
-                                    ))}
+                        {/* Top Row: Player Card + Stats Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            {/* Player Card */}
+                            <div className="lg:col-span-5">
+                                <div className="group cursor-pointer relative" onClick={() => setShowDetails(true)}>
+                                    <div className="absolute -top-5 left-0 w-full text-center text-brand-green text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                        Tap for Report Card
+                                    </div>
+                                    <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
                                 </div>
-                            )}
-
-                            <div className="transform scale-90 origin-top-left sm:scale-100 group cursor-pointer relative" onClick={() => setShowDetails(true)}>
-                                <div className="absolute -top-6 left-0 w-full text-center text-brand-green text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity animate-pulse">
-                                    Click for Report Card
-                                </div>
-                                <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
                             </div>
 
-                            {/* Recent Badges */}
-                            {playerBadges.length > 0 && (
-                                <div className="glass-panel p-4">
-                                    <h4 className="text-gray-400 text-xs uppercase font-bold mb-3 flex items-center gap-2">
-                                        <Trophy className="w-4 h-4 text-brand-gold" /> Recent Badges
+                            {/* Stats Dashboard */}
+                            <div className="lg:col-span-7 grid grid-cols-2 gap-4">
+                                {/* Homework Progress */}
+                                <div className="glass-panel p-5 flex flex-col">
+                                    <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                        <Target className="w-3.5 h-3.5 text-brand-gold" /> Homework
                                     </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {playerBadges.map(pb => (
-                                            <div
-                                                key={pb.id}
-                                                className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-lg"
-                                                title={pb.badges?.description}
-                                            >
-                                                <span className="text-xl">{pb.badges?.icon}</span>
-                                                <span className="text-xs text-white font-medium">{pb.badges?.name}</span>
+                                    <div className="flex items-center gap-4 flex-1">
+                                        <div className="relative w-16 h-16 shrink-0">
+                                            <svg className="w-full h-full transform -rotate-90">
+                                                <circle cx="32" cy="32" r="26" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-800" />
+                                                <circle
+                                                    cx="32" cy="32" r="26"
+                                                    stroke="currentColor"
+                                                    strokeWidth="6"
+                                                    fill="transparent"
+                                                    strokeDasharray="163.4"
+                                                    strokeDashoffset={163.4 - (163.4 * homeworkPercent / 100)}
+                                                    strokeLinecap="round"
+                                                    className={homeworkPercent === 100 ? 'text-brand-green' : 'text-brand-gold'}
+                                                />
+                                            </svg>
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <span className="text-white font-bold text-sm">{homeworkPercent}%</span>
                                             </div>
-                                        ))}
+                                        </div>
+                                        <div>
+                                            <div className="text-2xl text-white font-bold leading-none">
+                                                {completedAssignments}<span className="text-gray-500 text-lg">/{totalAssignments}</span>
+                                            </div>
+                                            <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">
+                                                {completedAssignments === totalAssignments && totalAssignments > 0 ? 'All Done!' : 'Drills Done'}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            )}
 
-                            {/* Player Access Link */}
-                            <div className="glass-panel p-4 border-l-4 border-l-brand-gold">
-                                <h4 className="text-brand-gold text-xs uppercase font-bold mb-3 flex items-center gap-2">
-                                    <Link2 className="w-4 h-4" /> Player Access Link
-                                </h4>
-                                <p className="text-gray-400 text-xs mb-3">
-                                    Share this link with {selectedChild?.first_name} so they can access their player dashboard without a PIN.
-                                </p>
+                                {/* Attendance */}
+                                <div className="glass-panel p-5 flex flex-col">
+                                    <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                        <CheckCircle className="w-3.5 h-3.5 text-brand-green" /> Attendance
+                                    </h4>
+                                    <div className="flex items-center gap-4 flex-1">
+                                        <div className="relative w-16 h-16 shrink-0">
+                                            <svg className="w-full h-full transform -rotate-90">
+                                                <circle cx="32" cy="32" r="26" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-800" />
+                                                <circle
+                                                    cx="32" cy="32" r="26"
+                                                    stroke="currentColor"
+                                                    strokeWidth="6"
+                                                    fill="transparent"
+                                                    strokeDasharray="163.4"
+                                                    strokeDashoffset={163.4 - (163.4 * attendanceStats.rate / 100)}
+                                                    strokeLinecap="round"
+                                                    className="text-brand-green"
+                                                />
+                                            </svg>
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <span className="text-white font-bold text-sm">{attendanceStats.rate}%</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-2xl text-white font-bold leading-none">{attendanceStats.attended}</div>
+                                            <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Sessions</div>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                {!playerAccessLink ? (
-                                    <button
-                                        onClick={generatePlayerLink}
-                                        disabled={generatingLink}
-                                        className="w-full py-3 bg-brand-gold/20 hover:bg-brand-gold/30 border border-brand-gold/50 rounded-lg text-brand-gold font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                    >
-                                        {generatingLink ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Generating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Link2 className="w-4 h-4" />
-                                                Generate Access Link
-                                            </>
-                                        )}
-                                    </button>
+                                {/* Season Practice Minutes */}
+                                <div className="glass-panel p-5 col-span-2">
+                                    <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5 text-blue-400" /> Season Practice Minutes
+                                    </h4>
+                                    <div className="flex items-end gap-6">
+                                        <div className="flex-1">
+                                            <div className="flex items-baseline gap-2 mb-3">
+                                                <span className="text-3xl text-white font-bold font-display">{totalMins}</span>
+                                                <span className="text-xs text-gray-500 uppercase">total min</span>
+                                            </div>
+                                            {/* Bar chart */}
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-[10px] text-gray-400 uppercase tracking-wider">Team Practice</span>
+                                                        <span className="text-xs text-white font-bold">{practiceMins.team} min</span>
+                                                    </div>
+                                                    <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-brand-green rounded-full transition-all duration-500"
+                                                            style={{ width: totalMins > 0 ? `${(practiceMins.team / totalMins) * 100}%` : '0%' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-[10px] text-gray-400 uppercase tracking-wider">Solo Practice</span>
+                                                        <span className="text-xs text-white font-bold">{practiceMins.solo} min</span>
+                                                    </div>
+                                                    <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-brand-gold rounded-full transition-all duration-500"
+                                                            style={{ width: totalMins > 0 ? `${(practiceMins.solo / totalMins) * 100}%` : '0%' }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Quick Action Buttons */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                onClick={() => setShowLeaderboard(!showLeaderboard)}
+                                className="glass-panel p-4 flex items-center gap-3 hover:border-brand-gold/50 transition-all group"
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-brand-gold/10 flex items-center justify-center shrink-0 group-hover:bg-brand-gold/20 transition-colors">
+                                    <Trophy className="w-5 h-5 text-brand-gold" />
+                                </div>
+                                <div className="text-left flex-1">
+                                    <div className="text-white font-bold text-sm">Leaderboard</div>
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">See team rankings</div>
+                                </div>
+                                <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${showLeaderboard ? 'rotate-90' : ''}`} />
+                            </button>
+
+                            <button
+                                onClick={() => setShowDrillLibrary(true)}
+                                className="glass-panel p-4 flex items-center gap-3 hover:border-brand-green/50 transition-all group"
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-brand-green/10 flex items-center justify-center shrink-0 group-hover:bg-brand-green/20 transition-colors">
+                                    <Dumbbell className="w-5 h-5 text-brand-green" />
+                                </div>
+                                <div className="text-left flex-1">
+                                    <div className="text-white font-bold text-sm">Drill Library</div>
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Assign solo training</div>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-gray-500" />
+                            </button>
+                        </div>
+
+                        {/* Leaderboard (collapsible) */}
+                        {showLeaderboard && (
+                            <div className="animate-fade-in-up">
+                                <Leaderboard />
+                            </div>
+                        )}
+
+                        {/* Bottom Grid: Homework Detail + Events + Badges */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Homework / Assignments */}
+                            <div className="glass-panel p-5 border-l-4 border-l-brand-gold">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-brand-gold text-xs uppercase font-bold flex items-center gap-2">
+                                        <Zap className="w-4 h-4" /> Training Homework
+                                    </h4>
+                                    {totalAssignments > 0 && (
+                                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                            homeworkPercent === 100 ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-gold/20 text-brand-gold'
+                                        }`}>
+                                            {completedAssignments}/{totalAssignments} Done
+                                        </span>
+                                    )}
+                                </div>
+                                {assignments.length === 0 ? (
+                                    <div className="text-center py-6">
+                                        <Zap className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                                        <p className="text-gray-500 text-sm">No assignments yet</p>
+                                        <button
+                                            onClick={() => setShowDrillLibrary(true)}
+                                            className="mt-2 text-xs text-brand-green hover:underline"
+                                        >
+                                            Browse Drill Library
+                                        </button>
+                                    </div>
                                 ) : (
-                                    <div className="space-y-3">
-                                        <div className="bg-black/30 rounded-lg p-3 border border-white/10">
-                                            <p className="text-xs text-gray-400 font-mono break-all">{playerAccessLink}</p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={copyLink}
-                                                className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${
-                                                    linkCopied
-                                                        ? 'bg-green-500 text-white'
-                                                        : 'bg-white/10 hover:bg-white/20 text-white'
-                                                }`}
-                                            >
-                                                {linkCopied ? (
-                                                    <>
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        Copied!
-                                                    </>
+                                    <div className="space-y-2">
+                                        {assignments.map(assign => (
+                                            <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
+                                                {assign.status === 'completed' ? (
+                                                    <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
                                                 ) : (
-                                                    <>
-                                                        <Copy className="w-4 h-4" />
-                                                        Copy Link
-                                                    </>
+                                                    <div className="w-5 h-5 rounded-full border-2 border-yellow-500/50 shrink-0" />
                                                 )}
-                                            </button>
-                                            <button
-                                                onClick={generatePlayerLink}
-                                                className="py-2 px-3 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all"
-                                                title="Generate new link"
-                                            >
-                                                <RefreshCw className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                        <p className="text-[10px] text-gray-500 text-center">
-                                            This link never expires. Generate a new one to revoke the old link.
-                                        </p>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                                        {assign.drills?.title || assign.drills?.name || 'Drill'}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500">
+                                                        {assign.drills?.skill || assign.drills?.category || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
+                                                    </div>
+                                                </div>
+                                                {assign.status !== 'completed' && assign.due_date && (() => {
+                                                    const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
+                                                    if (days < 0) return <span className="text-[10px] text-red-400 font-bold shrink-0">Overdue</span>;
+                                                    if (days === 0) return <span className="text-[10px] text-brand-gold font-bold shrink-0">Today</span>;
+                                                    return <span className="text-[10px] text-gray-500 shrink-0">{days}d left</span>;
+                                                })()}
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                        </div>
 
-                        {/* Right Column - Stats & Info */}
-                        <div className="space-y-6">
-                            {/* Attendance Stats */}
-                            <div className="glass-panel p-6">
-                                <h3 className="text-gray-400 text-xs uppercase font-bold mb-4">Attendance Rate</h3>
-                                <div className="flex items-center gap-4">
-                                    <div className="relative w-24 h-24">
-                                        <svg className="w-full h-full transform -rotate-90">
-                                            <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-800" />
-                                            <circle
-                                                cx="48" cy="48" r="40"
-                                                stroke="currentColor"
-                                                strokeWidth="8"
-                                                fill="transparent"
-                                                strokeDasharray="251.2"
-                                                strokeDashoffset={251.2 - (251.2 * attendanceStats.rate / 100)}
-                                                className="text-brand-green"
-                                            />
-                                        </svg>
-                                        <div className="absolute inset-0 flex items-center justify-center text-white font-bold">{attendanceStats.rate}%</div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="text-sm text-white">{attendanceStats.attended} Practices Attended</div>
-                                        <div className="text-sm text-gray-500">{attendanceStats.missed} Missed</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Player Stats Summary */}
-                            {playerStats && (
-                                <div className="glass-panel p-6">
-                                    <h3 className="text-gray-400 text-xs uppercase font-bold mb-4">Season Stats</h3>
-                                    <div className="grid grid-cols-3 gap-4 text-center">
-                                        <div>
-                                            <div className="text-2xl text-white font-bold">{playerStats.games_played || 0}</div>
-                                            <div className="text-xs text-gray-500">Games</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-2xl text-brand-green font-bold">{playerStats.goals || 0}</div>
-                                            <div className="text-xs text-gray-500">Goals</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-2xl text-blue-400 font-bold">{playerStats.assists || 0}</div>
-                                            <div className="text-xs text-gray-500">Assists</div>
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
-                                        <span className="text-xs text-gray-500">XP Level</span>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-brand-gold rounded-full"
-                                                    style={{ width: `${Math.min(100, (playerStats.xp || 0) % 1000 / 10)}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-brand-gold font-bold">Lv {playerStats.level || 1}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Upcoming Events */}
-                            {upcomingEvents.length > 0 && (
-                                <div className="glass-panel p-6">
-                                    <h3 className="text-gray-400 text-xs uppercase font-bold mb-4 flex items-center gap-2">
-                                        <Calendar className="w-4 h-4" /> Upcoming Events
-                                    </h3>
-                                    <div className="space-y-3">
-                                        {upcomingEvents.slice(0, 3).map(event => {
-                                            const date = new Date(event.start_time);
-                                            const currentRsvp = eventRsvps[event.id];
-                                            return (
-                                                <div key={event.id} className="p-3 bg-white/5 rounded-lg space-y-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                                            event.type === 'game' ? 'bg-red-500/20 text-red-400' :
-                                                            event.type === 'practice' ? 'bg-brand-green/20 text-brand-green' :
-                                                            'bg-blue-500/20 text-blue-400'
-                                                        }`}>
-                                                            <span className="text-xs font-bold uppercase">{date.getDate()}</span>
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="text-sm text-white font-medium">{event.title}</div>
-                                                            <div className="text-xs text-gray-500">
-                                                                {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            {/* Right: Events + Badges + Access Link */}
+                            <div className="space-y-6">
+                                {/* Upcoming Events */}
+                                <div className="glass-panel p-5">
+                                    <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                        <Calendar className="w-3.5 h-3.5" /> Upcoming Events
+                                    </h4>
+                                    {upcomingEvents.length === 0 ? (
+                                        <p className="text-gray-500 text-sm text-center py-4">No upcoming events</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {upcomingEvents.slice(0, 3).map(event => {
+                                                const date = new Date(event.start_time);
+                                                const currentRsvp = eventRsvps[event.id];
+                                                return (
+                                                    <div key={event.id} className="p-3 bg-white/5 rounded-lg space-y-2">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center ${
+                                                                event.type === 'game' ? 'bg-red-500/20 text-red-400' :
+                                                                event.type === 'practice' ? 'bg-brand-green/20 text-brand-green' :
+                                                                'bg-blue-500/20 text-blue-400'
+                                                            }`}>
+                                                                <span className="text-[10px] font-bold uppercase leading-none">{date.toLocaleDateString('en-US', { month: 'short' })}</span>
+                                                                <span className="text-sm font-bold leading-none">{date.getDate()}</span>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm text-white font-medium truncate">{event.title}</div>
+                                                                <div className="text-[10px] text-gray-500">
+                                                                    {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                        {event.kit_color && (
-                                                            <span className="text-xs text-gray-400 px-2 py-1 bg-white/10 rounded">
-                                                                {event.kit_color}
-                                                            </span>
-                                                        )}
+                                                        <div className="flex gap-2">
+                                                            {['going', 'maybe', 'not_going'].map(status => (
+                                                                <button
+                                                                    key={status}
+                                                                    onClick={() => handleRsvp(event.id, status)}
+                                                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${
+                                                                        currentRsvp === status
+                                                                            ? status === 'going' ? 'bg-green-500 text-white' : status === 'maybe' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
+                                                                            : status === 'going' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/40' : status === 'maybe' ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40' : 'bg-red-500/20 text-red-400 hover:bg-red-500/40'
+                                                                    }`}
+                                                                >
+                                                                    {status === 'going' ? 'Going' : status === 'maybe' ? 'Maybe' : "Can't Go"}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                    {/* RSVP Buttons */}
-                                                    <div className="flex gap-2 pl-13">
-                                                        <button
-                                                            onClick={() => handleRsvp(event.id, 'going')}
-                                                            className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
-                                                                currentRsvp === 'going'
-                                                                    ? 'bg-green-500 text-white'
-                                                                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/40'
-                                                            }`}
-                                                        >
-                                                            ✓ Going
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleRsvp(event.id, 'maybe')}
-                                                            className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
-                                                                currentRsvp === 'maybe'
-                                                                    ? 'bg-yellow-500 text-white'
-                                                                    : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40'
-                                                            }`}
-                                                        >
-                                                            ? Maybe
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleRsvp(event.id, 'not_going')}
-                                                            className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
-                                                                currentRsvp === 'not_going'
-                                                                    ? 'bg-red-500 text-white'
-                                                                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/40'
-                                                            }`}
-                                                        >
-                                                            ✗ Can't Go
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <button
-                                        onClick={() => setCurrentView('schedule')}
-                                        className="w-full mt-3 text-xs text-gray-400 hover:text-white transition-colors"
-                                    >
-                                        View Full Schedule
-                                    </button>
+                                                );
+                                            })}
+                                            <button
+                                                onClick={() => setCurrentView('schedule')}
+                                                className="w-full text-xs text-gray-400 hover:text-white transition-colors mt-1"
+                                            >
+                                                View Full Schedule
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
 
-                            {/* Homework/Assignments */}
-                            {assignments.length > 0 && (
-                                <div className="glass-panel p-6 border-l-4 border-l-brand-gold">
-                                    <h3 className="text-brand-gold text-xs uppercase font-bold mb-3 flex items-center gap-2">
-                                        <Clock className="w-4 h-4" /> Training Homework
-                                    </h3>
-                                    <div className="space-y-2">
-                                        {assignments.slice(0, 3).map(assign => (
-                                            <div key={assign.id} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                                                <div>
-                                                    <div className="text-sm text-white">{assign.drills?.title}</div>
-                                                    <div className="text-xs text-gray-500">{assign.drills?.skill} - {assign.drills?.duration_minutes} min</div>
+                                {/* Recent Badges */}
+                                {playerBadges.length > 0 && (
+                                    <div className="glass-panel p-5">
+                                        <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                            <Trophy className="w-3.5 h-3.5 text-brand-gold" /> Recent Badges
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {playerBadges.map(pb => (
+                                                <div
+                                                    key={pb.id}
+                                                    className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-lg"
+                                                    title={pb.badges?.description}
+                                                >
+                                                    <span className="text-lg">{pb.badges?.icon}</span>
+                                                    <span className="text-xs text-white font-medium">{pb.badges?.name}</span>
                                                 </div>
-                                                {assign.status === 'completed' ? (
-                                                    <CheckCircle className="w-5 h-5 text-brand-green" />
-                                                ) : (
-                                                    <AlertCircle className="w-5 h-5 text-yellow-500" />
-                                                )}
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
+                                )}
+
+                                {/* Player Access Link */}
+                                <div className="glass-panel p-4 border-l-4 border-l-brand-gold">
+                                    <h4 className="text-brand-gold text-[10px] uppercase font-bold mb-2 flex items-center gap-1.5">
+                                        <Link2 className="w-3.5 h-3.5" /> Player Access Link
+                                    </h4>
+                                    <p className="text-gray-400 text-[10px] mb-3">
+                                        Share with {selectedChild?.first_name} to access their player dashboard.
+                                    </p>
+                                    {!playerAccessLink ? (
+                                        <button
+                                            onClick={generatePlayerLink}
+                                            disabled={generatingLink}
+                                            className="w-full py-2.5 bg-brand-gold/20 hover:bg-brand-gold/30 border border-brand-gold/50 rounded-lg text-brand-gold font-bold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            {generatingLink ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Link2 className="w-3.5 h-3.5" /> Generate Access Link</>}
+                                        </button>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <div className="bg-black/30 rounded-lg p-2 border border-white/10">
+                                                <p className="text-[10px] text-gray-400 font-mono break-all">{playerAccessLink}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={copyLink}
+                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${linkCopied ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                                                >
+                                                    {linkCopied ? <><CheckCircle className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy Link</>}
+                                                </button>
+                                                <button onClick={generatePlayerLink} className="py-2 px-2.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all" title="Generate new link">
+                                                    <RefreshCw className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
                 );
+            }
         }
     };
 
@@ -703,6 +822,21 @@ const ParentDashboard = () => {
                         setShowBadgeCelebration(false);
                         setNewBadge(null);
                     }}
+                />
+            )}
+
+            {/* Drill Library Modal */}
+            {showDrillLibrary && selectedChild && (
+                <DrillLibraryModal
+                    onClose={() => {
+                        setShowDrillLibrary(false);
+                        // Refresh assignments after closing
+                        if (selectedChild?.id) {
+                            fetchChildDetails(selectedChild.id);
+                        }
+                    }}
+                    player={selectedChild}
+                    teamId={selectedChild?.team_id}
                 />
             )}
 
