@@ -65,6 +65,7 @@ const DrillLibraryModal = ({ onClose, player, teamId }) => {
                     player_id: player.id,
                     team_id: teamId,
                     assigned_by: user.id,
+                    source: 'parent',
                     status: 'pending',
                     custom_duration: drill.duration_minutes || drill.duration || 15,
                     due_date: dueDate.toISOString()

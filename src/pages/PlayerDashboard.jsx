@@ -163,7 +163,7 @@ const PlayerDashboard = () => {
 
             // Use RPC function to bypass RLS for PIN-logged players
             const { data: rpcData, error: rpcError } = await supabase
-                .rpc('get_player_assignments', { target_player_id: playerId });
+                .rpc('get_player_assignments', { target_player_id: playerId, source_filter: 'coach' });
 
             if (rpcError) {
                 console.error('[PlayerDashboard] RPC assignments fetch error:', rpcError);

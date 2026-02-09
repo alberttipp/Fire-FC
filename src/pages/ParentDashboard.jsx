@@ -11,6 +11,7 @@ import GalleryView from '../components/dashboard/GalleryView';
 import LiveScoringView from '../components/dashboard/LiveScoringView';
 import CarpoolVolunteerView from '../components/dashboard/CarpoolVolunteerView';
 import DrillLibraryModal from '../components/dashboard/DrillLibraryModal';
+import ParentSessionBuilder from '../components/dashboard/ParentSessionBuilder';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import BadgeCelebration from '../components/BadgeCelebration';
@@ -29,7 +30,8 @@ const ParentDashboard = () => {
     const [playerEvaluation, setPlayerEvaluation] = useState(null); // Coach ratings from evaluations table
     const [playerBadges, setPlayerBadges] = useState([]);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
-    const [assignments, setAssignments] = useState([]);
+    const [coachAssignments, setCoachAssignments] = useState([]);
+    const [parentAssignments, setParentAssignments] = useState([]);
     const [attendanceStats, setAttendanceStats] = useState({ attended: 0, missed: 0, rate: 0 });
     const [eventRsvps, setEventRsvps] = useState({}); // { eventId: 'going' | 'not_going' | 'maybe' }
     const [newBadge, setNewBadge] = useState(null);
@@ -39,6 +41,7 @@ const ParentDashboard = () => {
     const [practiceMins, setPracticeMins] = useState({ team: 0, solo: 0 });
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showDrillLibrary, setShowDrillLibrary] = useState(false);
+    const [showSessionBuilder, setShowSessionBuilder] = useState(false);
 
     // Player access link state
     const [playerAccessLink, setPlayerAccessLink] = useState(null);
@@ -204,18 +207,28 @@ const ParentDashboard = () => {
                 setUpcomingEvents(events || []);
             }
 
-            // Fetch assignments
-            const { data: assigns } = await supabase
+            // Fetch coach assignments (read-only for parent)
+            const { data: coachAssigns } = await supabase
                 .from('assignments')
-                .select(`
-                    *,
-                    drills:drill_id (title, skill, duration_minutes)
-                `)
+                .select('*, drills:drill_id (name, title, skill, category, duration_minutes, duration)')
                 .eq('player_id', playerId)
+                .eq('source', 'coach')
                 .order('created_at', { ascending: false })
-                .limit(5);
+                .limit(10);
 
-            setAssignments(assigns || []);
+            setCoachAssignments(coachAssigns || []);
+
+            // Fetch parent assignments (completable by parent)
+            const { data: parentAssigns } = await supabase
+                .from('assignments')
+                .select('*, drills:drill_id (name, title, skill, category, duration_minutes, duration)')
+                .eq('player_id', playerId)
+                .eq('source', 'parent')
+                .eq('assigned_by', user.id)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            setParentAssignments(parentAssigns || []);
 
             // Calculate attendance from real RSVP data
             if (teamId) {
@@ -363,6 +376,49 @@ const ParentDashboard = () => {
         }
     };
 
+    // Handle completing a parent-assigned drill
+    const handleCompleteParentDrill = async (assignmentId) => {
+        if (!selectedChild?.id) return;
+
+        // Check if coach homework is done first
+        const pendingCoach = coachAssignments.filter(a => a.status !== 'completed');
+        if (pendingCoach.length > 0) {
+            alert('Complete coach homework first before marking parent practice drills as done!');
+            return;
+        }
+
+        // Optimistic update
+        setParentAssignments(prev => prev.map(a =>
+            a.id === assignmentId ? { ...a, status: 'completed', completed_at: new Date().toISOString() } : a
+        ));
+
+        try {
+            const { data: result, error } = await supabase
+                .rpc('complete_assignment', {
+                    p_assignment_id: assignmentId,
+                    p_player_id: selectedChild.id
+                });
+
+            if (error) {
+                console.error('Error completing parent assignment:', error);
+                // Fallback direct update
+                await supabase
+                    .from('assignments')
+                    .update({ status: 'completed', completed_at: new Date().toISOString() })
+                    .eq('id', assignmentId);
+            }
+
+            // Dispatch event for Leaderboard refresh
+            window.dispatchEvent(new CustomEvent('drill-completed'));
+        } catch (err) {
+            console.error('Error:', err);
+            // Revert optimistic update
+            setParentAssignments(prev => prev.map(a =>
+                a.id === assignmentId ? { ...a, status: 'pending', completed_at: null } : a
+            ));
+        }
+    };
+
     // Format player data for PlayerCard component
     // Uses playerEvaluation from evaluations table (same as PlayerDashboard)
     const formatPlayerForCard = (player) => {
@@ -444,9 +500,12 @@ const ParentDashboard = () => {
                 );
             case 'overview':
             default: {
-                const completedAssignments = assignments.filter(a => a.status === 'completed').length;
-                const totalAssignments = assignments.length;
-                const homeworkPercent = totalAssignments > 0 ? Math.round((completedAssignments / totalAssignments) * 100) : 0;
+                const completedCoach = coachAssignments.filter(a => a.status === 'completed').length;
+                const totalCoach = coachAssignments.length;
+                const homeworkPercent = totalCoach > 0 ? Math.round((completedCoach / totalCoach) * 100) : 0;
+                const coachHomeworkDone = totalCoach === 0 || completedCoach === totalCoach;
+                const completedParent = parentAssignments.filter(a => a.status === 'completed').length;
+                const totalParent = parentAssignments.length;
                 const totalMins = practiceMins.team + practiceMins.solo;
 
                 return (
@@ -510,10 +569,10 @@ const ParentDashboard = () => {
                                         </div>
                                         <div>
                                             <div className="text-2xl text-white font-bold leading-none">
-                                                {completedAssignments}<span className="text-gray-500 text-lg">/{totalAssignments}</span>
+                                                {completedCoach}<span className="text-gray-500 text-lg">/{totalCoach}</span>
                                             </div>
                                             <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">
-                                                {completedAssignments === totalAssignments && totalAssignments > 0 ? 'All Done!' : 'Drills Done'}
+                                                {coachHomeworkDone && totalCoach > 0 ? 'All Done!' : 'Coach Drills'}
                                             </div>
                                         </div>
                                     </div>
@@ -611,15 +670,15 @@ const ParentDashboard = () => {
                             </button>
 
                             <button
-                                onClick={() => setShowDrillLibrary(true)}
+                                onClick={() => setShowSessionBuilder(true)}
                                 className="glass-panel p-4 flex items-center gap-3 hover:border-brand-green/50 transition-all group"
                             >
                                 <div className="w-10 h-10 rounded-lg bg-brand-green/10 flex items-center justify-center shrink-0 group-hover:bg-brand-green/20 transition-colors">
                                     <Dumbbell className="w-5 h-5 text-brand-green" />
                                 </div>
                                 <div className="text-left flex-1">
-                                    <div className="text-white font-bold text-sm">Drill Library</div>
-                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Assign solo training</div>
+                                    <div className="text-white font-bold text-sm">Solo Training Builder</div>
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Build & assign practice</div>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-gray-500" />
                             </button>
@@ -634,58 +693,122 @@ const ParentDashboard = () => {
 
                         {/* Bottom Grid: Homework Detail + Events + Badges */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Homework / Assignments */}
-                            <div className="glass-panel p-5 border-l-4 border-l-brand-gold">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="text-brand-gold text-xs uppercase font-bold flex items-center gap-2">
-                                        <Zap className="w-4 h-4" /> Training Homework
-                                    </h4>
-                                    {totalAssignments > 0 && (
-                                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                                            homeworkPercent === 100 ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-gold/20 text-brand-gold'
-                                        }`}>
-                                            {completedAssignments}/{totalAssignments} Done
-                                        </span>
+                            {/* Coach Homework (read-only) + Parent Practice (completable) */}
+                            <div className="space-y-4">
+                                {/* Coach Homework */}
+                                <div className="glass-panel p-5 border-l-4 border-l-blue-500">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h4 className="text-blue-400 text-xs uppercase font-bold flex items-center gap-2">
+                                            <Target className="w-4 h-4" /> Coach Homework
+                                        </h4>
+                                        {totalCoach > 0 && (
+                                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                                coachHomeworkDone ? 'bg-brand-green/20 text-brand-green' : 'bg-blue-500/20 text-blue-400'
+                                            }`}>
+                                                {completedCoach}/{totalCoach} Done
+                                            </span>
+                                        )}
+                                    </div>
+                                    {coachAssignments.length === 0 ? (
+                                        <div className="text-center py-4">
+                                            <Target className="w-6 h-6 text-gray-700 mx-auto mb-1" />
+                                            <p className="text-gray-500 text-xs">No coach homework this week</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {coachAssignments.map(assign => (
+                                                <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
+                                                    {assign.status === 'completed' ? (
+                                                        <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
+                                                    ) : (
+                                                        <div className="w-5 h-5 rounded-full border-2 border-blue-500/50 shrink-0" />
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                                            {assign.drills?.name || assign.drills?.title || 'Drill'}
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500">
+                                                            {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
+                                                        </div>
+                                                    </div>
+                                                    {assign.status !== 'completed' && assign.due_date && (() => {
+                                                        const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
+                                                        if (days < 0) return <span className="text-[10px] text-red-400 font-bold shrink-0">Overdue</span>;
+                                                        if (days === 0) return <span className="text-[10px] text-blue-400 font-bold shrink-0">Today</span>;
+                                                        return <span className="text-[10px] text-gray-500 shrink-0">{days}d left</span>;
+                                                    })()}
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
-                                {assignments.length === 0 ? (
-                                    <div className="text-center py-6">
-                                        <Zap className="w-8 h-8 text-gray-700 mx-auto mb-2" />
-                                        <p className="text-gray-500 text-sm">No assignments yet</p>
-                                        <button
-                                            onClick={() => setShowDrillLibrary(true)}
-                                            className="mt-2 text-xs text-brand-green hover:underline"
-                                        >
-                                            Browse Drill Library
-                                        </button>
+
+                                {/* Parent Practice */}
+                                <div className="glass-panel p-5 border-l-4 border-l-brand-gold">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h4 className="text-brand-gold text-xs uppercase font-bold flex items-center gap-2">
+                                            <Zap className="w-4 h-4" /> Parent Solo Practice
+                                        </h4>
+                                        {totalParent > 0 && (
+                                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                                completedParent === totalParent ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-gold/20 text-brand-gold'
+                                            }`}>
+                                                {completedParent}/{totalParent} Done
+                                            </span>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {assignments.map(assign => (
-                                            <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
-                                                {assign.status === 'completed' ? (
-                                                    <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
-                                                ) : (
-                                                    <div className="w-5 h-5 rounded-full border-2 border-yellow-500/50 shrink-0" />
-                                                )}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
-                                                        {assign.drills?.title || assign.drills?.name || 'Drill'}
+
+                                    {/* Coach homework gate */}
+                                    {!coachHomeworkDone && totalParent > 0 && (
+                                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3 flex items-start gap-2">
+                                            <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
+                                            <p className="text-xs text-yellow-400">Complete coach homework first to unlock parent practice credit!</p>
+                                        </div>
+                                    )}
+
+                                    {parentAssignments.length === 0 ? (
+                                        <div className="text-center py-4">
+                                            <Dumbbell className="w-6 h-6 text-gray-700 mx-auto mb-1" />
+                                            <p className="text-gray-500 text-xs">No parent practice assigned</p>
+                                            <button
+                                                onClick={() => setShowSessionBuilder(true)}
+                                                className="mt-2 text-xs text-brand-green hover:underline"
+                                            >
+                                                Build a Session
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {parentAssignments.map(assign => (
+                                                <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
+                                                    {assign.status === 'completed' ? (
+                                                        <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleCompleteParentDrill(assign.id)}
+                                                            className="w-5 h-5 rounded-full border-2 border-brand-gold/50 shrink-0 hover:bg-brand-gold/20 transition-colors cursor-pointer"
+                                                            title={coachHomeworkDone ? 'Mark as done' : 'Complete coach homework first'}
+                                                        />
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                                            {assign.drills?.name || assign.drills?.title || 'Drill'}
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500">
+                                                            {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
+                                                        </div>
                                                     </div>
-                                                    <div className="text-[10px] text-gray-500">
-                                                        {assign.drills?.skill || assign.drills?.category || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
-                                                    </div>
+                                                    {assign.status !== 'completed' && assign.due_date && (() => {
+                                                        const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
+                                                        if (days < 0) return <span className="text-[10px] text-red-400 font-bold shrink-0">Overdue</span>;
+                                                        if (days === 0) return <span className="text-[10px] text-brand-gold font-bold shrink-0">Today</span>;
+                                                        return <span className="text-[10px] text-gray-500 shrink-0">{days}d left</span>;
+                                                    })()}
                                                 </div>
-                                                {assign.status !== 'completed' && assign.due_date && (() => {
-                                                    const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
-                                                    if (days < 0) return <span className="text-[10px] text-red-400 font-bold shrink-0">Overdue</span>;
-                                                    if (days === 0) return <span className="text-[10px] text-brand-gold font-bold shrink-0">Today</span>;
-                                                    return <span className="text-[10px] text-gray-500 shrink-0">{days}d left</span>;
-                                                })()}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Right: Events + Badges + Access Link */}
@@ -830,13 +953,26 @@ const ParentDashboard = () => {
                 <DrillLibraryModal
                     onClose={() => {
                         setShowDrillLibrary(false);
-                        // Refresh assignments after closing
-                        if (selectedChild?.id) {
-                            fetchChildDetails(selectedChild.id);
-                        }
+                        if (selectedChild?.id) fetchChildDetails(selectedChild.id);
                     }}
                     player={selectedChild}
                     teamId={selectedChild?.team_id}
+                />
+            )}
+
+            {/* Parent Session Builder */}
+            {showSessionBuilder && selectedChild && (
+                <ParentSessionBuilder
+                    onClose={() => {
+                        setShowSessionBuilder(false);
+                        if (selectedChild?.id) fetchChildDetails(selectedChild.id);
+                    }}
+                    onSave={() => {
+                        if (selectedChild?.id) fetchChildDetails(selectedChild.id);
+                    }}
+                    playerId={selectedChild.id}
+                    teamId={selectedChild?.team_id}
+                    playerName={selectedChild.first_name}
                 />
             )}
 
