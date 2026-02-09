@@ -7,6 +7,7 @@ const Leaderboard = () => {
     const { user } = useAuth();
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [viewMode, setViewMode] = useState('weekly'); // 'weekly' or 'career'
 
     useEffect(() => {
         fetchLeaderboard();
@@ -40,17 +41,19 @@ const Leaderboard = () => {
             supabase.removeChannel(channel);
             window.removeEventListener('drill-completed', handleDrillCompleted);
         };
-    }, []);
+    }, [viewMode]);
 
     const fetchLeaderboard = async () => {
         setLoading(true);
         try {
+            const minutesCol = viewMode === 'weekly' ? 'weekly_minutes' : 'training_minutes';
+
             // Step 1: Fetch player_stats (no join - avoids RLS issues)
             const { data: statsData, error: statsError } = await supabase
                 .from('player_stats')
-                .select('player_id, training_minutes')
-                .gt('training_minutes', 0)
-                .order('training_minutes', { ascending: false })
+                .select(`player_id, ${minutesCol}`)
+                .gt(minutesCol, 0)
+                .order(minutesCol, { ascending: false })
                 .limit(10);
 
             if (statsError) {
@@ -91,7 +94,7 @@ const Leaderboard = () => {
                 return {
                     rank: index + 1,
                     name: player ? `${player.first_name} ${player.last_name?.charAt(0) || ''}.` : 'Unknown',
-                    minutes: stat.training_minutes || 0,
+                    minutes: stat[minutesCol] || 0,
                     team: 'Team',
                     isUser: player?.id === user?.id || player?.user_id === user?.id,
                     playerId: stat.player_id
@@ -122,9 +125,12 @@ const Leaderboard = () => {
                 <h3 className="text-xl text-white font-display uppercase font-bold flex items-center gap-2">
                     <Trophy className="w-6 h-6 text-brand-gold" /> Leaderboard
                 </h3>
-                <span className="text-xs text-brand-green border border-brand-green/30 px-2 py-1 rounded bg-brand-green/5 uppercase tracking-wider">
-                    Weekly
-                </span>
+                <button
+                    onClick={() => setViewMode(prev => prev === 'weekly' ? 'career' : 'weekly')}
+                    className="text-xs text-brand-green border border-brand-green/30 px-2 py-1 rounded bg-brand-green/5 uppercase tracking-wider hover:bg-brand-green/10 transition-colors cursor-pointer"
+                >
+                    {viewMode === 'weekly' ? 'Weekly' : 'Career'}
+                </button>
             </div>
 
             <div className="space-y-4">

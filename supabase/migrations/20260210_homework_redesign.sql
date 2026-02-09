@@ -39,6 +39,8 @@ ON assignments FOR DELETE
 USING (assigned_by = auth.uid() AND source = 'parent');
 
 -- 1E. Update get_player_assignments RPC to accept optional source_filter
+-- Must drop old signature first (1 param) before creating new one (2 params)
+DROP FUNCTION IF EXISTS get_player_assignments(UUID);
 CREATE OR REPLACE FUNCTION get_player_assignments(
     target_player_id UUID,
     source_filter TEXT DEFAULT NULL

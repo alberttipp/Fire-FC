@@ -76,6 +76,41 @@ const Dashboard = () => {
         }
     }, [voiceCommand]);
 
+    // Weekly auto-clear: trigger on Sunday/Monday for coach/manager
+    useEffect(() => {
+        const checkWeeklyClear = async () => {
+            if (!user?.id) return;
+            const role = profile?.role;
+            if (role !== 'coach' && role !== 'manager') return;
+
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon
+            if (dayOfWeek > 1) return; // Only check Sun/Mon
+
+            const lastCheck = localStorage.getItem('last_weekly_clear_check');
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - dayOfWeek);
+            weekStart.setHours(0, 0, 0, 0);
+
+            if (lastCheck && new Date(lastCheck) >= weekStart) return;
+
+            console.log('[Dashboard] Running weekly clear check...');
+            try {
+                const { data, error } = await supabase.rpc('clear_weekly_assignments');
+                if (error) {
+                    console.error('[Dashboard] Weekly clear error:', error);
+                } else {
+                    console.log('[Dashboard] Weekly clear result:', data);
+                }
+                localStorage.setItem('last_weekly_clear_check', new Date().toISOString());
+            } catch (err) {
+                console.error('[Dashboard] Weekly clear failed:', err);
+            }
+        };
+
+        checkWeeklyClear();
+    }, [user?.id, profile?.role]);
+
     const handleLogout = async () => {
         await signOut();
         navigate('/login');

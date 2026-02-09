@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, TrendingUp, Award, Medal } from 'lucide-react';
+import { X, Save, TrendingUp, Award, Medal, Clock } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import confetti from 'canvas-confetti';
 import { badges as mockBadges } from '../../data/badges';
@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState('eval'); // 'eval' or 'awards'
+    const [activeTab, setActiveTab] = useState('eval'); // 'eval', 'awards', or 'training'
     const [saving, setSaving] = useState(false);
     const [coachNotes, setCoachNotes] = useState('');
     const [season, setSeason] = useState('Spring 2026');
@@ -17,6 +17,16 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     // Badge Data State
     const [allBadges, setAllBadges] = useState([]);
     const [awardedBadges, setAwardedBadges] = useState({}); // { badgeId: count }
+
+    // Training Stats State
+    const [trainingStats, setTrainingStats] = useState({
+        weekly_minutes: 0,
+        season_minutes: 0,
+        yearly_minutes: 0,
+        training_minutes: 0,
+        drills_completed: 0,
+        streak_days: 0,
+    });
 
     // Stats - will load from DB if exists
     const [stats, setStats] = useState({
@@ -83,6 +93,27 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                         counts[row.badge_id] = (counts[row.badge_id] || 0) + 1;
                     });
                     setAwardedBadges(counts);
+                }
+
+                // 4. Get Training Stats
+                const { data: statsRow, error: statsError } = await supabase
+                    .from('player_stats')
+                    .select('weekly_minutes, season_minutes, yearly_minutes, training_minutes, drills_completed, streak_days')
+                    .eq('player_id', player.id)
+                    .single();
+
+                if (statsError && statsError.code !== 'PGRST116') {
+                    console.error('Error fetching training stats:', statsError);
+                }
+                if (statsRow) {
+                    setTrainingStats({
+                        weekly_minutes: statsRow.weekly_minutes || 0,
+                        season_minutes: statsRow.season_minutes || 0,
+                        yearly_minutes: statsRow.yearly_minutes || 0,
+                        training_minutes: statsRow.training_minutes || 0,
+                        drills_completed: statsRow.drills_completed || 0,
+                        streak_days: statsRow.streak_days || 0,
+                    });
                 }
             }
         };
@@ -267,6 +298,35 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         }
     }
 
+    const handleSaveTraining = async () => {
+        if (!player?.id) return;
+        setSaving(true);
+        try {
+            const { error } = await supabase.rpc('adjust_player_training_stats', {
+                p_player_id: player.id,
+                p_weekly_minutes: trainingStats.weekly_minutes,
+                p_season_minutes: trainingStats.season_minutes,
+                p_yearly_minutes: trainingStats.yearly_minutes,
+                p_training_minutes: trainingStats.training_minutes,
+            });
+
+            if (error) throw error;
+            alert('✓ Training stats saved!');
+        } catch (err) {
+            console.error('Error saving training stats:', err);
+            alert('Failed to save: ' + err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const adjustTrainingStat = (key, delta) => {
+        setTrainingStats(prev => ({
+            ...prev,
+            [key]: Math.max(0, (prev[key] || 0) + delta)
+        }));
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-brand-dark border border-white/10 w-full max-w-4xl rounded-xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto">
@@ -327,12 +387,78 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                             >
                                 <span className="flex items-center gap-2"><Award className="w-4 h-4" /> Badges</span>
                             </button>
+                            <button
+                                onClick={() => setActiveTab('training')}
+                                className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'training' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                            >
+                                <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> Training</span>
+                            </button>
                         </div>
                     </div>
 
                     {/* Scrollable Content */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-0">
-                        {activeTab === 'eval' ? (
+                        {activeTab === 'training' ? (
+                            <div className="space-y-5">
+                                {/* Read-only summary row */}
+                                <div className="grid grid-cols-3 gap-3 mb-2">
+                                    <div className="text-center p-3 bg-white/5 rounded-lg">
+                                        <div className="text-2xl font-bold text-brand-green">{trainingStats.streak_days}</div>
+                                        <div className="text-[10px] text-gray-500 uppercase">Streak</div>
+                                    </div>
+                                    <div className="text-center p-3 bg-white/5 rounded-lg">
+                                        <div className="text-2xl font-bold text-white">{trainingStats.drills_completed}</div>
+                                        <div className="text-[10px] text-gray-500 uppercase">Drills Done</div>
+                                    </div>
+                                    <div className="text-center p-3 bg-white/5 rounded-lg">
+                                        <div className="text-2xl font-bold text-brand-gold">{trainingStats.training_minutes}</div>
+                                        <div className="text-[10px] text-gray-500 uppercase">Career Min</div>
+                                    </div>
+                                </div>
+
+                                {[
+                                    { key: 'weekly_minutes', label: 'This Week', color: 'text-blue-400', bgColor: 'bg-blue-500' },
+                                    { key: 'season_minutes', label: 'Season Total', color: 'text-brand-green', bgColor: 'bg-brand-green' },
+                                    { key: 'yearly_minutes', label: 'Year Total', color: 'text-brand-gold', bgColor: 'bg-brand-gold' },
+                                    { key: 'training_minutes', label: 'Career Total', color: 'text-white', bgColor: 'bg-white' },
+                                ].map(({ key, label, color, bgColor }) => (
+                                    <div key={key}>
+                                        <div className="flex justify-between mb-2">
+                                            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider">{label}</label>
+                                            <span className={`text-lg font-bold ${color}`}>
+                                                {trainingStats[key] || 0} <span className="text-xs text-gray-500">min</span>
+                                            </span>
+                                        </div>
+                                        {!readOnly ? (
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => adjustTrainingStat(key, -10)}
+                                                    className="w-8 h-8 rounded bg-red-500/20 text-red-400 font-bold hover:bg-red-500/30 transition-colors"
+                                                >-</button>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={trainingStats[key] || 0}
+                                                    onChange={(e) => setTrainingStats(prev => ({ ...prev, [key]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                                                    className="flex-1 bg-black/30 border border-white/10 rounded-lg p-2 text-white text-center focus:border-brand-green outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => adjustTrainingStat(key, 10)}
+                                                    className="w-8 h-8 rounded bg-green-500/20 text-green-400 font-bold hover:bg-green-500/30 transition-colors"
+                                                >+</button>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                                <div className={`h-full ${bgColor} transition-all duration-700`} style={{ width: `${Math.min((trainingStats[key] || 0) / 5, 100)}%` }} />
+                                            </div>
+                                        )}
+                                        {key === 'training_minutes' && !readOnly && (
+                                            <p className="text-[10px] text-yellow-400 italic mt-1">Career total should only be adjusted to correct errors</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : activeTab === 'eval' ? (
                             <div className="space-y-6">
                                 {Object.keys(stats).map((key) => (
                                     <div key={key}>
@@ -435,14 +561,14 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                     {!readOnly && (
                         <div className="p-6 pt-4 border-t border-white/10 bg-black/20 shrink-0 flex justify-between items-center">
                             <span className="text-xs text-gray-500">
-                                {activeTab === 'awards' ? 'Tap badges to award' : 'Adjust stats carefully'}
+                                {activeTab === 'training' ? 'Edit training minutes' : activeTab === 'awards' ? 'Tap badges to award' : 'Adjust stats carefully'}
                             </span>
                             <button
-                                onClick={handleSave}
+                                onClick={activeTab === 'training' ? handleSaveTraining : handleSave}
                                 disabled={saving}
                                 className="btn-primary flex items-center gap-2 disabled:opacity-50"
                             >
-                                <Save className="w-4 h-4" /> {saving ? 'Saving...' : `Save ${activeTab === 'awards' ? 'Badges' : 'Evaluation'}`}
+                                <Save className="w-4 h-4" /> {saving ? 'Saving...' : `Save ${activeTab === 'training' ? 'Training' : activeTab === 'awards' ? 'Badges' : 'Evaluation'}`}
                             </button>
                         </div>
                     )}

@@ -38,7 +38,7 @@ const ParentDashboard = () => {
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
 
     // Practice minutes state
-    const [practiceMins, setPracticeMins] = useState({ team: 0, solo: 0 });
+    const [practiceMins, setPracticeMins] = useState({ team: 0, solo: 0, weekly: 0, season: 0, yearly: 0, career: 0 });
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showDrillLibrary, setShowDrillLibrary] = useState(false);
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
@@ -110,7 +110,7 @@ const ParentDashboard = () => {
         setPlayerEvaluation(null);
         setPlayerStats(null);
         setPlayerBadges([]);
-        setPracticeMins({ team: 0, solo: 0 });
+        setPracticeMins({ team: 0, solo: 0, weekly: 0, season: 0, yearly: 0, career: 0 });
 
         try {
             // Fetch player stats (training minutes, streak, etc.)
@@ -122,8 +122,11 @@ const ParentDashboard = () => {
 
             setPlayerStats(stats);
 
-            // Solo practice minutes from player_stats (cumulative from completed drill assignments)
+            // Training minutes from player_stats at all time levels
             const soloMins = stats?.training_minutes || 0;
+            const weeklyMins = stats?.weekly_minutes || 0;
+            const seasonMins = stats?.season_minutes || 0;
+            const yearlyMins = stats?.yearly_minutes || 0;
 
             // Fetch player evaluation (coach ratings - same as PlayerDashboard)
             console.log('[ParentDashboard] Fetching evaluation for player_id:', playerId);
@@ -278,9 +281,9 @@ const ParentDashboard = () => {
                         }, 0);
                     }
                 }
-                setPracticeMins({ team: teamMins, solo: soloMins });
+                setPracticeMins({ team: teamMins, solo: soloMins, weekly: weeklyMins, season: seasonMins, yearly: yearlyMins, career: soloMins });
             } else {
-                setPracticeMins({ team: 0, solo: soloMins });
+                setPracticeMins({ team: 0, solo: soloMins, weekly: weeklyMins, season: seasonMins, yearly: yearlyMins, career: soloMins });
             }
 
         } catch (err) {
@@ -609,43 +612,52 @@ const ParentDashboard = () => {
                                     </div>
                                 </div>
 
-                                {/* Season Practice Minutes */}
+                                {/* Training Minutes Breakdown */}
                                 <div className="glass-panel p-5 col-span-2">
                                     <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                        <Clock className="w-3.5 h-3.5 text-blue-400" /> Season Practice Minutes
+                                        <Clock className="w-3.5 h-3.5 text-blue-400" /> Training Minutes
                                     </h4>
-                                    <div className="flex items-end gap-6">
-                                        <div className="flex-1">
-                                            <div className="flex items-baseline gap-2 mb-3">
-                                                <span className="text-3xl text-white font-bold font-display">{totalMins}</span>
-                                                <span className="text-xs text-gray-500 uppercase">total min</span>
+                                    <div className="grid grid-cols-4 gap-3 mb-4">
+                                        <div className="text-center">
+                                            <div className="text-xl text-blue-400 font-bold font-display">{practiceMins.weekly}</div>
+                                            <div className="text-[9px] text-gray-500 uppercase tracking-wider">This Week</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-xl text-brand-green font-bold font-display">{practiceMins.season}</div>
+                                            <div className="text-[9px] text-gray-500 uppercase tracking-wider">Season</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-xl text-brand-gold font-bold font-display">{practiceMins.yearly}</div>
+                                            <div className="text-[9px] text-gray-500 uppercase tracking-wider">Year</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-xl text-white font-bold font-display">{practiceMins.career}</div>
+                                            <div className="text-[9px] text-gray-500 uppercase tracking-wider">Career</div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Team Practice</span>
+                                                <span className="text-xs text-white font-bold">{practiceMins.team} min</span>
                                             </div>
-                                            {/* Bar chart */}
-                                            <div className="space-y-2">
-                                                <div>
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-[10px] text-gray-400 uppercase tracking-wider">Team Practice</span>
-                                                        <span className="text-xs text-white font-bold">{practiceMins.team} min</span>
-                                                    </div>
-                                                    <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-brand-green rounded-full transition-all duration-500"
-                                                            style={{ width: totalMins > 0 ? `${(practiceMins.team / totalMins) * 100}%` : '0%' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-[10px] text-gray-400 uppercase tracking-wider">Solo Practice</span>
-                                                        <span className="text-xs text-white font-bold">{practiceMins.solo} min</span>
-                                                    </div>
-                                                    <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-brand-gold rounded-full transition-all duration-500"
-                                                            style={{ width: totalMins > 0 ? `${(practiceMins.solo / totalMins) * 100}%` : '0%' }}
-                                                        />
-                                                    </div>
-                                                </div>
+                                            <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-brand-green rounded-full transition-all duration-500"
+                                                    style={{ width: totalMins > 0 ? `${(practiceMins.team / totalMins) * 100}%` : '0%' }}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Solo Practice</span>
+                                                <span className="text-xs text-white font-bold">{practiceMins.solo} min</span>
+                                            </div>
+                                            <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-brand-gold rounded-full transition-all duration-500"
+                                                    style={{ width: totalMins > 0 ? `${(practiceMins.solo / totalMins) * 100}%` : '0%' }}
+                                                />
                                             </div>
                                         </div>
                                     </div>

@@ -123,7 +123,7 @@ const PlayerDashboard = () => {
             // 1b. Fetch Training Streak from player_stats
             const { data: streakData, error: streakError } = await supabase
                 .from('player_stats')
-                .select('streak_days, training_minutes, weekly_minutes')
+                .select('streak_days, training_minutes, weekly_minutes, season_minutes, yearly_minutes')
                 .eq('player_id', playerId)
                 .single();
 
