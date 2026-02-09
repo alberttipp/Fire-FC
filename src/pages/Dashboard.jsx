@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Shield, Mic, Bell, Camera, Tv, Car } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Camera, Tv, Car } from 'lucide-react';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
 import TrainingView from '../components/dashboard/TrainingView';
@@ -13,7 +13,6 @@ import TryoutHub from '../components/dashboard/TryoutHub';
 import GalleryView from '../components/dashboard/GalleryView';
 import LiveScoringView from '../components/dashboard/LiveScoringView';
 import CarpoolVolunteerView from '../components/dashboard/CarpoolVolunteerView';
-import AdminPanel from '../components/AdminPanel';
 import NotificationPanel from '../components/dashboard/NotificationPanel';
 import { supabase } from '../supabaseClient';
 
@@ -21,7 +20,6 @@ const Dashboard = () => {
     const { user, profile, signOut } = useAuth(); // Added profile
     const navigate = useNavigate();
     const [currentView, setCurrentView] = useState('club');
-    const [showAdminPanel, setShowAdminPanel] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -74,7 +72,7 @@ const Dashboard = () => {
     // Register dashboard controls with voice command system
     useEffect(() => {
         if (voiceCommand?.registerDashboardControls) {
-            voiceCommand.registerDashboardControls(setCurrentView, setShowAdminPanel);
+            voiceCommand.registerDashboardControls(setCurrentView);
         }
     }, [voiceCommand]);
 
@@ -101,8 +99,6 @@ const Dashboard = () => {
 
     // Check profile.role (Real User) or user.role (Demo User)
     const isManager = profile?.role === 'manager' || user?.role === 'manager';
-    const isStaff = isManager || profile?.role === 'coach' || user?.role === 'coach';
-
     return (
         <div className="min-h-screen bg-brand-dark pb-20">
             {/* Top Navigation Bar */}
@@ -250,19 +246,9 @@ const Dashboard = () => {
                             )}
                         </button>
 
-                        {/* Admin Panel Button (Staff Only - Manager or Coach) */}
-                        {isStaff && (
-                            <button
-                                onClick={() => setShowAdminPanel(true)}
-                                className="text-red-400 hover:text-red-300 transition-colors p-1.5 rounded hover:bg-red-500/10"
-                                title="Admin Panel"
-                            >
-                                <Shield className="w-5 h-5" />
-                            </button>
-                        )}
-
-                        <button onClick={handleLogout} className="text-gray-400 hover:text-red-400 transition-colors" title="Logout">
-                            <LogOut className="w-5 h-5" />
+                        <button onClick={handleLogout} className="flex items-center gap-1.5 text-gray-400 hover:text-red-400 transition-colors px-2 py-1.5 rounded hover:bg-red-500/10" title="Logout">
+                            <LogOut className="w-4 h-4" />
+                            <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">Logout</span>
                         </button>
                     </div>
                 </div>
@@ -272,9 +258,6 @@ const Dashboard = () => {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
                 {renderView()}
             </main>
-
-            {/* Admin Panel Modal */}
-            {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
 
             {/* Notification Panel */}
             {showNotifications && (

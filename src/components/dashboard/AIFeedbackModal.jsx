@@ -1,59 +1,67 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Mic, Send, Sparkles, StopCircle, Mail, MessageSquare, Check, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Mic, Send, Sparkles, StopCircle, Mail, MessageSquare, Check, RefreshCw, AlertCircle, Loader2, Type } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 const AIFeedbackModal = ({ recipient, onClose }) => {
-    const [viewState, setViewState] = useState('idle'); // idle, recording, processing, review, sent, error
+    const [viewState, setViewState] = useState('idle'); // idle, typing, recording, processing, review, sent, error
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
     const [aiSummary, setAiSummary] = useState('');
     const [recordingTime, setRecordingTime] = useState(0);
     const [processingStep, setProcessingStep] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [hasSpeechRecognition, setHasSpeechRecognition] = useState(false);
     const recognitionRef = useRef(null);
     const timerRef = useRef(null);
 
     // Initialize speech recognition
     useEffect(() => {
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true;
-            recognitionRef.current.interimResults = true;
-            recognitionRef.current.lang = 'en-US';
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognitionRef.current = new SpeechRecognition();
+                recognitionRef.current.continuous = true;
+                recognitionRef.current.interimResults = true;
+                recognitionRef.current.lang = 'en-US';
 
-            recognitionRef.current.onresult = (event) => {
-                let finalText = '';
-                let interimText = '';
+                recognitionRef.current.onresult = (event) => {
+                    let finalText = '';
+                    let interimText = '';
 
-                for (let i = 0; i < event.results.length; i++) {
-                    const result = event.results[i];
-                    if (result.isFinal) {
-                        finalText += result[0].transcript + ' ';
-                    } else {
-                        interimText += result[0].transcript;
+                    for (let i = 0; i < event.results.length; i++) {
+                        const result = event.results[i];
+                        if (result.isFinal) {
+                            finalText += result[0].transcript + ' ';
+                        } else {
+                            interimText += result[0].transcript;
+                        }
                     }
-                }
 
-                if (finalText) {
-                    setTranscript(prev => prev + finalText);
-                }
-                setInterimTranscript(interimText);
-            };
+                    if (finalText) {
+                        setTranscript(prev => prev + finalText);
+                    }
+                    setInterimTranscript(interimText);
+                };
 
-            recognitionRef.current.onerror = (e) => {
-                console.error('Speech recognition error:', e);
-                if (e.error !== 'no-speech') {
-                    setErrorMessage('Speech recognition error. Please try again.');
-                    setViewState('error');
-                }
-            };
+                recognitionRef.current.onerror = (e) => {
+                    console.error('Speech recognition error:', e);
+                    if (e.error !== 'no-speech') {
+                        // Fall back to typing mode instead of error
+                        setViewState('typing');
+                    }
+                };
 
-            recognitionRef.current.onend = () => {
-                // Don't auto-restart here - let user control
-            };
+                recognitionRef.current.onend = () => {
+                    // Don't auto-restart here - let user control
+                };
+
+                setHasSpeechRecognition(true);
+            } catch (e) {
+                console.warn('Speech recognition init failed:', e);
+                setHasSpeechRecognition(false);
+            }
         }
 
         return () => {
@@ -87,8 +95,8 @@ const AIFeedbackModal = ({ recipient, onClose }) => {
 
     const handleStartRecording = () => {
         if (!recognitionRef.current) {
-            setErrorMessage('Speech recognition is not supported in this browser. Please use Chrome.');
-            setViewState('error');
+            // Fall back to typing mode instead of error
+            setViewState('typing');
             return;
         }
 
@@ -102,6 +110,8 @@ const AIFeedbackModal = ({ recipient, onClose }) => {
             recognitionRef.current.start();
         } catch (e) {
             console.error('Failed to start recording:', e);
+            // Fall back to typing mode
+            setViewState('typing');
         }
     };
 
@@ -113,8 +123,8 @@ const AIFeedbackModal = ({ recipient, onClose }) => {
         const finalTranscript = transcript + interimTranscript;
 
         if (!finalTranscript.trim()) {
-            setErrorMessage('No speech detected. Please try again.');
-            setViewState('error');
+            setErrorMessage('No speech detected. Try typing instead.');
+            setViewState('typing');
             return;
         }
 
@@ -124,6 +134,13 @@ const AIFeedbackModal = ({ recipient, onClose }) => {
 
         // Process with AI
         await processWithAI(finalTranscript.trim());
+    };
+
+    const handleTextSubmit = async () => {
+        if (!transcript.trim()) return;
+
+        setViewState('processing');
+        await processWithAI(transcript.trim());
     };
 
     const processWithAI = async (rawTranscript) => {
@@ -281,21 +298,70 @@ Return ONLY the polished message, nothing else.`
 
                     {/* IDLE STATE */}
                     {viewState === 'idle' && (
-                        <div className="flex flex-col items-center gap-8 animate-fade-in-up">
+                        <div className="flex flex-col items-center gap-6 animate-fade-in-up">
                             <div className="text-center space-y-2">
                                 <h3 className="text-xl text-white font-bold">Feedback for <span className="text-brand-green">{recipient}</span></h3>
                                 <p className="text-gray-400 text-sm max-w-xs mx-auto">
-                                    Record your raw thoughts. The AI will summarize, polish, and format them for parents.
+                                    {hasSpeechRecognition
+                                        ? 'Record or type your thoughts. AI will polish them for parents.'
+                                        : 'Type your thoughts. AI will polish them for parents.'}
                                 </p>
                             </div>
 
-                            <button
-                                onClick={handleStartRecording}
-                                className="w-24 h-24 rounded-full bg-brand-green/10 border-2 border-brand-green flex items-center justify-center hover:bg-brand-green/20 hover:scale-105 transition-all shadow-[0_0_30px_rgba(59,130,246,0.2)] group"
-                            >
-                                <Mic className="w-10 h-10 text-brand-green group-hover:text-white transition-colors" />
-                            </button>
-                            <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">Tap to Record</p>
+                            <div className="flex items-center gap-4">
+                                {hasSpeechRecognition && (
+                                    <button
+                                        onClick={handleStartRecording}
+                                        className="w-20 h-20 rounded-full bg-brand-green/10 border-2 border-brand-green flex items-center justify-center hover:bg-brand-green/20 hover:scale-105 transition-all shadow-[0_0_30px_rgba(59,130,246,0.2)] group"
+                                    >
+                                        <Mic className="w-8 h-8 text-brand-green group-hover:text-white transition-colors" />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { setTranscript(''); setViewState('typing'); }}
+                                    className={`${hasSpeechRecognition ? 'w-20 h-20' : 'w-24 h-24'} rounded-full bg-blue-500/10 border-2 border-blue-400 flex items-center justify-center hover:bg-blue-500/20 hover:scale-105 transition-all group`}
+                                >
+                                    <Type className={`${hasSpeechRecognition ? 'w-8 h-8' : 'w-10 h-10'} text-blue-400 group-hover:text-white transition-colors`} />
+                                </button>
+                            </div>
+                            <div className="flex gap-6 text-xs text-gray-500 uppercase font-bold tracking-widest">
+                                {hasSpeechRecognition && <span>Voice</span>}
+                                <span>Type</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TYPING STATE */}
+                    {viewState === 'typing' && (
+                        <div className="w-full space-y-4 animate-fade-in-up">
+                            <div className="text-center space-y-1">
+                                <h3 className="text-lg text-white font-bold">Feedback for <span className="text-brand-green">{recipient}</span></h3>
+                                <p className="text-gray-500 text-xs">Type your raw thoughts, then AI will polish them.</p>
+                            </div>
+                            <textarea
+                                value={transcript}
+                                onChange={(e) => setTranscript(e.target.value)}
+                                placeholder="e.g. Great effort at practice today. Working on first touch and positioning. Needs to communicate more on the field..."
+                                className="w-full h-36 bg-white/5 border border-white/10 rounded-lg p-4 text-white text-sm focus:border-brand-green outline-none resize-none placeholder:text-gray-600"
+                                autoFocus
+                            />
+                            <div className="flex gap-3">
+                                {hasSpeechRecognition && (
+                                    <button
+                                        onClick={handleStartRecording}
+                                        className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm"
+                                    >
+                                        <Mic className="w-4 h-4" /> Record Instead
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleTextSubmit}
+                                    disabled={!transcript.trim()}
+                                    className="flex-1 py-2.5 bg-brand-green text-brand-dark font-bold rounded-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    <Sparkles className="w-4 h-4" /> Polish with AI
+                                </button>
+                            </div>
                         </div>
                     )}
 

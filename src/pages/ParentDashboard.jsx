@@ -901,8 +901,9 @@ const ParentDashboard = () => {
                             ))}
                         </div>
 
-                        <button onClick={handleLogout} className="text-gray-400 hover:text-red-400 transition-colors">
-                            <LogOut className="w-5 h-5" />
+                        <button onClick={handleLogout} className="flex items-center gap-1.5 text-gray-400 hover:text-red-400 transition-colors px-2 py-1.5 rounded hover:bg-red-500/10" title="Logout">
+                            <LogOut className="w-4 h-4" />
+                            <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">Logout</span>
                         </button>
                     </div>
                 </div>
