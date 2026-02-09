@@ -90,3 +90,12 @@
 .game-container {
     overscroll-behavior: contain;
 }
+
+/* Hide scrollbar but keep scrolling */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
