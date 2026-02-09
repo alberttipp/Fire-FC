@@ -24,6 +24,7 @@ const Dashboard = () => {
     const [showAdminPanel, setShowAdminPanel] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     // Voice command integration
     const voiceCommand = useVoiceCommand();
@@ -194,28 +195,45 @@ const Dashboard = () => {
                             View as Player
                         </button>
 
-                        {/* Mobile View Switcher (Dropdown simplified) */}
-                        <div className="md:hidden relative group">
-                            <button className="flex items-center gap-2 text-brand-green font-display font-bold uppercase border border-brand-green/30 px-3 py-1.5 rounded bg-brand-green/5">
-                                {currentView.toUpperCase()} <ChevronDown className="w-4 h-4" />
+                        {/* Mobile View Switcher */}
+                        <div className="md:hidden relative">
+                            <button
+                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                                className="flex items-center gap-2 text-brand-green font-display font-bold uppercase border border-brand-green/30 px-3 py-1.5 rounded bg-brand-green/5"
+                            >
+                                {currentView.toUpperCase()} <ChevronDown className={`w-4 h-4 transition-transform ${mobileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
-                            {/* Simple dropdown simulation for MVP */}
-                            <div className="absolute right-0 top-full mt-2 w-32 bg-gray-900 border border-white/10 rounded shadow-xl hidden group-hover:block group-focus-within:block z-50">
-                                <button onClick={() => setCurrentView('club')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Club</button>
-                                <button onClick={() => setCurrentView('team')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Team</button>
-                                <button onClick={() => setCurrentView('training')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Training</button>
-                                <button onClick={() => setCurrentView('chat')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Chat</button>
-                                <button onClick={() => setCurrentView('calendar')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Schedule</button>
-                                <button onClick={() => setCurrentView('gallery')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Gallery</button>
-                                <button onClick={() => setCurrentView('live')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Live</button>
-                                <button onClick={() => setCurrentView('carpool')} className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 uppercase">Carpool</button>
-                                {isManager && (
-                                    <>
-                                        <button onClick={() => setCurrentView('tryouts')} className="block w-full text-left px-4 py-2 text-sm text-brand-gold hover:bg-white/5 uppercase">Tryouts</button>
-                                        <button onClick={() => setCurrentView('financial')} className="block w-full text-left px-4 py-2 text-sm text-brand-gold hover:bg-white/5 uppercase">Money</button>
-                                    </>
-                                )}
-                            </div>
+                            {mobileMenuOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
+                                    <div className="absolute right-0 top-full mt-2 w-36 bg-gray-900 border border-white/10 rounded shadow-xl z-50 max-h-[70vh] overflow-y-auto">
+                                        {[
+                                            { id: 'club', label: 'Club' },
+                                            { id: 'team', label: 'Team' },
+                                            { id: 'training', label: 'Training' },
+                                            { id: 'chat', label: 'Chat' },
+                                            { id: 'calendar', label: 'Schedule' },
+                                            { id: 'gallery', label: 'Gallery' },
+                                            { id: 'live', label: 'Live' },
+                                            { id: 'carpool', label: 'Carpool' },
+                                        ].map(tab => (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => { setCurrentView(tab.id); setMobileMenuOpen(false); }}
+                                                className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === tab.id ? 'text-brand-green bg-brand-green/10 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
+                                            >
+                                                {tab.label}
+                                            </button>
+                                        ))}
+                                        {isManager && (
+                                            <>
+                                                <button onClick={() => { setCurrentView('tryouts'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'tryouts' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Tryouts</button>
+                                                <button onClick={() => { setCurrentView('financial'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'financial' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Money</button>
+                                            </>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         {/* Notification Bell */}

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
     Calendar, MapPin, Clock, Users, ChevronLeft, ChevronRight,
     CheckCircle2, XCircle, HelpCircle, Bell, BellOff, Shirt,
-    Trophy, Dumbbell, Coffee, Users2, AlertCircle
+    Trophy, Dumbbell, Coffee, Users2, AlertCircle, Plus
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import CreateEventModal from './CreateEventModal';
 
 // Event type icons and colors
 const EVENT_STYLES = {
@@ -31,6 +32,9 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [weekOffset, setWeekOffset] = useState(0);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+
+    const isCoachOrManager = profile?.role === 'coach' || profile?.role === 'manager';
 
     // Get date range for display
     const getDateRange = () => {
@@ -50,57 +54,57 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     const endDate = dates[6];
 
     // Fetch events
-    useEffect(() => {
-        const fetchEvents = async () => {
-            setLoading(true);
-            try {
-                const start = new Date(startDate);
-                start.setHours(0, 0, 0, 0);
-                const end = new Date(endDate);
-                end.setHours(23, 59, 59, 999);
+    const fetchEvents = async () => {
+        setLoading(true);
+        try {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
 
-                let query = supabase
-                    .from('events')
-                    .select(`
-                        *,
-                        teams (id, name, age_group)
-                    `)
-                    .gte('start_time', start.toISOString())
-                    .lte('start_time', end.toISOString())
-                    .order('start_time', { ascending: true });
+            let query = supabase
+                .from('events')
+                .select(`
+                    *,
+                    teams (id, name, age_group)
+                `)
+                .gte('start_time', start.toISOString())
+                .lte('start_time', end.toISOString())
+                .order('start_time', { ascending: true });
 
-                // Filter by team if specified
-                if (teamId && !showAllTeams) {
-                    query = query.eq('team_id', teamId);
-                }
-
-                const { data, error } = await query;
-
-                if (error) throw error;
-                setEvents(data || []);
-
-                // Fetch RSVPs for these events
-                if (data && data.length > 0 && user?.id) {
-                    const eventIds = data.map(e => e.id);
-                    const { data: rsvpData } = await supabase
-                        .from('event_rsvps')
-                        .select('*')
-                        .in('event_id', eventIds)
-                        .eq('player_id', user.id);
-
-                    const rsvpMap = {};
-                    (rsvpData || []).forEach(r => {
-                        rsvpMap[r.event_id] = r.status;
-                    });
-                    setRsvps(rsvpMap);
-                }
-            } catch (err) {
-                console.error('Error fetching events:', err);
-            } finally {
-                setLoading(false);
+            // Filter by team if specified
+            if (teamId && !showAllTeams) {
+                query = query.eq('team_id', teamId);
             }
-        };
 
+            const { data, error } = await query;
+
+            if (error) throw error;
+            setEvents(data || []);
+
+            // Fetch RSVPs for these events
+            if (data && data.length > 0 && user?.id) {
+                const eventIds = data.map(e => e.id);
+                const { data: rsvpData } = await supabase
+                    .from('event_rsvps')
+                    .select('*')
+                    .in('event_id', eventIds)
+                    .eq('player_id', user.id);
+
+                const rsvpMap = {};
+                (rsvpData || []).forEach(r => {
+                    rsvpMap[r.event_id] = r.status;
+                });
+                setRsvps(rsvpMap);
+            }
+        } catch (err) {
+            console.error('Error fetching events:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchEvents();
     }, [teamId, showAllTeams, user?.id, weekOffset]);
 
@@ -153,17 +157,17 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
         return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     };
 
-    // Format date header
+    // Format date header - abbreviated to fit narrow columns
     const formatDateHeader = (date) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const compareDate = new Date(date);
         compareDate.setHours(0, 0, 0, 0);
-        
+
         const diffDays = Math.round((compareDate - today) / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 0) return 'Today';
-        if (diffDays === 1) return 'Tomorrow';
+
+        if (diffDays === 0) return 'TDY';
+        if (diffDays === 1) return 'TMR';
         return date.toLocaleDateString('en-US', { weekday: 'short' });
     };
 
@@ -214,19 +218,30 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                     </h3>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Add Event Button (Coach/Manager only) */}
+                    {isCoachOrManager && (
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="p-2 rounded-lg bg-brand-green/10 text-brand-green hover:bg-brand-green/20 transition-colors"
+                            title="Add Event"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    )}
+
                     {/* Notification Toggle */}
                     <button
                         onClick={requestNotifications}
                         className={`p-2 rounded-lg transition-colors ${
-                            notificationsEnabled 
-                                ? 'bg-brand-green/20 text-brand-green' 
+                            notificationsEnabled
+                                ? 'bg-brand-green/20 text-brand-green'
                                 : 'bg-white/5 text-gray-400 hover:text-white'
                         }`}
                         title={notificationsEnabled ? 'Notifications On' : 'Enable Notifications'}
                     >
                         {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                     </button>
-                    
+
                     {/* Week Navigation */}
                     <div className="flex items-center gap-1">
                         <button
@@ -439,6 +454,14 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                         );
                     })}
                 </div>
+            )}
+
+            {/* Create Event Modal */}
+            {showCreateModal && (
+                <CreateEventModal
+                    onClose={() => setShowCreateModal(false)}
+                    onEventCreated={() => fetchEvents()}
+                />
             )}
         </div>
     );
