@@ -132,7 +132,9 @@ GRANT EXECUTE ON FUNCTION log_training_minutes TO authenticated, anon;
 -- - Checks app_settings to prevent double-clear
 -- - NEVER deletes completed assignments
 -- - Only resets weekly_minutes
+-- Must DROP first because return type changed (void → TABLE)
 -- ============================================
+DROP FUNCTION IF EXISTS clear_weekly_assignments();
 CREATE OR REPLACE FUNCTION clear_weekly_assignments()
 RETURNS TABLE(cleared_count INTEGER, reset_count INTEGER) AS $$
 DECLARE
