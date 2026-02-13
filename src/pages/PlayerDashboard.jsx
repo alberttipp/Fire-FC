@@ -492,7 +492,7 @@ const PlayerDashboard = () => {
                                     <span className="text-3xl font-black text-white leading-none">
                                         {streakDays}
                                     </span>
-                                    <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+                                    <span className="text-xs text-gray-400 uppercase tracking-wider">
                                         {streakDays === 1 ? 'day' : 'days'}
                                     </span>
                                 </div>
@@ -536,7 +536,7 @@ const PlayerDashboard = () => {
                                 }, {})).map((badge) => (
                                     <div key={badge.id} className="aspect-square bg-white/5 border border-white/10 rounded-xl flex flex-col items-center justify-center relative group hover:bg-white/10 transition-colors cursor-help">
                                         <span className="text-3xl mb-1 filter drop-shadow hover:scale-110 transition-transform">{badge.icon}</span>
-                                        <span className="text-[10px] text-gray-400 text-center font-bold px-1">{badge.name}</span>
+                                        <span className="text-xs text-gray-400 text-center font-bold px-1">{badge.name}</span>
                                         {badge.count > 1 && (
                                             <div className="absolute -top-2 -right-2 w-6 h-6 bg-brand-gold text-brand-dark font-black text-xs rounded-full flex items-center justify-center border-2 border-[#1a1a1a] shadow-lg z-10">
                                                 x{badge.count}

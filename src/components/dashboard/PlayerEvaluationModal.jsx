@@ -534,10 +534,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                                                 }`}
                                                         >
                                                             <span className="text-2xl transform group-hover:scale-110 transition-transform">{badge.icon}</span>
-                                                            <span className="text-[9px] text-gray-400 text-center leading-tight px-1 font-bold">{badge.name}</span>
+                                                            <span className="text-xs text-gray-400 text-center leading-tight px-1 font-bold">{badge.name}</span>
 
                                                             {count > 0 && (
-                                                                <div className="absolute top-1 right-1 w-4 h-4 bg-brand-green rounded-full flex items-center justify-center text-[9px] font-bold text-black border border-black/20">
+                                                                <div className="absolute top-1 right-1 w-4 h-4 bg-brand-green rounded-full flex items-center justify-center text-xs font-bold text-black border border-black/20">
                                                                     {count}
                                                                 </div>
                                                             )}

@@ -16,6 +16,7 @@ const ChatView = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showNewDM, setShowNewDM] = useState(false);
     const [teamMembers, setTeamMembers] = useState([]);
+    const [chatError, setChatError] = useState(null);
     const messagesEndRef = useRef(null);
     const channelSubscription = useRef(null);
 
@@ -164,7 +165,8 @@ const ChatView = () => {
 
         const isPlayer = currentUserRole === 'player';
         if (isPlayer && activeChannel.type !== 'player_dm') {
-            alert('Players can only send messages in player DMs.');
+            setChatError('Players can only send messages in player DMs.');
+            setTimeout(() => setChatError(null), 4000);
             return;
         }
 
@@ -194,7 +196,8 @@ const ChatView = () => {
             setIsUrgent(false);
         } catch (err) {
             console.error('Error sending message:', err);
-            alert('Failed to send message. You may not have permission to post here.');
+            setChatError('Failed to send message. You may not have permission to post here.');
+            setTimeout(() => setChatError(null), 4000);
         } finally {
             setSending(false);
         }
@@ -361,7 +364,7 @@ const ChatView = () => {
                         <div className="text-center py-8 px-2">
                             <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
                             <p className="text-gray-500 text-xs">No channels yet.</p>
-                            <p className="text-gray-600 text-xs mt-1">Run the chat migration SQL to create team channels.</p>
+                            <p className="text-gray-600 text-xs mt-1">Your team chat will appear here once set up by your coach.</p>
                         </div>
                     ) : (
                         channels.map(channel => (
@@ -464,11 +467,11 @@ const ChatView = () => {
                                     <div className={`flex items-center gap-2 mb-1 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
                                         <span className="text-sm font-bold text-white">{msg.sender_name || 'Unknown'}</span>
                                         {msg.sender_role && (
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${getRoleBadgeStyle(msg.sender_role)}`}>
+                                            <span className={`text-xs px-1.5 py-0.5 rounded uppercase font-bold ${getRoleBadgeStyle(msg.sender_role)}`}>
                                                 {msg.sender_role}
                                             </span>
                                         )}
-                                        <span className="text-[10px] text-gray-500">{formatTime(msg.created_at)}</span>
+                                        <span className="text-xs text-gray-500">{formatTime(msg.created_at)}</span>
                                     </div>
                                     <div className={`p-3 rounded-2xl text-sm leading-relaxed ${
                                         msg.is_urgent
@@ -497,6 +500,14 @@ const ChatView = () => {
                     )}
                     <div ref={messagesEndRef} />
                 </div>
+
+                {/* Error Banner */}
+                {chatError && (
+                    <div className="mx-4 mt-2 p-2 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        {chatError}
+                    </div>
+                )}
 
                 {/* Input Area */}
                 {activeChannel && (

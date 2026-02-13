@@ -537,7 +537,7 @@ const ParentDashboard = () => {
                             {/* Player Card */}
                             <div className="lg:col-span-5">
                                 <div className="group cursor-pointer relative" onClick={() => setShowDetails(true)}>
-                                    <div className="absolute -top-5 left-0 w-full text-center text-brand-green text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute -top-5 left-0 w-full text-center text-brand-green text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                                         Tap for Report Card
                                     </div>
                                     <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
@@ -548,7 +548,7 @@ const ParentDashboard = () => {
                             <div className="lg:col-span-7 grid grid-cols-2 gap-4">
                                 {/* Homework Progress */}
                                 <div className="glass-panel p-5 flex flex-col">
-                                    <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                         <Target className="w-3.5 h-3.5 text-brand-gold" /> Homework
                                     </h4>
                                     <div className="flex items-center gap-4 flex-1">
@@ -574,7 +574,7 @@ const ParentDashboard = () => {
                                             <div className="text-2xl text-white font-bold leading-none">
                                                 {completedCoach}<span className="text-gray-500 text-lg">/{totalCoach}</span>
                                             </div>
-                                            <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">
                                                 {coachHomeworkDone && totalCoach > 0 ? 'All Done!' : 'Coach Drills'}
                                             </div>
                                         </div>
@@ -583,7 +583,7 @@ const ParentDashboard = () => {
 
                                 {/* Attendance */}
                                 <div className="glass-panel p-5 flex flex-col">
-                                    <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                         <CheckCircle className="w-3.5 h-3.5 text-brand-green" /> Attendance
                                     </h4>
                                     <div className="flex items-center gap-4 flex-1">
@@ -607,38 +607,38 @@ const ParentDashboard = () => {
                                         </div>
                                         <div>
                                             <div className="text-2xl text-white font-bold leading-none">{attendanceStats.attended}</div>
-                                            <div className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Sessions</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">Sessions</div>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Training Minutes Breakdown */}
                                 <div className="glass-panel p-5 col-span-2">
-                                    <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                         <Clock className="w-3.5 h-3.5 text-blue-400" /> Training Minutes
                                     </h4>
                                     <div className="grid grid-cols-4 gap-3 mb-4">
                                         <div className="text-center">
                                             <div className="text-xl text-blue-400 font-bold font-display">{practiceMins.weekly}</div>
-                                            <div className="text-[9px] text-gray-500 uppercase tracking-wider">This Week</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider">This Week</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-xl text-brand-green font-bold font-display">{practiceMins.season}</div>
-                                            <div className="text-[9px] text-gray-500 uppercase tracking-wider">Season</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Season</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-xl text-brand-gold font-bold font-display">{practiceMins.yearly}</div>
-                                            <div className="text-[9px] text-gray-500 uppercase tracking-wider">Year</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Year</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-xl text-white font-bold font-display">{practiceMins.career}</div>
-                                            <div className="text-[9px] text-gray-500 uppercase tracking-wider">Career</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Career</div>
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Team Practice</span>
+                                                <span className="text-xs text-gray-400 uppercase tracking-wider">Team Practice</span>
                                                 <span className="text-xs text-white font-bold">{practiceMins.team} min</span>
                                             </div>
                                             <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
@@ -650,7 +650,7 @@ const ParentDashboard = () => {
                                         </div>
                                         <div>
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Solo Practice</span>
+                                                <span className="text-xs text-gray-400 uppercase tracking-wider">Solo Practice</span>
                                                 <span className="text-xs text-white font-bold">{practiceMins.solo} min</span>
                                             </div>
                                             <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
@@ -676,7 +676,7 @@ const ParentDashboard = () => {
                                 </div>
                                 <div className="text-left flex-1">
                                     <div className="text-white font-bold text-sm">Leaderboard</div>
-                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">See team rankings</div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wider">See team rankings</div>
                                 </div>
                                 <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${showLeaderboard ? 'rotate-90' : ''}`} />
                             </button>
@@ -690,7 +690,7 @@ const ParentDashboard = () => {
                                 </div>
                                 <div className="text-left flex-1">
                                     <div className="text-white font-bold text-sm">Solo Training Builder</div>
-                                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Build & assign practice</div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wider">Build & assign practice</div>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-gray-500" />
                             </button>
@@ -714,7 +714,7 @@ const ParentDashboard = () => {
                                             <Target className="w-4 h-4" /> Coach Homework
                                         </h4>
                                         {totalCoach > 0 && (
-                                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
                                                 coachHomeworkDone ? 'bg-brand-green/20 text-brand-green' : 'bg-blue-500/20 text-blue-400'
                                             }`}>
                                                 {completedCoach}/{totalCoach} Done
@@ -739,15 +739,15 @@ const ParentDashboard = () => {
                                                         <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
                                                             {assign.drills?.name || assign.drills?.title || 'Drill'}
                                                         </div>
-                                                        <div className="text-[10px] text-gray-500">
+                                                        <div className="text-xs text-gray-500">
                                                             {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
                                                         </div>
                                                     </div>
                                                     {assign.status !== 'completed' && assign.due_date && (() => {
                                                         const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
-                                                        if (days < 0) return <span className="text-[10px] text-red-400 font-bold shrink-0">Overdue</span>;
-                                                        if (days === 0) return <span className="text-[10px] text-blue-400 font-bold shrink-0">Today</span>;
-                                                        return <span className="text-[10px] text-gray-500 shrink-0">{days}d left</span>;
+                                                        if (days < 0) return <span className="text-xs text-red-400 font-bold shrink-0">Overdue</span>;
+                                                        if (days === 0) return <span className="text-xs text-blue-400 font-bold shrink-0">Today</span>;
+                                                        return <span className="text-xs text-gray-500 shrink-0">{days}d left</span>;
                                                     })()}
                                                 </div>
                                             ))}
@@ -762,7 +762,7 @@ const ParentDashboard = () => {
                                             <Zap className="w-4 h-4" /> Parent Solo Practice
                                         </h4>
                                         {totalParent > 0 && (
-                                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
                                                 completedParent === totalParent ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-gold/20 text-brand-gold'
                                             }`}>
                                                 {completedParent}/{totalParent} Done
@@ -806,15 +806,15 @@ const ParentDashboard = () => {
                                                         <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
                                                             {assign.drills?.name || assign.drills?.title || 'Drill'}
                                                         </div>
-                                                        <div className="text-[10px] text-gray-500">
+                                                        <div className="text-xs text-gray-500">
                                                             {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
                                                         </div>
                                                     </div>
                                                     {assign.status !== 'completed' && assign.due_date && (() => {
                                                         const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
-                                                        if (days < 0) return <span className="text-[10px] text-red-400 font-bold shrink-0">Overdue</span>;
-                                                        if (days === 0) return <span className="text-[10px] text-brand-gold font-bold shrink-0">Today</span>;
-                                                        return <span className="text-[10px] text-gray-500 shrink-0">{days}d left</span>;
+                                                        if (days < 0) return <span className="text-xs text-red-400 font-bold shrink-0">Overdue</span>;
+                                                        if (days === 0) return <span className="text-xs text-brand-gold font-bold shrink-0">Today</span>;
+                                                        return <span className="text-xs text-gray-500 shrink-0">{days}d left</span>;
                                                     })()}
                                                 </div>
                                             ))}
@@ -827,7 +827,7 @@ const ParentDashboard = () => {
                             <div className="space-y-6">
                                 {/* Upcoming Events */}
                                 <div className="glass-panel p-5">
-                                    <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                         <Calendar className="w-3.5 h-3.5" /> Upcoming Events
                                     </h4>
                                     {upcomingEvents.length === 0 ? (
@@ -845,12 +845,12 @@ const ParentDashboard = () => {
                                                                 event.type === 'practice' ? 'bg-brand-green/20 text-brand-green' :
                                                                 'bg-blue-500/20 text-blue-400'
                                                             }`}>
-                                                                <span className="text-[10px] font-bold uppercase leading-none">{date.toLocaleDateString('en-US', { month: 'short' })}</span>
+                                                                <span className="text-xs font-bold uppercase leading-none">{date.toLocaleDateString('en-US', { month: 'short' })}</span>
                                                                 <span className="text-sm font-bold leading-none">{date.getDate()}</span>
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="text-sm text-white font-medium truncate">{event.title}</div>
-                                                                <div className="text-[10px] text-gray-500">
+                                                                <div className="text-xs text-gray-500">
                                                                     {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                                                                 </div>
                                                             </div>
@@ -860,7 +860,7 @@ const ParentDashboard = () => {
                                                                 <button
                                                                     key={status}
                                                                     onClick={() => handleRsvp(event.id, status)}
-                                                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${
+                                                                    className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
                                                                         currentRsvp === status
                                                                             ? status === 'going' ? 'bg-green-500 text-white' : status === 'maybe' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
                                                                             : status === 'going' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/40' : status === 'maybe' ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40' : 'bg-red-500/20 text-red-400 hover:bg-red-500/40'
@@ -886,7 +886,7 @@ const ParentDashboard = () => {
                                 {/* Recent Badges */}
                                 {playerBadges.length > 0 && (
                                     <div className="glass-panel p-5">
-                                        <h4 className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                        <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                             <Trophy className="w-3.5 h-3.5 text-brand-gold" /> Recent Badges
                                         </h4>
                                         <div className="flex flex-wrap gap-2">
@@ -906,10 +906,10 @@ const ParentDashboard = () => {
 
                                 {/* Player Access Link */}
                                 <div className="glass-panel p-4 border-l-4 border-l-brand-gold">
-                                    <h4 className="text-brand-gold text-[10px] uppercase font-bold mb-2 flex items-center gap-1.5">
+                                    <h4 className="text-brand-gold text-xs uppercase font-bold mb-2 flex items-center gap-1.5">
                                         <Link2 className="w-3.5 h-3.5" /> Player Access Link
                                     </h4>
-                                    <p className="text-gray-400 text-[10px] mb-3">
+                                    <p className="text-gray-400 text-xs mb-3">
                                         Share with {selectedChild?.first_name} to access their player dashboard.
                                     </p>
                                     {!playerAccessLink ? (
@@ -923,7 +923,7 @@ const ParentDashboard = () => {
                                     ) : (
                                         <div className="space-y-2">
                                             <div className="bg-black/30 rounded-lg p-2 border border-white/10">
-                                                <p className="text-[10px] text-gray-400 font-mono break-all">{playerAccessLink}</p>
+                                                <p className="text-xs text-gray-400 font-mono break-all">{playerAccessLink}</p>
                                             </div>
                                             <div className="flex gap-2">
                                                 <button
@@ -999,7 +999,7 @@ const ParentDashboard = () => {
                             <h1 className="text-xl text-white font-display uppercase font-bold tracking-wider leading-none">
                                 Rockford Fire <span className="text-blue-500">Family</span>
                             </h1>
-                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">
+                            <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">
                                 {selectedChild ? `${selectedChild.first_name}'s Dashboard` : 'Fire FC App'}
                             </span>
                         </div>
