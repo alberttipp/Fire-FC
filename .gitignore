@@ -110,6 +110,10 @@ essential_tables_setup.sql
 fix_rls_infinite_recursion.sql
 verify_database_tables.sql
 
+# Playwright
+test-results/
+playwright-report/
+
 # Supabase temp files
 supabase/.temp/
 nul
