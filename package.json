@@ -13,6 +13,7 @@
     "seed:help": "echo '\n📚 Seed Commands:\n\n  npm run seed:permanent  - Seed drills & badges (idempotent)\n  npm run seed:staging    - Seed test data (destructive)\n\nSee supabase/seed/SEED_POLICY.md for details.\n'"
   },
   "dependencies": {
+    "@sentry/react": "^10.39.0",
     "@supabase/supabase-js": "^2.90.1",
     "canvas-confetti": "^1.9.4",
     "dotenv": "^17.2.3",

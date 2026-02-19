@@ -76,18 +76,12 @@ export const AuthProvider = ({ children }) => {
                 .limit(1)
                 .single();
 
-            console.log('[AuthContext] userId:', userId);
-            console.log('[AuthContext] Fetched membership:', membership);
-            console.log('[AuthContext] Membership error:', membershipError);
-
             // Merge role into profile
             const profileWithRole = {
                 ...data,
                 role: membership?.role || null,
                 team_id: membership?.team_id || null
             };
-
-            console.log('[AuthContext] Profile with role:', profileWithRole);
 
             setProfile(profileWithRole);
         } catch (error) {
@@ -123,10 +117,15 @@ export const AuthProvider = ({ children }) => {
     };
 
     const loginDemo = (role) => {
+        if (!import.meta.env.DEV) {
+            console.warn('Demo mode is disabled in production');
+            return { data: null, error: { message: 'Demo mode disabled' } };
+        }
+
         let demoUser = {
             id: '',
             email: 'demo@firefc.com',
-            role: role // 'coach', 'player', 'parent', 'manager'
+            role: role
         };
 
         if (role === 'manager') {
@@ -143,7 +142,6 @@ export const AuthProvider = ({ children }) => {
             demoUser.email = 'parent@firefc.com';
             demoUser.display_name = 'Parent';
         } else {
-            // Default Coach match
             demoUser.id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
             demoUser.email = 'coach@firefc.com';
             demoUser.display_name = 'Coach Mike';
@@ -152,7 +150,6 @@ export const AuthProvider = ({ children }) => {
         setUser(demoUser);
         localStorage.setItem('user', JSON.stringify(demoUser));
 
-        // Create demo profile object (demo profiles don't exist in DB)
         const demoProfile = {
             id: demoUser.id,
             full_name: demoUser.display_name,

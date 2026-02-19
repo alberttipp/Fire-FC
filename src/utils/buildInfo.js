@@ -43,6 +43,8 @@ export const BUILD_INFO = {
  * Log build info to console on app load
  */
 export function logBuildInfo() {
+    if (!import.meta.env.DEV) return;
+
     const styles = {
         header: 'background: #16a34a; color: white; padding: 4px 8px; border-radius: 3px; font-weight: bold;',
         key: 'color: #16a34a; font-weight: bold;',
