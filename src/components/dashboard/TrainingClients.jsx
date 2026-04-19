@@ -176,6 +176,7 @@ const TrainingClients = () => {
     // Open edit modal
     const openEditSession = (session) => {
         const startLocal = session.start_time ? new Date(session.start_time).toISOString().slice(0, 16) : '';
+        const existingClientIds = (session.training_session_attendees || []).map(a => a.client_id);
         setEditForm({
             title: session.title || '',
             session_type: session.session_type || 'individual',
@@ -187,6 +188,7 @@ const TrainingClients = () => {
             payment_status: session.payment_status || 'unpaid',
             notes: session.notes || '',
             status: session.status || 'scheduled',
+            client_ids: existingClientIds,
         });
         setEditingSession(session);
     };
@@ -213,6 +215,22 @@ const TrainingClients = () => {
                 .eq('id', editingSession.id);
 
             if (error) throw error;
+
+            // Sync attendees: delete all existing, re-insert selected
+            await supabase
+                .from('training_session_attendees')
+                .delete()
+                .eq('session_id', editingSession.id);
+
+            if (editForm.client_ids.length > 0) {
+                const attendees = editForm.client_ids.map(clientId => ({
+                    session_id: editingSession.id,
+                    client_id: clientId,
+                    status: 'invited',
+                }));
+                await supabase.from('training_session_attendees').insert(attendees);
+            }
+
             setEditingSession(null);
             setEditForm(null);
             fetchData();
@@ -220,6 +238,16 @@ const TrainingClients = () => {
             console.error('Error updating session:', err);
             alert('Could not update session');
         }
+    };
+
+    // Toggle client in edit form
+    const toggleEditClient = (clientId) => {
+        setEditForm(prev => ({
+            ...prev,
+            client_ids: prev.client_ids.includes(clientId)
+                ? prev.client_ids.filter(id => id !== clientId)
+                : [...prev.client_ids, clientId]
+        }));
     };
 
     // Format time
@@ -744,11 +772,11 @@ const TrainingClients = () => {
                                     <select
                                         value={editForm.session_type}
                                         onChange={(e) => setEditForm({ ...editForm, session_type: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                        className="w-full bg-[#1a1a2e] border border-white/10 rounded p-2 text-white mt-1"
                                     >
-                                        <option value="individual">Individual (1-on-1)</option>
-                                        <option value="small_group">Small Group (2-4)</option>
-                                        <option value="team">Team Session</option>
+                                        <option value="individual" className="bg-[#1a1a2e] text-white">Individual (1-on-1)</option>
+                                        <option value="small_group" className="bg-[#1a1a2e] text-white">Small Group (2-4)</option>
+                                        <option value="team" className="bg-[#1a1a2e] text-white">Team Session</option>
                                     </select>
                                 </div>
                                 <div>
@@ -756,13 +784,13 @@ const TrainingClients = () => {
                                     <select
                                         value={editForm.duration_minutes}
                                         onChange={(e) => setEditForm({ ...editForm, duration_minutes: parseInt(e.target.value) })}
-                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                        className="w-full bg-[#1a1a2e] border border-white/10 rounded p-2 text-white mt-1"
                                     >
-                                        <option value="30">30 minutes</option>
-                                        <option value="45">45 minutes</option>
-                                        <option value="60">60 minutes</option>
-                                        <option value="90">90 minutes</option>
-                                        <option value="120">2 hours</option>
+                                        <option value="30" className="bg-[#1a1a2e] text-white">30 minutes</option>
+                                        <option value="45" className="bg-[#1a1a2e] text-white">45 minutes</option>
+                                        <option value="60" className="bg-[#1a1a2e] text-white">60 minutes</option>
+                                        <option value="90" className="bg-[#1a1a2e] text-white">90 minutes</option>
+                                        <option value="120" className="bg-[#1a1a2e] text-white">2 hours</option>
                                     </select>
                                 </div>
                             </div>
@@ -795,11 +823,11 @@ const TrainingClients = () => {
                                     <select
                                         value={editForm.status}
                                         onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                        className="w-full bg-[#1a1a2e] border border-white/10 rounded p-2 text-white mt-1"
                                     >
-                                        <option value="scheduled">Scheduled</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="cancelled">Cancelled</option>
+                                        <option value="scheduled" className="bg-[#1a1a2e] text-white">Scheduled</option>
+                                        <option value="completed" className="bg-[#1a1a2e] text-white">Completed</option>
+                                        <option value="cancelled" className="bg-[#1a1a2e] text-white">Cancelled</option>
                                     </select>
                                 </div>
                                 <div>
@@ -807,14 +835,44 @@ const TrainingClients = () => {
                                     <select
                                         value={editForm.payment_status}
                                         onChange={(e) => setEditForm({ ...editForm, payment_status: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                        className="w-full bg-[#1a1a2e] border border-white/10 rounded p-2 text-white mt-1"
                                     >
-                                        <option value="unpaid">Unpaid</option>
-                                        <option value="paid">Paid</option>
-                                        <option value="waived">Waived</option>
+                                        <option value="unpaid" className="bg-[#1a1a2e] text-white">Unpaid</option>
+                                        <option value="paid" className="bg-[#1a1a2e] text-white">Paid</option>
+                                        <option value="waived" className="bg-[#1a1a2e] text-white">Waived</option>
                                     </select>
                                 </div>
                             </div>
+
+                            {/* Client Selector */}
+                            {clients.length > 0 && (
+                                <div>
+                                    <label className="text-xs text-gray-400 uppercase mb-2 block">Clients</label>
+                                    <div className="max-h-40 overflow-y-auto space-y-1 bg-white/5 rounded-lg p-2">
+                                        {clients.map(client => (
+                                            <label
+                                                key={client.id}
+                                                className="flex items-center gap-2 p-2 hover:bg-white/5 rounded cursor-pointer"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editForm.client_ids.includes(client.id)}
+                                                    onChange={() => toggleEditClient(client.id)}
+                                                    className="w-4 h-4 rounded"
+                                                />
+                                                <span className="text-white text-sm">
+                                                    {client.first_name} {client.last_name}
+                                                </span>
+                                                <span className={`text-[10px] ml-auto px-1.5 py-0.5 rounded ${
+                                                    client.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+                                                }`}>
+                                                    {client.status}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="border-t border-white/10 pt-4">
                                 <label className="flex items-center gap-3 cursor-pointer">
