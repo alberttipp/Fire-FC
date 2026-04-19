@@ -3,9 +3,9 @@ import { X, Calendar, Clock, MapPin, Trophy, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
-const CreateEventModal = ({ onClose, onEventCreated }) => {
+const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice' }) => {
     const { user, profile } = useAuth();
-    const [eventType, setEventType] = useState('practice'); // 'practice', 'game', 'social'
+    const [eventType, setEventType] = useState(defaultType); // 'practice', 'game', 'social'
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 

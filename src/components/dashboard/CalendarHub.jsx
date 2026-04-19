@@ -24,7 +24,7 @@ const CalendarHub = () => {
     const [events, setEvents] = useState([]);
     const [viewDate, setViewDate] = useState(new Date());
     const [loading, setLoading] = useState(true);
-    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(null); // null = hidden, 'practice' | 'game' | 'social' = show with default type
     const [rsvps, setRsvps] = useState({}); // { eventId: status }
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [eventSessions, setEventSessions] = useState([]);
@@ -308,12 +308,20 @@ END:VCALENDAR`;
                     </div>
 
                     {(profile?.role === 'coach' || profile?.role === 'manager') && (
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="bg-brand-green text-brand-dark px-4 py-2 rounded-lg font-bold uppercase text-sm flex items-center gap-2 hover:bg-white transition-colors"
-                        >
-                            <Plus className="w-4 h-4" /> Add Event
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowCreateModal('practice')}
+                                className="bg-brand-green text-brand-dark px-4 py-2 rounded-lg font-bold uppercase text-sm flex items-center gap-2 hover:bg-white transition-colors"
+                            >
+                                <Plus className="w-4 h-4" /> Add Practice
+                            </button>
+                            <button
+                                onClick={() => setShowCreateModal('game')}
+                                className="bg-white/5 border border-white/10 text-gray-300 px-4 py-2 rounded-lg font-bold uppercase text-sm flex items-center gap-2 hover:bg-white/10 transition-colors"
+                            >
+                                <Plus className="w-4 h-4" /> Add Game
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -400,7 +408,7 @@ END:VCALENDAR`;
                 })}
             </div>
 
-            {showCreateModal && <CreateEventModal onClose={() => setShowCreateModal(false)} onEventCreated={() => fetchEvents()} />}
+            {showCreateModal && <CreateEventModal defaultType={showCreateModal} onClose={() => setShowCreateModal(null)} onEventCreated={() => fetchEvents()} />}
 
             {/* Session Runner Modal */}
             {runningSession && (
