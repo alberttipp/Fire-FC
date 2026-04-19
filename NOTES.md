@@ -139,6 +139,23 @@
 - Touch estimation weights per drill type
 - Reminder/notification preferences
 
+#### 5. Master Plan created and approved
+- Full 5-phase plan saved to `.claude/plans/pure-greeting-matsumoto.md`
+- Phase 1: Touch Estimation + Practice Auto-Credit (THE DIFFERENTIATOR)
+- Phase 2: Evaluation History + Progress Overlay (dual-layer radar chart)
+- Phase 3: Coach Notes (per player) + 90-Day IDP
+- Phase 4: Polish (roster leaderboard sort, calendar grid, coach settings, badge auto-award)
+- Phase 5: Verification & Fixes
+- Key findings from codebase audit:
+  - 35 tables, all RLS-enabled, strong bones
+  - `process_completed_practices()` has a bug (`event_type` vs `type`) — never actually run
+  - Evaluations only save latest (UPDATE), need INSERT-only for history
+  - Touch tracking: zero implementation exists yet
+  - Practice auto-credit: stubbed (returns 0)
+  - Coach settings: zero UI exists
+  - 90-Day IDP: zero implementation exists
+  - Badge auto-awarding: zero triggers exist
+
 ### Uncommitted files (pre-existing, not from today)
 - `.claude/settings.local.json` — added permission allow rules
 - `dist/index.html` — OG meta tags + asset hash updates from prior build
