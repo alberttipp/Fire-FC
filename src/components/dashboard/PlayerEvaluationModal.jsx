@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, TrendingUp, Award, Medal, Clock } from 'lucide-react';
+import { X, Save, TrendingUp, Award, Medal, Clock, FileText, Target } from 'lucide-react';
+import CoachNotesPanel from './CoachNotesPanel';
+import IDPBuilder from './IDPBuilder';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import confetti from 'canvas-confetti';
 import { badges as mockBadges } from '../../data/badges';
@@ -418,6 +420,18 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                             >
                                 <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> Training</span>
                             </button>
+                            <button
+                                onClick={() => setActiveTab('notes')}
+                                className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'notes' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                            >
+                                <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> Notes</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('idp')}
+                                className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'idp' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                            >
+                                <span className="flex items-center gap-2"><Target className="w-4 h-4" /> IDP</span>
+                            </button>
                         </div>
                     </div>
 
@@ -586,7 +600,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                     </div>
                                 )}
                             </div>
-                        ) : (
+                        ) : activeTab === 'awards' ? (
                             <div className="space-y-8 animate-fade-in">
                                 {['Performance', 'Technical', 'Leadership & Character'].map(cat => {
                                     // Map legacy categories if name matches, or just use filtered list
@@ -629,10 +643,14 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                     </div>
                                 )}
                             </div>
-                        )}
+                        ) : activeTab === 'notes' ? (
+                            <CoachNotesPanel player={player} readOnly={readOnly} />
+                        ) : activeTab === 'idp' ? (
+                            <IDPBuilder player={player} readOnly={readOnly} />
+                        ) : null}
                     </div>
 
-                    {!readOnly && (
+                    {!readOnly && ['eval', 'training', 'awards'].includes(activeTab) && (
                         <div className="p-6 pt-4 border-t border-white/10 bg-black/20 shrink-0 flex justify-between items-center">
                             <span className="text-xs text-gray-500">
                                 {activeTab === 'training' ? 'Edit training minutes' : activeTab === 'awards' ? 'Tap badges to award' : 'Adjust stats carefully'}
