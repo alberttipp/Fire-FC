@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, Play, Plus, ClipboardList, AlertCircle } from 'lucide-react';
+import { Dumbbell, Play, Plus, ClipboardList, Calendar, AlertCircle } from 'lucide-react';
 import AssignDrillModal from './AssignDrillModal';
 import PracticeSessionBuilder from './PracticeSessionBuilder';
+import CreateEventModal from './CreateEventModal';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
@@ -9,6 +10,7 @@ const TrainingView = () => {
     const { user, profile } = useAuth();
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showPracticeBuilder, setShowPracticeBuilder] = useState(false);
+    const [showAddPractice, setShowAddPractice] = useState(false);
     const [drills, setDrills] = useState([]);
     const [loading, setLoading] = useState(true);
     const [teamId, setTeamId] = useState(null);
@@ -62,10 +64,16 @@ const TrainingView = () => {
 
                 <div className="flex gap-3">
                     <button
+                        onClick={() => setShowAddPractice(true)}
+                        className="bg-brand-green text-brand-dark px-4 py-2 rounded font-bold uppercase text-sm flex items-center gap-2 hover:bg-white transition-colors"
+                    >
+                        <Calendar className="w-4 h-4" /> Add Practice
+                    </button>
+                    <button
                         onClick={() => setShowPracticeBuilder(true)}
                         className="bg-brand-gold/10 border border-brand-gold/30 text-brand-gold px-4 py-2 rounded font-bold uppercase text-sm flex items-center gap-2 hover:bg-brand-gold/20 transition-colors"
                     >
-                        <ClipboardList className="w-4 h-4" /> Build Practice
+                        <ClipboardList className="w-4 h-4" /> Build Session
                     </button>
                     <button
                         onClick={() => setShowAssignModal(true)}
@@ -75,6 +83,10 @@ const TrainingView = () => {
                     </button>
                 </div>
             </div>
+
+            {showAddPractice && (
+                <CreateEventModal defaultType="practice" onClose={() => setShowAddPractice(false)} onEventCreated={() => setShowAddPractice(false)} />
+            )}
 
             {showAssignModal && (
                 <AssignDrillModal onClose={() => setShowAssignModal(false)} />
