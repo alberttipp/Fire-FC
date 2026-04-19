@@ -53,6 +53,92 @@
 - [ ] Verify parent dashboard shows Bo's info when tippjr logs in
 - [ ] Demo walkthrough: coach view, parent view, kid view
 
+---
+
+## Albert's Coach Tab Vision (raw, 2026-04-19)
+
+> Saving verbatim so nothing is lost. This is the product vision that drives the plan below.
+
+### Core Philosophy
+- "True Player Development" — the app's entire reason to exist
+- Minimize coach data entry burden — automate everything possible
+- Parents and players must love the interaction and trust the data
+- Parents should be motivated to push players to train outside practice
+- Retain players by showing measurable growth over time
+
+### Coach Dashboard — What It Needs
+1. **Scheduling & Sessions**: Simple to schedule, create training sessions for team. Run individual, group, and any soccer-related sessions a personal coach would want.
+2. **Most stuff exists but is too basic or not working properly** — need to audit each feature and make it production-ready.
+3. **Coach Settings**: Add a settings/setup area on coach main dashboard. Let coach customize reminders, preferences, and other options. Start simple, expand later.
+
+### Team Tab
+- Looks pretty good already
+- Make sure when something is clicked, it opens properly
+- Adding a new team must save properly with correct permissions
+- Calendar: keep upcoming week view, ADD option for upcoming month view
+- Season dropdown: remove old seasons, add Summer 2026 and Fall 2026
+
+### Roster
+- List players in order of training LEADERBOARD (who's working hardest outside practice)
+- Serves as coach's view into who is putting in work beyond team sessions
+- Ties into the core concept — "true player development"
+
+### Player Profile (when coach clicks a player from roster)
+- Love the current look
+- Need to lock down how it's actually and realistically used
+
+### Evaluations
+- Show initial grading of each skill (pace, shooting, passing, dribbling, defending, physical)
+- 6-sided radar chart + bar on right: show initial evaluation as base color
+- Show any PROGRESS in a different color overlay — visual improvement tracking
+- Coach can update whenever, but monthly cadence makes sense
+- Every evaluation change must be timestamped and saved as history
+- Initial evaluation should be visible on screen permanently as baseline
+
+### 90-Day IDP (Individual Development Plan)
+- Install a 90-day IDP program for each player
+- Can be team-wide or individual player trainings
+- This is a structured development arc, not just random assignments
+
+### Coach Notes (per player)
+- Timestamp every entry — create a historical log
+- Full history of the player within the team/system
+- Show growth over time — always have a record
+- UI: "New Note" button + scrollable history
+- Easy to use, not buried in menus
+
+### Badges
+- Make sure current badges function properly
+- Some badges should trigger AUTOMATICALLY (daily training streaks, milestones, etc.)
+- Add more badges later with real coach input
+- Keep a list of things needing coach input in the master plan
+
+### Training Tracking (THE DIFFERENTIATOR)
+- Track weekly minutes AND estimated touches
+- Display: weekly, season, year, CAREER stats
+- Coach assigns homework → player completes → minutes + est. touches logged automatically
+- Practice attendance: player RSVPs "going" → app sees what was done at practice → logs minutes from the session coach built
+- Create an algorithm to estimate touches per drill/session type
+- Most data flows from:
+  - Player homework completion
+  - Practice attendance + session plan (coach-built session tied to practice event)
+- This should all flow AUTOMATICALLY — minimal coach input
+- Training area of player profile shows: weekly minutes, est touches, weekly/season/year/career
+- "This is an absolute differentiator — creates environment that retains players and pushes development"
+
+### Cross-Tab Flow Requirements
+- Everything must connect seamlessly across coach, parent, and player views
+- Parents see the same trusted data — motivates them to encourage training
+- Players see their own progress — gamification through real data
+- Coach sees aggregate + individual views without manual data entry
+
+### Items Needing Real Coach Input (collect later)
+- Badge definitions and thresholds
+- Evaluation rubric details
+- IDP template structure
+- Touch estimation weights per drill type
+- Reminder/notification preferences
+
 ### Uncommitted files (pre-existing, not from today)
 - `.claude/settings.local.json` — added permission allow rules
 - `dist/index.html` — OG meta tags + asset hash updates from prior build
