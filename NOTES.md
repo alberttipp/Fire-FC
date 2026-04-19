@@ -60,15 +60,31 @@
 - UI: PlayerDashboard fetches touch data from player_stats
 - Build: passes clean (`npm run build` — no errors)
 
+#### 7. Phase 2 Complete: Evaluation history + dual-layer radar
+- Evaluations always INSERT (never UPDATE) — creates timestamped history
+- Dual-layer radar: gray dashed baseline + blue current overlay
+- Evaluation history timeline with stat deltas per entry
+- Season dropdown: Fall 2026, Summer 2026, Spring 2026, Fall 2025
+
+#### 8. Phase 3 Complete: Coach notes + 90-Day IDP
+- New tables: coach_notes, player_idps, idp_milestones (all with RLS)
+- CoachNotesPanel: per-player timestamped notes with tags
+- IDPBuilder: 90-day plans with focus areas, targets, auto-generated 30/60/90 milestones
+- PlayerEvaluationModal now has 5 tabs: Eval, Badges, Training, Notes, IDP
+
+#### 9. Phase 4 (partial): Roster leaderboard + badge auto-award
+- Roster now sorted by weekly training minutes (from player_stats, not legacy field)
+- Roster items show weekly min, career touches, OVR side by side
+- 6 milestone badges seeded (streak_7, streak_30, touches_10k, touches_50k, minutes_1000, drills_100)
+- Auto-award trigger on player_stats: fires when threshold JUST crossed, awards once per player
+
 ### Still TODO
 - [ ] Reset password for tippjr@yahoo.com (parent demo login)
 - [ ] Generate fresh access tokens for all 4 players
 - [ ] Verify parent dashboard shows Bo's info when tippjr logs in
 - [ ] Demo walkthrough: coach view, parent view, kid view
-- [ ] Phase 2: Evaluation history + progress overlay
-- [ ] Phase 3: Coach notes + 90-day IDP
-- [ ] Phase 4: Polish (roster leaderboard, calendar grid, coach settings, badge auto-award)
-- [ ] Phase 5: Verification & fixes
+- [ ] Phase 4 remaining: calendar month grid view, coach settings
+- [ ] Phase 5: Verification & fixes (team creation RLS, weekly reset, data accuracy)
 
 ---
 

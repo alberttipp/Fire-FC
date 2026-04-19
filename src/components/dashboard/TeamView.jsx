@@ -115,27 +115,27 @@ const TeamView = () => {
                     .eq('team_id', currentTeamId)
                     .order('last_name', { ascending: true });
 
-                // Fetch evaluations for all players
+                // Fetch evaluations and player_stats for all players
                 const playerIds = (players || []).map(p => p.id);
                 let evaluationsMap = {};
+                let statsMap = {};
                 if (playerIds.length > 0) {
-                    const { data: evaluations } = await supabase
-                        .from('evaluations')
-                        .select('*')
-                        .in('player_id', playerIds)
-                        .order('created_at', { ascending: false });
+                    const [{ data: evaluations }, { data: playerStatsData }] = await Promise.all([
+                        supabase.from('evaluations').select('*').in('player_id', playerIds).order('created_at', { ascending: false }),
+                        supabase.from('player_stats').select('player_id, weekly_minutes, training_minutes, career_touches').in('player_id', playerIds),
+                    ]);
 
-                    // Group by player_id, keep only latest
+                    // Group by player_id, keep only latest eval
                     (evaluations || []).forEach(e => {
-                        if (!evaluationsMap[e.player_id]) {
-                            evaluationsMap[e.player_id] = e;
-                        }
+                        if (!evaluationsMap[e.player_id]) evaluationsMap[e.player_id] = e;
                     });
+                    (playerStatsData || []).forEach(s => { statsMap[s.player_id] = s; });
                 }
 
-                // Transform - use evaluation OVR if available
+                // Transform - use evaluation OVR + player_stats for minutes/touches
                 const formatted = (players || []).map(p => {
                     const eval_ = evaluationsMap[p.id];
+                    const pStats = statsMap[p.id];
                     let ovr = '--';
                     if (eval_) {
                         const stats = [eval_.pace, eval_.shooting, eval_.passing, eval_.dribbling, eval_.defending, eval_.physical].filter(s => s != null);
@@ -143,6 +143,8 @@ const TeamView = () => {
                             ovr = Math.round(stats.reduce((a, b) => a + b, 0) / stats.length);
                         }
                     }
+                    const weeklyMins = pStats?.weekly_minutes || 0;
+                    const careerMins = pStats?.training_minutes || p.training_minutes || 0;
                     return {
                         id: p.id,
                         name: `${p.first_name} ${p.last_name}`,
@@ -150,8 +152,10 @@ const TeamView = () => {
                         lastName: p.last_name,
                         number: p.jersey_number || '#',
                         rating: ovr,
-                        minutes: p.training_minutes || 0,
-                        status: (p.training_minutes > 60) ? 'On Fire' : 'Steady',
+                        minutes: weeklyMins,
+                        careerMinutes: careerMins,
+                        touches: pStats?.career_touches || 0,
+                        status: weeklyMins > 60 ? 'On Fire' : weeklyMins > 20 ? 'Steady' : 'Warming Up',
                         avatar: p.avatar_url,
                         position: p.position
                     };
@@ -179,27 +183,26 @@ const TeamView = () => {
             .eq('team_id', teamId)
             .order('last_name', { ascending: true });
 
-        // Fetch evaluations for all players
+        // Fetch evaluations and player_stats for all players
         const playerIds = (players || []).map(p => p.id);
         let evaluationsMap = {};
+        let statsMap = {};
         if (playerIds.length > 0) {
-            const { data: evaluations } = await supabase
-                .from('evaluations')
-                .select('*')
-                .in('player_id', playerIds)
-                .order('created_at', { ascending: false });
+            const [{ data: evaluations }, { data: playerStatsData }] = await Promise.all([
+                supabase.from('evaluations').select('*').in('player_id', playerIds).order('created_at', { ascending: false }),
+                supabase.from('player_stats').select('player_id, weekly_minutes, training_minutes, career_touches').in('player_id', playerIds),
+            ]);
 
-            // Group by player_id, keep only latest
             (evaluations || []).forEach(e => {
-                if (!evaluationsMap[e.player_id]) {
-                    evaluationsMap[e.player_id] = e;
-                }
+                if (!evaluationsMap[e.player_id]) evaluationsMap[e.player_id] = e;
             });
+            (playerStatsData || []).forEach(s => { statsMap[s.player_id] = s; });
         }
 
-        // Transform - use evaluation OVR if available
+        // Transform - use evaluation OVR + player_stats for minutes/touches
         const formatted = (players || []).map(p => {
             const eval_ = evaluationsMap[p.id];
+            const pStats = statsMap[p.id];
             let ovr = '--';
             if (eval_) {
                 const stats = [eval_.pace, eval_.shooting, eval_.passing, eval_.dribbling, eval_.defending, eval_.physical].filter(s => s != null);
@@ -207,6 +210,8 @@ const TeamView = () => {
                     ovr = Math.round(stats.reduce((a, b) => a + b, 0) / stats.length);
                 }
             }
+            const weeklyMins = pStats?.weekly_minutes || 0;
+            const careerMins = pStats?.training_minutes || p.training_minutes || 0;
             return {
                 id: p.id,
                 name: `${p.first_name} ${p.last_name}`,
@@ -214,8 +219,10 @@ const TeamView = () => {
                 lastName: p.last_name,
                 number: p.jersey_number || '#',
                 rating: ovr,
-                minutes: p.training_minutes || 0,
-                status: (p.training_minutes > 60) ? 'On Fire' : 'Steady',
+                minutes: weeklyMins,
+                careerMinutes: careerMins,
+                touches: pStats?.career_touches || 0,
+                status: weeklyMins > 60 ? 'On Fire' : weeklyMins > 20 ? 'Steady' : 'Warming Up',
                 avatar: p.avatar_url,
                 position: p.position
             };
@@ -430,9 +437,19 @@ const TeamView = () => {
                                     </div>
 
                                     <div className="flex items-center gap-3">
-                                        <div className="hidden sm:flex items-center gap-3">
-                                            <span className="text-brand-gold font-display font-bold text-lg">{player.rating}</span>
-                                            <span className="text-gray-500 text-xs">OVR</span>
+                                        <div className="hidden sm:flex items-center gap-4 text-right">
+                                            <div>
+                                                <span className="text-blue-400 font-display font-bold text-sm block">{player.minutes}</span>
+                                                <span className="text-gray-600 text-[9px] uppercase">wk min</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-orange-400 font-display font-bold text-sm block">{(player.touches || 0).toLocaleString()}</span>
+                                                <span className="text-gray-600 text-[9px] uppercase">touches</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-brand-gold font-display font-bold text-lg">{player.rating}</span>
+                                                <span className="text-gray-500 text-[9px] uppercase block">OVR</span>
+                                            </div>
                                         </div>
                                         <div className="flex gap-2">
                                             <button
