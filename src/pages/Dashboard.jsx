@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Camera, Tv, Car } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Camera, Tv, Car, Briefcase } from 'lucide-react';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
 import TrainingView from '../components/dashboard/TrainingView';
+import PrivateTrainingView from '../components/dashboard/PrivateTrainingView';
 import ChatView from '../components/dashboard/ChatView';
 import CalendarHub from '../components/dashboard/CalendarHub';
 import FinancialView from '../components/dashboard/FinancialView';
@@ -120,7 +121,8 @@ const Dashboard = () => {
         switch (currentView) {
             case 'club': return <ClubView />;
             case 'team': return <TeamView />;
-            case 'training': return <TrainingView />;
+            case 'practice': return <TrainingView />;
+            case 'private': return <PrivateTrainingView />;
             case 'chat': return <ChatView />;
             case 'calendar': return <CalendarHub />;
             case 'gallery': return <GalleryView />;
@@ -164,10 +166,16 @@ const Dashboard = () => {
                                 Team
                             </button>
                             <button
-                                onClick={() => setCurrentView('training')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'training' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                onClick={() => setCurrentView('practice')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'practice' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
-                                Training
+                                <Dumbbell className="w-3 h-3" /> Practice
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('private')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'private' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold/70 hover:text-brand-gold'}`}
+                            >
+                                <Briefcase className="w-3 h-3" /> Private
                             </button>
                             <button
                                 onClick={() => setCurrentView('chat')}
@@ -241,7 +249,8 @@ const Dashboard = () => {
                                         {[
                                             { id: 'club', label: 'Club' },
                                             { id: 'team', label: 'Team' },
-                                            { id: 'training', label: 'Training' },
+                                            { id: 'practice', label: 'Practice' },
+                                            { id: 'private', label: 'Private Training' },
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
                                             { id: 'gallery', label: 'Gallery' },
