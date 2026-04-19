@@ -7,17 +7,17 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
 const CATEGORY_CONFIG = {
-    'Ball Mastery (Solo)': { color: 'purple', bg: 'bg-purple-500/20', border: 'border-purple-500/30', text: 'text-purple-400', icon: Footprints, label: 'Ball Mastery' },
-    'First Touch':         { color: 'blue', bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400', icon: Target, label: 'First Touch' },
-    'Dribbling & 1v1':     { color: 'emerald', bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400', icon: Zap, label: 'Dribbling' },
-    'Passing & Receiving': { color: 'cyan', bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', text: 'text-cyan-400', icon: Wind, label: 'Passing' },
-    'Finishing & Shooting':{ color: 'red', bg: 'bg-red-500/20', border: 'border-red-500/30', text: 'text-red-400', icon: Flame, label: 'Shooting' },
-    'Defending':           { color: 'amber', bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400', icon: Shield, label: 'Defending' },
-    'Tactical / Game Intelligence': { color: 'indigo', bg: 'bg-indigo-500/20', border: 'border-indigo-500/30', text: 'text-indigo-400', icon: Brain, label: 'Tactical' },
-    'Warm-Up':             { color: 'orange', bg: 'bg-orange-500/20', border: 'border-orange-500/30', text: 'text-orange-400', icon: Heart, label: 'Warm-Up' },
-    'Conditioning':        { color: 'rose', bg: 'bg-rose-500/20', border: 'border-rose-500/30', text: 'text-rose-400', icon: Dumbbell, label: 'Conditioning' },
-    'Speed & Agility':     { color: 'yellow', bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', text: 'text-yellow-400', icon: Zap, label: 'Speed' },
-    'Goalkeeper':          { color: 'teal', bg: 'bg-teal-500/20', border: 'border-teal-500/30', text: 'text-teal-400', icon: Eye, label: 'Goalkeeper' },
+    'Ball Mastery (Solo)': { bg: 'bg-purple-500/20', border: 'border-purple-500/30', text: 'text-purple-400', glow: 'shadow-purple-500/20', gradient: 'from-purple-900/80 to-purple-600/20', icon: Footprints, emoji: '🎯', label: 'Ball Mastery' },
+    'First Touch':         { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400', glow: 'shadow-blue-500/20', gradient: 'from-blue-900/80 to-blue-600/20', icon: Target, emoji: '🧲', label: 'First Touch' },
+    'Dribbling & 1v1':     { bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: 'text-emerald-400', glow: 'shadow-emerald-500/20', gradient: 'from-emerald-900/80 to-emerald-600/20', icon: Zap, emoji: '⚡', label: 'Dribbling' },
+    'Passing & Receiving': { bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', text: 'text-cyan-400', glow: 'shadow-cyan-500/20', gradient: 'from-cyan-900/80 to-cyan-600/20', icon: Wind, emoji: '🎯', label: 'Passing' },
+    'Finishing & Shooting':{ bg: 'bg-red-500/20', border: 'border-red-500/30', text: 'text-red-400', glow: 'shadow-red-500/20', gradient: 'from-red-900/80 to-red-600/20', icon: Flame, emoji: '🔥', label: 'Shooting' },
+    'Defending':           { bg: 'bg-amber-500/20', border: 'border-amber-500/30', text: 'text-amber-400', glow: 'shadow-amber-500/20', gradient: 'from-amber-900/80 to-amber-600/20', icon: Shield, emoji: '🛡️', label: 'Defending' },
+    'Tactical / Game Intelligence': { bg: 'bg-indigo-500/20', border: 'border-indigo-500/30', text: 'text-indigo-400', glow: 'shadow-indigo-500/20', gradient: 'from-indigo-900/80 to-indigo-600/20', icon: Brain, emoji: '🧠', label: 'Tactical' },
+    'Warm-Up':             { bg: 'bg-orange-500/20', border: 'border-orange-500/30', text: 'text-orange-400', glow: 'shadow-orange-500/20', gradient: 'from-orange-900/80 to-orange-600/20', icon: Heart, emoji: '🔆', label: 'Warm-Up' },
+    'Conditioning':        { bg: 'bg-rose-500/20', border: 'border-rose-500/30', text: 'text-rose-400', glow: 'shadow-rose-500/20', gradient: 'from-rose-900/80 to-rose-600/20', icon: Dumbbell, emoji: '💪', label: 'Conditioning' },
+    'Speed & Agility':     { bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', text: 'text-yellow-400', glow: 'shadow-yellow-500/20', gradient: 'from-yellow-900/80 to-yellow-600/20', icon: Zap, emoji: '💨', label: 'Speed' },
+    'Goalkeeper':          { bg: 'bg-teal-500/20', border: 'border-teal-500/30', text: 'text-teal-400', glow: 'shadow-teal-500/20', gradient: 'from-teal-900/80 to-teal-600/20', icon: Eye, emoji: '🧤', label: 'Goalkeeper' },
 };
 
 const getCategoryConfig = (category) => CATEGORY_CONFIG[category] || { color: 'gray', bg: 'bg-gray-500/20', border: 'border-gray-500/30', text: 'text-gray-400', icon: Dumbbell, label: category };
@@ -156,36 +156,47 @@ const TrainingView = () => {
                             <div
                                 key={drill.id}
                                 onClick={() => setSelectedDrill(drill)}
-                                className={`glass-panel p-4 group hover:${cat.border} transition-all cursor-pointer relative overflow-hidden border-l-2 ${cat.border}`}
+                                className={`group cursor-pointer relative overflow-hidden rounded-xl border ${cat.border} bg-gradient-to-br from-gray-900 to-black hover:shadow-lg hover:${cat.glow} hover:scale-[1.02] transition-all duration-300`}
                             >
-                                <div className="h-28 bg-gray-800 rounded mb-3 relative overflow-hidden">
+                                {/* Image area with category icon overlay */}
+                                <div className="h-36 relative overflow-hidden">
                                     <img
                                         src={drill.image_url || drill.image}
                                         alt={drill.name}
-                                        className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:scale-110 transition-transform duration-500"
+                                        className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-500"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                                    <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient}`} />
 
-                                    {/* Category badge */}
-                                    <div className={`absolute top-2 left-2 ${cat.bg} ${cat.text} px-2 py-0.5 rounded text-[9px] font-bold uppercase flex items-center gap-1`}>
-                                        <CatIcon className="w-2.5 h-2.5" /> {cat.label}
+                                    {/* Large category emoji — the hero visual */}
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <span className="text-5xl opacity-80 group-hover:opacity-100 group-hover:scale-125 transition-all duration-300 drop-shadow-lg select-none">
+                                            {cat.emoji}
+                                        </span>
                                     </div>
 
-                                    {/* Duration badge */}
-                                    <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-0.5 rounded text-[9px] font-bold flex items-center gap-1">
-                                        <Clock className="w-2.5 h-2.5" /> {drill.duration} min
+                                    {/* Duration pill */}
+                                    <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-sm text-white px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1">
+                                        <Clock className="w-2.5 h-2.5" /> {drill.duration}m
                                     </div>
 
-                                    {/* Hover overlay */}
-                                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-3">
-                                        <p className="text-[11px] text-gray-200 text-center leading-relaxed line-clamp-4">{drill.description}</p>
+                                    {/* Hover description overlay */}
+                                    <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-4">
+                                        <p className="text-xs text-gray-200 text-center leading-relaxed line-clamp-5">{drill.description}</p>
                                     </div>
                                 </div>
 
-                                <h4 className="text-white font-bold text-sm leading-tight">{drill.name}</h4>
-                                <p className={`text-[10px] mt-1 ${cat.text} font-bold uppercase flex items-center gap-1`}>
-                                    <CatIcon className="w-3 h-3" /> {drill.duration} Min
-                                </p>
+                                {/* Info bar */}
+                                <div className="p-3">
+                                    <h4 className="text-white font-bold text-sm leading-tight line-clamp-2">{drill.name}</h4>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <span className={`${cat.bg} ${cat.text} px-2 py-0.5 rounded-full text-[9px] font-bold uppercase flex items-center gap-1`}>
+                                            <CatIcon className="w-2.5 h-2.5" /> {cat.label}
+                                        </span>
+                                        <span className="text-[10px] text-gray-500 font-bold">
+                                            ⚽ ~{Math.round((drill.touch_weight || 8) * drill.duration)} touches
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         );
                     })}
