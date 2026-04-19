@@ -1,18 +1,16 @@
 // AI Practice Session Edge Function
-// Securely calls Gemini API server-side to generate practice sessions
+// Calls Claude API server-side to generate practice sessions
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { jsonrepair } from "npm:jsonrepair@3.8.0"
 
-// Inline CORS headers (no external import needed)
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 
-// Balanced brace JSON extractor - finds valid JSON by counting braces, ignoring braces in strings
 function extractBalancedJSON(text: string): string | null {
   const firstBrace = text.indexOf('{')
   if (firstBrace === -1) return null
@@ -53,7 +51,6 @@ function extractBalancedJSON(text: string): string | null {
   return null
 }
 
-// Validate session structure
 function validateSession(session: any): { valid: boolean; error?: string } {
   if (!session.sessionName || typeof session.sessionName !== 'string') {
     return { valid: false, error: 'missing or invalid sessionName' }
@@ -128,30 +125,24 @@ interface SessionOutput {
 }
 
 serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    let text = '' // Declare for catch block access
-
-    // Validate Gemini API key
-    if (!GEMINI_API_KEY) {
-      console.error('❌ GEMINI_API_KEY not found in environment')
+    if (!ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY not found in environment')
       return new Response(
-        JSON.stringify({ error: 'Gemini API key not configured. Contact administrator.' }),
+        JSON.stringify({ error: 'Anthropic API key not configured. Contact administrator.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Parse request body
     const body: RequestBody = await req.json()
     const { transcript, selectedEventId, eventContext, candidates } = body
 
-    console.log('🎤 Processing transcript:', transcript)
-    console.log('📋 Received', candidates?.length || 0, 'drill candidates')
-    console.log('📅 Event context:', eventContext || 'None')
+    console.log('Processing transcript:', transcript)
+    console.log('Received', candidates?.length || 0, 'drill candidates')
 
     if (!transcript || !candidates || candidates.length === 0) {
       return new Response(
@@ -160,7 +151,6 @@ serve(async (req) => {
       )
     }
 
-    // Build Gemini prompt
     const allowedDrillsList = candidates.map(d =>
       `- ID: ${d.id} | Name: "${d.name}" | Category: ${d.category} | Duration: ${d.duration}min | Description: "${d.description}"`
     ).join('\n')
@@ -180,7 +170,7 @@ INSTRUCTIONS:
 1. Generate a session name based on the transcript focus (e.g., "Passing & Movement Session", "Defensive Compactness Training")
 2. For each drill, try to match to an allowed drill by ID. If you use an allowed drill, set custom=false and use its drillId.
 3. If you need a drill not in the allowed list, set custom=true and drillId=null.
-4. Total minutes should match the transcript request (±2 min is ok).
+4. Total minutes should match the transcript request (+-2 min is ok).
 5. MUST include a warmup drill near the start (unless transcript explicitly says no warmup).
 6. MUST include a cooldown drill near the end (unless transcript explicitly says no cooldown).
 7. Provide realistic equipment, setup steps, coaching points, and progressions.
@@ -209,43 +199,38 @@ Return ONLY valid JSON matching this exact schema:
   ]
 }
 
-CRITICAL: Return STRICT JSON. No trailing commas. No markdown. Double quotes only. No explanations, just the raw JSON.`
+CRITICAL: Return ONLY the raw JSON object. No markdown fences. No explanations. No text before or after the JSON.`
 
-    console.log('📡 Calling Gemini API...')
+    console.log('Calling Claude API (claude-sonnet-4-20250514)...')
 
-    // Call Gemini API
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': GEMINI_API_KEY
-        },
-        body: JSON.stringify({
-          contents: [{
-            role: 'user',
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 4096
-          }
-        })
-      }
-    )
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: prompt
+        }]
+      })
+    })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('❌ Gemini API error:', response.status, errorText)
-      throw new Error(`Gemini API error: ${response.status}`)
+      console.error('Claude API error:', response.status, errorText)
+      throw new Error(`Claude API error: ${response.status}`)
     }
 
     const data = await response.json()
-    text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-    console.log('📝 Gemini response length:', text.length)
+    let text = data.content?.[0]?.text || ''
+    console.log('Claude response length:', text.length)
 
-    // Strip markdown fences
+    // Strip markdown fences if present
     text = text
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
@@ -254,136 +239,66 @@ CRITICAL: Return STRICT JSON. No trailing commas. No markdown. Double quotes onl
     // Extract JSON using balanced brace extractor
     let extracted = extractBalancedJSON(text)
     if (!extracted) {
-      console.error('❌ No balanced JSON found in Gemini response')
-      console.log('🧠 Raw text (first 800):', text.slice(0, 800))
-      console.log('🧠 Raw text (last 800):', text.slice(-800))
+      console.error('No balanced JSON found in Claude response')
+      console.log('Raw text (first 800):', text.slice(0, 800))
       throw new Error('Could not extract JSON from AI response')
     }
 
-    console.log('🔍 Extracted JSON length:', extracted.length)
+    console.log('Extracted JSON length:', extracted.length)
 
-    // Repair JSON using jsonrepair
+    // Repair JSON
     let repaired: string
     try {
       repaired = jsonrepair(extracted)
-      console.log('🔧 JSON repair completed')
+      console.log('JSON repair completed')
     } catch (repairError) {
-      console.error('❌ JSON repair failed:', repairError)
-      console.log('🧠 Extracted JSON (first 800):', extracted.slice(0, 800))
-      console.log('🧠 Extracted JSON (last 800):', extracted.slice(-800))
+      console.error('JSON repair failed:', repairError)
       throw new Error('Failed to repair JSON')
     }
 
-    // Parse repaired JSON
+    // Parse
     let session: SessionOutput
     try {
       session = JSON.parse(repaired)
-      console.log('✅ JSON parsed successfully')
+      console.log('JSON parsed successfully')
     } catch (parseError) {
-      console.error('❌ JSON parse failed after repair:', parseError)
-      console.log('🧠 Repaired JSON (first 800):', repaired.slice(0, 800))
-      console.log('🧠 Repaired JSON (last 800):', repaired.slice(-800))
+      console.error('JSON parse failed after repair:', parseError)
       const errorMsg = parseError instanceof Error ? parseError.message : String(parseError)
       throw new Error(`Failed to parse repaired JSON: ${errorMsg}`)
     }
 
-    // Validate session structure
+    // Validate
     const validation = validateSession(session)
     if (!validation.valid) {
-      console.error('❌ Session validation failed:', validation.error)
-      console.log('🔧 Attempting retry with repair prompt...')
-
-      // Retry with repair prompt
-      const retryResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': GEMINI_API_KEY
-          },
-          body: JSON.stringify({
-            contents: [{
-              role: 'user',
-              parts: [{ text: `Return STRICT JSON only, no prose. Fix this session to be valid:\n\n${JSON.stringify(session, null, 2)}\n\nEnsure all drills have: name, minutes, category, setup (array), coachingPoints (array), progressions (array).` }]
-            }],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 4096
-            }
-          })
-        }
-      )
-
-      if (!retryResponse.ok) {
-        throw new Error(`Retry failed with status ${retryResponse.status}`)
-      }
-
-      const retryData = await retryResponse.json()
-      let retryText = retryData.candidates?.[0]?.content?.parts?.[0]?.text || ''
-      retryText = retryText
-        .replace(/```json\s*/gi, '')
-        .replace(/```\s*/g, '')
-        .trim()
-
-      const retryExtracted = extractBalancedJSON(retryText)
-      if (!retryExtracted) {
-        throw new Error('Could not extract JSON from retry response')
-      }
-
-      const retryRepaired = jsonrepair(retryExtracted)
-      session = JSON.parse(retryRepaired)
-
-      const retryValidation = validateSession(session)
-      if (!retryValidation.valid) {
-        throw new Error(`Retry validation failed: ${retryValidation.error}`)
-      }
-
-      console.log('✅ Retry successful, session now valid')
+      console.error('Session validation failed:', validation.error)
+      throw new Error(`Session validation failed: ${validation.error}`)
     }
 
-    // Strict validation of required keys
-    if (!session.sessionName || typeof session.sessionName !== 'string') {
-      throw new Error('Invalid session structure: missing or invalid sessionName')
-    }
-    if (typeof session.totalMinutes !== 'number') {
-      throw new Error('Invalid session structure: missing or invalid totalMinutes')
-    }
-    if (!Array.isArray(session.drills) || session.drills.length === 0) {
-      throw new Error('Invalid session structure: missing or invalid drills array')
-    }
-
-    // Validate drill IDs and ensure custom drills always have drillId: null
+    // Validate drill IDs
     const allowedIds = new Set(candidates.map(c => c.id))
     session.drills.forEach((drill, i) => {
-      // If drill is marked as custom, ensure drillId is null (not empty string or undefined)
       if (drill.custom) {
         if (drill.drillId !== null) {
-          console.warn(`⚠️ Drill ${i} "${drill.name}" is custom, setting drillId to null`)
           drill.drillId = null
         }
       } else {
-        // If drill is not custom, validate drillId exists and is in allowed list
         if (!drill.drillId) {
-          console.warn(`⚠️ Drill ${i} "${drill.name}" is not custom but has no drillId, forcing custom=true`)
           drill.custom = true
           drill.drillId = null
         } else if (!allowedIds.has(drill.drillId)) {
-          console.warn(`⚠️ Drill ${i} "${drill.name}" has invalid drillId ${drill.drillId}, forcing custom=true`)
           drill.custom = true
           drill.drillId = null
         }
       }
     })
 
-    // Set attachToEventId if provided
     if (selectedEventId) {
       session.attachToEventId = selectedEventId
     }
 
-    console.log('✅ Successfully generated session:', session.sessionName)
-    console.log(`   ${session.drills.length} drills, ${session.totalMinutes} minutes total`)
-    console.log(`   Custom drills: ${session.drills.filter(d => d.custom).length}`)
+    console.log('Successfully generated session:', session.sessionName)
+    console.log(`  ${session.drills.length} drills, ${session.totalMinutes} minutes total`)
+    console.log(`  Custom drills: ${session.drills.filter(d => d.custom).length}`)
 
     return new Response(
       JSON.stringify(session),
@@ -391,13 +306,7 @@ CRITICAL: Return STRICT JSON. No trailing commas. No markdown. Double quotes onl
     )
 
   } catch (error) {
-    console.error('❌ Error in ai-practice-session:', error)
-
-    // Log raw Gemini response for debugging
-    if (typeof text !== 'undefined') {
-      console.log("🧠 Raw Gemini text (first 800):", text.slice(0, 800))
-      console.log("🧠 Raw Gemini text (last 800):", text.slice(-800))
-    }
+    console.error('Error in ai-practice-session:', error)
 
     return new Response(
       JSON.stringify({
