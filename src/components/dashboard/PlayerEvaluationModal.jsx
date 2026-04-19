@@ -13,6 +13,8 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     const [coachNotes, setCoachNotes] = useState('');
     const [season, setSeason] = useState('Spring 2026');
     const [existingEvalId, setExistingEvalId] = useState(null);
+    const [evalHistory, setEvalHistory] = useState([]);
+    const [baselineStats, setBaselineStats] = useState(null);
 
     // Badge Data State
     const [allBadges, setAllBadges] = useState([]);
@@ -53,31 +55,44 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
             setAllBadges(badgeDefs || []);
 
             if (player?.id) {
-                // 2. Get Latest Evaluation for this player
-                const { data: evalData, error: evalError } = await supabase
+                // 2. Get ALL Evaluations for this player (for history + baseline)
+                const { data: allEvals, error: evalError } = await supabase
                     .from('evaluations')
                     .select('*')
                     .eq('player_id', player.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .single();
+                    .order('created_at', { ascending: true });
 
                 if (evalError && evalError.code !== 'PGRST116') {
-                    // PGRST116 = no rows returned, which is fine
-                    console.error("Error fetching evaluation:", evalError);
-                } else if (evalData) {
-                    // Load existing evaluation
-                    setExistingEvalId(evalData.id);
-                    setStats({
-                        Pace: evalData.pace || 50,
-                        Shooting: evalData.shooting || 50,
-                        Passing: evalData.passing || 50,
-                        Dribbling: evalData.dribbling || 50,
-                        Defending: evalData.defending || 50,
-                        Physical: evalData.physical || 50,
+                    console.error("Error fetching evaluations:", evalError);
+                }
+
+                if (allEvals && allEvals.length > 0) {
+                    setEvalHistory(allEvals);
+
+                    // Baseline = first evaluation ever
+                    const baseline = allEvals[0];
+                    setBaselineStats({
+                        Pace: baseline.pace || 50,
+                        Shooting: baseline.shooting || 50,
+                        Passing: baseline.passing || 50,
+                        Dribbling: baseline.dribbling || 50,
+                        Defending: baseline.defending || 50,
+                        Physical: baseline.physical || 50,
                     });
-                    setCoachNotes(evalData.notes || '');
-                    setSeason(evalData.season || 'Spring 2026');
+
+                    // Current = latest evaluation
+                    const latest = allEvals[allEvals.length - 1];
+                    setExistingEvalId(latest.id);
+                    setStats({
+                        Pace: latest.pace || 50,
+                        Shooting: latest.shooting || 50,
+                        Passing: latest.passing || 50,
+                        Dribbling: latest.dribbling || 50,
+                        Defending: latest.defending || 50,
+                        Physical: latest.physical || 50,
+                    });
+                    setCoachNotes(latest.notes || '');
+                    setSeason(latest.season || 'Summer 2026');
                 }
 
                 // 3. Get Earned Badges - query by player_user_id (auth.users UUID)
@@ -194,6 +209,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     const data = Object.keys(stats).map(key => ({
         subject: key,
         A: stats[key],
+        baseline: baselineStats ? baselineStats[key] : stats[key],
         fullMark: 100,
     }));
 
@@ -269,21 +285,11 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 notes: coachNotes,
             };
 
-            let error;
-            if (existingEvalId) {
-                // Update existing evaluation
-                const { error: updateError } = await supabase
-                    .from('evaluations')
-                    .update(evaluationData)
-                    .eq('id', existingEvalId);
-                error = updateError;
-            } else {
-                // Insert new evaluation
-                const { error: insertError } = await supabase
-                    .from('evaluations')
-                    .insert([evaluationData]);
-                error = insertError;
-            }
+            // Always INSERT a new evaluation — creates timestamped history
+            // Each save becomes a historical record; latest = current, first = baseline
+            const { error } = await supabase
+                .from('evaluations')
+                .insert([evaluationData]);
 
             if (error) throw error;
 
@@ -353,8 +359,19 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                 <PolarGrid stroke="#333" />
                                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 'bold' }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                {baselineStats && evalHistory.length > 1 && (
+                                    <Radar
+                                        name="Baseline"
+                                        dataKey="baseline"
+                                        stroke="#6b7280"
+                                        strokeWidth={1}
+                                        strokeDasharray="4 4"
+                                        fill="#6b7280"
+                                        fillOpacity={0.1}
+                                    />
+                                )}
                                 <Radar
-                                    name="Player Stats"
+                                    name="Current"
                                     dataKey="A"
                                     stroke="#3b82f6"
                                     strokeWidth={2}
@@ -511,10 +528,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                                 onChange={(e) => setSeason(e.target.value)}
                                                 className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white text-sm focus:border-brand-green outline-none"
                                             >
+                                                <option value="Fall 2026">Fall 2026</option>
+                                                <option value="Summer 2026">Summer 2026</option>
                                                 <option value="Spring 2026">Spring 2026</option>
                                                 <option value="Fall 2025">Fall 2025</option>
-                                                <option value="Summer 2025">Summer 2025</option>
-                                                <option value="Spring 2025">Spring 2025</option>
                                             </select>
                                         </div>
                                         <div>
@@ -525,6 +542,46 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                                 className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white text-sm focus:border-brand-green outline-none resize-none h-24"
                                                 placeholder="Great improvement in pace this week..."
                                             ></textarea>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Evaluation History Timeline */}
+                                {evalHistory.length > 1 && (
+                                    <div className="mt-6 pt-4 border-t border-white/10">
+                                        <h4 className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-3">Evaluation History</h4>
+                                        <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                            {[...evalHistory].reverse().map((ev, i) => {
+                                                const prevEv = i < evalHistory.length - 1 ? [...evalHistory].reverse()[i + 1] : null;
+                                                const ovr = Math.round((ev.pace + ev.shooting + ev.passing + ev.dribbling + ev.defending + ev.physical) / 6);
+                                                const deltas = prevEv ? ['pace','shooting','passing','dribbling','defending','physical']
+                                                    .map(s => ({ stat: s.charAt(0).toUpperCase() + s.slice(1), diff: ev[s] - prevEv[s] }))
+                                                    .filter(d => d.diff !== 0) : [];
+                                                return (
+                                                    <div key={ev.id} className={`p-3 rounded-lg border ${i === 0 ? 'bg-blue-500/10 border-blue-500/30' : 'bg-white/5 border-white/5'}`}>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-xs text-gray-400">{new Date(ev.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-gray-500">{ev.season}</span>
+                                                                <span className="text-sm font-bold text-white">OVR {ovr}</span>
+                                                            </div>
+                                                        </div>
+                                                        {deltas.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                                                {deltas.map(d => (
+                                                                    <span key={d.stat} className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${d.diff > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                                        {d.diff > 0 ? '+' : ''}{d.diff} {d.stat}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {i === evalHistory.length - 1 && (
+                                                            <span className="text-[10px] text-gray-500 italic">Initial evaluation</span>
+                                                        )}
+                                                        {ev.notes && <p className="text-[11px] text-gray-400 mt-1 italic truncate">{ev.notes}</p>}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
