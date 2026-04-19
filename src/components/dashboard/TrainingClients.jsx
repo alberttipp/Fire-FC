@@ -23,6 +23,8 @@ const TrainingClients = () => {
         title: '', session_type: 'individual', start_time: '', duration_minutes: 60,
         location_name: '', is_paid: false, price: '', notes: '', client_ids: []
     });
+    const [editingSession, setEditingSession] = useState(null);
+    const [editForm, setEditForm] = useState(null);
     const [activeTab, setActiveTab] = useState('clients');
 
     // Fetch data
@@ -168,6 +170,55 @@ const TrainingClients = () => {
             fetchData();
         } catch (err) {
             console.error('Error cancelling session:', err);
+        }
+    };
+
+    // Open edit modal
+    const openEditSession = (session) => {
+        const startLocal = session.start_time ? new Date(session.start_time).toISOString().slice(0, 16) : '';
+        setEditForm({
+            title: session.title || '',
+            session_type: session.session_type || 'individual',
+            start_time: startLocal,
+            duration_minutes: session.duration_minutes || 60,
+            location_name: session.location_name || '',
+            is_paid: session.is_paid || false,
+            price: session.price || '',
+            payment_status: session.payment_status || 'unpaid',
+            notes: session.notes || '',
+            status: session.status || 'scheduled',
+        });
+        setEditingSession(session);
+    };
+
+    // Save edited session
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        if (!editingSession) return;
+        try {
+            const { error } = await supabase
+                .from('training_sessions')
+                .update({
+                    title: editForm.title,
+                    session_type: editForm.session_type,
+                    start_time: editForm.start_time,
+                    duration_minutes: editForm.duration_minutes,
+                    location_name: editForm.location_name || null,
+                    is_paid: editForm.is_paid,
+                    price: editForm.is_paid ? parseFloat(editForm.price) || null : null,
+                    payment_status: editForm.payment_status,
+                    notes: editForm.notes || null,
+                    status: editForm.status,
+                })
+                .eq('id', editingSession.id);
+
+            if (error) throw error;
+            setEditingSession(null);
+            setEditForm(null);
+            fetchData();
+        } catch (err) {
+            console.error('Error updating session:', err);
+            alert('Could not update session');
         }
     };
 
@@ -334,7 +385,8 @@ const TrainingClients = () => {
                         sessions.filter(s => s.status === 'scheduled').map(session => (
                             <div
                                 key={session.id}
-                                className="glass-panel p-4 flex items-center justify-between"
+                                onClick={() => openEditSession(session)}
+                                className="glass-panel p-4 flex items-center justify-between cursor-pointer hover:border-brand-green/30 transition-colors"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={`p-3 rounded-lg ${
@@ -377,7 +429,13 @@ const TrainingClients = () => {
                                         </span>
                                     )}
                                     <button
-                                        onClick={() => cancelSession(session.id)}
+                                        onClick={(e) => { e.stopPropagation(); openEditSession(session); }}
+                                        className="px-3 py-1.5 border border-brand-green/30 text-brand-green rounded text-xs hover:bg-brand-green/10"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); cancelSession(session.id); }}
                                         className="px-3 py-1.5 border border-red-500/30 text-red-400 rounded text-xs hover:bg-red-500/10"
                                     >
                                         Cancel
@@ -650,6 +708,164 @@ const TrainingClients = () => {
                                     className="flex-1 py-2 bg-brand-green text-brand-dark rounded font-bold"
                                 >
                                     Schedule Session
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Session Modal */}
+            {editingSession && editForm && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-brand-dark border border-white/10 rounded-xl w-full max-w-lg p-6 my-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl text-white font-bold">Edit Session</h3>
+                            <button onClick={() => { setEditingSession(null); setEditForm(null); }} className="p-1 hover:bg-white/10 rounded">
+                                <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveEdit} className="space-y-4">
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase">Session Title *</label>
+                                <input
+                                    type="text"
+                                    value={editForm.title}
+                                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    required
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs text-gray-400 uppercase">Session Type</label>
+                                    <select
+                                        value={editForm.session_type}
+                                        onChange={(e) => setEditForm({ ...editForm, session_type: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    >
+                                        <option value="individual">Individual (1-on-1)</option>
+                                        <option value="small_group">Small Group (2-4)</option>
+                                        <option value="team">Team Session</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 uppercase">Duration (min)</label>
+                                    <select
+                                        value={editForm.duration_minutes}
+                                        onChange={(e) => setEditForm({ ...editForm, duration_minutes: parseInt(e.target.value) })}
+                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    >
+                                        <option value="30">30 minutes</option>
+                                        <option value="45">45 minutes</option>
+                                        <option value="60">60 minutes</option>
+                                        <option value="90">90 minutes</option>
+                                        <option value="120">2 hours</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase">Date & Time *</label>
+                                <input
+                                    type="datetime-local"
+                                    value={editForm.start_time}
+                                    onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase">Location</label>
+                                <input
+                                    type="text"
+                                    value={editForm.location_name}
+                                    onChange={(e) => setEditForm({ ...editForm, location_name: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    placeholder="e.g., Rockford Sports Complex"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs text-gray-400 uppercase">Status</label>
+                                    <select
+                                        value={editForm.status}
+                                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    >
+                                        <option value="scheduled">Scheduled</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-gray-400 uppercase">Payment Status</label>
+                                    <select
+                                        value={editForm.payment_status}
+                                        onChange={(e) => setEditForm({ ...editForm, payment_status: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                    >
+                                        <option value="unpaid">Unpaid</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="waived">Waived</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-white/10 pt-4">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={editForm.is_paid}
+                                        onChange={(e) => setEditForm({ ...editForm, is_paid: e.target.checked })}
+                                        className="w-5 h-5 rounded bg-white/5 border border-white/10"
+                                    />
+                                    <span className="text-white">Paid session</span>
+                                </label>
+
+                                {editForm.is_paid && (
+                                    <div className="mt-3">
+                                        <label className="text-xs text-gray-400 uppercase">Price ($)</label>
+                                        <input
+                                            type="number"
+                                            value={editForm.price}
+                                            onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1"
+                                            placeholder="50.00"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-400 uppercase">Notes</label>
+                                <textarea
+                                    value={editForm.notes}
+                                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded p-2 text-white mt-1 h-20 resize-none"
+                                    placeholder="Session focus, equipment needed..."
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setEditingSession(null); setEditForm(null); }}
+                                    className="flex-1 py-2 border border-white/10 rounded text-gray-400"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-2 bg-brand-green text-brand-dark rounded font-bold"
+                                >
+                                    Save Changes
                                 </button>
                             </div>
                         </form>
