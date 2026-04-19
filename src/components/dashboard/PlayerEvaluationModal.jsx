@@ -26,6 +26,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         training_minutes: 0,
         drills_completed: 0,
         streak_days: 0,
+        weekly_touches: 0,
+        season_touches: 0,
+        yearly_touches: 0,
+        career_touches: 0,
     });
 
     // Stats - will load from DB if exists
@@ -98,7 +102,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 // 4. Get Training Stats
                 const { data: statsRow, error: statsError } = await supabase
                     .from('player_stats')
-                    .select('weekly_minutes, season_minutes, yearly_minutes, training_minutes, drills_completed, streak_days')
+                    .select('weekly_minutes, season_minutes, yearly_minutes, training_minutes, drills_completed, streak_days, weekly_touches, season_touches, yearly_touches, career_touches')
                     .eq('player_id', player.id)
                     .single();
 
@@ -113,6 +117,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                         training_minutes: statsRow.training_minutes || 0,
                         drills_completed: statsRow.drills_completed || 0,
                         streak_days: statsRow.streak_days || 0,
+                        weekly_touches: statsRow.weekly_touches || 0,
+                        season_touches: statsRow.season_touches || 0,
+                        yearly_touches: statsRow.yearly_touches || 0,
+                        career_touches: statsRow.career_touches || 0,
                     });
                 }
             }
@@ -401,7 +409,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                         {activeTab === 'training' ? (
                             <div className="space-y-5">
                                 {/* Read-only summary row */}
-                                <div className="grid grid-cols-3 gap-3 mb-2">
+                                <div className="grid grid-cols-4 gap-3 mb-2">
                                     <div className="text-center p-3 bg-white/5 rounded-lg">
                                         <div className="text-2xl font-bold text-brand-green">{trainingStats.streak_days}</div>
                                         <div className="text-[10px] text-gray-500 uppercase">Streak</div>
@@ -414,20 +422,29 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                         <div className="text-2xl font-bold text-brand-gold">{trainingStats.training_minutes}</div>
                                         <div className="text-[10px] text-gray-500 uppercase">Career Min</div>
                                     </div>
+                                    <div className="text-center p-3 bg-white/5 rounded-lg">
+                                        <div className="text-2xl font-bold text-orange-400">{(trainingStats.career_touches || 0).toLocaleString()}</div>
+                                        <div className="text-[10px] text-gray-500 uppercase">Career Touches</div>
+                                    </div>
                                 </div>
 
                                 {[
-                                    { key: 'weekly_minutes', label: 'This Week', color: 'text-blue-400', bgColor: 'bg-blue-500' },
-                                    { key: 'season_minutes', label: 'Season Total', color: 'text-brand-green', bgColor: 'bg-brand-green' },
-                                    { key: 'yearly_minutes', label: 'Year Total', color: 'text-brand-gold', bgColor: 'bg-brand-gold' },
-                                    { key: 'training_minutes', label: 'Career Total', color: 'text-white', bgColor: 'bg-white' },
-                                ].map(({ key, label, color, bgColor }) => (
+                                    { key: 'weekly_minutes', touchKey: 'weekly_touches', label: 'This Week', color: 'text-blue-400', bgColor: 'bg-blue-500' },
+                                    { key: 'season_minutes', touchKey: 'season_touches', label: 'Season Total', color: 'text-brand-green', bgColor: 'bg-brand-green' },
+                                    { key: 'yearly_minutes', touchKey: 'yearly_touches', label: 'Year Total', color: 'text-brand-gold', bgColor: 'bg-brand-gold' },
+                                    { key: 'training_minutes', touchKey: 'career_touches', label: 'Career Total', color: 'text-white', bgColor: 'bg-white' },
+                                ].map(({ key, touchKey, label, color, bgColor }) => (
                                     <div key={key}>
                                         <div className="flex justify-between mb-2">
                                             <label className="text-xs text-gray-400 uppercase font-bold tracking-wider">{label}</label>
-                                            <span className={`text-lg font-bold ${color}`}>
-                                                {trainingStats[key] || 0} <span className="text-xs text-gray-500">min</span>
-                                            </span>
+                                            <div className="flex items-baseline gap-3">
+                                                <span className={`text-lg font-bold ${color}`}>
+                                                    {trainingStats[key] || 0} <span className="text-xs text-gray-500">min</span>
+                                                </span>
+                                                <span className="text-sm font-bold text-orange-400">
+                                                    {(trainingStats[touchKey] || 0).toLocaleString()} <span className="text-xs text-gray-500">touches</span>
+                                                </span>
+                                            </div>
                                         </div>
                                         {!readOnly ? (
                                             <div className="flex items-center gap-3">

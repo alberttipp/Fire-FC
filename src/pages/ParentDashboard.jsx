@@ -38,7 +38,7 @@ const ParentDashboard = () => {
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
 
     // Practice minutes state
-    const [practiceMins, setPracticeMins] = useState({ team: 0, solo: 0, weekly: 0, season: 0, yearly: 0, career: 0 });
+    const [practiceMins, setPracticeMins] = useState({ team: 0, solo: 0, weekly: 0, season: 0, yearly: 0, career: 0, weeklyTouches: 0, seasonTouches: 0, yearlyTouches: 0, careerTouches: 0 });
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showDrillLibrary, setShowDrillLibrary] = useState(false);
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
@@ -281,9 +281,9 @@ const ParentDashboard = () => {
                         }, 0);
                     }
                 }
-                setPracticeMins({ team: teamMins, solo: soloMins, weekly: weeklyMins, season: seasonMins, yearly: yearlyMins, career: soloMins });
+                setPracticeMins({ team: teamMins, solo: soloMins, weekly: weeklyMins, season: seasonMins, yearly: yearlyMins, career: soloMins, weeklyTouches: stats?.weekly_touches || 0, seasonTouches: stats?.season_touches || 0, yearlyTouches: stats?.yearly_touches || 0, careerTouches: stats?.career_touches || 0 });
             } else {
-                setPracticeMins({ team: 0, solo: soloMins, weekly: weeklyMins, season: seasonMins, yearly: yearlyMins, career: soloMins });
+                setPracticeMins({ team: 0, solo: soloMins, weekly: weeklyMins, season: seasonMins, yearly: yearlyMins, career: soloMins, weeklyTouches: stats?.weekly_touches || 0, seasonTouches: stats?.season_touches || 0, yearlyTouches: stats?.yearly_touches || 0, careerTouches: stats?.career_touches || 0 });
             }
 
         } catch (err) {
@@ -612,12 +612,12 @@ const ParentDashboard = () => {
                                     </div>
                                 </div>
 
-                                {/* Training Minutes Breakdown */}
+                                {/* Training Minutes + Touches Breakdown */}
                                 <div className="glass-panel p-5 col-span-2">
                                     <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                         <Clock className="w-3.5 h-3.5 text-blue-400" /> Training Minutes
                                     </h4>
-                                    <div className="grid grid-cols-4 gap-3 mb-4">
+                                    <div className="grid grid-cols-4 gap-3 mb-3">
                                         <div className="text-center">
                                             <div className="text-xl text-blue-400 font-bold font-display">{practiceMins.weekly}</div>
                                             <div className="text-xs text-gray-500 uppercase tracking-wider">This Week</div>
@@ -632,6 +632,27 @@ const ParentDashboard = () => {
                                         </div>
                                         <div className="text-center">
                                             <div className="text-xl text-white font-bold font-display">{practiceMins.career}</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Career</div>
+                                        </div>
+                                    </div>
+                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                        ⚽ Est. Ball Touches
+                                    </h4>
+                                    <div className="grid grid-cols-4 gap-3 mb-4">
+                                        <div className="text-center">
+                                            <div className="text-lg text-blue-400 font-bold font-display">{(practiceMins.weeklyTouches || 0).toLocaleString()}</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider">This Week</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-lg text-brand-green font-bold font-display">{(practiceMins.seasonTouches || 0).toLocaleString()}</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Season</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-lg text-brand-gold font-bold font-display">{(practiceMins.yearlyTouches || 0).toLocaleString()}</div>
+                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Year</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-lg text-orange-400 font-bold font-display">{(practiceMins.careerTouches || 0).toLocaleString()}</div>
                                             <div className="text-xs text-gray-500 uppercase tracking-wider">Career</div>
                                         </div>
                                     </div>

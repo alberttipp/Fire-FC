@@ -47,11 +47,28 @@
 - **Guardian code** (e.g., Bo's `92E943`) is for PARENTS to link to a player, not for kid access
 - Other 3 players have NO access tokens generated yet
 
+#### 6. Phase 1 Complete: Touch Estimation + Practice Auto-Credit
+- DB: Added `touch_weight` column to drills table (154 drills seeded by category)
+- DB: Added `weekly_touches`, `season_touches`, `yearly_touches`, `career_touches` to player_stats
+- DB: Updated `log_training_minutes()` to accept and track est. touches (backward-compatible)
+- DB: Updated `update_streak_on_assignment_complete()` trigger to compute touches per drill
+- DB: Fixed `process_completed_practices()` — bug fix (`event_type` → `type`), now computes touches from JSONB session drills
+- DB: Updated `clear_weekly_assignments()` to reset weekly_touches
+- UI: PlayerEvaluationModal Training tab shows touches alongside minutes at all time levels
+- UI: Leaderboard has 3 view modes: Weekly / Career / Touches
+- UI: ParentDashboard shows "Est. Ball Touches" section (weekly/season/year/career)
+- UI: PlayerDashboard fetches touch data from player_stats
+- Build: passes clean (`npm run build` — no errors)
+
 ### Still TODO
 - [ ] Reset password for tippjr@yahoo.com (parent demo login)
 - [ ] Generate fresh access tokens for all 4 players
 - [ ] Verify parent dashboard shows Bo's info when tippjr logs in
 - [ ] Demo walkthrough: coach view, parent view, kid view
+- [ ] Phase 2: Evaluation history + progress overlay
+- [ ] Phase 3: Coach notes + 90-day IDP
+- [ ] Phase 4: Polish (roster leaderboard, calendar grid, coach settings, badge auto-award)
+- [ ] Phase 5: Verification & fixes
 
 ---
 

@@ -7,7 +7,7 @@ const Leaderboard = () => {
     const { user } = useAuth();
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('weekly'); // 'weekly' or 'career'
+    const [viewMode, setViewMode] = useState('weekly'); // 'weekly', 'career', or 'touches'
 
     useEffect(() => {
         fetchLeaderboard();
@@ -46,14 +46,15 @@ const Leaderboard = () => {
     const fetchLeaderboard = async () => {
         setLoading(true);
         try {
-            const minutesCol = viewMode === 'weekly' ? 'weekly_minutes' : 'training_minutes';
+            const colMap = { weekly: 'weekly_minutes', career: 'training_minutes', touches: 'career_touches' };
+            const sortCol = colMap[viewMode] || 'weekly_minutes';
 
             // Step 1: Fetch player_stats (no join - avoids RLS issues)
             const { data: statsData, error: statsError } = await supabase
                 .from('player_stats')
-                .select(`player_id, ${minutesCol}`)
-                .gt(minutesCol, 0)
-                .order(minutesCol, { ascending: false })
+                .select(`player_id, ${sortCol}`)
+                .gt(sortCol, 0)
+                .order(sortCol, { ascending: false })
                 .limit(10);
 
             if (statsError) {
@@ -94,7 +95,7 @@ const Leaderboard = () => {
                 return {
                     rank: index + 1,
                     name: player ? `${player.first_name} ${player.last_name?.charAt(0) || ''}.` : 'Unknown',
-                    minutes: stat[minutesCol] || 0,
+                    minutes: stat[sortCol] || 0,
                     team: 'Team',
                     isUser: player?.id === user?.id || player?.user_id === user?.id,
                     playerId: stat.player_id
@@ -126,10 +127,10 @@ const Leaderboard = () => {
                     <Trophy className="w-6 h-6 text-brand-gold" /> Leaderboard
                 </h3>
                 <button
-                    onClick={() => setViewMode(prev => prev === 'weekly' ? 'career' : 'weekly')}
+                    onClick={() => setViewMode(prev => prev === 'weekly' ? 'career' : prev === 'career' ? 'touches' : 'weekly')}
                     className="text-xs text-brand-green border border-brand-green/30 px-2 py-1 rounded bg-brand-green/5 uppercase tracking-wider hover:bg-brand-green/10 transition-colors cursor-pointer"
                 >
-                    {viewMode === 'weekly' ? 'Weekly' : 'Career'}
+                    {viewMode === 'weekly' ? 'Weekly' : viewMode === 'career' ? 'Career' : 'Touches'}
                 </button>
             </div>
 
@@ -139,7 +140,7 @@ const Leaderboard = () => {
                     <div className="col-span-2 text-center">Rank</div>
                     <div className="col-span-7">Player</div>
                     <div className="col-span-3 text-right flex items-center justify-end gap-1">
-                        <Clock className="w-3 h-3" /> MIN
+                        <Clock className="w-3 h-3" /> {viewMode === 'touches' ? 'TOUCHES' : 'MIN'}
                     </div>
                 </div>
 
@@ -173,7 +174,7 @@ const Leaderboard = () => {
                                 </div>
                             </div>
                             <div className="col-span-3 text-right font-display font-bold text-white">
-                                {player.minutes}
+                                {viewMode === 'touches' ? player.minutes.toLocaleString() : player.minutes}
                             </div>
                         </div>
                     ))
