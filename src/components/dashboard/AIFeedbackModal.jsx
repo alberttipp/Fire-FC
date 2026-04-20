@@ -30,24 +30,23 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                 recognitionRef.current.lang = 'en-US';
 
                 recognitionRef.current.onresult = (event) => {
-                    // Only process NEW results starting at event.resultIndex.
-                    // Without this, each callback re-appends all previously-finalized
-                    // results, causing text to duplicate many times.
-                    let newFinalText = '';
+                    // Rebuild the full transcript from event.results every callback
+                    // (results accumulates for the whole .start() session, so this is
+                    // authoritative). event.resultIndex isn't safe to rely on for
+                    // appending — Chrome can re-fire an already-finalized result in
+                    // a later event, which caused the "repeating like crazy" bug.
+                    let finalText = '';
                     let interimText = '';
-
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                    for (let i = 0; i < event.results.length; i++) {
                         const result = event.results[i];
                         if (result.isFinal) {
-                            newFinalText += result[0].transcript + ' ';
+                            finalText += result[0].transcript;
+                            if (!finalText.endsWith(' ')) finalText += ' ';
                         } else {
                             interimText += result[0].transcript;
                         }
                     }
-
-                    if (newFinalText) {
-                        setTranscript(prev => prev + newFinalText);
-                    }
+                    setTranscript(finalText);
                     setInterimTranscript(interimText);
                 };
 
