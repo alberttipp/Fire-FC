@@ -103,6 +103,10 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const [aiProcessing, setAiProcessing] = useState(false);
     const [aiError, setAiError] = useState(null);
     const recognitionRef = useRef(null);
+    // Text captured before the current listening session starts. SpeechRecognition
+    // resets event.results on each .start(), so we keep everything accumulated so
+    // far here and prefix new results to it — this is what lets "Speak More" append.
+    const voiceBaselineRef = useRef('');
 
     // Timer/Run mode state
     const [mode, setMode] = useState('build'); // 'build' or 'run'
@@ -229,11 +233,13 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             recognitionRef.current.lang = 'en-US';
 
             recognitionRef.current.onresult = (event) => {
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
+                let sessionText = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    sessionText += event.results[i][0].transcript;
                 }
-                setVoiceInput(transcript);
+                const baseline = voiceBaselineRef.current;
+                const joiner = baseline && !baseline.endsWith(' ') ? ' ' : '';
+                setVoiceInput(baseline + joiner + sessionText);
             };
 
             recognitionRef.current.onerror = (e) => {
@@ -277,34 +283,52 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
         return () => clearInterval(timerRef.current);
     }, [isRunning, timeRemaining, currentDrillIndex, blocks, alarmsEnabled]);
 
-    const toggleListening = () => {
+    const startListening = (appendToExisting = false) => {
         if (!recognitionRef.current) {
             console.error('❌ Speech recognition not supported in this browser');
             setAiError('Speech recognition not supported. Use Chrome or Edge browser.');
             return;
         }
-        if (isListening) {
+        console.log('🎤 Starting voice recording...', appendToExisting ? '(append mode)' : '(fresh)');
+        if (appendToExisting) {
+            voiceBaselineRef.current = voiceInput;
+        } else {
+            voiceBaselineRef.current = '';
+            setVoiceInput('');
+        }
+        setAiError(null);
+        try {
+            recognitionRef.current.start();
+            setIsListening(true);
+        } catch (err) {
+            console.error('❌ Error starting recognition:', err);
+            setAiError('Could not start microphone. Check browser permissions.');
+        }
+    };
+
+    const stopListening = () => {
+        if (recognitionRef.current && isListening) {
             console.log('🛑 Stopping voice recording...');
             recognitionRef.current.stop();
-            setIsListening(false);
-            if (voiceInput.trim()) {
-                console.log('🎤 Voice input captured:', voiceInput);
-                processVoiceWithAI(voiceInput);
-            } else {
-                console.warn('⚠️ No voice input captured');
-                setAiError('No speech was captured. Try again and speak clearly into the mic.');
-            }
+        }
+        setIsListening(false);
+    };
+
+    const toggleListening = () => {
+        if (isListening) {
+            stopListening();
         } else {
-            console.log('🎤 Starting voice recording...');
-            setVoiceInput('');
-            setAiError(null);
-            try {
-                recognitionRef.current.start();
-                setIsListening(true);
-            } catch (err) {
-                console.error('❌ Error starting recognition:', err);
-                setAiError('Could not start microphone. Check browser permissions.');
-            }
+            startListening(false);
+        }
+    };
+
+    const createFromTranscript = () => {
+        if (isListening) stopListening();
+        if (voiceInput.trim()) {
+            console.log('🎤 Building practice from:', voiceInput);
+            processVoiceWithAI(voiceInput);
+        } else {
+            setAiError('No speech was captured. Try again and speak clearly into the mic.');
         }
     };
 
@@ -436,6 +460,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             console.log(`✅ Created ${newBlocks.length} drills, ${newBlocks.filter(b => b.custom).length} custom`);
             // Only clear the transcript on success, so errors keep it visible for retry
             setVoiceInput('');
+            voiceBaselineRef.current = '';
 
         } catch (err) {
             console.error('❌ AI processing error:', err);
@@ -769,23 +794,44 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                             <Sparkles className="w-4 h-4 text-brand-gold" />
                             AI Voice Builder
                         </h3>
-                        <button
-                            onClick={toggleListening}
-                            disabled={aiProcessing}
-                            className={`w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all ${
-                                isListening
-                                    ? 'bg-red-500/20 border-2 border-red-500 text-red-400 animate-pulse'
-                                    : 'bg-brand-green/10 border-2 border-brand-green/30 text-brand-green hover:bg-brand-green/20'
-                            }`}
-                        >
-                            {aiProcessing ? (
-                                <><div className="w-5 h-5 border-2 border-brand-green border-t-transparent rounded-full animate-spin" /> Processing...</>
-                            ) : isListening ? (
-                                <><MicOff className="w-5 h-5" /> Stop & Create</>
-                            ) : (
-                                <><Mic className="w-5 h-5" /> Speak Your Practice Plan</>
-                            )}
-                        </button>
+                        {aiProcessing ? (
+                            <button
+                                disabled
+                                className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-brand-green/10 border-2 border-brand-green/30 text-brand-green opacity-80"
+                            >
+                                <div className="w-5 h-5 border-2 border-brand-green border-t-transparent rounded-full animate-spin" /> Processing...
+                            </button>
+                        ) : isListening ? (
+                            <button
+                                onClick={toggleListening}
+                                className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-red-500/20 border-2 border-red-500 text-red-400 animate-pulse transition-all"
+                            >
+                                <MicOff className="w-5 h-5" /> Stop & Create
+                            </button>
+                        ) : voiceInput.trim() ? (
+                            // Paused / ended with captured text — let user create OR keep speaking
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={createFromTranscript}
+                                    className="py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-brand-green text-brand-dark hover:bg-white transition-all"
+                                >
+                                    <Sparkles className="w-5 h-5" /> Create Practice
+                                </button>
+                                <button
+                                    onClick={() => startListening(true)}
+                                    className="py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-white/5 border-2 border-white/10 text-gray-300 hover:bg-white/10 transition-all"
+                                >
+                                    <Mic className="w-5 h-5" /> Speak More
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={toggleListening}
+                                className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-brand-green/10 border-2 border-brand-green/30 text-brand-green hover:bg-brand-green/20 transition-all"
+                            >
+                                <Mic className="w-5 h-5" /> Speak Your Practice Plan
+                            </button>
+                        )}
                         {voiceInput && <p className="mt-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">"{voiceInput}"</p>}
                         {aiError && (
                             <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30 space-y-2">
@@ -801,7 +847,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                                         </button>
                                     )}
                                     <button
-                                        onClick={() => { setAiError(null); setVoiceInput(''); }}
+                                        onClick={() => { setAiError(null); setVoiceInput(''); voiceBaselineRef.current = ''; }}
                                         className="px-3 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-gray-300 hover:bg-white/10"
                                     >
                                         Dismiss
