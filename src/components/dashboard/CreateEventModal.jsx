@@ -94,7 +94,7 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice' })
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-brand-dark border border-white/10 w-full max-w-lg rounded-xl shadow-2xl relative overflow-hidden">
                 {/* Header */}
                 <div className="bg-gray-900/50 p-6 border-b border-white/10 flex justify-between items-center">

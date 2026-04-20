@@ -256,8 +256,8 @@ Return ONLY the polished message, nothing else.`
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-            <div className={`bg-brand-dark border border-white/10 w-full max-w-lg rounded-2xl shadow-2xl relative overflow-hidden transition-all duration-500 ${viewState === 'sent' ? 'scale-90 opacity-0' : 'scale-100 opacity-100'}`}>
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+            <div className={`bg-brand-dark border border-white/10 w-full md:max-w-lg rounded-t-2xl md:rounded-2xl shadow-2xl relative overflow-hidden transition-all duration-500 max-h-[90vh] overflow-y-auto ${viewState === 'sent' ? 'scale-90 opacity-0' : 'scale-100 opacity-100'}`}>
 
                 {/* Header */}
                 <div className="bg-gradient-to-r from-brand-dark to-gray-900 p-4 border-b border-white/5 flex justify-between items-center">

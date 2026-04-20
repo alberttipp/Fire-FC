@@ -617,7 +617,7 @@ const ParentDashboard = () => {
                                     <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                         <Clock className="w-3.5 h-3.5 text-blue-400" /> Training Minutes
                                     </h4>
-                                    <div className="grid grid-cols-4 gap-3 mb-3">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                                         <div className="text-center">
                                             <div className="text-xl text-blue-400 font-bold font-display">{practiceMins.weekly}</div>
                                             <div className="text-xs text-gray-500 uppercase tracking-wider">This Week</div>
@@ -638,7 +638,7 @@ const ParentDashboard = () => {
                                     <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                         ⚽ Est. Ball Touches
                                     </h4>
-                                    <div className="grid grid-cols-4 gap-3 mb-4">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                                         <div className="text-center">
                                             <div className="text-lg text-blue-400 font-bold font-display">{(practiceMins.weeklyTouches || 0).toLocaleString()}</div>
                                             <div className="text-xs text-gray-500 uppercase tracking-wider">This Week</div>

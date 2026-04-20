@@ -344,8 +344,8 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-brand-dark border border-white/10 w-full max-w-4xl rounded-xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row h-[90vh] md:h-auto">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-brand-dark border border-white/10 w-full md:max-w-4xl rounded-t-2xl md:rounded-xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row h-[93vh] md:h-auto">
 
                 {/* Visual Section (Left) */}
                 <div className="w-full md:w-1/2 bg-gradient-to-br from-gray-900 to-black p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-white/10">
@@ -440,7 +440,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                         {activeTab === 'training' ? (
                             <div className="space-y-5">
                                 {/* Read-only summary row */}
-                                <div className="grid grid-cols-4 gap-3 mb-2">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
                                     <div className="text-center p-3 bg-white/5 rounded-lg">
                                         <div className="text-2xl font-bold text-brand-green">{trainingStats.streak_days}</div>
                                         <div className="text-[10px] text-gray-500 uppercase">Streak</div>

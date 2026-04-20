@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Camera, Tv, Car, Briefcase } from 'lucide-react';
+import MobileBottomNav from '../components/MobileBottomNav';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
 import TrainingView from '../components/dashboard/TrainingView';
@@ -299,16 +300,25 @@ const Dashboard = () => {
             </div>
 
             {/* Main Content Area */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
                 {renderView()}
             </main>
+
+            {/* Mobile Bottom Nav */}
+            <MobileBottomNav
+                currentView={currentView}
+                onViewChange={setCurrentView}
+                extraItems={isManager ? [
+                    { id: 'tryouts', label: 'Tryouts', icon: ClipboardCheck },
+                    { id: 'financial', label: 'Money', icon: DollarSign },
+                ] : []}
+            />
 
             {/* Notification Panel */}
             {showNotifications && (
                 <NotificationPanel
                     onClose={() => {
                         setShowNotifications(false);
-                        // Refresh unread count
                         supabase
                             .from('notifications')
                             .select('*', { count: 'exact', head: true })

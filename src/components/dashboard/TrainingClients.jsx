@@ -477,7 +477,7 @@ const TrainingClients = () => {
 
             {/* Add Client Modal */}
             {showAddClient && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center z-50 md:p-4">
                     <div className="bg-brand-dark border border-white/10 rounded-xl w-full max-w-lg p-6">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl text-white font-bold">Add Training Client</h3>
@@ -587,7 +587,7 @@ const TrainingClients = () => {
 
             {/* Schedule Session Modal */}
             {showScheduleSession && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center z-50 md:p-4 overflow-y-auto">
                     <div className="bg-brand-dark border border-white/10 rounded-xl w-full max-w-lg p-6 my-8">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl text-white font-bold">Schedule Training Session</h3>
@@ -745,7 +745,7 @@ const TrainingClients = () => {
 
             {/* Edit Session Modal */}
             {editingSession && editForm && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center z-50 md:p-4 overflow-y-auto">
                     <div className="bg-brand-dark border border-white/10 rounded-xl w-full max-w-lg p-6 my-8">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl text-white font-bold">Edit Session</h3>

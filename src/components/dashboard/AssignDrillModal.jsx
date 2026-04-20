@@ -246,8 +246,8 @@ const AssignDrillModal = ({ onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-brand-dark border border-white/10 w-full max-w-4xl rounded-xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-brand-dark border border-white/10 w-full md:max-w-4xl rounded-t-2xl md:rounded-xl shadow-2xl relative overflow-hidden flex flex-col h-[93vh] md:h-auto md:max-h-[90vh]">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-brand-dark to-gray-900 p-6 border-b border-white/10 flex justify-between items-center shrink-0">
                     <h2 className="text-xl text-white font-display uppercase font-bold tracking-wider">

@@ -56,8 +56,8 @@ const EventDetailModal = ({ event, onClose, onStartSession }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onClose}>
-            <div className="bg-brand-dark border border-white/10 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center md:p-4 z-50" onClick={onClose}>
+            <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-xl w-full md:max-w-2xl h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className={`p-4 border-b border-white/10 flex items-center justify-between ${config.bg}`}>
                     <div>

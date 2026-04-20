@@ -69,8 +69,8 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="bg-brand-dark border border-brand-green/30 w-full max-w-md rounded-xl shadow-2xl overflow-hidden relative">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm md:p-4 animate-fade-in">
+            <div className="bg-brand-dark border border-brand-green/30 w-full md:max-w-md rounded-t-2xl md:rounded-xl shadow-2xl overflow-hidden relative max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="bg-brand-green/10 p-6 border-b border-brand-green/20 flex justify-between items-center">
                     <h2 className="text-xl text-white font-display uppercase font-bold tracking-wider flex items-center gap-2">
