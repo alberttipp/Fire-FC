@@ -101,6 +101,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const [isListening, setIsListening] = useState(false);
     const [voiceInput, setVoiceInput] = useState('');
     const [aiProcessing, setAiProcessing] = useState(false);
+    const [aiError, setAiError] = useState(null);
     const recognitionRef = useRef(null);
 
     // Timer/Run mode state
@@ -235,7 +236,13 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                 setVoiceInput(transcript);
             };
 
-            recognitionRef.current.onerror = () => setIsListening(false);
+            recognitionRef.current.onerror = (e) => {
+                console.error('Speech recognition error:', e);
+                setIsListening(false);
+                if (e.error && e.error !== 'no-speech' && e.error !== 'aborted') {
+                    setAiError(`Microphone error: ${e.error}. Try Chrome/Edge on desktop or Safari 14.1+ on iOS.`);
+                }
+            };
             recognitionRef.current.onend = () => setIsListening(false);
         }
     }, []);
@@ -273,27 +280,30 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const toggleListening = () => {
         if (!recognitionRef.current) {
             console.error('❌ Speech recognition not supported in this browser');
-            alert('Speech recognition not supported. Use Chrome or Edge browser.');
+            setAiError('Speech recognition not supported. Use Chrome or Edge browser.');
             return;
         }
         if (isListening) {
             console.log('🛑 Stopping voice recording...');
             recognitionRef.current.stop();
+            setIsListening(false);
             if (voiceInput.trim()) {
                 console.log('🎤 Voice input captured:', voiceInput);
                 processVoiceWithAI(voiceInput);
             } else {
                 console.warn('⚠️ No voice input captured');
+                setAiError('No speech was captured. Try again and speak clearly into the mic.');
             }
         } else {
             console.log('🎤 Starting voice recording...');
             setVoiceInput('');
+            setAiError(null);
             try {
                 recognitionRef.current.start();
                 setIsListening(true);
             } catch (err) {
                 console.error('❌ Error starting recognition:', err);
-                alert('Could not start microphone. Check browser permissions.');
+                setAiError('Could not start microphone. Check browser permissions.');
             }
         }
     };
@@ -302,11 +312,12 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
         console.log('🤖 Processing with AI:', transcript);
 
         if (drillTemplates.length === 0) {
-            alert('No drills available. Please seed the database with drills first.');
+            setAiError('No drills available in the database. Please seed the drill library first.');
             return;
         }
 
         setAiProcessing(true);
+        setAiError(null);
         try {
             // Score and select top 20 drill candidates
             const scoredDrills = drillTemplates.map(drill => ({
@@ -339,11 +350,18 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
 
             console.log('📡 Calling Supabase Edge Function...');
 
-            // Get supabase URL and key from the client
-            const supabaseUrl = supabase.supabaseUrl;
-            const supabaseKey = supabase.supabaseKey;
+            // Pull URL + anon key from the Vite env — same source supabaseClient.js
+            // uses. Avoids depending on internal (protected) fields of the supabase-js
+            // client, which can be undefined/renamed between versions and cause silent
+            // fetch failures to "undefined/functions/v1/...".
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-            // Call edge function with explicit headers
+            if (!supabaseUrl || !supabaseKey) {
+                throw new Error('Supabase env vars missing — check VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in Vercel.');
+            }
+
+            // Call edge function with explicit headers (required per function contract)
             const response = await fetch(`${supabaseUrl}/functions/v1/ai-practice-session`, {
                 method: 'POST',
                 headers: {
@@ -362,7 +380,9 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('❌ Edge function HTTP error:', response.status, errorText);
-                throw new Error(`Edge function returned ${response.status}: ${errorText}`);
+                let parsedMsg = errorText;
+                try { parsedMsg = JSON.parse(errorText).error || errorText; } catch (_) { /* leave as-is */ }
+                throw new Error(`Edge function ${response.status}: ${parsedMsg}`);
             }
 
             const data = await response.json();
@@ -370,6 +390,11 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             if (data.error) {
                 console.error('❌ AI processing error:', data.error);
                 throw new Error(data.error);
+            }
+
+            if (!data.drills || !Array.isArray(data.drills) || data.drills.length === 0) {
+                console.error('❌ AI response missing drills array:', data);
+                throw new Error('AI returned no drills. Try a more specific request like "60 minute practice with warmup, passing, shooting, scrimmage, cooldown".');
             }
 
             console.log('✅ AI response:', data);
@@ -409,13 +434,16 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             }
 
             console.log(`✅ Created ${newBlocks.length} drills, ${newBlocks.filter(b => b.custom).length} custom`);
+            // Only clear the transcript on success, so errors keep it visible for retry
+            setVoiceInput('');
 
         } catch (err) {
             console.error('❌ AI processing error:', err);
-            alert(`Could not process voice: ${err.message}. Add drills manually.`);
+            setAiError(`Could not build the practice: ${err.message}`);
         } finally {
             setAiProcessing(false);
-            setVoiceInput('');
+            // Keep voiceInput visible on error so user can see what was heard.
+            // Only clear on success (handled by setBlocks above succeeding).
         }
     };
 
@@ -759,6 +787,28 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                             )}
                         </button>
                         {voiceInput && <p className="mt-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">"{voiceInput}"</p>}
+                        {aiError && (
+                            <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/30 space-y-2">
+                                <p className="text-sm text-red-300 leading-relaxed">{aiError}</p>
+                                <div className="flex gap-2">
+                                    {voiceInput && (
+                                        <button
+                                            onClick={() => { setAiError(null); processVoiceWithAI(voiceInput); }}
+                                            disabled={aiProcessing}
+                                            className="px-3 py-1.5 bg-red-500/20 border border-red-500/40 rounded text-xs text-red-200 hover:bg-red-500/30 disabled:opacity-50"
+                                        >
+                                            Retry
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => { setAiError(null); setVoiceInput(''); }}
+                                        className="px-3 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-gray-300 hover:bg-white/10"
+                                    >
+                                        Dismiss
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         <p className="text-xs text-gray-600 mt-2">Try: "60 minute practice with warmup, passing, shooting, scrimmage, cooldown"</p>
                     </div>
 
