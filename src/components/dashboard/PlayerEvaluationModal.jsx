@@ -344,17 +344,17 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-brand-dark border border-white/10 w-full md:max-w-4xl rounded-t-2xl md:rounded-xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row h-[93vh] md:h-auto">
+        <div className="fixed inset-0 z-[100] flex items-stretch md:items-center justify-center md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-brand-dark border border-white/10 w-full md:max-w-4xl rounded-none md:rounded-xl shadow-2xl relative overflow-hidden flex flex-col md:flex-row h-[100dvh] md:h-auto md:max-h-[92vh]">
 
                 {/* Visual Section (Left) */}
-                <div className="w-full md:w-1/2 bg-gradient-to-br from-gray-900 to-black p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-white/10">
-                    <div className="text-center mb-6">
-                        <h2 className="text-3xl text-white font-display uppercase font-bold tracking-wider">{player?.name || 'Player Name'}</h2>
-                        <p className="text-brand-green tracking-widest uppercase text-sm font-bold">Midfielder • U10</p>
+                <div className="w-full md:w-1/2 bg-gradient-to-br from-gray-900 to-black p-3 md:p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-white/10 shrink-0">
+                    <div className="text-center mb-2 md:mb-6">
+                        <h2 className="text-xl md:text-3xl text-white font-display uppercase font-bold tracking-wider">{player?.name || 'Player Name'}</h2>
+                        <p className="text-brand-green tracking-widest uppercase text-[10px] md:text-sm font-bold">Midfielder • U10</p>
                     </div>
 
-                    <div className="w-full h-[300px] relative">
+                    <div className="w-full h-[160px] md:h-[300px] relative">
                         {/* Recharts Radar */}
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
@@ -385,58 +385,63 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
 
                         {/* Overall Rating Overlay */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                            <span className="text-4xl font-display font-bold text-white drop-shadow-md">
+                            <span className="text-2xl md:text-4xl font-display font-bold text-white drop-shadow-md">
                                 {Math.round(Object.values(stats).reduce((a, b) => a + b, 0) / 6)}
                             </span>
-                            <p className="text-[10px] text-gray-400 uppercase">OVR</p>
+                            <p className="text-[9px] md:text-[10px] text-gray-400 uppercase">OVR</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Controls Section (Right) */}
-                <div className="w-full md:w-1/2 bg-brand-dark relative flex flex-col h-full">
-                    {/* Header / Tabs */}
-                    <div className="p-6 pb-0 shrink-0">
-                        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10">
-                            <X className="w-6 h-6" />
-                        </button>
+                <div className="w-full md:w-1/2 bg-brand-dark relative flex flex-col flex-1 min-h-0">
+                    {/* Close button — fixed to top-right of entire modal, visible on all tabs */}
+                    <button
+                        onClick={onClose}
+                        aria-label="Close"
+                        className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-black/60 backdrop-blur border border-white/20 text-white hover:bg-white hover:text-brand-dark transition-colors flex items-center justify-center shadow-lg"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
 
-                        <div className="flex gap-6 border-b border-white/10 mb-6">
+                    {/* Header / Tabs */}
+                    <div className="px-3 md:px-6 pt-4 md:pt-6 pb-0 shrink-0">
+                        <div className="flex gap-1 md:gap-6 border-b border-white/10 mb-4 md:mb-6 overflow-x-auto no-scrollbar -mx-1 px-1 pr-12">
                             <button
                                 onClick={() => setActiveTab('eval')}
-                                className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'eval' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                                className={`pb-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0 ${activeTab === 'eval' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                             >
-                                <span className="flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Evaluation</span>
+                                <span className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 md:w-4 md:h-4" /> Eval</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('awards')}
-                                className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'awards' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                                className={`pb-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0 ${activeTab === 'awards' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                             >
-                                <span className="flex items-center gap-2"><Award className="w-4 h-4" /> Badges</span>
+                                <span className="flex items-center gap-1.5"><Award className="w-3.5 h-3.5 md:w-4 md:h-4" /> Badges</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('training')}
-                                className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'training' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                                className={`pb-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0 ${activeTab === 'training' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                             >
-                                <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> Training</span>
+                                <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 md:w-4 md:h-4" /> Training</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('notes')}
-                                className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'notes' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                                className={`pb-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0 ${activeTab === 'notes' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                             >
-                                <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> Notes</span>
+                                <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 md:w-4 md:h-4" /> Notes</span>
                             </button>
                             <button
                                 onClick={() => setActiveTab('idp')}
-                                className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'idp' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                                className={`pb-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0 ${activeTab === 'idp' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
                             >
-                                <span className="flex items-center gap-2"><Target className="w-4 h-4" /> IDP</span>
+                                <span className="flex items-center gap-1.5"><Target className="w-3.5 h-3.5 md:w-4 md:h-4" /> IDP</span>
                             </button>
                         </div>
                     </div>
 
                     {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-0">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar px-3 md:px-6 pt-0 pb-4" style={{ WebkitOverflowScrolling: 'touch' }}>
                         {activeTab === 'training' ? (
                             <div className="space-y-5">
                                 {/* Read-only summary row */}
@@ -651,16 +656,20 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                     </div>
 
                     {!readOnly && ['eval', 'training', 'awards'].includes(activeTab) && (
-                        <div className="p-6 pt-4 border-t border-white/10 bg-black/20 shrink-0 flex justify-between items-center">
-                            <span className="text-xs text-gray-500">
+                        <div className="p-3 md:p-6 md:pt-4 border-t border-white/10 bg-black/20 shrink-0 flex justify-between items-center gap-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+                            <span className="text-xs text-gray-500 hidden sm:inline">
                                 {activeTab === 'training' ? 'Edit training minutes' : activeTab === 'awards' ? 'Tap badges to award' : 'Adjust stats carefully'}
                             </span>
                             <button
                                 onClick={activeTab === 'training' ? handleSaveTraining : handleSave}
                                 disabled={saving}
-                                className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                                className="btn-primary flex items-center gap-2 disabled:opacity-50 ml-auto"
                             >
-                                <Save className="w-4 h-4" /> {saving ? 'Saving...' : `Save ${activeTab === 'training' ? 'Training' : activeTab === 'awards' ? 'Badges' : 'Evaluation'}`}
+                                <Save className="w-4 h-4" /> {saving ? 'Saving...' : (
+                                    activeTab === 'training' ? 'Save Training' :
+                                    activeTab === 'awards' ? 'Save Badges' :
+                                    evalHistory.length === 0 ? 'Lock In Eval' : 'Update Eval'
+                                )}
                             </button>
                         </div>
                     )}

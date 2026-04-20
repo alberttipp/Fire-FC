@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, format } from 'date-fns';
 import { getEventConfig } from './constants';
 import EventCard from './EventCard';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const MonthGrid = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp }) => {
+const MonthGrid = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp, onAddEvent }) => {
     const [selectedDay, setSelectedDay] = useState(null);
 
     const monthStart = startOfMonth(viewDate);
@@ -95,8 +96,16 @@ const MonthGrid = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp }
                         <span className="text-xs text-gray-500 font-normal">({selectedDayEvents.length} event{selectedDayEvents.length !== 1 ? 's' : ''})</span>
                     </h3>
                     {selectedDayEvents.length === 0 ? (
-                        <div className="p-8 text-center border border-dashed border-white/10 rounded-xl">
+                        <div className="p-8 text-center border border-dashed border-white/10 rounded-xl flex flex-col items-center gap-3">
                             <p className="text-gray-500 text-sm">No events on this day</p>
+                            {onAddEvent && (
+                                <button
+                                    onClick={() => onAddEvent(selectedDay)}
+                                    className="inline-flex items-center gap-1.5 bg-brand-green text-brand-dark px-4 py-2 rounded-lg font-bold uppercase text-xs hover:bg-white transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Add Event
+                                </button>
+                            )}
                         </div>
                     ) : (
                         selectedDayEvents.map(event => (

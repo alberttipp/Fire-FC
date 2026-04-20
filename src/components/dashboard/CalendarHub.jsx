@@ -15,8 +15,14 @@ const CalendarHub = () => {
     const [viewMode, setViewMode] = useState('month'); // 'month' | 'week' | 'list'
     const [viewDate, setViewDate] = useState(new Date());
     const [showCreateModal, setShowCreateModal] = useState(null);
+    const [createDefaultDate, setCreateDefaultDate] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [runningSession, setRunningSession] = useState(null);
+
+    const openCreateModalForDate = (date) => {
+        setCreateDefaultDate(date);
+        setShowCreateModal('practice');
+    };
 
     // Compute date range for data fetching
     const dateRange = useMemo(() => {
@@ -132,6 +138,7 @@ const CalendarHub = () => {
                     rsvpCounts={rsvpCounts}
                     onEventClick={setSelectedEvent}
                     onRsvp={handleRsvp}
+                    onAddEvent={isCoach ? openCreateModalForDate : undefined}
                 />
             )}
 
@@ -152,8 +159,9 @@ const CalendarHub = () => {
             {showCreateModal && (
                 <CreateEventModal
                     defaultType={showCreateModal}
-                    onClose={() => setShowCreateModal(null)}
-                    onEventCreated={() => { setShowCreateModal(null); }}
+                    defaultDate={createDefaultDate}
+                    onClose={() => { setShowCreateModal(null); setCreateDefaultDate(null); }}
+                    onEventCreated={() => { setShowCreateModal(null); setCreateDefaultDate(null); }}
                 />
             )}
 

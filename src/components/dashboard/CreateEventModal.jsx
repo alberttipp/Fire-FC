@@ -3,7 +3,17 @@ import { X, Calendar, Clock, MapPin, Trophy, Users, Coffee } from 'lucide-react'
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
-const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice' }) => {
+const formatDateInput = (d) => {
+    if (!d) return '';
+    const date = d instanceof Date ? d : new Date(d);
+    if (isNaN(date.getTime())) return '';
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', defaultDate = null }) => {
     const { user, profile } = useAuth();
     const [eventType, setEventType] = useState(defaultType); // 'practice', 'game', 'social'
     const [loading, setLoading] = useState(false);
@@ -11,7 +21,7 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice' })
 
     const [formData, setFormData] = useState({
         title: '',
-        date: '',
+        date: formatDateInput(defaultDate),
         startTime: '',
         endTime: '',
         location: '',

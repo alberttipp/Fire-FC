@@ -23,7 +23,7 @@ const TeamView = () => {
     // UI State
     const [selectedPlayer, setSelectedPlayer] = useState(null);
     const [invitePlayer, setInvitePlayer] = useState(null); // For Family Invite Modal
-    const [feedbackRecipient, setFeedbackRecipient] = useState(null);
+    const [feedbackPlayer, setFeedbackPlayer] = useState(null);
     const [copied, setCopied] = useState(false);
 
     // Check if user is manager or coach (used for UI)
@@ -363,8 +363,8 @@ const TeamView = () => {
                 <PlayerEvaluationModal player={selectedPlayer} onClose={() => { setSelectedPlayer(null); if (myTeam?.id) fetchRosterForTeam(myTeam.id); }} />
             )}
 
-            {feedbackRecipient && (
-                <AIFeedbackModal recipient={feedbackRecipient} onClose={() => setFeedbackRecipient(null)} />
+            {feedbackPlayer && (
+                <AIFeedbackModal player={feedbackPlayer} onClose={() => setFeedbackPlayer(null)} />
             )}
 
             {showPlayerModal && (
@@ -460,7 +460,7 @@ const TeamView = () => {
                                                 <Users className="w-4 h-4" />
                                             </button>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); setFeedbackRecipient(player.name); }}
+                                                onClick={(e) => { e.stopPropagation(); setFeedbackPlayer(player); }}
                                                 className="p-2 rounded-full bg-brand-gold/10 text-brand-gold hover:bg-brand-gold/20 border border-brand-gold/30 transition-colors"
                                                 title="AI Feedback"
                                             >

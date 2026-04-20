@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Mic, Send, Sparkles, StopCircle, Mail, MessageSquare, Check, RefreshCw, AlertCircle, Loader2, Type } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-const AIFeedbackModal = ({ recipient, onClose }) => {
+const AIFeedbackModal = ({ recipient, player, onClose }) => {
+    const { user } = useAuth();
+    const recipientName = player?.name || recipient || 'Player';
     const [viewState, setViewState] = useState('idle'); // idle, typing, recording, processing, review, sent, error
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
@@ -27,20 +30,23 @@ const AIFeedbackModal = ({ recipient, onClose }) => {
                 recognitionRef.current.lang = 'en-US';
 
                 recognitionRef.current.onresult = (event) => {
-                    let finalText = '';
+                    // Only process NEW results starting at event.resultIndex.
+                    // Without this, each callback re-appends all previously-finalized
+                    // results, causing text to duplicate many times.
+                    let newFinalText = '';
                     let interimText = '';
 
-                    for (let i = 0; i < event.results.length; i++) {
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
                         const result = event.results[i];
                         if (result.isFinal) {
-                            finalText += result[0].transcript + ' ';
+                            newFinalText += result[0].transcript + ' ';
                         } else {
                             interimText += result[0].transcript;
                         }
                     }
 
-                    if (finalText) {
-                        setTranscript(prev => prev + finalText);
+                    if (newFinalText) {
+                        setTranscript(prev => prev + newFinalText);
                     }
                     setInterimTranscript(interimText);
                 };
@@ -168,7 +174,7 @@ const AIFeedbackModal = ({ recipient, onClose }) => {
                             parts: [{
                                 text: `You are an assistant for a youth soccer coach. Transform this raw voice note feedback into a polished, professional message suitable for parents.
 
-The feedback is about a player named "${recipient}".
+The feedback is about a player named "${recipientName}".
 
 Raw coach's voice note:
 "${rawTranscript}"
@@ -226,19 +232,26 @@ Return ONLY the polished message, nothing else.`
     };
 
     const handleSend = async (method) => {
-        // In production, this would send via email/SMS API
-        // For now, we'll save to the messages table as a record
-        console.log(`Sending via ${method}:`, aiSummary);
-
         try {
-            // Save feedback record to database (optional)
-            // await supabase.from('feedback_messages').insert([{
-            //     recipient_name: recipient,
-            //     raw_transcript: transcript,
-            //     polished_message: aiSummary,
-            //     sent_via: method,
-            //     created_at: new Date().toISOString()
-            // }]);
+            // Persist as a coach_note tagged parent_feedback + method so it
+            // shows up in the player's notes history. Actual email/SMS delivery
+            // is not wired yet — this records the coach's intent.
+            if (player?.id && user?.id) {
+                const { error: insertError } = await supabase.from('coach_notes').insert([{
+                    player_id: player.id,
+                    coach_id: user.id,
+                    note_text: aiSummary,
+                    tags: ['parent_feedback', method],
+                }]);
+                if (insertError) {
+                    console.error('Save feedback error:', insertError);
+                    setErrorMessage('Could not save feedback. Please try again.');
+                    setViewState('error');
+                    return;
+                }
+            } else {
+                console.warn('AIFeedbackModal: no player or user — skipping save');
+            }
 
             setViewState('sent');
             setTimeout(() => {
@@ -246,6 +259,8 @@ Return ONLY the polished message, nothing else.`
             }, 2000);
         } catch (err) {
             console.error('Send error:', err);
+            setErrorMessage('Could not save feedback. Please try again.');
+            setViewState('error');
         }
     };
 
@@ -300,7 +315,7 @@ Return ONLY the polished message, nothing else.`
                     {viewState === 'idle' && (
                         <div className="flex flex-col items-center gap-6 animate-fade-in-up">
                             <div className="text-center space-y-2">
-                                <h3 className="text-xl text-white font-bold">Feedback for <span className="text-brand-green">{recipient}</span></h3>
+                                <h3 className="text-xl text-white font-bold">Feedback for <span className="text-brand-green">{recipientName}</span></h3>
                                 <p className="text-gray-400 text-sm max-w-xs mx-auto">
                                     {hasSpeechRecognition
                                         ? 'Record or type your thoughts. AI will polish them for parents.'
@@ -335,7 +350,7 @@ Return ONLY the polished message, nothing else.`
                     {viewState === 'typing' && (
                         <div className="w-full space-y-4 animate-fade-in-up">
                             <div className="text-center space-y-1">
-                                <h3 className="text-lg text-white font-bold">Feedback for <span className="text-brand-green">{recipient}</span></h3>
+                                <h3 className="text-lg text-white font-bold">Feedback for <span className="text-brand-green">{recipientName}</span></h3>
                                 <p className="text-gray-500 text-xs">Type your raw thoughts, then AI will polish them.</p>
                             </div>
                             <textarea
