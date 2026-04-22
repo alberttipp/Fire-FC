@@ -250,35 +250,106 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
         }
     };
 
+    const saveCoachNote = async (method, extraTags = []) => {
+        if (!player?.id || !user?.id) {
+            console.warn('AIFeedbackModal: no player or user — skipping note save');
+            return { ok: true };
+        }
+        const { error: insertError } = await supabase.from('coach_notes').insert([{
+            player_id: player.id,
+            coach_id: user.id,
+            note_text: aiSummary,
+            tags: ['parent_feedback', method, ...extraTags],
+        }]);
+        if (insertError) {
+            console.error('Save feedback error:', insertError);
+            return { ok: false, error: insertError.message || 'Insert failed' };
+        }
+        return { ok: true };
+    };
+
+    const callFeedbackEndpoint = async (mode) => {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        if (!accessToken) throw new Error('Not signed in — log out and back in.');
+
+        const resp = await fetch(`${supabaseUrl}/functions/v1/send-coach-feedback`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': anonKey,
+                // JWT (not anon) so the function can verify.getUser() — required for
+                // team_memberships auth check.
+                'Authorization': `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+                playerId: player?.id,
+                polishedText: aiSummary,
+                rawTranscript: transcript,
+                mode,
+            }),
+        });
+        const body = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            throw new Error(body?.error || `Server error ${resp.status}`);
+        }
+        return body;
+    };
+
     const handleSend = async (method) => {
+        if (!aiSummary?.trim()) return;
+        if (!player?.id) {
+            setErrorMessage('Missing player context — cannot send.');
+            setViewState('error');
+            return;
+        }
+
+        setViewState('processing');
+        setProcessingStep(method === 'email' ? 'Sending to parents...' : 'Opening your messages app...');
+
         try {
-            // Persist as a coach_note tagged parent_feedback + method so it
-            // shows up in the player's notes history. Actual email/SMS delivery
-            // is not wired yet — this records the coach's intent.
-            if (player?.id && user?.id) {
-                const { error: insertError } = await supabase.from('coach_notes').insert([{
-                    player_id: player.id,
-                    coach_id: user.id,
-                    note_text: aiSummary,
-                    tags: ['parent_feedback', method],
-                }]);
-                if (insertError) {
-                    console.error('Save feedback error:', insertError);
-                    setErrorMessage('Could not save feedback. Please try again.');
-                    setViewState('error');
-                    return;
+            if (method === 'email') {
+                const result = await callFeedbackEndpoint('email');
+                const sent = result?.sentTo || [];
+                const failures = result?.failures || [];
+                if (sent.length === 0) {
+                    const firstErr = failures[0]?.error || 'No recipients delivered.';
+                    throw new Error(firstErr);
                 }
-            } else {
-                console.warn('AIFeedbackModal: no player or user — skipping save');
+                await saveCoachNote('email', sent.map(e => `to:${e}`));
+                if (failures.length > 0) {
+                    setErrorMessage(`Sent to ${sent.length}, ${failures.length} failed: ${failures.map(f => f.email).join(', ')}`);
+                }
+                setViewState('sent');
+                setTimeout(() => onClose(), 2200);
+                return;
             }
 
+            // SMS path: fetch guardian contacts, open sms: link with body
+            // pre-filled. If we have a phone, include it; otherwise let the
+            // coach pick the contact in their native app.
+            const result = await callFeedbackEndpoint('sms');
+            const guardians = result?.guardians || [];
+            const phoneGuardian = guardians.find(g => g.phone);
+            const phone = phoneGuardian?.phone || '';
+            const encoded = encodeURIComponent(aiSummary);
+            // iOS uses ?body=, Android tolerates both. sms:<number>?body=<msg>
+            const smsUrl = phone ? `sms:${phone}?body=${encoded}` : `sms:?body=${encoded}`;
+            await saveCoachNote('sms', phone ? [`to:${phone}`] : ['to:manual']);
+            window.location.href = smsUrl;
+            // If no phone was on file, let the coach know to pick a contact.
+            if (!phone) {
+                setErrorMessage('No guardian phone on file — please choose a contact in your messages app.');
+            }
             setViewState('sent');
-            setTimeout(() => {
-                onClose();
-            }, 2000);
+            setTimeout(() => onClose(), 1500);
+            return;
+
         } catch (err) {
             console.error('Send error:', err);
-            setErrorMessage('Could not save feedback. Please try again.');
+            setErrorMessage(err.message || 'Could not send. Please try again.');
             setViewState('error');
         }
     };
