@@ -8,7 +8,10 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const AIFeedbackModal = ({ recipient, player, onClose }) => {
     const { user } = useAuth();
     const recipientName = player?.name || recipient || 'Player';
-    const [viewState, setViewState] = useState('idle'); // idle, typing, recording, processing, review, sent, error
+    // viewState: idle | typing | recording | captured | processing | review | sent | error
+    //   'captured' = recording ended (auto or manual) and we have text to review/polish
+    const [viewState, setViewState] = useState('idle');
+    const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [interimTranscript, setInterimTranscript] = useState('');
     const [aiSummary, setAiSummary] = useState('');
@@ -18,6 +21,10 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
     const [hasSpeechRecognition, setHasSpeechRecognition] = useState(false);
     const recognitionRef = useRef(null);
     const timerRef = useRef(null);
+    // SpeechRecognition resets event.results between .start() calls, so when the
+    // user taps "Speak more" we snapshot the transcript so far and prefix it to
+    // new session text.
+    const transcriptBaselineRef = useRef('');
 
     // Initialize speech recognition
     useEffect(() => {
@@ -30,36 +37,46 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                 recognitionRef.current.lang = 'en-US';
 
                 recognitionRef.current.onresult = (event) => {
-                    // Rebuild the full transcript from event.results every callback
-                    // (results accumulates for the whole .start() session, so this is
-                    // authoritative). event.resultIndex isn't safe to rely on for
-                    // appending — Chrome can re-fire an already-finalized result in
-                    // a later event, which caused the "repeating like crazy" bug.
-                    let finalText = '';
+                    // Rebuild from event.results (accumulates for the whole .start()
+                    // session) — OVERWRITE, don't append, so Chrome re-firing an
+                    // already-finalized result can never duplicate text.
+                    let sessionFinal = '';
                     let interimText = '';
                     for (let i = 0; i < event.results.length; i++) {
                         const result = event.results[i];
                         if (result.isFinal) {
-                            finalText += result[0].transcript;
-                            if (!finalText.endsWith(' ')) finalText += ' ';
+                            sessionFinal += result[0].transcript;
+                            if (!sessionFinal.endsWith(' ')) sessionFinal += ' ';
                         } else {
                             interimText += result[0].transcript;
                         }
                     }
-                    setTranscript(finalText);
+                    const baseline = transcriptBaselineRef.current;
+                    const joiner = baseline && !baseline.endsWith(' ') ? ' ' : '';
+                    setTranscript(baseline + joiner + sessionFinal);
                     setInterimTranscript(interimText);
                 };
 
                 recognitionRef.current.onerror = (e) => {
                     console.error('Speech recognition error:', e);
-                    if (e.error !== 'no-speech') {
-                        // Fall back to typing mode instead of error
-                        setViewState('typing');
+                    setIsListening(false);
+                    // Benign errors: silent timeouts, user-initiated aborts
+                    if (e.error === 'no-speech' || e.error === 'aborted') {
+                        return;
                     }
+                    // Show an error message but keep any transcript the user captured
+                    setErrorMessage(`Microphone error: ${e.error || 'unknown'}. You can keep the captured text or switch to typing.`);
                 };
 
                 recognitionRef.current.onend = () => {
-                    // Don't auto-restart here - let user control
+                    // Chrome auto-ends on pause. Flip listening off and, if we have
+                    // content, jump to the captured-review step so the user can
+                    // polish or speak more — instead of being stuck in "recording".
+                    setIsListening(false);
+                    setViewState(prev => {
+                        if (prev !== 'recording') return prev;
+                        return 'captured';
+                    });
                 };
 
                 setHasSpeechRecognition(true);
@@ -98,47 +115,75 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
         };
     }, [viewState]);
 
-    const handleStartRecording = () => {
+    const handleStartRecording = (appendToExisting = false) => {
         if (!recognitionRef.current) {
-            // Fall back to typing mode instead of error
             setViewState('typing');
             return;
         }
 
-        setViewState('recording');
-        setTranscript('');
+        if (appendToExisting) {
+            transcriptBaselineRef.current = transcript;
+        } else {
+            transcriptBaselineRef.current = '';
+            setTranscript('');
+        }
         setInterimTranscript('');
         setAiSummary('');
         setErrorMessage('');
+        setViewState('recording');
 
         try {
             recognitionRef.current.start();
+            setIsListening(true);
         } catch (e) {
             console.error('Failed to start recording:', e);
-            // Fall back to typing mode
-            setViewState('typing');
+            // InvalidStateError can fire if recognition is already running —
+            // force-abort and try again next tick.
+            try { recognitionRef.current.abort(); } catch (_) { /* no-op */ }
+            setIsListening(false);
+            setErrorMessage('Could not start microphone. Check permissions and try again.');
         }
     };
 
-    const handleStopRecording = async () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
+    const handleStopRecording = () => {
+        // Safely stop regardless of current recognition state — .stop() on an
+        // already-ended instance can throw InvalidStateError in some browsers.
+        try {
+            if (recognitionRef.current && isListening) {
+                recognitionRef.current.stop();
+            }
+        } catch (e) {
+            console.warn('Stop threw (safe to ignore):', e);
         }
+        setIsListening(false);
 
-        const finalTranscript = transcript + interimTranscript;
-
-        if (!finalTranscript.trim()) {
-            setErrorMessage('No speech detected. Try typing instead.');
-            setViewState('typing');
+        const captured = (transcript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
+        if (!captured) {
+            setErrorMessage('No speech detected. Try again or switch to typing.');
             return;
         }
-
-        setTranscript(finalTranscript.trim());
+        setTranscript(captured);
         setInterimTranscript('');
-        setViewState('processing');
+        setViewState('captured');
+    };
 
-        // Process with AI
-        await processWithAI(finalTranscript.trim());
+    const handleCreateFromCaptured = async () => {
+        const text = transcript.trim();
+        if (!text) return;
+        setViewState('processing');
+        await processWithAI(text);
+    };
+
+    const handleSpeakMore = () => {
+        handleStartRecording(true);
+    };
+
+    const handleDiscardAndRestart = () => {
+        transcriptBaselineRef.current = '';
+        setTranscript('');
+        setInterimTranscript('');
+        setErrorMessage('');
+        setViewState('idle');
     };
 
     const handleTextSubmit = async () => {
@@ -291,6 +336,21 @@ Return ONLY the polished message, nothing else.`
 
                 <div className="p-8 min-h-[400px] flex flex-col items-center justify-center relative">
 
+                    {/* Inline error banner — visible in any state when set */}
+                    {errorMessage && viewState !== 'error' && (
+                        <div className="absolute top-2 left-2 right-2 z-10 p-3 rounded-lg bg-red-500/15 border border-red-500/40 flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                            <p className="text-xs text-red-200 leading-relaxed flex-1">{errorMessage}</p>
+                            <button
+                                onClick={() => setErrorMessage('')}
+                                className="text-red-300 hover:text-white text-xs shrink-0"
+                                aria-label="Dismiss"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    )}
+
                     {/* ERROR STATE */}
                     {viewState === 'error' && (
                         <div className="flex flex-col items-center gap-6 animate-fade-in-up">
@@ -325,7 +385,7 @@ Return ONLY the polished message, nothing else.`
                             <div className="flex items-center gap-4">
                                 {hasSpeechRecognition && (
                                     <button
-                                        onClick={handleStartRecording}
+                                        onClick={() => handleStartRecording(false)}
                                         className="w-20 h-20 rounded-full bg-brand-green/10 border-2 border-brand-green flex items-center justify-center hover:bg-brand-green/20 hover:scale-105 transition-all shadow-[0_0_30px_rgba(59,130,246,0.2)] group"
                                     >
                                         <Mic className="w-8 h-8 text-brand-green group-hover:text-white transition-colors" />
@@ -362,7 +422,7 @@ Return ONLY the polished message, nothing else.`
                             <div className="flex gap-3">
                                 {hasSpeechRecognition && (
                                     <button
-                                        onClick={handleStartRecording}
+                                        onClick={() => handleStartRecording(false)}
                                         className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm"
                                     >
                                         <Mic className="w-4 h-4" /> Record Instead
@@ -416,6 +476,45 @@ Return ONLY the polished message, nothing else.`
                                 <StopCircle className="w-8 h-8 fill-current" />
                             </button>
                             <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">Tap to Stop</p>
+                        </div>
+                    )}
+
+                    {/* CAPTURED STATE — recording ended (manually or on pause),
+                        user can polish what was captured or add more */}
+                    {viewState === 'captured' && (
+                        <div className="w-full space-y-4 animate-fade-in-up">
+                            <div className="text-center space-y-1">
+                                <h3 className="text-lg text-white font-bold">Captured feedback for <span className="text-brand-green">{recipientName}</span></h3>
+                                <p className="text-gray-500 text-xs">Review and edit before polishing — or keep speaking.</p>
+                            </div>
+                            <textarea
+                                value={transcript}
+                                onChange={(e) => setTranscript(e.target.value)}
+                                className="w-full h-36 bg-white/5 border border-white/10 rounded-lg p-4 text-white text-sm focus:border-brand-green outline-none resize-none placeholder:text-gray-600"
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                                {hasSpeechRecognition && (
+                                    <button
+                                        onClick={handleSpeakMore}
+                                        className="py-2.5 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:bg-white/10 transition-colors flex items-center justify-center gap-2 text-sm"
+                                    >
+                                        <Mic className="w-4 h-4" /> Speak More
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleCreateFromCaptured}
+                                    disabled={!transcript.trim()}
+                                    className={`py-2.5 bg-brand-green text-brand-dark font-bold rounded-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-30 disabled:cursor-not-allowed ${hasSpeechRecognition ? '' : 'col-span-2'}`}
+                                >
+                                    <Sparkles className="w-4 h-4" /> Polish with AI
+                                </button>
+                            </div>
+                            <button
+                                onClick={handleDiscardAndRestart}
+                                className="w-full text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                            >
+                                Discard and start over
+                            </button>
                         </div>
                     )}
 
