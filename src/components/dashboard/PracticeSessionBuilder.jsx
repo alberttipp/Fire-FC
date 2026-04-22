@@ -233,13 +233,36 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             recognitionRef.current.lang = 'en-US';
 
             recognitionRef.current.onresult = (event) => {
-                let sessionText = '';
+                // Merge results across two browser behaviors:
+                //   Desktop Chrome: finalized results are disjoint chunks → append.
+                //   Android Chrome: finalized results are growing prefixes of the
+                //     same utterance re-emitted many times → keep longest.
+                // Rule: if a new finalized text starts with the previous one,
+                // replace (Android). Otherwise append (desktop).
+                const finals = [];
+                let interim = '';
                 for (let i = 0; i < event.results.length; i++) {
-                    sessionText += event.results[i][0].transcript;
+                    const result = event.results[i];
+                    const text = (result[0]?.transcript || '').trim();
+                    if (!text) continue;
+                    if (result.isFinal) {
+                        const prev = finals[finals.length - 1];
+                        if (prev && text.startsWith(prev)) {
+                            finals[finals.length - 1] = text;
+                        } else if (prev && prev.startsWith(text)) {
+                            // Shorter subset of previous snapshot — skip.
+                        } else {
+                            finals.push(text);
+                        }
+                    } else {
+                        interim += result[0].transcript;
+                    }
                 }
+                const sessionFinal = finals.join(' ');
+                const sessionText = sessionFinal + (interim ? (sessionFinal ? ' ' : '') + interim : '');
                 const baseline = voiceBaselineRef.current;
-                const joiner = baseline && !baseline.endsWith(' ') ? ' ' : '';
-                setVoiceInput(baseline + joiner + sessionText);
+                const joiner = baseline && sessionText ? ' ' : '';
+                setVoiceInput((baseline + joiner + sessionText).trim());
             };
 
             recognitionRef.current.onerror = (e) => {

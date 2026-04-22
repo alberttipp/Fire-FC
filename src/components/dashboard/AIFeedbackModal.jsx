@@ -17,10 +17,6 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
     const [processingStep, setProcessingStep] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [hasSpeechRecognition, setHasSpeechRecognition] = useState(false);
-    // Diagnostic data — captured per onresult call, to figure out what the
-    // Android Chrome speech engine is actually emitting. Visible as a small
-    // panel in the recording UI.
-    const [debugInfo, setDebugInfo] = useState(null);
     const recognitionRef = useRef(null);
     const timerRef = useRef(null);
     // SpeechRecognition resets event.results between .start() calls, so when the
@@ -39,43 +35,46 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                 recognitionRef.current.lang = 'en-US';
 
                 recognitionRef.current.onresult = (event) => {
-                    // Rebuild from event.results (accumulates for the whole .start()
-                    // session) — OVERWRITE, don't append, so Chrome re-firing an
-                    // already-finalized result can never duplicate text.
-                    let sessionFinal = '';
+                    // Merge finalized results across two very different browser
+                    // behaviors using the same algorithm:
+                    //
+                    // Desktop Chrome: finalized results are DISJOINT utterance
+                    //   chunks. [0]="Hello world." [1]="How are you?"
+                    //   → concatenate both.
+                    //
+                    // Android Chrome: in continuous mode, the engine re-emits
+                    //   the same utterance with each word as it's recognized,
+                    //   every snapshot marked isFinal=true.
+                    //   [3]="build" [5]="build me" [7]="build me a" ... [23]="…on"
+                    //   → only keep the longest (the last one is the full text).
+                    //
+                    // Rule: if a new finalized text starts with the previous
+                    // finalized chunk, it's an extension (Android) — replace.
+                    // Otherwise it's a new chunk (desktop) — append.
+                    const finals = [];
                     let interimText = '';
-                    const resultSnapshot = [];
                     for (let i = 0; i < event.results.length; i++) {
                         const result = event.results[i];
-                        const text = result[0]?.transcript || '';
-                        resultSnapshot.push({
-                            i,
-                            final: !!result.isFinal,
-                            text: text.length > 60 ? text.slice(0, 60) + '...' : text,
-                        });
+                        const text = (result[0]?.transcript || '').trim();
+                        if (!text) continue;
                         if (result.isFinal) {
-                            sessionFinal += text;
-                            if (!sessionFinal.endsWith(' ')) sessionFinal += ' ';
+                            const prev = finals[finals.length - 1];
+                            if (prev && text.startsWith(prev)) {
+                                finals[finals.length - 1] = text;
+                            } else if (prev && prev.startsWith(text)) {
+                                // Shorter subset of the previous snapshot — skip.
+                            } else {
+                                finals.push(text);
+                            }
                         } else {
-                            interimText += text;
+                            interimText += result[0].transcript;
                         }
                     }
+                    const sessionFinal = finals.join(' ');
                     const baseline = transcriptBaselineRef.current;
-                    const joiner = baseline && !baseline.endsWith(' ') ? ' ' : '';
-                    setTranscript(baseline + joiner + sessionFinal);
+                    const joiner = baseline && sessionFinal ? ' ' : '';
+                    setTranscript((baseline + joiner + sessionFinal).trim());
                     setInterimTranscript(interimText);
-
-                    // Capture what the engine actually sent. If duplicates are
-                    // coming from the engine itself, they'll show here.
-                    setDebugInfo({
-                        callCount: (recognitionRef.current.__callCount = (recognitionRef.current.__callCount || 0) + 1),
-                        resultIndex: event.resultIndex,
-                        resultsLength: event.results.length,
-                        finalCount: resultSnapshot.filter(r => r.final).length,
-                        interimCount: resultSnapshot.filter(r => !r.final).length,
-                        results: resultSnapshot,
-                        transcriptLen: (baseline + joiner + sessionFinal).length,
-                    });
                 };
 
                 recognitionRef.current.onerror = (e) => {
@@ -151,9 +150,6 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
         setInterimTranscript('');
         setAiSummary('');
         setErrorMessage('');
-        setDebugInfo(null);
-        // Reset the per-instance call counter so each new recording starts fresh
-        if (recognitionRef.current) recognitionRef.current.__callCount = 0;
         setViewState('recording');
 
         try {
@@ -673,40 +669,6 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                         </div>
                     )}
 
-                    {/* DIAGNOSTIC — persists across recording/captured so the
-                        user can read and copy it after they stop talking.
-                        Remove after Android speech bug is diagnosed. */}
-                    {debugInfo && ['recording', 'captured', 'idle'].includes(viewState) && (
-                        <div className="w-full mt-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 text-[10px] text-yellow-200 font-mono leading-tight">
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="font-bold">
-                                    debug · call {debugInfo.callCount} · ri={debugInfo.resultIndex} · len={debugInfo.resultsLength} · F={debugInfo.finalCount} · i={debugInfo.interimCount} · chars={debugInfo.transcriptLen}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const text = `call=${debugInfo.callCount} ri=${debugInfo.resultIndex} len=${debugInfo.resultsLength} F=${debugInfo.finalCount} i=${debugInfo.interimCount} chars=${debugInfo.transcriptLen}\n` +
-                                            debugInfo.results.map(r => `[${r.i}] ${r.final ? 'F' : 'i'} "${r.text}"`).join('\n') +
-                                            `\n---TRANSCRIPT---\n${transcript}`;
-                                        navigator.clipboard?.writeText(text).then(
-                                            () => setErrorMessage('Debug copied — paste it in chat'),
-                                            () => setErrorMessage('Could not copy, long-press to select instead')
-                                        );
-                                    }}
-                                    className="shrink-0 px-2 py-0.5 bg-yellow-500/20 border border-yellow-500/40 rounded text-[10px] text-yellow-100 hover:bg-yellow-500/30"
-                                >
-                                    Copy
-                                </button>
-                            </div>
-                            <div className="max-h-32 overflow-y-auto space-y-0.5 select-text">
-                                {debugInfo.results.map(r => (
-                                    <div key={r.i} className={r.final ? 'text-yellow-100' : 'text-yellow-400/70'}>
-                                        [{r.i}] {r.final ? 'F' : 'i'} "{r.text}"
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
