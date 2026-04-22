@@ -17,6 +17,10 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
     const [processingStep, setProcessingStep] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [hasSpeechRecognition, setHasSpeechRecognition] = useState(false);
+    // Diagnostic data — captured per onresult call, to figure out what the
+    // Android Chrome speech engine is actually emitting. Visible as a small
+    // panel in the recording UI.
+    const [debugInfo, setDebugInfo] = useState(null);
     const recognitionRef = useRef(null);
     const timerRef = useRef(null);
     // SpeechRecognition resets event.results between .start() calls, so when the
@@ -40,19 +44,38 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                     // already-finalized result can never duplicate text.
                     let sessionFinal = '';
                     let interimText = '';
+                    const resultSnapshot = [];
                     for (let i = 0; i < event.results.length; i++) {
                         const result = event.results[i];
+                        const text = result[0]?.transcript || '';
+                        resultSnapshot.push({
+                            i,
+                            final: !!result.isFinal,
+                            text: text.length > 60 ? text.slice(0, 60) + '...' : text,
+                        });
                         if (result.isFinal) {
-                            sessionFinal += result[0].transcript;
+                            sessionFinal += text;
                             if (!sessionFinal.endsWith(' ')) sessionFinal += ' ';
                         } else {
-                            interimText += result[0].transcript;
+                            interimText += text;
                         }
                     }
                     const baseline = transcriptBaselineRef.current;
                     const joiner = baseline && !baseline.endsWith(' ') ? ' ' : '';
                     setTranscript(baseline + joiner + sessionFinal);
                     setInterimTranscript(interimText);
+
+                    // Capture what the engine actually sent. If duplicates are
+                    // coming from the engine itself, they'll show here.
+                    setDebugInfo({
+                        callCount: (recognitionRef.current.__callCount = (recognitionRef.current.__callCount || 0) + 1),
+                        resultIndex: event.resultIndex,
+                        resultsLength: event.results.length,
+                        finalCount: resultSnapshot.filter(r => r.final).length,
+                        interimCount: resultSnapshot.filter(r => !r.final).length,
+                        results: resultSnapshot,
+                        transcriptLen: (baseline + joiner + sessionFinal).length,
+                    });
                 };
 
                 recognitionRef.current.onerror = (e) => {
@@ -128,6 +151,9 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
         setInterimTranscript('');
         setAiSummary('');
         setErrorMessage('');
+        setDebugInfo(null);
+        // Reset the per-instance call counter so each new recording starts fresh
+        if (recognitionRef.current) recognitionRef.current.__callCount = 0;
         setViewState('recording');
 
         try {
@@ -522,6 +548,23 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                                 <StopCircle className="w-8 h-8 fill-current" />
                             </button>
                             <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">Tap to Stop</p>
+
+                            {/* DIAGNOSTIC — temporary, tells us what the
+                                browser's speech engine is actually emitting. */}
+                            {debugInfo && (
+                                <div className="w-full bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 text-[10px] text-yellow-200 font-mono leading-tight">
+                                    <div className="font-bold mb-1">
+                                        debug · call {debugInfo.callCount} · resultIndex={debugInfo.resultIndex} · len={debugInfo.resultsLength} · final={debugInfo.finalCount} · interim={debugInfo.interimCount} · chars={debugInfo.transcriptLen}
+                                    </div>
+                                    <div className="max-h-24 overflow-y-auto space-y-0.5">
+                                        {debugInfo.results.map(r => (
+                                            <div key={r.i} className={r.final ? 'text-yellow-100' : 'text-yellow-400/70'}>
+                                                [{r.i}] {r.final ? 'F' : 'i'} "{r.text}"
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
