@@ -3,8 +3,6 @@ import { X, Mic, Send, Sparkles, StopCircle, Mail, MessageSquare, Check, Refresh
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
 const AIFeedbackModal = ({ recipient, player, onClose }) => {
     const { user } = useAuth();
     const recipientName = player?.name || recipient || 'Player';
@@ -194,76 +192,53 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
     };
 
     const processWithAI = async (rawTranscript) => {
-        if (!GEMINI_API_KEY) {
-            setErrorMessage('AI API key not configured.');
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseKey) {
+            setErrorMessage('Supabase env vars missing on the deploy. Please check Vercel settings.');
             setViewState('error');
             return;
         }
 
         try {
-            setProcessingStep('Transcribing audio...');
+            setProcessingStep('Sending to Coach AI...');
+            await new Promise(r => setTimeout(r, 300));
+            setProcessingStep('Polishing into coach speak...');
 
-            // Small delay for UX
-            await new Promise(r => setTimeout(r, 500));
-            setProcessingStep('Enhancing to professional coach speak...');
+            const response = await fetch(`${supabaseUrl}/functions/v1/ai-polish-feedback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                },
+                body: JSON.stringify({
+                    recipientName,
+                    rawTranscript,
+                }),
+            });
 
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            role: 'user',
-                            parts: [{
-                                text: `You are an assistant for a youth soccer coach. Transform this raw voice note feedback into a polished, professional message suitable for parents.
+            const data = await response.json().catch(() => ({}));
 
-The feedback is about a player named "${recipientName}".
-
-Raw coach's voice note:
-"${rawTranscript}"
-
-Instructions:
-1. Keep the tone positive and constructive
-2. Maintain all specific observations the coach made
-3. Add professional structure (greeting, body, closing)
-4. Keep it concise (2-3 short paragraphs max)
-5. End with encouragement
-6. Don't add any information the coach didn't mention
-7. Format for easy reading (no bullet points, flowing prose)
-
-Return ONLY the polished message, nothing else.`
-                            }]
-                        }],
-                        generationConfig: {
-                            temperature: 0.7,
-                            maxOutputTokens: 512,
-                        }
-                    })
-                }
-            );
-
-            const data = await response.json();
-
-            // Check for API error response
             if (!response.ok) {
-                console.error('Gemini API error:', data);
-                throw new Error(data.error?.message || `API error: ${response.status}`);
+                console.error('ai-polish-feedback error:', response.status, data);
+                throw new Error(data?.error || `Server error ${response.status}`);
             }
 
-            if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-                setProcessingStep('Finalizing...');
-                await new Promise(r => setTimeout(r, 300));
-
-                setAiSummary(data.candidates[0].content.parts[0].text.trim());
-                setViewState('review');
-            } else {
-                console.error('Unexpected API response:', data);
-                throw new Error('Invalid AI response structure');
+            const polished = (data?.polishedText || '').trim();
+            if (!polished) {
+                throw new Error('AI returned an empty response. Try again.');
             }
+
+            setProcessingStep('Finalizing...');
+            await new Promise(r => setTimeout(r, 200));
+
+            setAiSummary(polished);
+            setViewState('review');
         } catch (err) {
             console.error('AI processing error:', err);
-            setErrorMessage('Failed to process with AI. Please try again.');
+            setErrorMessage(`Could not polish feedback: ${err.message || 'unknown error'}`);
             setViewState('error');
         }
     };
@@ -326,7 +301,7 @@ Return ONLY the polished message, nothing else.`
                         </div>
                         <div>
                             <h2 className="text-white font-display uppercase font-bold tracking-wider text-sm">AI Coach Feedback</h2>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Powered by Gemini</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Powered by Claude</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
