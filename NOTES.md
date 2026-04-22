@@ -1,5 +1,54 @@
 # Fire-FC Development Notes
 
+## Session: 2026-04-22 (AI voice polish + parent delivery)
+
+### Context
+- Follow-up to 2026-04-19/20 coach overhaul work
+- Supabase project: `bcfemytoburctssnemwn` (Fire FC PROD) — the ref in `.claude/CLAUDE.md` (`nycprdmatvcprfujicoh`) is STALE / wrong, fix when convenient
+- Production URL: https://fire-fc.vercel.app (auto-deploys from `main`)
+
+### Today's actions
+
+#### 1. AI Feedback modal rescued from "API not configured" error (commit bc7d919)
+- Root cause: modal was calling Gemini directly from the browser via `VITE_GEMINI_API_KEY`. That env var was in local `.env` but never set on Vercel, so the prod bundle had no key.
+- Fix direction: do NOT add the key to Vercel — `VITE_*` vars bake into the public JS bundle where anyone can scrape them. Moved the call server-side instead.
+- New edge function `ai-polish-feedback` (v1, verify_jwt=false) takes `{ recipientName, rawTranscript }` and returns `{ polishedText }`. Uses `claude-sonnet-4-20250514` via the existing `ANTHROPIC_API_KEY` Supabase secret.
+- Frontend switched from Gemini URL to `/functions/v1/ai-polish-feedback`. Header badge updated "Powered by Gemini" → "Powered by Claude".
+
+#### 2. AI Feedback modal stopped crashing on pause (commit 954921f, pre-dated 04-20 session)
+- Three bugs stacking: Chrome auto-ends recognition on pause but `onend` did nothing → UI stuck in "recording"; `.stop()` on an already-ended instance threw `InvalidStateError`; `onClick={handleStartRecording}` was passing the click event as a truthy `appendToExisting`.
+- Added `isListening` state, `transcriptBaselineRef`, a new `captured` viewState, try/catch on stop, and explicit `(false)` at all onClick call sites.
+
+#### 3. Email + SMS delivery to guardians (commit 2a2fa1d)
+- New edge function `send-coach-feedback` (v1, verify_jwt=true) — two modes:
+  - `mode:'email'` — verifies caller is coach/manager on the player's team, looks up guardian emails via service role (`auth.users.email` is RLS-invisible otherwise), sends one Resend API call per recipient.
+  - `mode:'sms'` — returns guardian contacts (email + phone from `auth.users`, falling back to `profiles.phone`). Frontend opens `sms:<number>?body=<msg>` so coach picks contact in native Messages app.
+- `AIFeedbackModal.jsx` "Email Parents" / "Text Parents" buttons now actually send. Still saves to `coach_notes` on success, tagged `['parent_feedback', method, 'to:<email-or-phone>']`.
+- **Blocker remaining for email:** `RESEND_API_KEY` not yet set as a Supabase secret. User needs to sign up at resend.com (ideally with `tippjr@yahoo.com` so the default `onboarding@resend.dev` sender can reach Bo's guardian during testing) and paste the key into project settings → functions → secrets.
+
+#### 4. Android Chrome speech recognition fix (commit 62df413)
+- Reported bug: AI Voice Builder and AI Coach Feedback both showed repeating text like "build build build me build me build me a..." on Android Chrome. Laptop worked fine.
+- Diagnostic panel added (commits 39ae0c6 + 4e3c6fb, since removed) so the user could paste back actual `event.results` data from the device. Confirmed root cause instead of guessing.
+- Real cause: Android Chrome's `SpeechRecognition` in `continuous` mode re-emits the same utterance many times with each new word recognized, every snapshot flagged `isFinal=true`. Entries become growing prefixes of the same sentence. Desktop Chrome emits disjoint chunks instead.
+- Fix is one rule that handles both: if a new finalized text starts with the previous entry, REPLACE (Android prefix pattern); otherwise APPEND (desktop disjoint chunks); shorter subsets of the previous snapshot are skipped.
+- Applied identically to `AIFeedbackModal.jsx` and `PracticeSessionBuilder.jsx`. Confirmed working on device.
+
+### Still TODO
+- [ ] **Add `RESEND_API_KEY` as Supabase secret** — blocker for email-to-guardians. Sign up at resend.com (use `tippjr@yahoo.com`), create API key, add via https://supabase.com/dashboard/project/bcfemytoburctssnemwn/functions/secrets.
+- [ ] Verify a Resend sending domain once you pick one (Fire FC subdomain) so we can email anyone, not just the Resend account owner's email.
+- [ ] Collect guardian phone numbers on signup so SMS pre-fills the recipient instead of requiring manual contact pick.
+- [ ] Fix the wrong Supabase project ref in `.claude/CLAUDE.md` (line ~108).
+
+### Edge functions now live on Fire FC PROD (`bcfemytoburctssnemwn`)
+- `create-player` (pre-existing)
+- `player-login` (pre-existing)
+- `reset-player-pin` (pre-existing)
+- `ai-practice-session` (pre-existing, Claude Sonnet, practice JSON builder)
+- `ai-polish-feedback` v1 — NEW today
+- `send-coach-feedback` v1 — NEW today
+
+---
+
 ## Session: 2026-04-19 (demo prep for 10:30 AM)
 
 ### Context
