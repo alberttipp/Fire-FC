@@ -549,22 +549,6 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                             </button>
                             <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">Tap to Stop</p>
 
-                            {/* DIAGNOSTIC — temporary, tells us what the
-                                browser's speech engine is actually emitting. */}
-                            {debugInfo && (
-                                <div className="w-full bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 text-[10px] text-yellow-200 font-mono leading-tight">
-                                    <div className="font-bold mb-1">
-                                        debug · call {debugInfo.callCount} · resultIndex={debugInfo.resultIndex} · len={debugInfo.resultsLength} · final={debugInfo.finalCount} · interim={debugInfo.interimCount} · chars={debugInfo.transcriptLen}
-                                    </div>
-                                    <div className="max-h-24 overflow-y-auto space-y-0.5">
-                                        {debugInfo.results.map(r => (
-                                            <div key={r.i} className={r.final ? 'text-yellow-100' : 'text-yellow-400/70'}>
-                                                [{r.i}] {r.final ? 'F' : 'i'} "{r.text}"
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
 
@@ -686,6 +670,41 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                                 <Check className="w-8 h-8 text-brand-green" />
                             </div>
                             <h3 className="text-lg text-white font-bold">Feedback Sent!</h3>
+                        </div>
+                    )}
+
+                    {/* DIAGNOSTIC — persists across recording/captured so the
+                        user can read and copy it after they stop talking.
+                        Remove after Android speech bug is diagnosed. */}
+                    {debugInfo && ['recording', 'captured', 'idle'].includes(viewState) && (
+                        <div className="w-full mt-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 text-[10px] text-yellow-200 font-mono leading-tight">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="font-bold">
+                                    debug · call {debugInfo.callCount} · ri={debugInfo.resultIndex} · len={debugInfo.resultsLength} · F={debugInfo.finalCount} · i={debugInfo.interimCount} · chars={debugInfo.transcriptLen}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const text = `call=${debugInfo.callCount} ri=${debugInfo.resultIndex} len=${debugInfo.resultsLength} F=${debugInfo.finalCount} i=${debugInfo.interimCount} chars=${debugInfo.transcriptLen}\n` +
+                                            debugInfo.results.map(r => `[${r.i}] ${r.final ? 'F' : 'i'} "${r.text}"`).join('\n') +
+                                            `\n---TRANSCRIPT---\n${transcript}`;
+                                        navigator.clipboard?.writeText(text).then(
+                                            () => setErrorMessage('Debug copied — paste it in chat'),
+                                            () => setErrorMessage('Could not copy, long-press to select instead')
+                                        );
+                                    }}
+                                    className="shrink-0 px-2 py-0.5 bg-yellow-500/20 border border-yellow-500/40 rounded text-[10px] text-yellow-100 hover:bg-yellow-500/30"
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                            <div className="max-h-32 overflow-y-auto space-y-0.5 select-text">
+                                {debugInfo.results.map(r => (
+                                    <div key={r.i} className={r.final ? 'text-yellow-100' : 'text-yellow-400/70'}>
+                                        [{r.i}] {r.final ? 'F' : 'i'} "{r.text}"
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
