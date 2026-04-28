@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { useAuth } from '../context/AuthContext';
 import { Loader2, CheckCircle, XCircle, Rocket } from 'lucide-react';
 
 const PlayerAccessPage = () => {
     const { token } = useParams();
     const navigate = useNavigate();
-    const { loginWithToken } = useAuth();
 
     const [status, setStatus] = useState('verifying'); // 'verifying', 'ready', 'error', 'logging_in'
     const [player, setPlayer] = useState(null);
@@ -50,14 +48,37 @@ const PlayerAccessPage = () => {
         setStatus('logging_in');
 
         try {
-            // Pass the raw token string too so kid-mode edge functions
-            // (e.g., player-assign-homework) can verify the player.
-            await loginWithToken(player, token);
-            navigate('/player-dashboard');
+            // New flow: ask the edge function to mint a magic link for the
+            // player's real auth.users account, then redirect the kid to
+            // that link. Supabase handles the rest — when the kid lands
+            // back on /player-dashboard they'll have a real session and
+            // RLS, realtime, etc all "just work" without virtual-user hacks.
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            const redirectTo = `${window.location.origin}/player-dashboard`;
+
+            const resp = await fetch(`${supabaseUrl}/functions/v1/player-token-signin`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`,
+                },
+                body: JSON.stringify({ token, redirectTo }),
+            });
+
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.redirectUrl) {
+                throw new Error(data?.error || `Sign-in failed (HTTP ${resp.status})`);
+            }
+
+            // Hard redirect to the magic link. Supabase will hit its callback,
+            // set the session in localStorage, and bounce back to /player-dashboard.
+            window.location.href = data.redirectUrl;
         } catch (err) {
             console.error('Login error:', err);
             setStatus('error');
-            setError('Failed to log in. Please try again.');
+            setError(err.message || 'Failed to log in. Please try again.');
         }
     };
 
