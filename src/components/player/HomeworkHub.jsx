@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { CheckCircle, Play, Lock, Trophy } from 'lucide-react';
+import { CheckCircle, Play, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 import DrillDetailModal from './DrillDetailModal';
+
+const INITIAL_VISIBLE = 3;
 
 const HomeworkHub = ({ assignments, onComplete }) => {
     const [selectedDrill, setSelectedDrill] = useState(null);
+    const [showAll, setShowAll] = useState(false);
 
     // Map DB Assignments to Display Format
     const displayDrills = (assignments || []).map(a => ({
@@ -11,7 +14,6 @@ const HomeworkHub = ({ assignments, onComplete }) => {
         title: a.drills?.name || "Unknown Drill",
         duration: (a.custom_duration || a.drills?.duration || 15) + "m",
         dueDate: a.due_date, // Pass due date
-        xp: 50, // Default reward
         completed: a.status === 'completed',
         originalDrill: a.drills // Store reference
     }));
@@ -23,9 +25,16 @@ const HomeworkHub = ({ assignments, onComplete }) => {
         return days;
     };
 
-    // Fallback Mock if None (for Dev) - Or just show empty?
-    // Let's show empty or a "No Assignments" message if empty.
-    const drills = displayDrills; // Override mock
+    // Sort: pending first (by due date asc), then completed last
+    const drills = [...displayDrills].sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        const ad = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const bd = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        return ad - bd;
+    });
+
+    const visibleDrills = showAll ? drills : drills.slice(0, INITIAL_VISIBLE);
+    const hiddenCount = drills.length - visibleDrills.length;
 
     return (
         <div className="animate-fade-in-up">
@@ -35,7 +44,7 @@ const HomeworkHub = ({ assignments, onComplete }) => {
             </h3>
 
             <div className="space-y-4">
-                {drills.map((drill) => {
+                {visibleDrills.map((drill) => {
                     const daysLeft = getDaysLeft(drill.dueDate);
                     let timeStatus = "";
                     let timeColor = "text-gray-400";
@@ -60,7 +69,7 @@ const HomeworkHub = ({ assignments, onComplete }) => {
                                     <div>
                                         <h4 className={`font-display font-bold text-lg uppercase ${drill.completed ? 'text-brand-green line-through' : 'text-white'}`}>{drill.title}</h4>
                                         <div className="flex items-center gap-3 text-xs font-bold">
-                                            <span className="text-gray-400">{drill.duration} • +{drill.xp} XP</span>
+                                            <span className="text-gray-400">{drill.duration}</span>
                                             {!drill.completed && timeStatus && (
                                                 <span className={`${timeColor} uppercase tracking-wider`}>• {timeStatus}</span>
                                             )}
@@ -79,18 +88,23 @@ const HomeworkHub = ({ assignments, onComplete }) => {
                     );
                 })}
 
-                {/* Locked Bonus Level */}
-                <div className="p-4 rounded-xl border border-white/5 bg-black/40 flex items-center justify-between opacity-50 grayscale">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gray-900 flex items-center justify-center">
-                            <Lock className="w-6 h-6 text-gray-500" />
-                        </div>
-                        <div>
-                            <h4 className="font-display font-bold text-lg uppercase text-gray-400">Bonus: Crossbar Challenge</h4>
-                            <p className="text-gray-600 text-xs font-bold">Unlock by completing all drills</p>
-                        </div>
-                    </div>
-                </div>
+                {/* Show more / show less toggle */}
+                {drills.length > INITIAL_VISIBLE && (
+                    <button
+                        onClick={() => setShowAll(s => !s)}
+                        className="w-full py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+                    >
+                        {showAll ? (
+                            <>
+                                <ChevronUp className="w-4 h-4" /> Show Less
+                            </>
+                        ) : (
+                            <>
+                                <ChevronDown className="w-4 h-4" /> Show {hiddenCount} More
+                            </>
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Drill Detail Modal */}

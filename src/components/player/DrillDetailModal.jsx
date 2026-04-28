@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, PlayCircle, Clock, Award, CheckCircle } from 'lucide-react';
+import { X, PlayCircle, Clock, CheckCircle } from 'lucide-react';
 
 const DrillDetailModal = ({ drill, onClose, onComplete }) => {
     if (!drill) return null;
@@ -31,7 +31,6 @@ const DrillDetailModal = ({ drill, onClose, onComplete }) => {
                         </span>
                         <div className="flex items-center gap-4 text-gray-400 text-sm">
                             <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {drill.duration}</span>
-                            <span className="flex items-center gap-1 text-brand-gold"><Award className="w-4 h-4" /> {drill.xp} XP</span>
                         </div>
                     </div>
 
