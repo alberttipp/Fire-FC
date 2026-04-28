@@ -156,12 +156,16 @@ const EventDetailModal = ({ event, onClose, onStartSession }) => {
                                                     ))}
                                                 </div>
                                             )}
-                                            <button
-                                                onClick={() => handleStartSession(session)}
-                                                className="mt-3 w-full py-2 bg-brand-green/20 text-brand-green rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-brand-green/30 transition-colors"
-                                            >
-                                                <Play className="w-4 h-4" /> Run Session
-                                            </button>
+                                            {/* "Run Session" hidden for now — surface only on the
+                                                training day in a future change. */}
+                                            {false && (
+                                                <button
+                                                    onClick={() => handleStartSession(session)}
+                                                    className="mt-3 w-full py-2 bg-brand-green/20 text-brand-green rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-brand-green/30 transition-colors"
+                                                >
+                                                    <Play className="w-4 h-4" /> Run Session
+                                                </button>
+                                            )}
                                         </div>
                                     );
                                 })}

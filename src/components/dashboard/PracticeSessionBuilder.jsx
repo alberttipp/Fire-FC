@@ -1069,7 +1069,9 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                         {selectedEventId && <span className="px-2 py-1 bg-brand-gold/20 text-brand-gold text-xs rounded flex items-center gap-1"><Link className="w-3 h-3" /> Linked</span>}
                     </div>
                     <div className="flex gap-3">
-                        {blocks.length > 0 && (
+                        {/* "Run with Timers" hidden for now — we'll surface it
+                            on the actual training day instead of always-on. */}
+                        {false && blocks.length > 0 && (
                             <button onClick={startTimer} className="px-4 py-2 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold rounded-lg font-bold hover:bg-brand-gold/20 flex items-center gap-2">
                                 <Timer className="w-4 h-4" /> Run with Timers
                             </button>

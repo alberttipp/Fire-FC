@@ -703,7 +703,9 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName })
                 <div className="p-4 sm:p-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
                     <span className="text-sm text-gray-400">{blocks.length} drills • <span className="text-brand-green font-bold">{totalDuration} min</span></span>
                     <div className="flex gap-3">
-                        {blocks.length > 0 && (
+                        {/* "Run with Timers" hidden for now — we'll surface it
+                            on the actual training day instead of always-on. */}
+                        {false && blocks.length > 0 && (
                             <button onClick={startTimer} className="px-4 py-2 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold rounded-lg font-bold hover:bg-brand-gold/20 flex items-center gap-2">
                                 <Timer className="w-4 h-4" /> Run with Timers
                             </button>

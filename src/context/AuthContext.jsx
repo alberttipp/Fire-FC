@@ -5,6 +5,59 @@ const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
 
+// Player access tokens (kid-mode logins) need to keep the session alive
+// long enough to last a typical training day, even across page navigations
+// and tab close/reopen. 3 hours per the user's requirement.
+const PLAYER_SESSION_TTL_MS = 3 * 60 * 60 * 1000;
+const VIRTUAL_USER_KEY = 'user';
+const VIRTUAL_USER_EXPIRES_KEY = 'user_expires_at';
+
+// Save a virtual (non-Supabase) user to localStorage. Players get a 3-hour
+// expiry; demo/manager virtual users persist until explicit signOut.
+const saveVirtualUser = (userObj) => {
+    localStorage.setItem(VIRTUAL_USER_KEY, JSON.stringify(userObj));
+    if (userObj?.role === 'player') {
+        localStorage.setItem(VIRTUAL_USER_EXPIRES_KEY, String(Date.now() + PLAYER_SESSION_TTL_MS));
+    } else {
+        localStorage.removeItem(VIRTUAL_USER_EXPIRES_KEY);
+    }
+};
+
+// Read the virtual user, honoring TTL. Returns null if missing or expired.
+const readVirtualUser = () => {
+    const stored = localStorage.getItem(VIRTUAL_USER_KEY);
+    if (!stored) return null;
+    const expiresAtStr = localStorage.getItem(VIRTUAL_USER_EXPIRES_KEY);
+    if (expiresAtStr) {
+        const expiresAt = parseInt(expiresAtStr, 10);
+        if (Number.isFinite(expiresAt) && Date.now() > expiresAt) {
+            localStorage.removeItem(VIRTUAL_USER_KEY);
+            localStorage.removeItem(VIRTUAL_USER_EXPIRES_KEY);
+            return null;
+        }
+    }
+    try {
+        return JSON.parse(stored);
+    } catch {
+        localStorage.removeItem(VIRTUAL_USER_KEY);
+        localStorage.removeItem(VIRTUAL_USER_EXPIRES_KEY);
+        return null;
+    }
+};
+
+const clearVirtualUser = () => {
+    localStorage.removeItem(VIRTUAL_USER_KEY);
+    localStorage.removeItem(VIRTUAL_USER_EXPIRES_KEY);
+};
+
+const profileFromVirtualUser = (vu) => ({
+    id: vu.id,
+    full_name: vu.display_name || 'User',
+    email: vu.email,
+    role: vu.role,
+    avatar_url: vu.avatar_url || null,
+});
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [session, setSession] = useState(null);
@@ -14,27 +67,18 @@ export const AuthProvider = ({ children }) => {
     const [demoUser, setDemoUser] = useState(null);
 
     useEffect(() => {
-        // Check active sessions and sets the user
+        // Initial mount — restore from real Supabase session OR fall back
+        // to a virtual user (player token / demo) from localStorage.
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) fetchProfile(session.user.id);
-            else {
-                // Check for virtual user (Demo or Player PIN)
-                const storedUser = localStorage.getItem('user');
-                if (storedUser) {
-                    const parsedUser = JSON.parse(storedUser);
-                    setUser(parsedUser);
-
-                    // Create profile for demo/virtual user
-                    const virtualProfile = {
-                        id: parsedUser.id,
-                        full_name: parsedUser.display_name || 'User',
-                        email: parsedUser.email,
-                        role: parsedUser.role,
-                        avatar_url: parsedUser.avatar_url || null
-                    };
-                    setProfile(virtualProfile);
+            if (session?.user) {
+                setUser(session.user);
+                fetchProfile(session.user.id);
+            } else {
+                const vu = readVirtualUser();
+                if (vu) {
+                    setUser(vu);
+                    setProfile(profileFromVirtualUser(vu));
                 }
                 setLoading(false);
             }
@@ -42,12 +86,24 @@ export const AuthProvider = ({ children }) => {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) fetchProfile(session.user.id);
-            else {
-                // Keep virtual user if exists, unless explicitly signed out? 
-                // Actually signOut clears it.
-                setProfile(null);
+            if (session?.user) {
+                // Real Supabase auth — replaces any virtual user
+                setUser(session.user);
+                fetchProfile(session.user.id);
+            } else {
+                // No real session. DO NOT clear a virtual user here — they
+                // (player tokens, demo accounts) are managed via localStorage
+                // with their own TTL. Earlier code did `setUser(null)` here
+                // unconditionally, which logged players out the moment any
+                // auth event fired (e.g., on navigation).
+                const vu = readVirtualUser();
+                if (vu) {
+                    setUser(vu);
+                    setProfile(profileFromVirtualUser(vu));
+                } else {
+                    setUser(null);
+                    setProfile(null);
+                }
                 setLoading(false);
             }
         });
@@ -97,6 +153,9 @@ export const AuthProvider = ({ children }) => {
 
     const signOut = async () => {
         setDemoUser(null);
+        clearVirtualUser();
+        setUser(null);
+        setProfile(null);
         return supabase.auth.signOut();
     };
 
@@ -148,7 +207,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         setUser(demoUser);
-        localStorage.setItem('user', JSON.stringify(demoUser));
+        saveVirtualUser(demoUser);
 
         const demoProfile = {
             id: demoUser.id,
@@ -183,8 +242,8 @@ export const AuthProvider = ({ children }) => {
             };
 
             setUser(playerUser);
-            // Persist to local storage so it survives refresh (simple version)
-            localStorage.setItem('user', JSON.stringify(playerUser));
+            // Persist with 3-hour TTL (handled by saveVirtualUser based on role)
+            saveVirtualUser(playerUser);
 
             // Create profile for player
             const playerProfile = {
@@ -217,7 +276,8 @@ export const AuthProvider = ({ children }) => {
         };
 
         setUser(playerUser);
-        localStorage.setItem('user', JSON.stringify(playerUser));
+        // Persist with 3-hour TTL (handled by saveVirtualUser based on role)
+        saveVirtualUser(playerUser);
 
         const playerProfile = {
             id: playerUser.id,
