@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
@@ -15,6 +15,7 @@ import TryoutHub from '../components/dashboard/TryoutHub';
 import GalleryView from '../components/dashboard/GalleryView';
 import LiveScoringView from '../components/dashboard/LiveScoringView';
 import CarpoolVolunteerView from '../components/dashboard/CarpoolVolunteerView';
+import RulesView from '../components/dashboard/RulesView';
 import NotificationPanel from '../components/dashboard/NotificationPanel';
 import { supabase } from '../supabaseClient';
 
@@ -129,6 +130,7 @@ const Dashboard = () => {
             case 'gallery': return <GalleryView />;
             case 'live': return <LiveScoringView />;
             case 'carpool': return <CarpoolVolunteerView />;
+            case 'rules': return <RulesView />;
             case 'financial': return <FinancialView />;
             case 'tryouts': return <TryoutHub />;
             default: return <ClubView />;
@@ -190,6 +192,12 @@ const Dashboard = () => {
                             >
                                 Schedule
                             </button>
+                            <button
+                                onClick={() => setCurrentView('rules')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'rules' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <FileText className="w-3 h-3" /> Rules
+                            </button>
                             {/* Gallery / Live / Carpool hidden until tested with real team. */}
 
                             {/* Manager Only Tabs */}
@@ -237,6 +245,7 @@ const Dashboard = () => {
                                             { id: 'private', label: 'Private Training' },
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
+                                            { id: 'rules', label: 'Rules' },
                                             // gallery / live / carpool hidden — re-add when those features are tested
                                         ].map(tab => (
                                             <button

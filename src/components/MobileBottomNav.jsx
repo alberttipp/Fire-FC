@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Dumbbell, Calendar, MoreHorizontal, X, MessageSquare, Camera, Tv, Car, Briefcase, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, Calendar, MoreHorizontal, X, MessageSquare, Camera, Tv, Car, Briefcase, Settings, FileText } from 'lucide-react';
 
 const MobileBottomNav = ({ currentView, onViewChange, extraItems = [] }) => {
     const [showMore, setShowMore] = useState(false);
@@ -14,6 +14,7 @@ const MobileBottomNav = ({ currentView, onViewChange, extraItems = [] }) => {
     const moreItems = [
         { id: 'private', label: 'Private Training', icon: Briefcase },
         { id: 'chat', label: 'Messages', icon: MessageSquare },
+        { id: 'rules', label: 'Rules', icon: FileText },
         // Gallery / Live Scoring / Carpool intentionally hidden until those
         // features are tested with a real team. Re-add the entries here when
         // ready — components and routes are still wired up in Dashboard.jsx.
