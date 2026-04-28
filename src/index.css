@@ -11,6 +11,15 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-wide uppercase;
   }
+  /* Force dropdown options to render with dark theme. Native <select>
+     options ignore the styled parent — without this, mobile browsers
+     (and most desktop browsers) showed white text on white background
+     when the dropdown opened. */
+  select option,
+  select optgroup {
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
 }
 
 @layer components {

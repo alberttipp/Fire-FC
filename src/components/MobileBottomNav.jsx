@@ -14,9 +14,9 @@ const MobileBottomNav = ({ currentView, onViewChange, extraItems = [] }) => {
     const moreItems = [
         { id: 'private', label: 'Private Training', icon: Briefcase },
         { id: 'chat', label: 'Messages', icon: MessageSquare },
-        { id: 'gallery', label: 'Gallery', icon: Camera },
-        { id: 'live', label: 'Live Scoring', icon: Tv },
-        { id: 'carpool', label: 'Carpool', icon: Car },
+        // Gallery / Live Scoring / Carpool intentionally hidden until those
+        // features are tested with a real team. Re-add the entries here when
+        // ready — components and routes are still wired up in Dashboard.jsx.
         ...extraItems,
     ];
 

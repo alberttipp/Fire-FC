@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Camera, Tv, Car, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import ClubView from '../components/dashboard/ClubView';
 import TeamView from '../components/dashboard/TeamView';
@@ -190,24 +190,7 @@ const Dashboard = () => {
                             >
                                 Schedule
                             </button>
-                            <button
-                                onClick={() => setCurrentView('gallery')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'gallery' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                <Camera className="w-3 h-3" /> Gallery
-                            </button>
-                            <button
-                                onClick={() => setCurrentView('live')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'live' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                <Tv className="w-3 h-3" /> Live
-                            </button>
-                            <button
-                                onClick={() => setCurrentView('carpool')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'carpool' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                <Car className="w-3 h-3" /> Carpool
-                            </button>
+                            {/* Gallery / Live / Carpool hidden until tested with real team. */}
 
                             {/* Manager Only Tabs */}
                             {isManager && (
@@ -254,9 +237,7 @@ const Dashboard = () => {
                                             { id: 'private', label: 'Private Training' },
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
-                                            { id: 'gallery', label: 'Gallery' },
-                                            { id: 'live', label: 'Live' },
-                                            { id: 'carpool', label: 'Carpool' },
+                                            // gallery / live / carpool hidden — re-add when those features are tested
                                         ].map(tab => (
                                             <button
                                                 key={tab.id}
