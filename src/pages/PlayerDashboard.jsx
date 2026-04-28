@@ -54,7 +54,7 @@ const PlayerDashboard = () => {
                     .from('players')
                     .select('*')
                     .eq('id', user.id)
-                    .single();
+                    .maybeSingle();
 
                 if (error) {
                     console.error('[PlayerDashboard] Player lookup by id failed:', error);
@@ -68,7 +68,7 @@ const PlayerDashboard = () => {
                     .from('players')
                     .select('*')
                     .eq('user_id', user.id)
-                    .single();
+                    .maybeSingle();
 
                 if (error) {
                     console.error('[PlayerDashboard] Player lookup by user_id failed:', error);
@@ -101,7 +101,7 @@ const PlayerDashboard = () => {
                 .eq('player_id', playerId)
                 .order('created_at', { ascending: false })
                 .limit(1)
-                .single();
+                .maybeSingle();
 
             if (evalError && evalError.code !== 'PGRST116') {
                 console.error('[PlayerDashboard] Evaluation fetch error:', evalError);
@@ -127,7 +127,7 @@ const PlayerDashboard = () => {
                 .from('player_stats')
                 .select('streak_days, training_minutes, weekly_minutes, season_minutes, yearly_minutes, weekly_touches, season_touches, yearly_touches, career_touches')
                 .eq('player_id', playerId)
-                .single();
+                .maybeSingle();
 
             if (streakError && streakError.code !== 'PGRST116') {
                 console.error('[PlayerDashboard] Streak fetch error:', streakError);
@@ -151,7 +151,7 @@ const PlayerDashboard = () => {
                     .from('player_stats')
                     .select('streak_days')
                     .eq('player_id', playerId)
-                    .single();
+                    .maybeSingle();
                 if (updatedStreak) {
                     setStreakDays(updatedStreak.streak_days || 0);
                 }
@@ -262,7 +262,7 @@ const PlayerDashboard = () => {
                         .from('badges')
                         .select('*')
                         .eq('id', payload.new.badge_id)
-                        .single();
+                        .maybeSingle();
 
                     if (badgeData) {
                         setNewBadge(badgeData);

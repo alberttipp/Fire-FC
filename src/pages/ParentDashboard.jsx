@@ -113,12 +113,14 @@ const ParentDashboard = () => {
         setPracticeMins({ team: 0, solo: 0, weekly: 0, season: 0, yearly: 0, career: 0 });
 
         try {
-            // Fetch player stats (training minutes, streak, etc.)
+            // Fetch player stats (training minutes, streak, etc.).
+            // .maybeSingle() — a brand-new player has no stats row yet,
+            // and we don't want a 406 in the console for that.
             const { data: stats } = await supabase
                 .from('player_stats')
                 .select('*')
                 .eq('player_id', playerId)
-                .single();
+                .maybeSingle();
 
             setPlayerStats(stats);
 
@@ -136,7 +138,7 @@ const ParentDashboard = () => {
                 .eq('player_id', playerId)
                 .order('created_at', { ascending: false })
                 .limit(1)
-                .single();
+                .maybeSingle();
 
             console.log('[ParentDashboard] Evaluation result:', evalData, 'Error:', evalError);
 
@@ -1006,10 +1008,10 @@ const ParentDashboard = () => {
                                 { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                                 { id: 'schedule', label: 'Schedule', icon: Calendar },
                                 { id: 'messages', label: 'Messages', icon: MessageSquare },
-                                { id: 'gallery', label: 'Gallery', icon: Camera },
-                                { id: 'live', label: 'Live', icon: Tv },
-                                { id: 'carpool', label: 'Carpool', icon: Car },
-                                { id: 'billing', label: 'Billing', icon: CreditCard },
+                                // Gallery / Live / Carpool / Billing hidden until each
+                                // is tested with a real team. Components and routing
+                                // (case statements above) are intact so re-adding is
+                                // a one-line change here.
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -1030,9 +1032,6 @@ const ParentDashboard = () => {
                                 { id: 'overview', icon: LayoutDashboard },
                                 { id: 'schedule', icon: Calendar },
                                 { id: 'messages', icon: MessageSquare },
-                                { id: 'gallery', icon: Camera },
-                                { id: 'live', icon: Tv },
-                                { id: 'carpool', icon: Car },
                             ].map(tab => (
                                 <button
                                     key={tab.id}
