@@ -11,6 +11,7 @@ export const useAuth = () => useContext(AuthContext);
 const PLAYER_SESSION_TTL_MS = 3 * 60 * 60 * 1000;
 const VIRTUAL_USER_KEY = 'user';
 const VIRTUAL_USER_EXPIRES_KEY = 'user_expires_at';
+const PLAYER_ACCESS_TOKEN_KEY = 'player_access_token';
 
 // Save a virtual (non-Supabase) user to localStorage. Players get a 3-hour
 // expiry; demo/manager virtual users persist until explicit signOut.
@@ -48,6 +49,18 @@ const readVirtualUser = () => {
 const clearVirtualUser = () => {
     localStorage.removeItem(VIRTUAL_USER_KEY);
     localStorage.removeItem(VIRTUAL_USER_EXPIRES_KEY);
+    localStorage.removeItem(PLAYER_ACCESS_TOKEN_KEY);
+};
+
+// Stash and read the player's access token alongside the virtual user.
+// Edge functions called from kid mode (e.g. player-assign-homework) need
+// to send this so they can verify the player without a real Supabase JWT.
+export const setStoredPlayerAccessToken = (token) => {
+    if (token) localStorage.setItem(PLAYER_ACCESS_TOKEN_KEY, token);
+    else localStorage.removeItem(PLAYER_ACCESS_TOKEN_KEY);
+};
+export const getStoredPlayerAccessToken = () => {
+    return localStorage.getItem(PLAYER_ACCESS_TOKEN_KEY);
 };
 
 const profileFromVirtualUser = (vu) => ({
@@ -264,8 +277,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Login with access token (parent-generated link)
-    const loginWithToken = async (playerData) => {
-        // playerData comes from verify_player_access_token RPC
+    const loginWithToken = async (playerData, accessToken = null) => {
+        // playerData comes from verify_player_access_token RPC.
+        // accessToken (the raw token string from the URL) is persisted so
+        // edge functions called in kid mode can verify the player.
+        if (accessToken) setStoredPlayerAccessToken(accessToken);
         const playerUser = {
             id: playerData.id,
             email: 'player@firefc.com',

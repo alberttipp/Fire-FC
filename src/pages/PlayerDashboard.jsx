@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import PlayerCard from '../components/player/PlayerCard';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Flame, Zap, AlertTriangle } from 'lucide-react';
+import { LogOut, Flame, Zap, AlertTriangle, Dumbbell, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
 import FireBall from '../game/FireBall';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
+import ParentSessionBuilder from '../components/dashboard/ParentSessionBuilder';
 import BadgeCelebration from '../components/BadgeCelebration';
 
 import { supabase } from '../supabaseClient';
@@ -29,6 +30,7 @@ const PlayerDashboard = () => {
     const [streakDays, setStreakDays] = useState(0); // Training streak (days in a row with 20+ min training)
     const [playerError, setPlayerError] = useState(null); // Error if player not found
     const [playerLoading, setPlayerLoading] = useState(true); // Loading state for player lookup
+    const [showSessionBuilder, setShowSessionBuilder] = useState(false);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -563,9 +565,40 @@ const PlayerDashboard = () => {
 
                     <HomeworkHub assignments={assignments} onComplete={handleDrillComplete} />
 
+                    {/* Solo Training Builder — kids build their own practice */}
+                    <button
+                        onClick={() => setShowSessionBuilder(true)}
+                        className="w-full glass-panel p-4 flex items-center gap-3 hover:border-brand-green/50 transition-all group"
+                    >
+                        <div className="w-12 h-12 rounded-lg bg-brand-green/10 flex items-center justify-center shrink-0 group-hover:bg-brand-green/20 transition-colors">
+                            <Dumbbell className="w-6 h-6 text-brand-green" />
+                        </div>
+                        <div className="text-left flex-1">
+                            <div className="text-white font-bold">Solo Training Builder</div>
+                            <div className="text-xs text-gray-500 uppercase tracking-wider">Build your own practice — counts toward your stats</div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-brand-green transition-colors" />
+                    </button>
+
                     <Leaderboard />
                 </div>
             </div>
+
+            {/* Solo Training Builder modal */}
+            {showSessionBuilder && playerRecord && (
+                <ParentSessionBuilder
+                    saveMode="player"
+                    onClose={() => setShowSessionBuilder(false)}
+                    onSave={() => {
+                        // Refetch assignments so the new ones show up
+                        // immediately in HomeworkHub.
+                        window.dispatchEvent(new CustomEvent('drill-completed'));
+                    }}
+                    playerId={playerRecord.id}
+                    teamId={playerRecord.team_id}
+                    playerName={playerRecord.first_name}
+                />
+            )}
         </div>
     );
 };

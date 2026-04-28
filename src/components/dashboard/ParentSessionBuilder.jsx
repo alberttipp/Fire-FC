@@ -7,7 +7,7 @@ import {
     Package, ListChecks, Lightbulb, TrendingUp, AlertCircle, CheckSquare
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, getStoredPlayerAccessToken } from '../../context/AuthContext';
 
 // Drill categories (same as coach builder)
 const DRILL_CATEGORIES = [
@@ -55,7 +55,15 @@ const scoreDrillCandidate = (drill, transcript) => {
     return score;
 };
 
-const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName }) => {
+// Despite the name, this component is used by both the parent dashboard
+// (saveMode='parent') and the player dashboard (saveMode='player'). The
+// two paths only differ at save time:
+//   - parent: direct INSERT into assignments (auth.uid() lets RLS pass)
+//   - player: POST to the player-assign-homework edge function, which
+//     verifies the access token and writes via service role
+// Note: an internal `mode` state already exists for build/run timer mode,
+// so this prop is named saveMode to avoid the collision.
+const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, saveMode = 'parent' }) => {
     const { user } = useAuth();
 
     // Build mode state
@@ -329,54 +337,78 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName })
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    // Save = create assignments with source: 'parent'
+    // Save the built session as homework. Two paths depending on `mode`:
+    //   - 'parent': direct INSERT (RLS passes via auth.uid())
+    //   - 'player': edge function (token-based players have no auth.uid)
     const handleSaveAsAssignments = async () => {
         if (blocks.length === 0) {
             alert('Add at least one drill');
             return;
         }
 
+        // Only library drills are assignable; custom drills are dropped.
+        const validBlocks = blocks.filter(b => b.drillId && !b.custom);
+        const skippedCount = blocks.length - validBlocks.length;
+        if (validBlocks.length === 0) {
+            alert('No library drills to assign. Custom drills cannot be saved as homework.');
+            return;
+        }
+
         setSaving(true);
         try {
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + 7);
-
-            // Only assign library drills (those with a valid drillId)
-            const validBlocks = blocks.filter(b => b.drillId && !b.custom);
-            const skippedCount = blocks.length - validBlocks.length;
-
-            if (validBlocks.length === 0) {
-                alert('No library drills to assign. Custom drills cannot be assigned as homework.');
-                setSaving(false);
-                return;
+            if (saveMode === 'player') {
+                // Kid-mode flow → edge function.
+                const accessToken = getStoredPlayerAccessToken();
+                if (!accessToken) {
+                    throw new Error('Your access link is not active anymore. Ask your parent for a new link.');
+                }
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                const resp = await fetch(`${supabaseUrl}/functions/v1/player-assign-homework`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                    },
+                    body: JSON.stringify({
+                        accessToken,
+                        blocks: validBlocks.map(b => ({ drillId: b.drillId, duration: b.duration })),
+                    }),
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    throw new Error(data?.error || `Server error ${resp.status}`);
+                }
+            } else {
+                // Parent flow → direct INSERT.
+                const dueDate = new Date();
+                dueDate.setDate(dueDate.getDate() + 7);
+                const assignmentRows = validBlocks.map(block => ({
+                    drill_id: block.drillId,
+                    player_id: playerId,
+                    team_id: teamId,
+                    assigned_by: user.id,
+                    source: 'parent',
+                    status: 'pending',
+                    custom_duration: block.duration,
+                    due_date: dueDate.toISOString()
+                }));
+                const { error } = await supabase
+                    .from('assignments')
+                    .insert(assignmentRows);
+                if (error) throw error;
             }
 
-            const assignmentRows = validBlocks.map(block => ({
-                drill_id: block.drillId,
-                player_id: playerId,
-                team_id: teamId,
-                assigned_by: user.id,
-                source: 'parent',
-                status: 'pending',
-                custom_duration: block.duration,
-                due_date: dueDate.toISOString()
-            }));
-
-            const { error } = await supabase
-                .from('assignments')
-                .insert(assignmentRows);
-
-            if (error) throw error;
-
             const msg = skippedCount > 0
-                ? `Assigned ${validBlocks.length} drills! (${skippedCount} custom drill(s) skipped)`
-                : `Assigned ${validBlocks.length} drills!`;
+                ? `Saved ${validBlocks.length} drills! (${skippedCount} custom drill(s) skipped)`
+                : `Saved ${validBlocks.length} drills!`;
             alert(msg);
             if (onSave) onSave();
             onClose();
         } catch (err) {
             console.error('Assignment error:', err);
-            alert('Error assigning drills: ' + err.message);
+            alert('Error saving drills: ' + err.message);
         } finally {
             setSaving(false);
         }

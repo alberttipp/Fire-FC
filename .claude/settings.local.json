@@ -3,7 +3,20 @@
     "allow": [
       "Bash(npm run seed:permanent:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(powershell:*)",
+      "Bash(find:*)",
+      "Bash(npm run build:*)",
+      "Bash(cd:*)",
+      "Bash(grep:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(git mv:*)",
+      "Bash(git fetch:*)",
+      "Bash(gh api:*)",
+      "Bash(npm run dev:*)",
+      "Bash(code:*)"
     ]
   }
 }

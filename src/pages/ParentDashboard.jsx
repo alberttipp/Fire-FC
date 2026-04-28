@@ -11,7 +11,7 @@ import GalleryView from '../components/dashboard/GalleryView';
 import LiveScoringView from '../components/dashboard/LiveScoringView';
 import CarpoolVolunteerView from '../components/dashboard/CarpoolVolunteerView';
 import DrillLibraryModal from '../components/dashboard/DrillLibraryModal';
-import ParentSessionBuilder from '../components/dashboard/ParentSessionBuilder';
+// ParentSessionBuilder import removed — builder now lives on player dashboard.
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import BadgeCelebration from '../components/BadgeCelebration';
@@ -41,7 +41,7 @@ const ParentDashboard = () => {
     const [practiceMins, setPracticeMins] = useState({ team: 0, solo: 0, weekly: 0, season: 0, yearly: 0, career: 0, weeklyTouches: 0, seasonTouches: 0, yearlyTouches: 0, careerTouches: 0 });
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showDrillLibrary, setShowDrillLibrary] = useState(false);
-    const [showSessionBuilder, setShowSessionBuilder] = useState(false);
+    // showSessionBuilder removed — builder moved to player dashboard.
 
     // Player access link state
     const [playerAccessLink, setPlayerAccessLink] = useState(null);
@@ -221,13 +221,15 @@ const ParentDashboard = () => {
 
             setCoachAssignments(coachAssigns || []);
 
-            // Fetch parent assignments (completable by parent)
+            // Fetch all non-coach assignments for this player (parent OR
+            // player-built). Parents should see anything their kid built
+            // themselves too — that's the whole point of "Parent Solo Practice"
+            // as a status-of-solo-work section.
             const { data: parentAssigns } = await supabase
                 .from('assignments')
                 .select('*, drills:drill_id (name, title, skill, category, duration_minutes, duration)')
                 .eq('player_id', playerId)
-                .eq('source', 'parent')
-                .eq('assigned_by', user.id)
+                .in('source', ['parent', 'player'])
                 .order('created_at', { ascending: false })
                 .limit(10);
 
@@ -687,7 +689,11 @@ const ParentDashboard = () => {
                         </div>
 
                         {/* Quick Action Buttons */}
-                        <div className="grid grid-cols-2 gap-4">
+                        {/* Solo Training Builder moved to the player dashboard.
+                            Parent dashboard only shows the Leaderboard tile here;
+                            the kid builds their own sessions when logged in via
+                            their access link. */}
+                        <div className="grid grid-cols-1 gap-4">
                             <button
                                 onClick={() => setShowLeaderboard(!showLeaderboard)}
                                 className="glass-panel p-4 flex items-center gap-3 hover:border-brand-gold/50 transition-all group"
@@ -700,20 +706,6 @@ const ParentDashboard = () => {
                                     <div className="text-xs text-gray-500 uppercase tracking-wider">See team rankings</div>
                                 </div>
                                 <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${showLeaderboard ? 'rotate-90' : ''}`} />
-                            </button>
-
-                            <button
-                                onClick={() => setShowSessionBuilder(true)}
-                                className="glass-panel p-4 flex items-center gap-3 hover:border-brand-green/50 transition-all group"
-                            >
-                                <div className="w-10 h-10 rounded-lg bg-brand-green/10 flex items-center justify-center shrink-0 group-hover:bg-brand-green/20 transition-colors">
-                                    <Dumbbell className="w-5 h-5 text-brand-green" />
-                                </div>
-                                <div className="text-left flex-1">
-                                    <div className="text-white font-bold text-sm">Solo Training Builder</div>
-                                    <div className="text-xs text-gray-500 uppercase tracking-wider">Build & assign practice</div>
-                                </div>
-                                <ChevronRight className="w-4 h-4 text-gray-500" />
                             </button>
                         </div>
 
@@ -802,13 +794,8 @@ const ParentDashboard = () => {
                                     {parentAssignments.length === 0 ? (
                                         <div className="text-center py-4">
                                             <Dumbbell className="w-6 h-6 text-gray-700 mx-auto mb-1" />
-                                            <p className="text-gray-500 text-xs">No parent practice assigned</p>
-                                            <button
-                                                onClick={() => setShowSessionBuilder(true)}
-                                                className="mt-2 text-xs text-brand-green hover:underline"
-                                            >
-                                                Build a Session
-                                            </button>
+                                            <p className="text-gray-500 text-xs">No solo practice yet</p>
+                                            <p className="text-[10px] text-gray-600 mt-1">Your player can build their own from the kid app.</p>
                                         </div>
                                     ) : (
                                         <div className="space-y-2">
@@ -993,21 +980,8 @@ const ParentDashboard = () => {
                 />
             )}
 
-            {/* Parent Session Builder */}
-            {showSessionBuilder && selectedChild && (
-                <ParentSessionBuilder
-                    onClose={() => {
-                        setShowSessionBuilder(false);
-                        if (selectedChild?.id) fetchChildDetails(selectedChild.id);
-                    }}
-                    onSave={() => {
-                        if (selectedChild?.id) fetchChildDetails(selectedChild.id);
-                    }}
-                    playerId={selectedChild.id}
-                    teamId={selectedChild?.team_id}
-                    playerName={selectedChild.first_name}
-                />
-            )}
+            {/* Solo Training Builder lives on the player dashboard now;
+                parent dashboard no longer mounts ParentSessionBuilder. */}
 
             {/* Navbar */}
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-6 py-4">

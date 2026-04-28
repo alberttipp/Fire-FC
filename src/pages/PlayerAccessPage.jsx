@@ -50,7 +50,9 @@ const PlayerAccessPage = () => {
         setStatus('logging_in');
 
         try {
-            await loginWithToken(player);
+            // Pass the raw token string too so kid-mode edge functions
+            // (e.g., player-assign-homework) can verify the player.
+            await loginWithToken(player, token);
             navigate('/player-dashboard');
         } catch (err) {
             console.error('Login error:', err);
