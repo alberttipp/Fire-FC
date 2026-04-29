@@ -7,7 +7,7 @@ import {
     Package, ListChecks, Lightbulb, TrendingUp, AlertCircle, CheckSquare
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { useAuth, getStoredPlayerAccessToken } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 // Drill categories (same as coach builder)
 const DRILL_CATEGORIES = [
@@ -356,49 +356,26 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
 
         setSaving(true);
         try {
-            if (saveMode === 'player') {
-                // Kid-mode flow → edge function.
-                const accessToken = getStoredPlayerAccessToken();
-                if (!accessToken) {
-                    throw new Error('Your access link is not active anymore. Ask your parent for a new link.');
-                }
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-                const resp = await fetch(`${supabaseUrl}/functions/v1/player-assign-homework`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': supabaseKey,
-                        'Authorization': `Bearer ${supabaseKey}`,
-                    },
-                    body: JSON.stringify({
-                        accessToken,
-                        blocks: validBlocks.map(b => ({ drillId: b.drillId, duration: b.duration })),
-                    }),
-                });
-                const data = await resp.json().catch(() => ({}));
-                if (!resp.ok) {
-                    throw new Error(data?.error || `Server error ${resp.status}`);
-                }
-            } else {
-                // Parent flow → direct INSERT.
-                const dueDate = new Date();
-                dueDate.setDate(dueDate.getDate() + 7);
-                const assignmentRows = validBlocks.map(block => ({
-                    drill_id: block.drillId,
-                    player_id: playerId,
-                    team_id: teamId,
-                    assigned_by: user.id,
-                    source: 'parent',
-                    status: 'pending',
-                    custom_duration: block.duration,
-                    due_date: dueDate.toISOString()
-                }));
-                const { error } = await supabase
-                    .from('assignments')
-                    .insert(assignmentRows);
-                if (error) throw error;
-            }
+            // Both parent and player paths use a direct INSERT now. Players
+            // have real auth sessions via the magic-link flow, so RLS treats
+            // them like any other authenticated user — no edge function or
+            // access-token gymnastics needed. Only the `source` tag differs.
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+            const assignmentRows = validBlocks.map(block => ({
+                drill_id: block.drillId,
+                player_id: playerId,
+                team_id: teamId,
+                assigned_by: user?.id || null,
+                source: saveMode === 'player' ? 'player' : 'parent',
+                status: 'pending',
+                custom_duration: block.duration,
+                due_date: dueDate.toISOString()
+            }));
+            const { error } = await supabase
+                .from('assignments')
+                .insert(assignmentRows);
+            if (error) throw error;
 
             const msg = skippedCount > 0
                 ? `Saved ${validBlocks.length} drills! (${skippedCount} custom drill(s) skipped)`
