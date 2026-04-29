@@ -32,6 +32,23 @@ const PlayerDashboard = () => {
     const [playerLoading, setPlayerLoading] = useState(true); // Loading state for player lookup
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
 
+    // Refetch just the assignments row — used after Solo Training Builder save.
+    const refetchAssignments = async () => {
+        const playerId = playerRecord?.id;
+        if (!playerId) return;
+        const { data, error } = await supabase
+            .from('assignments')
+            .select('*, drills:drill_id (id, name, duration, category, video_url, description)')
+            .eq('player_id', playerId)
+            .in('source', ['coach', 'parent', 'player'])
+            .order('due_date', { ascending: true });
+        if (error) {
+            console.error('[PlayerDashboard] refetchAssignments error:', error);
+            return;
+        }
+        setAssignments(data || []);
+    };
+
     useEffect(() => {
         if (!user?.id) return;
 
@@ -157,40 +174,23 @@ const PlayerDashboard = () => {
                 }
             }
 
-            // 2. Fetch Assignments (use RPC for PIN login to bypass RLS)
-            console.log('[PlayerDashboard] Fetching assignments for player_id:', playerId, 'isPinLogin:', isPinLogin);
+            // 2. Fetch ALL assignments for this player (coach + parent + self).
+            // Now that players have real auth.users sessions (magic-link flow),
+            // RLS lets them read their own rows directly — no more RPC bypass.
+            console.log('[PlayerDashboard] Fetching assignments for player_id:', playerId);
+            const { data: assignData, error: assignErr } = await supabase
+                .from('assignments')
+                .select('*, drills:drill_id (id, name, duration, category, video_url, description)')
+                .eq('player_id', playerId)
+                .in('source', ['coach', 'parent', 'player'])
+                .order('due_date', { ascending: true });
 
-            let assignData = null;
-            let assignError = null;
-
-            // Use RPC function to bypass RLS for PIN-logged players
-            const { data: rpcData, error: rpcError } = await supabase
-                .rpc('get_player_assignments', { target_player_id: playerId, source_filter: 'coach' });
-
-            if (rpcError) {
-                console.error('[PlayerDashboard] RPC assignments fetch error:', rpcError);
-                assignError = rpcError;
+            if (assignErr) {
+                console.error('[PlayerDashboard] Assignments fetch error:', assignErr);
             } else {
-                // Transform RPC result to match expected format
-                assignData = (rpcData || []).map(row => ({
-                    id: row.id,
-                    status: row.status,
-                    due_date: row.due_date,
-                    custom_duration: row.custom_duration,
-                    drill_id: row.drill_id,
-                    drills: {
-                        id: row.drill_id,
-                        name: row.drill_name,
-                        duration: row.drill_duration,
-                        category: row.drill_category,
-                        video_url: row.drill_video_url,
-                        description: row.drill_description
-                    }
-                }));
-                console.log('[PlayerDashboard] Assignments fetched via RPC:', assignData?.length || 0, 'assignments');
+                console.log('[PlayerDashboard] Assignments fetched:', assignData?.length || 0);
             }
 
-            // Real data only - no mock fallbacks
             setAssignments(assignData || []);
 
             // 3. Fetch Badges - use player_user_id (auth.users UUID)
@@ -590,8 +590,11 @@ const PlayerDashboard = () => {
                     saveMode="player"
                     onClose={() => setShowSessionBuilder(false)}
                     onSave={() => {
-                        // Refetch assignments so the new ones show up
-                        // immediately in HomeworkHub.
+                        // Refetch the assignments list immediately so the
+                        // newly-saved drills show up in HomeworkHub without
+                        // a page reload. Also dispatch the drill-completed
+                        // event so Leaderboard refreshes.
+                        refetchAssignments();
                         window.dispatchEvent(new CustomEvent('drill-completed'));
                     }}
                     playerId={playerRecord.id}
