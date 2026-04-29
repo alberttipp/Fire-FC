@@ -105,6 +105,10 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
             const { data: drills, error } = await supabase
                 .from('drills')
                 .select('*')
+                // Library only — exclude user-created custom drills (those
+                // are saved per-session and would otherwise pollute everyone's
+                // picker).
+                .eq('is_custom', false)
                 .order('category', { ascending: true });
 
             if (error) {
@@ -337,50 +341,69 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    // Save the built session as homework. Two paths depending on `mode`:
-    //   - 'parent': direct INSERT (RLS passes via auth.uid())
-    //   - 'player': edge function (token-based players have no auth.uid)
+    // Save the built session as homework. All blocks (library AND custom) are
+    // saved. Custom drills get persisted to the `drills` table first with
+    // is_custom=true so they have a stable drill_id that the leaderboard /
+    // training stats / future history can roll up against. All assignments in
+    // a single save share the same session_id so HomeworkHub can group them
+    // visually.
     const handleSaveAsAssignments = async () => {
         if (blocks.length === 0) {
             alert('Add at least one drill');
             return;
         }
 
-        // Only library drills are assignable; custom drills are dropped.
-        const validBlocks = blocks.filter(b => b.drillId && !b.custom);
-        const skippedCount = blocks.length - validBlocks.length;
-        if (validBlocks.length === 0) {
-            alert('No library drills to assign. Custom drills cannot be saved as homework.');
-            return;
-        }
-
         setSaving(true);
         try {
-            // Both parent and player paths use a direct INSERT now. Players
-            // have real auth sessions via the magic-link flow, so RLS treats
-            // them like any other authenticated user — no edge function or
-            // access-token gymnastics needed. Only the `source` tag differs.
+            const sessionId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
             const dueDate = new Date();
             dueDate.setDate(dueDate.getDate() + 7);
-            const assignmentRows = validBlocks.map(block => ({
-                drill_id: block.drillId,
+            const source = saveMode === 'player' ? 'player' : 'parent';
+
+            // Persist any custom drills first so we can reference their ids.
+            const blocksWithDrillIds = [];
+            for (const block of blocks) {
+                if (block.drillId && !block.custom) {
+                    blocksWithDrillIds.push({ ...block, resolvedDrillId: block.drillId });
+                    continue;
+                }
+                // Custom drill — INSERT into drills, take the new id.
+                const { data: newDrill, error: drillErr } = await supabase
+                    .from('drills')
+                    .insert({
+                        name: block.name || 'Custom Drill',
+                        category: block.category || 'technical',
+                        duration: block.duration || 10,
+                        description: block.description || '',
+                        is_custom: true,
+                        created_by: user?.id || null,
+                        team_id: teamId || null,
+                    })
+                    .select('id')
+                    .single();
+                if (drillErr) throw drillErr;
+                blocksWithDrillIds.push({ ...block, resolvedDrillId: newDrill.id });
+            }
+
+            const assignmentRows = blocksWithDrillIds.map(block => ({
+                drill_id: block.resolvedDrillId,
                 player_id: playerId,
                 team_id: teamId,
                 assigned_by: user?.id || null,
-                source: saveMode === 'player' ? 'player' : 'parent',
+                source,
                 status: 'pending',
                 custom_duration: block.duration,
-                due_date: dueDate.toISOString()
+                due_date: dueDate.toISOString(),
+                session_id: sessionId,
             }));
             const { error } = await supabase
                 .from('assignments')
                 .insert(assignmentRows);
             if (error) throw error;
 
-            const msg = skippedCount > 0
-                ? `Saved ${validBlocks.length} drills! (${skippedCount} custom drill(s) skipped)`
-                : `Saved ${validBlocks.length} drills!`;
-            alert(msg);
+            alert(`Saved ${assignmentRows.length} drills!`);
             if (onSave) onSave();
             onClose();
         } catch (err) {
@@ -697,15 +720,9 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                         )}
                     </div>
 
-                    {/* Custom drill note */}
-                    {blocks.some(b => b.custom) && (
-                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-3">
-                            <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-                            <p className="text-xs text-yellow-400">
-                                Custom drills (marked yellow) will be included in the timer but won't be saved as homework assignments. Only library drills are assigned.
-                            </p>
-                        </div>
-                    )}
+                    {/* Custom drills now save like any other drill (they get a
+                        new row in the drills table tagged is_custom=true), so
+                        the old "won't be saved" warning is no longer accurate. */}
                 </div>
 
                 {/* Footer */}

@@ -26,9 +26,11 @@ const DrillLibraryModal = ({ onClose, player, teamId }) => {
         try {
             // Fetch all drills - no .order() to avoid column name mismatch
             // (table may have 'title' or 'name' depending on migration)
+            // Library only — exclude user-created custom drills.
             const { data, error } = await supabase
                 .from('drills')
-                .select('*');
+                .select('*')
+                .eq('is_custom', false);
 
             if (error) {
                 console.error('[DrillLibrary] Error fetching drills:', error);

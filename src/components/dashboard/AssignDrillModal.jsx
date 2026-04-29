@@ -23,7 +23,8 @@ const AssignDrillModal = ({ onClose }) => {
         const fetchDrills = async () => {
             const { data, error } = await supabase
                 .from('drills')
-                .select('*');
+                .select('*')
+                .eq('is_custom', false);
 
             if (error) {
                 console.error("Error fetching drills:", error.message);

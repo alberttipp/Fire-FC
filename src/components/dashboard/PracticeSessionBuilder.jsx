@@ -177,10 +177,11 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
 
             setSavedSessions(sessions || []);
 
-            // Get drills from database
+            // Get drills from database (library only — exclude user customs)
             const { data: drills, error: drillsError } = await supabase
                 .from('drills')
                 .select('*')
+                .eq('is_custom', false)
                 .order('category', { ascending: true });
 
             if (drillsError) {
