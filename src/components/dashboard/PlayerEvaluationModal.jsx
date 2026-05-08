@@ -235,9 +235,34 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
             zIndex: 10000
         });
 
-        // Database Insert - use player_user_id (the auth.users UUID linked to this player)
-        // RLS policy checks: players.user_id = player_badges.player_user_id
-        const playerUserId = player?.user_id || player?.id;
+        // Database Insert - use player_user_id (the auth.users UUID linked to this player).
+        // The column NAME says "user_id" so it MUST be the auth.users UUID, never the
+        // players-table primary key. The previous fallback to player.id was the source
+        // of a real bug: badges got inserted under the wrong UUID and the kid's
+        // dashboard couldn't find them. If we don't have a real user_id, fail loud
+        // rather than write bad data.
+        let playerUserId = player?.user_id;
+        if (!playerUserId && player?.id) {
+            // Fall back via DB lookup so we never silently use the wrong UUID
+            const { data: p } = await supabase
+                .from('players').select('user_id').eq('id', player.id).maybeSingle();
+            playerUserId = p?.user_id || null;
+        }
+
+        if (!playerUserId) {
+            console.error('Cannot award badge: player has no auth.users link', { player });
+            alert('Cannot award badge — this player has no user account linked. Set up their access first.');
+            // Revert optimistic update
+            setAwardedBadges(prev => {
+                const newCount = (prev[badgeId] || 1) - 1;
+                if (newCount <= 0) {
+                    const { [badgeId]: _, ...rest } = prev;
+                    return rest;
+                }
+                return { ...prev, [badgeId]: newCount };
+            });
+            return;
+        }
 
         if (playerUserId && user?.id) {
             try {

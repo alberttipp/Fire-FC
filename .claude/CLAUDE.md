@@ -78,7 +78,8 @@ Never delete "all rows" from a table.
 ## 8) Supabase workflow guardrails
 - Never ask for secrets to be pasted into chat.
 - Use Supabase CLI for deploys when available:
-  - `npx supabase functions deploy ai-practice-session --project-ref nycprdmatvcprfujicoh`
+  - `npx supabase functions deploy ai-practice-session --project-ref bcfemytoburctssnemwn`
+  - Live project ref is `bcfemytoburctssnemwn` ("Fire FC PROD" on Rockfors Fire FC Pro org). The old `nycprdmatvcprfujicoh` ref is stale (paused project in 815YouthSports Free org) — do not use.
 - When a function changes, verify using the health check:
   - `.\test_ai.ps1`
 - When debugging, always check Supabase Edge logs for the invocation.

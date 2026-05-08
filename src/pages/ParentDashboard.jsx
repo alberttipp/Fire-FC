@@ -14,7 +14,9 @@ import DrillLibraryModal from '../components/dashboard/DrillLibraryModal';
 // ParentSessionBuilder import removed — builder now lives on player dashboard.
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
-import BadgeCelebration from '../components/BadgeCelebration';
+// BadgeCelebration intentionally NOT imported here. Badge unlock UX lives
+// only on the player dashboard so a parent watching the screen can't
+// dismiss the celebration before the kid sees it.
 
 const ParentDashboard = () => {
     const { user, profile, signOut } = useAuth();
@@ -34,8 +36,6 @@ const ParentDashboard = () => {
     const [parentAssignments, setParentAssignments] = useState([]);
     const [attendanceStats, setAttendanceStats] = useState({ attended: 0, missed: 0, rate: 0 });
     const [eventRsvps, setEventRsvps] = useState({}); // { eventId: 'going' | 'not_going' | 'maybe' }
-    const [newBadge, setNewBadge] = useState(null);
-    const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
 
     // Practice minutes state
     const [practiceMins, setPracticeMins] = useState({ team: 0, solo: 0, weekly: 0, season: 0, yearly: 0, career: 0, weeklyTouches: 0, seasonTouches: 0, yearlyTouches: 0, careerTouches: 0 });
@@ -175,28 +175,6 @@ const ParentDashboard = () => {
             }));
 
             setPlayerBadges(badges);
-
-            // Check for unseen badges (show celebration on login)
-            const lastSeenKey = `parent_badges_last_seen_${playerUserId}`;
-            const lastSeenTimestamp = localStorage.getItem(lastSeenKey);
-            const lastSeenDate = lastSeenTimestamp ? new Date(lastSeenTimestamp) : new Date(0);
-
-            // Find badges awarded after last seen
-            const unseenBadges = (badges || []).filter(pb => {
-                const awardedAt = pb.awarded_at ? new Date(pb.awarded_at) : null;
-                return awardedAt && awardedAt > lastSeenDate;
-            });
-
-            // Show celebration for the first unseen badge
-            if (unseenBadges.length > 0 && unseenBadges[0].badges) {
-                setTimeout(() => {
-                    setNewBadge(unseenBadges[0].badges);
-                    setShowBadgeCelebration(true);
-                }, 1000);
-            }
-
-            // Update last seen timestamp
-            localStorage.setItem(lastSeenKey, new Date().toISOString());
 
             // Fetch upcoming events
             const teamId = selectedChild?.team_id;
@@ -959,17 +937,6 @@ const ParentDashboard = () => {
 
     return (
         <div className="min-h-screen bg-brand-dark pb-20">
-            {/* Badge Celebration */}
-            {showBadgeCelebration && (
-                <BadgeCelebration
-                    badge={newBadge}
-                    onClose={() => {
-                        setShowBadgeCelebration(false);
-                        setNewBadge(null);
-                    }}
-                />
-            )}
-
             {/* Drill Library Modal */}
             {showDrillLibrary && selectedChild && (
                 <DrillLibraryModal

@@ -10,6 +10,7 @@ import FireBall from '../game/FireBall';
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import ParentSessionBuilder from '../components/dashboard/ParentSessionBuilder';
 import BadgeCelebration from '../components/BadgeCelebration';
+import BadgeUnlockBanner from '../components/BadgeUnlockBanner';
 
 import { supabase } from '../supabaseClient';
 
@@ -26,6 +27,9 @@ const PlayerDashboard = () => {
     const [stats, setStats] = useState(null);
     const [newBadge, setNewBadge] = useState(null);
     const [showBadgeCelebration, setShowBadgeCelebration] = useState(false);
+    // Badges where seen_at IS NULL — kid hasn't tapped the banner yet.
+    // Each entry: { id (player_badges row id), badge_id, awarded_at, badges (joined definition) }
+    const [unseenBadges, setUnseenBadges] = useState([]);
     const [playerRecord, setPlayerRecord] = useState(null); // The player's record from players table
     const [streakDays, setStreakDays] = useState(0); // Training streak (days in a row with 20+ min training)
     const [playerError, setPlayerError] = useState(null); // Error if player not found
@@ -199,10 +203,11 @@ const PlayerDashboard = () => {
             const badgeMap = {};
             (badgeDefs || []).forEach(b => { badgeMap[b.id] = b; });
 
-            // Then fetch player's earned badges without FK join
+            // Then fetch player's earned badges. seen_at separates "claim me!"
+            // banner badges from already-celebrated ones.
             const { data: earnedBadgeData, error: badgeError } = await supabase
                 .from('player_badges')
-                .select('id, badge_id, awarded_at')
+                .select('id, badge_id, awarded_at, seen_at')
                 .eq('player_user_id', user.id);
 
             if (badgeError) {
@@ -215,31 +220,15 @@ const PlayerDashboard = () => {
                 badges: badgeMap[pb.badge_id] || null
             }));
 
-            // Real data only - no mock fallbacks
+            // All earned badges (for the trophy case display)
             setEarnedBadges(badgeData);
 
-            // Check for unseen badges (show celebration on login)
-            const lastSeenKey = `badges_last_seen_${playerId}`;
-            const lastSeenTimestamp = localStorage.getItem(lastSeenKey);
-            const lastSeenDate = lastSeenTimestamp ? new Date(lastSeenTimestamp) : new Date(0);
-
-            // Find badges awarded after last seen
-            const unseenBadges = (badgeData || []).filter(pb => {
-                const awardedAt = pb.awarded_at ? new Date(pb.awarded_at) : null;
-                return awardedAt && awardedAt > lastSeenDate;
-            });
-
-            // Show celebration for the first unseen badge (queue system could be added for multiple)
-            if (unseenBadges.length > 0 && unseenBadges[0].badges) {
-                // Delay slightly to let the UI load first
-                setTimeout(() => {
-                    setNewBadge(unseenBadges[0].badges);
-                    setShowBadgeCelebration(true);
-                }, 1000);
-            }
-
-            // Update last seen timestamp
-            localStorage.setItem(lastSeenKey, new Date().toISOString());
+            // Unseen subset (banner). DB-backed via seen_at IS NULL — works
+            // across devices/sessions, and parents can't accidentally
+            // consume the kid's celebration moment by being on the dashboard
+            // first.
+            const unseen = badgeData.filter(pb => pb.seen_at == null && pb.badges);
+            setUnseenBadges(unseen);
         };
 
         fetchDashboardData();
@@ -265,8 +254,17 @@ const PlayerDashboard = () => {
                         .maybeSingle();
 
                     if (badgeData) {
-                        setNewBadge(badgeData);
-                        setShowBadgeCelebration(true);
+                        // Add to the banner queue. The kid taps the banner
+                        // when they're ready; we DON'T auto-open the
+                        // celebration because a parent watching the screen
+                        // might dismiss it before the kid sees.
+                        setUnseenBadges(prev => [...prev, {
+                            id: payload.new.id,
+                            badge_id: payload.new.badge_id,
+                            awarded_at: payload.new.awarded_at,
+                            seen_at: null,
+                            badges: badgeData,
+                        }]);
                     }
                 }
             )
@@ -341,6 +339,29 @@ const PlayerDashboard = () => {
         await signOut();
         navigate('/login');
     }
+
+    // Kid taps the banner — claim the first unseen badge: open the
+    // celebration AND mark the row seen in the DB so the banner doesn't
+    // re-appear on next login or another device.
+    const handleClaimBadge = async () => {
+        const next = unseenBadges[0];
+        if (!next) return;
+        // Optimistic: drop it from the banner queue immediately
+        setUnseenBadges(prev => prev.slice(1));
+        // Open celebration
+        setNewBadge(next.badges);
+        setShowBadgeCelebration(true);
+        // Persist seen_at so it doesn't reappear
+        const { error } = await supabase
+            .from('player_badges')
+            .update({ seen_at: new Date().toISOString() })
+            .eq('id', next.id);
+        if (error) {
+            console.error('Failed to mark badge seen:', error);
+            // Best-effort; if this fails, kid sees the banner again next
+            // load. Not blocking the celebration.
+        }
+    };
 
     const handleDrillComplete = async (drillOrId) => {
         // Handle both drill object and plain ID
@@ -453,6 +474,19 @@ const PlayerDashboard = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Persistent banner for unseen badges. Kid taps to claim and
+                trigger the full BadgeCelebration. Stays across page refreshes
+                and devices because seen_at lives in the DB. */}
+            {unseenBadges.length > 0 && (
+                <div className="max-w-5xl mx-auto px-4 pt-4">
+                    <BadgeUnlockBanner
+                        count={unseenBadges.length}
+                        badge={unseenBadges[0]?.badges}
+                        onClaim={handleClaimBadge}
+                    />
+                </div>
+            )}
 
             <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-12 gap-8">
                 {/* Left Column: Player Card (Sticky on Desktop) */}
