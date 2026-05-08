@@ -6,7 +6,9 @@ import {
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+// Browser-side Gemini call disabled — would expose API key in public bundle.
+// Manual scouting note entry remains; AI cleanup is gated.
+const AI_SCOUTING_ENABLED = import.meta.env.VITE_AI_SCOUTING_ENABLED === 'true';
 
 const VoiceScoutingNotes = ({ onClose }) => {
     const { user, profile } = useAuth();
@@ -103,11 +105,20 @@ const VoiceScoutingNotes = ({ onClose }) => {
     // Process with AI to extract insights
     const processWithAI = async () => {
         if (!transcript.trim()) return;
-        
+
+        if (!AI_SCOUTING_ENABLED) {
+            // Save the raw transcript as the note; user can clean up manually
+            // until the server-side AI cleanup path lands.
+            setProcessing(false);
+            return;
+        }
+
         setProcessing(true);
         try {
+            // Browser → Gemini path retained as dead code; gated off until
+            // moved to an edge function. Do not re-enable without server-side relay.
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=DISABLED`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

@@ -3,6 +3,10 @@ import { X, Mic, Send, Sparkles, StopCircle, Mail, MessageSquare, Check, Refresh
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
+// Email delivery is gated until RESEND_API_KEY is set as a Supabase secret
+// AND a sending domain is verified. Until then, only SMS delivery is exposed.
+const EMAIL_DELIVERY_ENABLED = import.meta.env.VITE_RESEND_ENABLED === 'true';
+
 const AIFeedbackModal = ({ recipient, player, onClose }) => {
     const { user } = useAuth();
     const recipientName = player?.name || recipient || 'Player';
@@ -640,14 +644,16 @@ const AIFeedbackModal = ({ recipient, player, onClose }) => {
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="grid grid-cols-2 gap-4 pt-2">
-                                <button
-                                    onClick={() => handleSend('email')}
-                                    className="flex flex-col items-center justify-center gap-2 p-4 bg-white/5 hover:bg-brand-green/20 border border-white/10 hover:border-brand-green/50 rounded-xl transition-all group"
-                                >
-                                    <Mail className="w-6 h-6 text-gray-300 group-hover:text-brand-green" />
-                                    <span className="text-xs font-bold text-gray-300 group-hover:text-white uppercase tracking-wider">Email Parents</span>
-                                </button>
+                            <div className={`grid ${EMAIL_DELIVERY_ENABLED ? 'grid-cols-2' : 'grid-cols-1'} gap-4 pt-2`}>
+                                {EMAIL_DELIVERY_ENABLED && (
+                                    <button
+                                        onClick={() => handleSend('email')}
+                                        className="flex flex-col items-center justify-center gap-2 p-4 bg-white/5 hover:bg-brand-green/20 border border-white/10 hover:border-brand-green/50 rounded-xl transition-all group"
+                                    >
+                                        <Mail className="w-6 h-6 text-gray-300 group-hover:text-brand-green" />
+                                        <span className="text-xs font-bold text-gray-300 group-hover:text-white uppercase tracking-wider">Email Parents</span>
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => handleSend('text')}
                                     className="flex flex-col items-center justify-center gap-2 p-4 bg-white/5 hover:bg-blue-500/20 border border-white/10 hover:border-blue-500/50 rounded-xl transition-all group"

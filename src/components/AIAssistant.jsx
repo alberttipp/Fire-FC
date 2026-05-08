@@ -7,9 +7,14 @@ import {
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+// Feature flag — keep AIAssistant hidden until we move the LLM call
+// server-side. Direct browser → Gemini call previously baked the API
+// key into the public bundle. Set VITE_AI_ASSISTANT_ENABLED=true once
+// the server-side path lands.
+const AI_ASSISTANT_ENABLED = import.meta.env.VITE_AI_ASSISTANT_ENABLED === 'true';
 
 const AIAssistant = () => {
+    if (!AI_ASSISTANT_ENABLED) return null;
     const { user, profile } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([]);
@@ -162,64 +167,14 @@ const AIAssistant = () => {
         setLoading(true);
 
         try {
-            // Check if API key exists
-            if (!GEMINI_API_KEY) {
-                throw new Error('AI not configured. Please add VITE_GEMINI_API_KEY to environment variables.');
-            }
-
-            // Build context for AI
-            const systemContext = buildSystemContext();
-
-            // Call Gemini API
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [
-                            {
-                                role: 'user',
-                                parts: [{ text: `${systemContext}\n\nUser question: ${userMessage}` }]
-                            }
-                        ],
-                        generationConfig: {
-                            temperature: 0.7,
-                            topK: 40,
-                            topP: 0.95,
-                            maxOutputTokens: 1024,
-                        }
-                    })
-                }
-            );
-
-            // Check if response is OK
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Gemini API Error:', response.status, errorText);
-                throw new Error(`API Error: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            // Check for errors in response
-            if (data.error) {
-                console.error('Gemini Error:', data.error);
-                throw new Error(data.error.message || 'AI returned an error');
-            }
-
-            if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-                const aiResponse = data.candidates[0].content.parts[0].text;
-                setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-            } else {
-                console.error('Unexpected response format:', data);
-                throw new Error('No response from AI');
-            }
-        } catch (err) {
-            console.error('AI Error:', err);
-            setMessages(prev => [...prev, {
+            // AI Assistant is being moved to a server-side edge function.
+            // Until that lands, surface a clear message instead of calling
+            // Gemini from the browser (which would expose the key in the
+            // public bundle).
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            setMessages((prev) => [...prev, {
                 role: 'assistant',
-                content: `Sorry, I couldn't process that request. ${err.message}`
+                content: "I'm offline right now while we move to a more secure backend. Try again soon."
             }]);
         } finally {
             setLoading(false);

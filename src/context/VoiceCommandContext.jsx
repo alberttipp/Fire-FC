@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from './AuthContext';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+// Browser-side Gemini call disabled — would expose API key in public bundle.
+// Voice navigation (pattern matching) keeps working; AI fallback is gated.
+const AI_VOICE_ENABLED = import.meta.env.VITE_AI_VOICE_ENABLED === 'true';
 
 const VoiceCommandContext = createContext(null);
 
@@ -439,13 +441,15 @@ export const VoiceCommandProvider = ({ children }) => {
 
     // Process with AI for complex commands
     const processWithAI = async (text) => {
-        if (!GEMINI_API_KEY) {
-            return { type: 'error', message: 'AI not configured' };
+        if (!AI_VOICE_ENABLED) {
+            return { type: 'info', message: "Voice AI is offline — try a direct command like \"go to team\" or \"show roster\"." };
         }
 
         try {
+            // Browser → Gemini path retained as dead code; gated off until
+            // moved to an edge function. Do not re-enable without server-side relay.
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=DISABLED`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
