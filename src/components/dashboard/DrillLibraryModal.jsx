@@ -1,16 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { X, Dumbbell, Play, Clock, Search, CheckCircle, Loader2, Filter } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Dumbbell, Play, Clock, Search, CheckCircle, Loader2, Filter, AlertCircle } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const DrillLibraryModal = ({ onClose, player, teamId }) => {
     const { user } = useAuth();
+    const toast = useToast();
     const [drills, setDrills] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // 'loading' | 'ready' | 'error' — distinguish "fetch in flight" from "library is empty".
+    const [fetchState, setFetchState] = useState('loading');
+    const [fetchError, setFetchError] = useState(null);
+    const fetchRef = useRef(null);
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');
     const [assigning, setAssigning] = useState(null);
     const [assigned, setAssigned] = useState(new Set());
+
+    // Backwards-compatible loading flag used by render below.
+    const loading = fetchState === 'loading';
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -21,35 +29,57 @@ const DrillLibraryModal = ({ onClose, player, teamId }) => {
         fetchDrills();
     }, []);
 
-    const fetchDrills = async () => {
-        setLoading(true);
-        try {
-            // Fetch all drills - no .order() to avoid column name mismatch
-            // (table may have 'title' or 'name' depending on migration)
-            // Library only — exclude user-created custom drills.
-            const { data, error } = await supabase
-                .from('drills')
-                .select('*')
-                .eq('is_custom', false);
+    const fetchDrills = async ({ attempt = 1 } = {}) => {
+        if (fetchRef.current) return fetchRef.current;
 
-            if (error) {
-                console.error('[DrillLibrary] Error fetching drills:', error);
-                setDrills([]);
-            } else {
-                console.log('[DrillLibrary] Fetched drills:', data?.length || 0);
-                // Sort client-side using whichever name column exists
+        const inflight = (async () => {
+            setFetchState('loading');
+            setFetchError(null);
+            try {
+                // Fetch library drills — exclude user-created custom drills.
+                // No .order() server-side because we sort client-side after to
+                // tolerate either 'title' or 'name' as the display column.
+                const { data, error } = await supabase
+                    .from('drills')
+                    .select('*')
+                    .eq('is_custom', false);
+
+                if (error) {
+                    console.error('[DrillLibrary] Error fetching drills (attempt', attempt, '):', error);
+                    if (attempt < 2) {
+                        fetchRef.current = null;
+                        await new Promise((r) => setTimeout(r, 800));
+                        return fetchDrills({ attempt: attempt + 1 });
+                    }
+                    setFetchState('error');
+                    setFetchError(error.message || 'Could not load drills.');
+                    setDrills([]);
+                    return false;
+                }
+
                 const sorted = (data || []).sort((a, b) => {
                     const nameA = (a.title || a.name || '').toLowerCase();
                     const nameB = (b.title || b.name || '').toLowerCase();
                     return nameA.localeCompare(nameB);
                 });
                 setDrills(sorted);
+                setFetchState('ready');
+                return true;
+            } catch (err) {
+                console.error('[DrillLibrary] Fetch exception:', err);
+                setFetchState('error');
+                setFetchError(err.message || 'Could not load drills.');
+                setDrills([]);
+                return false;
             }
-        } catch (err) {
-            console.error('[DrillLibrary] Fetch exception:', err);
-            setDrills([]);
+        })();
+
+        fetchRef.current = inflight;
+        try {
+            return await inflight;
+        } finally {
+            fetchRef.current = null;
         }
-        setLoading(false);
     };
 
     const assignDrill = async (drill) => {
@@ -75,9 +105,10 @@ const DrillLibraryModal = ({ onClose, player, teamId }) => {
 
             if (error) throw error;
             setAssigned(prev => new Set([...prev, drill.id]));
+            toast.success(`Assigned "${drill.title || drill.name}"`);
         } catch (err) {
             console.error('[DrillLibrary] Error assigning drill:', err);
-            alert('Failed to assign drill. Please try again.');
+            toast.error("Couldn't assign drill. Check your connection and try again.");
         } finally {
             setAssigning(null);
         }
@@ -158,6 +189,21 @@ const DrillLibraryModal = ({ onClose, player, teamId }) => {
                                 <Loader2 className="w-8 h-8 animate-spin text-brand-green mx-auto mb-3" />
                                 <p className="text-gray-500 text-sm">Loading drills...</p>
                             </div>
+                        </div>
+                    ) : fetchState === 'error' ? (
+                        <div className="text-center py-16 text-gray-400">
+                            <AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-400" />
+                            <p className="text-base font-bold text-red-300 mb-1">Couldn't load the drill library</p>
+                            <p className="text-sm text-gray-500 mb-4">Check your connection and try again.</p>
+                            <button
+                                onClick={() => fetchDrills()}
+                                className="px-4 py-2 bg-red-500/20 border border-red-500/40 rounded text-sm text-red-200 hover:bg-red-500/30"
+                            >
+                                Retry
+                            </button>
+                            {fetchError && (
+                                <p className="text-xs text-gray-600 mt-3">Details: {fetchError}</p>
+                            )}
                         </div>
                     ) : filtered.length === 0 ? (
                         <div className="text-center py-16 text-gray-500">

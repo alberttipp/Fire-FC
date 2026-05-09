@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Mic, MicOff, StopCircle, Save, Star, ChevronLeft, Wand2, Loader2, Clock, Trash2, Tag } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const STATUS_OPTIONS = ['pending', 'contacted', 'scheduled', 'tried_out', 'accepted', 'declined'];
 
@@ -12,6 +13,7 @@ const TAG_OPTIONS = [
 
 const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
     const { user } = useAuth();
+    const toast = useToast();
     const [notes, setNotes] = useState([]);
     const [loadingNotes, setLoadingNotes] = useState(true);
     const [isRecording, setIsRecording] = useState(false);
@@ -86,7 +88,7 @@ const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
 
     const toggleRecording = () => {
         if (!recognitionRef.current) {
-            alert('Speech recognition not supported in this browser.');
+            toast.warning("Voice input isn't supported on this browser — type your note below.");
             return;
         }
 
@@ -121,7 +123,7 @@ const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
             fetchNotes();
         } catch (err) {
             console.error('Save error:', err);
-            alert('Could not save note.');
+            toast.error("Couldn't save the note. Try again.");
         } finally {
             setSaving(false);
         }

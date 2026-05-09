@@ -2,9 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { X, Sparkles, User, Users, Check, Search, Filter } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const AssignDrillModal = ({ onClose }) => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [step, setStep] = useState(1); // 1: Select Drill, 2: Select Assignees
     const [drills, setDrills] = useState([]);
     const [selectedDrills, setSelectedDrills] = useState([]); // Array of drill IDs
@@ -191,7 +193,7 @@ const AssignDrillModal = ({ onClose }) => {
             if (assigneeType === 'team') {
                 // Assign to all players on the selected team
                 if (!selectedTeamId) {
-                    alert("Please select a team first.");
+                    toast.warning('Pick a team first.');
                     return;
                 }
                 // Use already-fetched teamPlayers
@@ -202,7 +204,7 @@ const AssignDrillModal = ({ onClose }) => {
             }
 
             if (targetPlayerIds.length === 0) {
-                alert("No players selected. Please select at least one player to assign drills to.");
+                toast.warning('Select at least one player to assign drills to.');
                 return;
             }
 
@@ -233,12 +235,12 @@ const AssignDrillModal = ({ onClose }) => {
                 throw error;
             }
 
-            alert(`Successfully assigned ${selectedDrills.length} drills to ${targetPlayerIds.length} players!`);
+            toast.success(`Assigned ${selectedDrills.length} drill${selectedDrills.length === 1 ? '' : 's'} to ${targetPlayerIds.length} player${targetPlayerIds.length === 1 ? '' : 's'}.`);
             onClose();
 
         } catch (error) {
             console.error("Assignment Error:", error);
-            alert("Failed to assign drills. See console.");
+            toast.error("Couldn't assign drills. Try again in a moment.");
         }
     }
 

@@ -3,6 +3,7 @@ import { X, MapPin, Shirt, ClipboardList, Play, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '../../../supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
+import { useToast } from '../../Toast';
 import { getEventConfig } from './constants';
 import RsvpSummary from './RsvpSummary';
 
@@ -21,6 +22,7 @@ const getYouTubeEmbedUrl = (url) => {
 
 const EventDetailModal = ({ event, onClose, onStartSession }) => {
     const { profile } = useAuth();
+    const toast = useToast();
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const config = getEventConfig(event.type);
@@ -51,7 +53,10 @@ const EventDetailModal = ({ event, onClose, onStartSession }) => {
 
     const handleStartSession = (session) => {
         const drills = parseDrills(session);
-        if (drills.length === 0) { alert('No drills in this session'); return; }
+        if (drills.length === 0) {
+            toast.warning('This session has no drills yet — open it to add some.');
+            return;
+        }
         onStartSession({ ...session, drills });
     };
 

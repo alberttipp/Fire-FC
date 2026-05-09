@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Filter, Mic, Search, ChevronRight, UserPlus, Loader2, X } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 import ScoutCard from './ScoutCard';
 
 const STATUS_COLORS = {
@@ -15,6 +16,7 @@ const STATUS_COLORS = {
 
 const TryoutHub = () => {
     const { user } = useAuth();
+    const toast = useToast();
     const [prospects, setProspects] = useState([]);
     const [ageGroups, setAgeGroups] = useState([]);
     const [selectedGroup, setSelectedGroup] = useState('All');
@@ -77,7 +79,7 @@ const TryoutHub = () => {
             fetchProspects();
         } catch (err) {
             console.error('Error adding prospect:', err);
-            alert('Could not add prospect.');
+            toast.error("Couldn't add prospect. Try again.");
         } finally {
             setSaving(false);
         }

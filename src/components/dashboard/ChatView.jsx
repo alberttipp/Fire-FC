@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, AlertCircle, Hash, MessageSquare, Users, Bell, Megaphone, Lock, Loader2, Menu, X, Plus } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const ChatView = () => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [channels, setChannels] = useState([]);
     const [activeChannel, setActiveChannel] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -48,9 +50,12 @@ const ChatView = () => {
     }, [activeChannel]);
 
     const fetchChannels = async () => {
+        setLoading(true);
+        setChatError(null);
         try {
             const isPlayer = currentUserRole === 'player';
             let allChannels = [];
+            let firstFetchError = null;
 
             if (!isPlayer) {
                 // Staff: fetch team conversations (RLS filters by team_memberships)
@@ -60,7 +65,10 @@ const ChatView = () => {
                     .eq('type', 'team')
                     .order('created_at', { ascending: true });
 
-                if (teamErr) console.error('Team convos error:', teamErr);
+                if (teamErr) {
+                    console.error('Team convos error:', teamErr);
+                    firstFetchError = firstFetchError || teamErr;
+                }
                 if (teamConvos) allChannels.push(...teamConvos);
 
                 // Staff: fetch staff_dm conversations via conversation_members
@@ -71,7 +79,10 @@ const ChatView = () => {
                     .eq('type', 'staff_dm')
                     .order('created_at', { ascending: true });
 
-                if (staffErr) console.error('Staff DMs error:', staffErr);
+                if (staffErr) {
+                    console.error('Staff DMs error:', staffErr);
+                    firstFetchError = firstFetchError || staffErr;
+                }
                 if (staffDMs) allChannels.push(...staffDMs);
             } else {
                 // Players: only player_dm via conversation_members
@@ -82,22 +93,31 @@ const ChatView = () => {
                     .eq('type', 'player_dm')
                     .order('created_at', { ascending: true });
 
-                if (playerErr) console.error('Player DMs error:', playerErr);
+                if (playerErr) {
+                    console.error('Player DMs error:', playerErr);
+                    firstFetchError = firstFetchError || playerErr;
+                }
                 if (playerDMs) allChannels.push(...playerDMs);
             }
 
-            // Deduplicate by id
-            const unique = [...new Map(allChannels.map(c => [c.id, c])).values()];
-
-            setChannels(unique);
-            if (unique.length > 0) {
-                setActiveChannel(unique[0]);
-            } else {
+            // If every sub-fetch failed AND we got no channels, treat as a real
+            // error so the UI can show retry. Partial success (some channels
+            // returned, one error) just logs and shows what we got.
+            if (firstFetchError && allChannels.length === 0) {
+                setChatError(firstFetchError.message || "Couldn't load conversations.");
+                setChannels([]);
                 setActiveChannel(null);
+                return;
             }
+
+            const unique = [...new Map(allChannels.map(c => [c.id, c])).values()];
+            setChannels(unique);
+            setActiveChannel(unique.length > 0 ? unique[0] : null);
         } catch (err) {
             console.error('Error fetching conversations:', err);
+            setChatError(err.message || "Couldn't load conversations.");
             setChannels([]);
+            setActiveChannel(null);
         } finally {
             setLoading(false);
         }
@@ -268,7 +288,7 @@ const ChatView = () => {
             setActiveChannel(convo);
         } catch (err) {
             console.error('Error creating DM:', err);
-            alert('Could not create conversation.');
+            toast.error("Couldn't start the conversation. Try again.");
         }
     };
 
@@ -360,7 +380,24 @@ const ChatView = () => {
                 </div>
 
                 <div className="space-y-1 flex-1 overflow-y-auto">
-                    {channels.length === 0 ? (
+                    {loading ? (
+                        <div className="text-center py-8 px-2">
+                            <Loader2 className="w-6 h-6 text-gray-500 mx-auto mb-2 animate-spin" />
+                            <p className="text-gray-500 text-xs">Loading conversations…</p>
+                        </div>
+                    ) : chatError ? (
+                        <div className="text-center py-8 px-2">
+                            <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                            <p className="text-red-300 text-xs mb-1">Couldn't load conversations.</p>
+                            <p className="text-gray-500 text-xs mb-3">Check your connection.</p>
+                            <button
+                                onClick={fetchChannels}
+                                className="px-3 py-1.5 bg-red-500/20 border border-red-500/40 rounded text-xs text-red-200 hover:bg-red-500/30"
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    ) : channels.length === 0 ? (
                         <div className="text-center py-8 px-2">
                             <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
                             <p className="text-gray-500 text-xs">No channels yet.</p>

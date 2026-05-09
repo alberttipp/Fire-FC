@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Clock } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const NOTE_TAGS = ['Technical', 'Tactical', 'Physical', 'Mental', 'Leadership', 'Attitude', 'Improvement', 'Concern'];
 
 const CoachNotesPanel = ({ player, readOnly = false }) => {
     const { user } = useAuth();
+    const toast = useToast();
     const [notes, setNotes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -43,12 +45,13 @@ const CoachNotesPanel = ({ player, readOnly = false }) => {
 
         if (error) {
             console.error('Error saving note:', error);
-            alert('Failed to save note');
+            toast.error("Couldn't save the note. Try again.");
         } else {
             setNoteText('');
             setSelectedTags([]);
             setShowForm(false);
             fetchNotes();
+            toast.success('Note saved.');
         }
         setSaving(false);
     };

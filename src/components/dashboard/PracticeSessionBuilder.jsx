@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 // Drill categories
 const DRILL_CATEGORIES = [
@@ -73,6 +74,7 @@ const scoreDrillCandidate = (drill, transcript) => {
 
 const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const { user, profile } = useAuth();
+    const toast = useToast();
 
     // Build mode state
     const [sessionName, setSessionName] = useState('');
@@ -607,17 +609,17 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
 
     const handleSave = async () => {
         if (!sessionName || blocks.length === 0) {
-            alert('Add a name and at least one drill');
+            toast.warning('Add a session name and at least one drill before saving.');
             return;
         }
 
         if (hasCustomDrills && !customDrillsConfirmed) {
-            alert('Please confirm custom drills before saving');
+            toast.warning('Confirm custom drills before saving.');
             return;
         }
 
         if (!profile?.id) {
-            alert('Error: No profile found. Please make sure you are logged in.');
+            toast.error('No profile found — please log out and back in.');
             return;
         }
 
@@ -648,7 +650,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
 
             if (error) throw error;
 
-            alert('✓ Session saved!');
+            toast.success('Session saved.');
             if (onSave) onSave(data);
 
             // Refresh saved sessions
@@ -661,7 +663,7 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
             setSavedSessions(sessions || []);
         } catch (err) {
             console.error('Save error:', err);
-            alert('Error saving: ' + err.message);
+            toast.error("Couldn't save the session. Try again.");
         }
     };
 

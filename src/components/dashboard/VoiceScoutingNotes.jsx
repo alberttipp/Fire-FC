@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 // Browser-side Gemini call disabled — would expose API key in public bundle.
 // Manual scouting note entry remains; AI cleanup is gated.
@@ -12,6 +13,7 @@ const AI_SCOUTING_ENABLED = import.meta.env.VITE_AI_SCOUTING_ENABLED === 'true';
 
 const VoiceScoutingNotes = ({ onClose }) => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [isRecording, setIsRecording] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [playerName, setPlayerName] = useState('');
@@ -88,7 +90,7 @@ const VoiceScoutingNotes = ({ onClose }) => {
 
     const toggleRecording = () => {
         if (!recognitionRef.current) {
-            alert('Speech recognition not supported in this browser');
+            toast.warning("Voice input isn't supported on this browser — type your note below.");
             return;
         }
 
@@ -188,7 +190,7 @@ Return ONLY valid JSON (no markdown):
             fetchNotes();
         } catch (err) {
             console.error('Save error:', err);
-            alert('Could not save note');
+            toast.error("Couldn't save the note. Try again.");
         }
     };
 

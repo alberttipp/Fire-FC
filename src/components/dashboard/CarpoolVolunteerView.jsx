@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Car, Hand, MapPin, Users, Loader2, X, Trash2, Plus, Calendar } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const CarpoolVolunteerView = () => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [events, setEvents] = useState([]);
     const [signups, setSignups] = useState({}); // { eventId: [signup, ...] }
     const [loading, setLoading] = useState(true);
@@ -141,9 +143,9 @@ const CarpoolVolunteerView = () => {
         } catch (err) {
             console.error('Signup error:', err);
             if (err.code === '23505') {
-                alert('You already signed up for this.');
+                toast.info("You're already signed up for this.");
             } else {
-                alert('Error: ' + (err.message || 'Unknown error'));
+                toast.error("Couldn't save your signup. Try again.");
             }
         } finally {
             setSubmitting(false);

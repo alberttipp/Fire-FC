@@ -6,9 +6,11 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const TrainingClients = () => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [clients, setClients] = useState([]);
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -95,7 +97,7 @@ const TrainingClients = () => {
             fetchData();
         } catch (err) {
             console.error('Error adding client:', err);
-            alert('Could not add client');
+            toast.error("Couldn't add client. Try again.");
         }
     };
 
@@ -154,7 +156,7 @@ const TrainingClients = () => {
             fetchData();
         } catch (err) {
             console.error('Error scheduling session:', err);
-            alert('Could not schedule session');
+            toast.error("Couldn't schedule the session. Try again.");
         }
     };
 
@@ -236,7 +238,7 @@ const TrainingClients = () => {
             fetchData();
         } catch (err) {
             console.error('Error updating session:', err);
-            alert('Could not update session');
+            toast.error("Couldn't update the session. Try again.");
         }
     };
 

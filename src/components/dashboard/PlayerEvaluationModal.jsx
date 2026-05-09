@@ -7,9 +7,11 @@ import confetti from 'canvas-confetti';
 import { badges as mockBadges } from '../../data/badges';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     const { user } = useAuth();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState('eval'); // 'eval', 'awards', or 'training'
     const [saving, setSaving] = useState(false);
     const [coachNotes, setCoachNotes] = useState('');
@@ -251,7 +253,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
 
         if (!playerUserId) {
             console.error('Cannot award badge: player has no auth.users link', { player });
-            alert('Cannot award badge — this player has no user account linked. Set up their access first.');
+            toast.warning("Can't award badge — this player doesn't have an account linked yet.");
             // Revert optimistic update
             setAwardedBadges(prev => {
                 const newCount = (prev[badgeId] || 1) - 1;
@@ -293,7 +295,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
 
     const handleSave = async () => {
         if (!player?.id || !user?.id) {
-            alert('Missing player or user information');
+            toast.error('Missing player or user information.');
             return;
         }
 
@@ -329,11 +331,11 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 zIndex: 10000
             });
 
-            alert('✓ Evaluation saved!');
+            toast.success('Evaluation saved.');
             onClose();
         } catch (err) {
             console.error('Error saving evaluation:', err);
-            alert('Failed to save evaluation: ' + err.message);
+            toast.error("Couldn't save the evaluation. Try again in a moment.");
         } finally {
             setSaving(false);
         }
@@ -352,10 +354,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
             });
 
             if (error) throw error;
-            alert('✓ Training stats saved!');
+            toast.success('Training stats saved.');
         } catch (err) {
             console.error('Error saving training stats:', err);
-            alert('Failed to save: ' + err.message);
+            toast.error("Couldn't save training stats. Try again.");
         } finally {
             setSaving(false);
         }

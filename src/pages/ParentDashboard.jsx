@@ -14,6 +14,7 @@ import DrillLibraryModal from '../components/dashboard/DrillLibraryModal';
 // ParentSessionBuilder import removed — builder now lives on player dashboard.
 import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
+import { useToast } from '../components/Toast';
 // BadgeCelebration intentionally NOT imported here. Badge unlock UX lives
 // only on the player dashboard so a parent watching the screen can't
 // dismiss the celebration before the kid sees it.
@@ -21,6 +22,7 @@ import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 const ParentDashboard = () => {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
+    const toast = useToast();
     const [currentView, setCurrentView] = useState('overview');
     const [showDetails, setShowDetails] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -300,7 +302,7 @@ const ParentDashboard = () => {
             }
         } catch (err) {
             console.error('Error generating link:', err);
-            alert('Failed to generate access link. Please try again.');
+            toast.error("Couldn't generate the access link. Check your connection and try again.");
         } finally {
             setGeneratingLink(false);
         }
@@ -368,7 +370,7 @@ const ParentDashboard = () => {
         // Check if coach homework is done first
         const pendingCoach = coachAssignments.filter(a => a.status !== 'completed');
         if (pendingCoach.length > 0) {
-            alert('Complete coach homework first before marking parent practice drills as done!');
+            toast.warning('Finish coach homework first — that comes before parent practice drills.');
             return;
         }
 

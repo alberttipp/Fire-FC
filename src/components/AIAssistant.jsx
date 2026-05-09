@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from './Toast';
 
 // Feature flag — keep AIAssistant hidden until we move the LLM call
 // server-side. Direct browser → Gemini call previously baked the API
@@ -16,6 +17,7 @@ const AI_ASSISTANT_ENABLED = import.meta.env.VITE_AI_ASSISTANT_ENABLED === 'true
 const AIAssistant = () => {
     if (!AI_ASSISTANT_ENABLED) return null;
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
@@ -146,7 +148,7 @@ const AIAssistant = () => {
 
     const toggleListening = () => {
         if (!recognitionRef.current) {
-            alert('Speech recognition not supported in this browser');
+            toast.warning("Voice input isn't supported on this browser — type instead.");
             return;
         }
 

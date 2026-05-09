@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Target, CheckCircle, Circle, Clock, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const FOCUS_AREAS = ['Pace', 'Shooting', 'Passing', 'Dribbling', 'Defending', 'Physical'];
 
 const IDPBuilder = ({ player, readOnly = false }) => {
     const { user } = useAuth();
+    const toast = useToast();
     const [activeIDP, setActiveIDP] = useState(null);
     const [milestones, setMilestones] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -90,7 +92,7 @@ const IDPBuilder = ({ player, readOnly = false }) => {
 
         if (error) {
             console.error('Error creating IDP:', error);
-            alert('Failed to create IDP');
+            toast.error("Couldn't create the IDP. Try again.");
             setSaving(false);
             return;
         }

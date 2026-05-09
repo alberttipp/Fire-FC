@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Shield, Heart, Copy, Check, Trash2, Plus, Users } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { useToast } from '../Toast';
 
 const FamilyInviteModal = ({ player, onClose }) => {
+    const toast = useToast();
     const [invites, setInvites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -62,7 +64,7 @@ const FamilyInviteModal = ({ player, onClose }) => {
             setInvites([data, ...invites]);
         } catch (err) {
             console.error('Error creating invite:', err);
-            alert('Failed to generate invite.');
+            toast.error("Couldn't generate the invite. Try again.");
         } finally {
             setGenerating(false);
         }

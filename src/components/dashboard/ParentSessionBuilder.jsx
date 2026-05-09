@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 // Drill categories (same as coach builder)
 const DRILL_CATEGORIES = [
@@ -65,6 +66,7 @@ const scoreDrillCandidate = (drill, transcript) => {
 // so this prop is named saveMode to avoid the collision.
 const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, saveMode = 'parent' }) => {
     const { user } = useAuth();
+    const toast = useToast();
 
     // Build mode state
     const [sessionName, setSessionName] = useState('');
@@ -219,7 +221,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
 
     const toggleListening = () => {
         if (!recognitionRef.current) {
-            alert('Speech recognition not supported. Use the text input below instead.');
+            toast.warning("Voice input isn't supported on this browser — type your plan below.");
             return;
         }
         if (isListening) {
@@ -233,7 +235,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                 recognitionRef.current.start();
                 setIsListening(true);
             } catch (err) {
-                alert('Could not start microphone. Check browser permissions.');
+                toast.error("Couldn't start the microphone. Check your browser's mic permission for this site.");
             }
         }
     };
@@ -317,7 +319,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
             setBlocks(newBlocks);
         } catch (err) {
             console.error('AI processing error:', err);
-            alert(`Could not process: ${err.message}. Add drills manually.`);
+            toast.error("AI couldn't build that practice. Try again, or add drills manually below.");
         } finally {
             setAiProcessing(false);
             setVoiceInput('');
@@ -382,7 +384,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
     // visually.
     const handleSaveAsAssignments = async () => {
         if (blocks.length === 0) {
-            alert('Add at least one drill');
+            toast.warning('Add at least one drill before saving.');
             return;
         }
 
@@ -436,12 +438,12 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                 .insert(assignmentRows);
             if (error) throw error;
 
-            alert(`Saved ${assignmentRows.length} drills!`);
+            toast.success(`Saved ${assignmentRows.length} drill${assignmentRows.length === 1 ? '' : 's'}.`);
             if (onSave) onSave();
             onClose();
         } catch (err) {
             console.error('Assignment error:', err);
-            alert('Error saving drills: ' + err.message);
+            toast.error("Couldn't save those drills. Try again.");
         } finally {
             setSaving(false);
         }

@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Upload, X, Trash2, Loader2, ChevronLeft, ChevronRight, Calendar, User, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const GalleryView = () => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [media, setMedia] = useState([]);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -136,13 +138,13 @@ const GalleryView = () => {
 
         // Validate type
         if (!file.type.startsWith('image/')) {
-            alert('Only image files are allowed.');
+            toast.error('Only image files are allowed.');
             return;
         }
 
         // Validate size (10MB)
         if (file.size > 10 * 1024 * 1024) {
-            alert('File too large. Max 10MB.');
+            toast.error('File too large — max 10MB.');
             return;
         }
 
@@ -180,15 +182,18 @@ const GalleryView = () => {
             setShowUpload(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
             fetchMedia();
+            toast.success('Photo uploaded.');
         } catch (err) {
             console.error('Upload error:', err);
-            alert('Upload failed: ' + (err.message || 'Unknown error'));
+            toast.error("Upload failed. Check your connection and try again.");
         } finally {
             setUploading(false);
         }
     };
 
     const handleDelete = async (item) => {
+        // Native confirm() is OK here — destructive action benefits from
+        // explicit user attention. Replace with a custom modal in a later pass.
         if (!confirm('Delete this photo?')) return;
 
         try {
@@ -205,9 +210,10 @@ const GalleryView = () => {
 
             setMedia(prev => prev.filter(m => m.id !== item.id));
             setLightbox(null);
+            toast.success('Photo deleted.');
         } catch (err) {
             console.error('Delete error:', err);
-            alert('Could not delete photo.');
+            toast.error("Couldn't delete the photo. Try again in a moment.");
         }
     };
 

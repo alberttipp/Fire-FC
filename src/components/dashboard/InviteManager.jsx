@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 import { Copy, Plus, RefreshCw, Key, Shield, User } from 'lucide-react';
 
 const InviteManager = ({ teamId }) => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [invites, setInvites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -61,7 +63,7 @@ const InviteManager = ({ teamId }) => {
 
         } catch (err) {
             console.error("Error generating code:", err);
-            alert("Failed to generate code.");
+            toast.error("Couldn't generate the invite code. Try again.");
         } finally {
             setGenerating(false);
         }
@@ -69,7 +71,7 @@ const InviteManager = ({ teamId }) => {
 
     const copyToClipboard = (code) => {
         navigator.clipboard.writeText(code);
-        alert(`Copied: ${code}`);
+        toast.success(`Copied: ${code}`);
     };
 
     // Role Config

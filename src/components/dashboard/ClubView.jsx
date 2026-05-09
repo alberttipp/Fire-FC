@@ -6,11 +6,13 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 import UpcomingWeek from './UpcomingWeek';
 import VoiceScoutingNotes from './VoiceScoutingNotes';
 
 const ClubView = () => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [stats, setStats] = useState({ players: 0, teams: 0, events: 0 });
     const [waitlist, setWaitlist] = useState([]);
     const [keyDates, setKeyDates] = useState([]);
@@ -151,7 +153,7 @@ const ClubView = () => {
     const copyWaitlistLink = () => {
         const link = `${window.location.origin}/tryout-signup`;
         navigator.clipboard.writeText(link);
-        alert('Waitlist signup link copied!');
+        toast.success('Waitlist signup link copied.');
     };
 
     // Sample key dates if none exist
