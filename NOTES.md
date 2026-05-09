@@ -1,5 +1,109 @@
 # Fire-FC Development Notes
 
+## Session: 2026-05-08 → 2026-05-09 (pre-pilot data-safety hardening)
+
+### Context
+- Goal: ready the app for a real-team pilot (Albert + Coach O + Bo's family + 1–2 trusted parents) without leaking minor data along the way
+- Started 17 days after the 04-22 session; 4 untracked migrations (badge unlock + role/tenancy phase 1) were sitting uncommitted from Apr 29
+- Plan saved at `.claude/plans/pure-wobbling-galaxy.md` (Tier 1 / 2 / 3 phasing)
+
+### Today's actions
+
+#### 1. Verified ground truth before planning
+- Coach O (`berttipp@gmail.com`) IS in `team_memberships` with role=`coach` on Fire FC U11 — earlier audit claim that "coach has no account" was wrong
+- Manager (`alberttipp@gmail.com`) on Fire FC U11 + Fire FC U11 Summer
+- Parent (`tippjr@yahoo.com`) on Fire FC U11
+- 42 public tables RLS-enabled; phase-1 multi-tenancy migration (`organizations`, `org_memberships`, helper fns `has_team_role`, `is_guardian`, `is_fan`, `has_org_role`) was already applied to prod even though the .sql files were uncommitted
+
+#### 2. RLS hardening migration applied (commit 0806bb7)
+- New file: `supabase/migrations/20260508_rls_tighten_phase1.sql` (+ rollback sibling)
+- Applied to prod via Supabase MCP
+- Replaces over-permissive policies on:
+  - `players` — dropped `qual = true` policy that exposed every player to anonymous web visitors; replaced with team_staff OR is_guardian OR is_fan OR self
+  - `family_members` — dropped `auth.uid() IS NOT NULL`; replaced with self OR team_staff
+  - `teams` — dropped any-auth-user-can-CRUD-any-team; split into membership-scoped SELECT, club_director INSERT/DELETE, team_staff UPDATE
+  - `scouting_notes` — dropped four overlapping all-authenticated SELECTs; replaced with org-scoped staff-only
+  - `weekly_assignment_drills` — dropped public anon SELECT; replaced with team-membership scope
+  - `player_access_tokens` — dropped duplicate / loose SELECTs (kept the correctly-scoped pair: anon-can-verify-active-non-expired + parent-can-view-own-children)
+- Verified via `SET ROLE anon` and `SET request.jwt.claim.sub`:
+  - anon → 0 rows on all 5 sensitive tables
+  - manager / coach → all 4 U11 players
+  - tippjr → only Bo
+  - tippjr → only Fire FC U11 (was seeing both teams before)
+
+#### 3. 7-day token expiry default + backfill (same migration)
+- `ALTER TABLE player_access_tokens ALTER COLUMN expires_at SET DEFAULT (now() + interval '7 days')`
+- Backfilled all 23 NULL `expires_at` rows to `created_at + 7d` — many were created weeks ago, so they are now expired
+- **User-visible side effect:** existing kid access links no longer work; parents must regenerate from the parent dashboard
+
+#### 4. Sentry PII scrubber (commit 69a3bc3)
+- `src/main.jsx` — added `beforeSend` and `beforeBreadcrumb` to:
+  - Drop events whose `request.url` matches `/auth`, `/login`, `/reset-password`, `/player-access`
+  - Drop `category: 'ui.input'` breadcrumbs (form values)
+  - Redact keys matching `email | phone | pin | password | token | secret | api_key | guardian` from event/breadcrumb data
+  - Strip `event.user.email`, `cookies`, `Authorization` header
+- `sendDefaultPii: false` set explicitly
+
+#### 5. Browser-side Gemini calls gated off (commit 8b8fcdf)
+- Three components were calling Gemini directly with `VITE_GEMINI_API_KEY` (would bake into the public bundle):
+  - `src/components/AIAssistant.jsx` (early-return + sendMessage stub)
+  - `src/context/VoiceCommandContext.jsx::processWithAI` (returns friendly "use a direct command" message; voice navigation pattern matching still works)
+  - `src/components/dashboard/VoiceScoutingNotes.jsx::processWithAI` (manual scouting notes still work, AI cleanup gated)
+- Each gated behind a feature flag (`VITE_AI_ASSISTANT_ENABLED`, `VITE_AI_VOICE_ENABLED`, `VITE_AI_SCOUTING_ENABLED`); default off
+- Re-enable each ONLY after moving its LLM call to a Supabase edge function (same pattern as `ai-polish-feedback`)
+- `VITE_GEMINI_API_KEY` removed from `.env.local` (was never in git per `.gitignore`); `.env.example` updated
+- The real Gemini key should be rotated as hygiene (low priority — never committed)
+
+#### 6. Email-Parents button gated (commit 8b8fcdf)
+- `src/components/dashboard/AIFeedbackModal.jsx` — Email button now hidden when `VITE_RESEND_ENABLED !== 'true'`. SMS button stays. Layout collapses to 1-col when email is hidden
+- Decision: stay on SMS-only for the pilot. Resend setup deferred (user opted to skip for now)
+
+#### 7. Pre-existing badge + tenancy work landed (commit 9d544c4)
+- Swept up uncommitted Apr 29 work:
+  - `src/components/BadgeUnlockBanner.jsx` (new)
+  - Tweaks to `PlayerEvaluationModal.jsx`, `ParentDashboard.jsx`, `PlayerDashboard.jsx`
+  - `supabase/migrations/20260429_badge_unlock_seen_at.sql`
+  - `supabase/migrations/20260429_role_and_tenancy_phase1.sql` + ROLLBACK + hotfix (already applied to prod)
+  - `.claude/CLAUDE.md` — corrected stale project ref `nycprdmatvcprfujicoh` → `bcfemytoburctssnemwn`
+
+#### 8. Pushed 4 commits, build green, Vercel auto-deploying
+- `npm run build` — 12.24s, clean; verified `dist/assets/*.js` contains no `AIzaSy*` strings
+- `git push origin main` — `ab19cc5..9d544c4`
+- Vercel picks up `main` automatically
+
+#### 9. Playwright smoke suite — 24/24 passed (1.4 min)
+- All coach dashboard, parent dashboard, leaderboard, navigation tests green against the new RLS
+- Confirms passwords still work for `berttipp@gmail.com` and `tippjr@yahoo.com` (`252525`)
+- Specs cover: load + tabs, eval modal, training stats, leaderboard toggle, nav, parent training breakdown, solo builder, events, logout
+
+### Still TODO
+
+#### Pre-pilot (must do before kids touch it)
+- [ ] Albert: clean-browser smoke test of all 3 login paths (manager / coach / parent) + kid via fresh access link
+- [ ] tippjr: regenerate kid access link for Bo (old one now expired by 7-day backfill)
+- [ ] Optional: rotate Gemini API key at https://aistudio.google.com/app/apikey
+
+#### Tier 2 (during supervised pilot, first 1–2 weeks)
+- [ ] Audit log table + triggers on `players`, `family_members`, `coach_notes`, `player_access_tokens`, `team_memberships`
+- [ ] Refactor `send-coach-feedback` to use a parameterized `family_members` join instead of `admin.auth.admin.listUsers({ perPage: 1000 })`
+- [ ] Lightweight COPPA consent gate (`parental_consents` table + checkbox in parent signup; block player data queries until present)
+- [ ] Verify Storage bucket policies for `media_gallery` and commit them as SQL
+- [ ] Tighten remaining loose RLS (`organizations`, more `event_*` if any) — same helper-fn pattern
+
+#### Tier 3 (before broader rollout)
+- [ ] PIN login (Path B) with rate-limit + 5-fail lockout (only when actually enabled)
+- [ ] Multi-team RLS isolation regression test (Playwright: user on Team B can't see Team A players)
+- [ ] Data retention: soft-delete + scheduled hard-delete for aged-out players (turn 13)
+- [ ] Coach self-signup flow (currently every coach is added manually in Supabase Dashboard)
+- [ ] Coach settings UI (Phase 4 leftover — notification prefs, etc.)
+- [ ] Resend email — full setup (verified domain, secret, flip `VITE_RESEND_ENABLED=true`)
+
+### Files / migrations referenced
+- New: `supabase/migrations/20260508_rls_tighten_phase1.sql` + ROLLBACK
+- Plan: `.claude/plans/pure-wobbling-galaxy.md`
+
+---
+
 ## Session: 2026-04-22 (AI voice polish + parent delivery)
 
 ### Context
