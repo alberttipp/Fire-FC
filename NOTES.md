@@ -1,5 +1,75 @@
 # Fire-FC Development Notes
 
+## Session: 2026-05-09 (commercial-readiness pass + Orlando onboarded)
+
+### Context
+- After yesterday's data-safety hardening, Albert tried the AI Practice builder
+  on his phone and hit "no drills available — run npm run seed:permanent in your
+  terminal" (a developer message shipped to a parent). Triggered a broader
+  pass on robustness across the whole app.
+
+### Today's actions
+
+#### 1. Drill library race condition + mobile cache staleness (commits d5c5ffa, 1d3b7c9)
+- Replaced `[loaded, setLoaded] = useState(false)` + `[noXxxWarning, setNoXxxWarning] = useState(false)` boolean pairs in PracticeSessionBuilder and ParentSessionBuilder with a 3-state machine: `'loading' | 'ready' | 'error'`.
+- Pulled drill fetch out of useEffect into a callable function with one auto-retry on transient failure.
+- "Generate" handler now distinguishes still-loading (returns silently) from genuinely empty (banner) from failed (banner + retry).
+- Replaced "Run npm run seed:permanent in your terminal" banner with friendly retry banner + retry button.
+- vercel.json cache headers: `/index.html` and `/version.json` are `must-revalidate`, `/assets/*` is `immutable, max-age=31536000`. Net effect: every Vercel deploy reaches every device on next page load — never need to teach a user "hard refresh" again.
+- ErrorBoundary: added "Reload App" button alongside Try Again / Login.
+
+#### 2. Fragile-fetch audit + 30+ alert() → toast sweep (commit edf21d4)
+- Spawned an Explore agent to inventory anti-patterns (alert, dev-speak, fetch-on-mount-with-console-only-error, silent failures, boolean flags that should be state machines).
+- Replaced alert() with the existing Toast provider (success/warning/error/info) across 20 files.
+- Hardened ChatView: fetchChannels now actually populates the existing chatError state, sidebar shows Loading / Error+Retry / Empty / Channels — never silent empty when the network is down.
+- Same 3-state pattern applied to DrillLibraryModal.
+- ParentDashboard: link-gen failure + homework-workflow alert both use toast.
+
+#### 3. Login UX + bundle code-split + version drift detection + custom confirm dialog (commit f55db41)
+- `src/utils/authErrors.js` translates Supabase auth error messages to friendly copy ("Invalid login credentials" → "Wrong email or password.").
+- React.lazy code-split: initial JS bundle dropped from **1.21 MB / 335 KB gzipped → 592 KB / 170 KB gzipped (-49%)**. Lazy: ClubView, TeamView, TrainingView, PrivateTrainingView, ChatView, CalendarHub, GalleryView, FinancialView, TryoutHub, LiveScoringView, CarpoolVolunteerView, RulesView, NotificationPanel, DrillLibraryModal, PlayerEvaluationModal, ParentSessionBuilder.
+- `useVersionDrift` hook + tiny vite plugin emits `dist/version.json` at build time. Polled every 5 min + on tab focus; toast prompts user when deployed commit SHA differs from baked-in SHA. Solves warm-session staleness.
+- `ConfirmDialogProvider` + `useConfirm()` promise-based dialog replaces 6 native `window.confirm()` popups (delete invite/photo/client/note, cancel session). Destructive actions get red buttons, neutral get green.
+- All 24 Playwright tests still pass through every wave.
+
+#### 4. Orlando's coach account created (no commit — DB only)
+- Account `o.raptors0709@gmail.com` created via direct SQL insert into `auth.users` + `auth.identities` + `team_memberships` (Supabase MCP doesn't expose admin user-creation; pgcrypto's `crypt(pwd, gen_salt('bf'))` produced the bcrypt hash GoTrue uses).
+- Password: `252525` (verified hash matches via `crypt('252525', encrypted_password)`).
+- `full_name`: "Orlando Jimenez". `email_confirmed_at = now()` so no email confirmation flow needed.
+- Added to `team_memberships` as `role=coach` on Fire FC U11.
+- RLS verified per-role from Postgres: 4 players visible, 1 team (U11 only — not U11 Summer), 0 private clients (his book starts empty, separate from Albert's).
+
+### Final account map after today
+
+| Email | Role | Team(s) | Owner |
+|---|---|---|---|
+| `alberttipp@gmail.com` | manager | Fire FC U11 + U11 Summer | Albert (primary) |
+| `berttipp@gmail.com` | coach | Fire FC U11 | **Albert** (NOT Orlando — secondary email Albert uses to test the coach view) |
+| `tippjr@yahoo.com` | parent | Fire FC U11 | Albert (also linked as Bo's guardian via family_members) |
+| `o.raptors0709@gmail.com` | coach | Fire FC U11 | **Orlando Jimenez** (real coach) |
+
+All four use password `252525` for now.
+
+**Important:** the prior memory note that called `berttipp@gmail.com` "Coach O / Orlando" was wrong — that's Albert's secondary. Orlando didn't exist in auth.users until today.
+
+### Private Training visibility quirk to remember
+- `training_clients`, `training_sessions`, `training_session_attendees` RLS is `coach_id = auth.uid()`. Per-coach, not per-team. By design.
+- Logging in as `berttipp@gmail.com` (Albert's coach test account) **doesn't** show Orlando's private clients — they're scoped to Orlando's `auth.uid`. To debug something Orlando reports in his Private tab, you must log in as him directly (or have him screen-share).
+
+### Still TODO
+- [ ] Albert: smoke-test all 3 login paths in a clean browser (you / Orlando / parent + kid via fresh access link)
+- [ ] Albert: regenerate Bo's access link from parent dashboard (old one expired by yesterday's 7-day backfill)
+- [ ] (Deferred per Albert) network resilience helper, audit_log table, COPPA consent gate, send-coach-feedback refactor, Storage policy verification
+- [ ] Coach self-signup-with-team flow (currently the signup form makes coaches with no team_membership — Albert has to add the row manually). Becomes important when adding the Rockford Christian Royals club.
+- [ ] Cleanup: existing 3 accounts have `full_name = NULL` on auth.users.user_metadata. Cosmetic only; the app shows email when full_name is missing.
+
+### Bundle stats after code-split
+- Initial: 170 KB gzipped (was 335 KB)
+- Per-tab chunks loaded on-demand: TrainingView 16 KB, CalendarHub 14 KB, TeamView 12 KB, ChatView 5 KB, GalleryView 4 KB, etc.
+- PlayerEvaluationModal: 94 KB (heavy due to recharts) — only loads when a coach opens a player profile.
+
+---
+
 ## Session: 2026-05-08 → 2026-05-09 (pre-pilot data-safety hardening)
 
 ### Context
