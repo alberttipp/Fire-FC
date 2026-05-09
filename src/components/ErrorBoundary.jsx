@@ -46,7 +46,14 @@ class ErrorBoundary extends React.Component {
                                 <RefreshCw className="w-4 h-4" />
                                 Try Again
                             </button>
-                            
+
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="px-6 py-2 border border-white/20 text-white rounded hover:bg-white/5 transition-colors"
+                            >
+                                Reload App
+                            </button>
+
                             <button
                                 onClick={() => window.location.href = '/login'}
                                 className="px-6 py-2 border border-white/20 text-white rounded hover:bg-white/5 transition-colors"

@@ -88,8 +88,12 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const [expandedCategory, setExpandedCategory] = useState(null);
     const [expandedDrills, setExpandedDrills] = useState(new Set());
     const [drillTemplates, setDrillTemplates] = useState([]);
-    const [drillsLoaded, setDrillsLoaded] = useState(false);
-    const [noDrillsWarning, setNoDrillsWarning] = useState(false);
+    // 'loading' = first fetch in flight, 'ready' = success (drillTemplates is the truth),
+    // 'error' = fetch failed and we should let user retry. Don't conflate "still loading"
+    // with "library is empty".
+    const [drillsFetchState, setDrillsFetchState] = useState('loading');
+    const [drillsFetchError, setDrillsFetchError] = useState(null);
+    const drillFetchRef = useRef(null);
 
     // Session-level metadata
     const [sessionEquipment, setSessionEquipment] = useState([]);
@@ -177,52 +181,78 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
 
             setSavedSessions(sessions || []);
 
-            // Get drills from database (library only — exclude user customs)
-            const { data: drills, error: drillsError } = await supabase
-                .from('drills')
-                .select('*')
-                .eq('is_custom', false)
-                .order('category', { ascending: true });
-
-            if (drillsError) {
-                console.error('Error fetching drills:', drillsError);
-                setNoDrillsWarning(true);
-            } else if (drills && drills.length > 0) {
-                // Map database categories to UI category IDs
-                const categoryMap = {
-                    'Warm-Up': 'warmup',
-                    'First Touch': 'technical',
-                    'Ball Mastery (Solo)': 'technical',
-                    'Passing & Receiving': 'passing',
-                    'Finishing & Shooting': 'shooting',
-                    'Tactical / Game Intelligence': 'tactical',
-                    'Defending': 'tactical',
-                    'Conditioning': 'fitness',
-                    'Speed & Agility': 'fitness',
-                    'Small-Sided Games': 'game',
-                    'Cool Down': 'cooldown'
-                };
-
-                // Transform to match expected format
-                const transformed = drills.map(d => ({
-                    id: d.id,
-                    category: categoryMap[d.category] || 'technical',
-                    originalCategory: d.category,
-                    name: d.name,
-                    duration: d.duration || 10,
-                    description: d.description || ''
-                }));
-                setDrillTemplates(transformed);
-                setDrillsLoaded(true);
-                console.log(`✅ Loaded ${drills.length} drills from database`);
-            } else {
-                console.warn('⚠️ No drills found in database. Run: npm run seed:permanent');
-                setNoDrillsWarning(true);
-            }
+            await fetchDrills();
         };
 
         fetchData();
     }, [profile?.id]);
+
+    // Drill library fetch — pulled out so we can retry on demand. One automatic
+    // retry with a small backoff so a single network blip doesn't strand the
+    // user staring at "no drills."
+    const fetchDrills = async ({ attempt = 1 } = {}) => {
+        // Coalesce concurrent calls (e.g. user hits Generate while the mount
+        // fetch is still in flight).
+        if (drillFetchRef.current) return drillFetchRef.current;
+
+        const inflight = (async () => {
+            setDrillsFetchState('loading');
+            setDrillsFetchError(null);
+
+            const { data: drills, error: drillsError } = await supabase
+                .from('drills')
+                .select('id, name, category, duration, description, is_custom')
+                .eq('is_custom', false)
+                .order('category', { ascending: true });
+
+            if (drillsError) {
+                console.error('Error fetching drills (attempt', attempt, '):', drillsError);
+                if (attempt < 2) {
+                    drillFetchRef.current = null;
+                    await new Promise((r) => setTimeout(r, 800));
+                    return fetchDrills({ attempt: attempt + 1 });
+                }
+                setDrillsFetchState('error');
+                setDrillsFetchError(drillsError.message || 'Could not load drills.');
+                return false;
+            }
+
+            const categoryMap = {
+                'Warm-Up': 'warmup',
+                'First Touch': 'technical',
+                'Ball Mastery (Solo)': 'technical',
+                'Passing & Receiving': 'passing',
+                'Finishing & Shooting': 'shooting',
+                'Tactical / Game Intelligence': 'tactical',
+                'Defending': 'tactical',
+                'Conditioning': 'fitness',
+                'Speed & Agility': 'fitness',
+                'Small-Sided Games': 'game',
+                'Cool Down': 'cooldown',
+            };
+
+            const transformed = (drills || []).map((d) => ({
+                id: d.id,
+                category: categoryMap[d.category] || 'technical',
+                originalCategory: d.category,
+                name: d.name,
+                duration: d.duration || 10,
+                description: d.description || '',
+            }));
+
+            setDrillTemplates(transformed);
+            setDrillsFetchState('ready');
+            console.log(`✅ Loaded ${transformed.length} drills`);
+            return true;
+        })();
+
+        drillFetchRef.current = inflight;
+        try {
+            return await inflight;
+        } finally {
+            drillFetchRef.current = null;
+        }
+    };
 
     // Speech recognition setup
     useEffect(() => {
@@ -359,9 +389,19 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
     const processVoiceWithAI = async (transcript) => {
         console.log('🤖 Processing with AI:', transcript);
 
+        // If drills haven't loaded yet (or last fetch failed), try once more
+        // before giving up. Mobile users hitting Generate before the initial
+        // fetch resolves shouldn't see a hard error.
         if (drillTemplates.length === 0) {
-            setAiError('No drills available in the database. Please seed the drill library first.');
-            return;
+            if (drillsFetchState === 'loading') {
+                setAiError('Drill library is still loading. Try again in a moment.');
+                return;
+            }
+            const ok = await fetchDrills();
+            if (!ok || drillTemplates.length === 0) {
+                setAiError("Couldn't load the drill library. Check your connection and try again.");
+                return;
+            }
         }
 
         setAiProcessing(true);
@@ -752,23 +792,36 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                     </div>
                 </div>
 
-                {/* Drills Warning Banner */}
-                {noDrillsWarning && (
+                {/* Drill library status — only shown when something is wrong */}
+                {drillsFetchState === 'error' && (
                     <div className="mx-4 sm:mx-6 mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
                         <div className="flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
                             <div className="flex-1">
-                                <h3 className="text-red-400 font-bold mb-1">No Drills Found in Database</h3>
-                                <p className="text-sm text-gray-300 mb-2">
-                                    The drills table is empty. You need to seed permanent data before you can build practice sessions.
+                                <h3 className="text-red-400 font-bold mb-1">Couldn't load the drill library</h3>
+                                <p className="text-sm text-gray-300 mb-3">
+                                    Check your connection and try again. If this keeps happening, contact your club admin.
                                 </p>
-                                <div className="text-xs text-gray-400 space-y-1">
-                                    <p><strong className="text-white">Step 1:</strong> Run <code className="bg-black/30 px-1 rounded">npm run seed:permanent</code> in your terminal</p>
-                                    <p><strong className="text-white">Step 2:</strong> Open Supabase Dashboard → SQL Editor</p>
-                                    <p><strong className="text-white">Step 3:</strong> Copy/paste contents of <code className="bg-black/30 px-1 rounded">supabase/seed/seed_permanent.sql</code></p>
-                                    <p><strong className="text-white">Step 4:</strong> Click "Run" - should seed 156 drills and 15 badges</p>
-                                </div>
+                                <button
+                                    onClick={() => fetchDrills()}
+                                    className="px-3 py-1.5 bg-red-500/20 border border-red-500/40 rounded text-sm text-red-200 hover:bg-red-500/30"
+                                >
+                                    Retry
+                                </button>
+                                {drillsFetchError && (
+                                    <p className="text-xs text-gray-500 mt-2">Details: {drillsFetchError}</p>
+                                )}
                             </div>
+                        </div>
+                    </div>
+                )}
+                {drillsFetchState === 'ready' && drillTemplates.length === 0 && (
+                    <div className="mx-4 sm:mx-6 mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5" />
+                            <p className="text-sm text-gray-300">
+                                The drill library is empty. Contact your club admin to add drills before building practice sessions.
+                            </p>
                         </div>
                     </div>
                 )}
@@ -818,7 +871,14 @@ const PracticeSessionBuilder = ({ onClose, onSave }) => {
                             <Sparkles className="w-4 h-4 text-brand-gold" />
                             AI Voice Builder
                         </h3>
-                        {aiProcessing ? (
+                        {drillsFetchState === 'loading' ? (
+                            <button
+                                disabled
+                                className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-white/5 border-2 border-white/10 text-gray-400 opacity-80"
+                            >
+                                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" /> Loading drill library…
+                            </button>
+                        ) : aiProcessing ? (
                             <button
                                 disabled
                                 className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-brand-green/10 border-2 border-brand-green/30 text-brand-green opacity-80"

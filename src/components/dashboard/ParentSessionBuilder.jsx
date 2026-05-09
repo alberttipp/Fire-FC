@@ -73,8 +73,10 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
     const [expandedCategory, setExpandedCategory] = useState(null);
     const [expandedDrills, setExpandedDrills] = useState(new Set());
     const [drillTemplates, setDrillTemplates] = useState([]);
-    const [drillsLoaded, setDrillsLoaded] = useState(false);
-    const [noDrillsWarning, setNoDrillsWarning] = useState(false);
+    // 'loading' | 'ready' | 'error' — distinguish "still fetching" from "library is empty".
+    const [drillsFetchState, setDrillsFetchState] = useState('loading');
+    const [drillsFetchError, setDrillsFetchError] = useState(null);
+    const drillFetchRef = useRef(null);
     const [saving, setSaving] = useState(false);
 
     // Session-level metadata (from AI)
@@ -99,50 +101,73 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
 
     const totalDuration = blocks.reduce((sum, b) => sum + (b.duration || 0), 0);
 
-    // Fetch drills from database
-    useEffect(() => {
-        const fetchDrills = async () => {
+    // Fetch drills from database — pulled out of useEffect so we can call it
+    // from the AI Generate handler too, e.g. to recover from a transient network
+    // error without making the user reload the page.
+    const fetchDrills = async ({ attempt = 1 } = {}) => {
+        if (drillFetchRef.current) return drillFetchRef.current;
+
+        const inflight = (async () => {
+            setDrillsFetchState('loading');
+            setDrillsFetchError(null);
+
             const { data: drills, error } = await supabase
                 .from('drills')
-                .select('*')
-                // Library only — exclude user-created custom drills (those
-                // are saved per-session and would otherwise pollute everyone's
-                // picker).
+                .select('id, name, category, duration, description, is_custom')
+                // Library only — exclude user-created custom drills (those are
+                // saved per-session and would otherwise pollute everyone's picker).
                 .eq('is_custom', false)
                 .order('category', { ascending: true });
 
             if (error) {
-                console.error('Error fetching drills:', error);
-                setNoDrillsWarning(true);
-            } else if (drills && drills.length > 0) {
-                const categoryMap = {
-                    'Warm-Up': 'warmup',
-                    'First Touch': 'technical',
-                    'Ball Mastery (Solo)': 'technical',
-                    'Passing & Receiving': 'passing',
-                    'Finishing & Shooting': 'shooting',
-                    'Tactical / Game Intelligence': 'tactical',
-                    'Defending': 'tactical',
-                    'Conditioning': 'fitness',
-                    'Speed & Agility': 'fitness',
-                    'Small-Sided Games': 'game',
-                    'Cool Down': 'cooldown'
-                };
-
-                const transformed = drills.map(d => ({
-                    id: d.id,
-                    category: categoryMap[d.category] || 'technical',
-                    originalCategory: d.category,
-                    name: d.name,
-                    duration: d.duration || 10,
-                    description: d.description || ''
-                }));
-                setDrillTemplates(transformed);
-                setDrillsLoaded(true);
-            } else {
-                setNoDrillsWarning(true);
+                console.error('Error fetching drills (attempt', attempt, '):', error);
+                if (attempt < 2) {
+                    drillFetchRef.current = null;
+                    await new Promise((r) => setTimeout(r, 800));
+                    return fetchDrills({ attempt: attempt + 1 });
+                }
+                setDrillsFetchState('error');
+                setDrillsFetchError(error.message || 'Could not load drills.');
+                return false;
             }
-        };
+
+            const categoryMap = {
+                'Warm-Up': 'warmup',
+                'First Touch': 'technical',
+                'Ball Mastery (Solo)': 'technical',
+                'Passing & Receiving': 'passing',
+                'Finishing & Shooting': 'shooting',
+                'Tactical / Game Intelligence': 'tactical',
+                'Defending': 'tactical',
+                'Conditioning': 'fitness',
+                'Speed & Agility': 'fitness',
+                'Small-Sided Games': 'game',
+                'Cool Down': 'cooldown',
+            };
+
+            const transformed = (drills || []).map((d) => ({
+                id: d.id,
+                category: categoryMap[d.category] || 'technical',
+                originalCategory: d.category,
+                name: d.name,
+                duration: d.duration || 10,
+                description: d.description || '',
+            }));
+
+            setDrillTemplates(transformed);
+            setDrillsFetchState('ready');
+            return true;
+        })();
+
+        drillFetchRef.current = inflight;
+        try {
+            return await inflight;
+        } finally {
+            drillFetchRef.current = null;
+        }
+    };
+
+    useEffect(() => {
         fetchDrills();
     }, []);
 
@@ -222,8 +247,16 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
 
     const processWithAI = async (transcript) => {
         if (drillTemplates.length === 0) {
-            alert('No drills available. Please try again later.');
-            return;
+            if (drillsFetchState === 'loading') {
+                // Don't surface the in-flight initial fetch as a hard error;
+                // the inline status banner already communicates loading state.
+                return;
+            }
+            const ok = await fetchDrills();
+            if (!ok || drillTemplates.length === 0) {
+                // The error banner will show; no alert() popup.
+                return;
+            }
         }
 
         setAiProcessing(true);
@@ -500,15 +533,32 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                     </button>
                 </div>
 
-                {/* No Drills Warning */}
-                {noDrillsWarning && (
+                {/* Drill library status */}
+                {drillsFetchState === 'error' && (
                     <div className="mx-4 sm:mx-6 mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
                         <div className="flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
-                            <div>
-                                <h3 className="text-red-400 font-bold mb-1">No Drills Available</h3>
-                                <p className="text-sm text-gray-300">The drill library is empty. Please contact your coach.</p>
+                            <div className="flex-1">
+                                <h3 className="text-red-400 font-bold mb-1">Couldn't load the drill library</h3>
+                                <p className="text-sm text-gray-300 mb-3">Check your connection and try again.</p>
+                                <button
+                                    onClick={() => fetchDrills()}
+                                    className="px-3 py-1.5 bg-red-500/20 border border-red-500/40 rounded text-sm text-red-200 hover:bg-red-500/30"
+                                >
+                                    Retry
+                                </button>
+                                {drillsFetchError && (
+                                    <p className="text-xs text-gray-500 mt-2">Details: {drillsFetchError}</p>
+                                )}
                             </div>
+                        </div>
+                    </div>
+                )}
+                {drillsFetchState === 'ready' && drillTemplates.length === 0 && (
+                    <div className="mx-4 sm:mx-6 mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5" />
+                            <p className="text-sm text-gray-300">The drill library is empty. Please contact your coach.</p>
                         </div>
                     </div>
                 )}
