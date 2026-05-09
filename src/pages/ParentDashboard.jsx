@@ -1,20 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import Leaderboard from '../components/player/Leaderboard';
-import CalendarHub from '../components/dashboard/CalendarHub';
-import ChatView from '../components/dashboard/ChatView';
-import GalleryView from '../components/dashboard/GalleryView';
-import LiveScoringView from '../components/dashboard/LiveScoringView';
-import CarpoolVolunteerView from '../components/dashboard/CarpoolVolunteerView';
-import DrillLibraryModal from '../components/dashboard/DrillLibraryModal';
-// ParentSessionBuilder import removed — builder now lives on player dashboard.
-import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import { useToast } from '../components/Toast';
+
+// Lazy-load tab views and heavy modals so the parent dashboard's first
+// paint is small. Same chunks are shared with /dashboard.
+const CalendarHub = lazy(() => import('../components/dashboard/CalendarHub'));
+const ChatView = lazy(() => import('../components/dashboard/ChatView'));
+const GalleryView = lazy(() => import('../components/dashboard/GalleryView'));
+const LiveScoringView = lazy(() => import('../components/dashboard/LiveScoringView'));
+const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolVolunteerView'));
+const DrillLibraryModal = lazy(() => import('../components/dashboard/DrillLibraryModal'));
+const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
+
+const ViewLoader = () => (
+    <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 text-brand-green animate-spin" />
+    </div>
+);
 // BadgeCelebration intentionally NOT imported here. Badge unlock UX lives
 // only on the player dashboard so a parent watching the screen can't
 // dismiss the celebration before the kid sees it.
@@ -941,14 +949,16 @@ const ParentDashboard = () => {
         <div className="min-h-screen bg-brand-dark pb-20">
             {/* Drill Library Modal */}
             {showDrillLibrary && selectedChild && (
-                <DrillLibraryModal
-                    onClose={() => {
-                        setShowDrillLibrary(false);
-                        if (selectedChild?.id) fetchChildDetails(selectedChild.id);
-                    }}
-                    player={selectedChild}
-                    teamId={selectedChild?.team_id}
-                />
+                <Suspense fallback={null}>
+                    <DrillLibraryModal
+                        onClose={() => {
+                            setShowDrillLibrary(false);
+                            if (selectedChild?.id) fetchChildDetails(selectedChild.id);
+                        }}
+                        player={selectedChild}
+                        teamId={selectedChild?.team_id}
+                    />
+                </Suspense>
             )}
 
             {/* Solo Training Builder lives on the player dashboard now;
@@ -1022,15 +1032,19 @@ const ParentDashboard = () => {
 
             {/* Player Details Modal */}
             {showDetails && selectedChild && (
-                <PlayerEvaluationModal
-                    player={formatPlayerForCard(selectedChild)}
-                    onClose={() => setShowDetails(false)}
-                    readOnly={true}
-                />
+                <Suspense fallback={null}>
+                    <PlayerEvaluationModal
+                        player={formatPlayerForCard(selectedChild)}
+                        onClose={() => setShowDetails(false)}
+                        readOnly={true}
+                    />
+                </Suspense>
             )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-                {renderView()}
+                <Suspense fallback={<ViewLoader />}>
+                    {renderView()}
+                </Suspense>
             </main>
         </div>
     );

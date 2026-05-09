@@ -6,6 +6,7 @@ import {
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 
 // Browser-side Gemini call disabled — would expose API key in public bundle.
 // Manual scouting note entry remains; AI cleanup is gated.
@@ -14,6 +15,7 @@ const AI_SCOUTING_ENABLED = import.meta.env.VITE_AI_SCOUTING_ENABLED === 'true';
 const VoiceScoutingNotes = ({ onClose }) => {
     const { user, profile } = useAuth();
     const toast = useToast();
+    const confirm = useConfirm();
     const [isRecording, setIsRecording] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [playerName, setPlayerName] = useState('');
@@ -196,7 +198,12 @@ Return ONLY valid JSON (no markdown):
 
     // Delete note
     const deleteNote = async (noteId) => {
-        if (!confirm('Delete this note?')) return;
+        const ok = await confirm({
+            title: 'Delete this note?',
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return;
         
         try {
             await supabase.from('scouting_notes').delete().eq('id', noteId);

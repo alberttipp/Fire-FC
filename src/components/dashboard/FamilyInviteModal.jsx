@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, Shield, Heart, Copy, Check, Trash2, Plus, Users } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 
 const FamilyInviteModal = ({ player, onClose }) => {
     const toast = useToast();
+    const confirm = useConfirm();
     const [invites, setInvites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -71,7 +73,13 @@ const FamilyInviteModal = ({ player, onClose }) => {
     };
 
     const handleDeleteInvite = async (id) => {
-        if (!confirm('Are you sure you want to delete this invite? The code will no longer work.')) return;
+        const ok = await confirm({
+            title: 'Delete this invite?',
+            body: 'The code will no longer work.',
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return;
 
         try {
             const { error } = await supabase

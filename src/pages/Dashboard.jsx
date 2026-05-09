@@ -1,23 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2 } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
-import ClubView from '../components/dashboard/ClubView';
-import TeamView from '../components/dashboard/TeamView';
-import TrainingView from '../components/dashboard/TrainingView';
-import PrivateTrainingView from '../components/dashboard/PrivateTrainingView';
-import ChatView from '../components/dashboard/ChatView';
-import CalendarHub from '../components/dashboard/CalendarHub';
-import FinancialView from '../components/dashboard/FinancialView';
-import TryoutHub from '../components/dashboard/TryoutHub';
-import GalleryView from '../components/dashboard/GalleryView';
-import LiveScoringView from '../components/dashboard/LiveScoringView';
-import CarpoolVolunteerView from '../components/dashboard/CarpoolVolunteerView';
-import RulesView from '../components/dashboard/RulesView';
-import NotificationPanel from '../components/dashboard/NotificationPanel';
 import { supabase } from '../supabaseClient';
+
+// Lazy-load every tab view so the initial Dashboard bundle is small.
+// Each view is its own chunk; users only download the ones they actually
+// open. ClubView is the default landing view but still lazy — Suspense
+// fallback covers the ~100ms first-load.
+const ClubView = lazy(() => import('../components/dashboard/ClubView'));
+const TeamView = lazy(() => import('../components/dashboard/TeamView'));
+const TrainingView = lazy(() => import('../components/dashboard/TrainingView'));
+const PrivateTrainingView = lazy(() => import('../components/dashboard/PrivateTrainingView'));
+const ChatView = lazy(() => import('../components/dashboard/ChatView'));
+const CalendarHub = lazy(() => import('../components/dashboard/CalendarHub'));
+const FinancialView = lazy(() => import('../components/dashboard/FinancialView'));
+const TryoutHub = lazy(() => import('../components/dashboard/TryoutHub'));
+const GalleryView = lazy(() => import('../components/dashboard/GalleryView'));
+const LiveScoringView = lazy(() => import('../components/dashboard/LiveScoringView'));
+const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolVolunteerView'));
+const RulesView = lazy(() => import('../components/dashboard/RulesView'));
+const NotificationPanel = lazy(() => import('../components/dashboard/NotificationPanel'));
+
+const ViewLoader = () => (
+    <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 text-brand-green animate-spin" />
+    </div>
+);
 
 const Dashboard = () => {
     const { user, profile, signOut } = useAuth(); // Added profile
@@ -291,7 +302,9 @@ const Dashboard = () => {
 
             {/* Main Content Area */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
-                {renderView()}
+                <Suspense fallback={<ViewLoader />}>
+                    {renderView()}
+                </Suspense>
             </main>
 
             {/* Mobile Bottom Nav */}
@@ -306,18 +319,20 @@ const Dashboard = () => {
 
             {/* Notification Panel */}
             {showNotifications && (
-                <NotificationPanel
-                    onClose={() => {
-                        setShowNotifications(false);
-                        supabase
-                            .from('notifications')
-                            .select('*', { count: 'exact', head: true })
-                            .eq('user_id', user?.id)
-                            .eq('read', false)
-                            .then(({ count }) => setUnreadCount(count || 0));
-                    }}
-                    onAutoGenerate={handleAutoGenerate}
-                />
+                <Suspense fallback={null}>
+                    <NotificationPanel
+                        onClose={() => {
+                            setShowNotifications(false);
+                            supabase
+                                .from('notifications')
+                                .select('*', { count: 'exact', head: true })
+                                .eq('user_id', user?.id)
+                                .eq('read', false)
+                                .then(({ count }) => setUnreadCount(count || 0));
+                        }}
+                        onAutoGenerate={handleAutoGenerate}
+                    />
+                </Suspense>
             )}
         </div>
     );

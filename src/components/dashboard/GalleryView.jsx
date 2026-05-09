@@ -3,10 +3,12 @@ import { Camera, Upload, X, Trash2, Loader2, ChevronLeft, ChevronRight, Calendar
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 
 const GalleryView = () => {
     const { user, profile } = useAuth();
     const toast = useToast();
+    const confirm = useConfirm();
     const [media, setMedia] = useState([]);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -192,9 +194,13 @@ const GalleryView = () => {
     };
 
     const handleDelete = async (item) => {
-        // Native confirm() is OK here — destructive action benefits from
-        // explicit user attention. Replace with a custom modal in a later pass.
-        if (!confirm('Delete this photo?')) return;
+        const ok = await confirm({
+            title: 'Delete this photo?',
+            body: 'This cannot be undone.',
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return;
 
         try {
             // Delete from storage

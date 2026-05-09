@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../components/Toast';
 import { isValidEmail, isValidPassword } from '../utils/validation';
+import { friendlyAuthError } from '../utils/authErrors';
 import { Mail, Lock, ArrowLeft, CheckCircle, KeyRound } from 'lucide-react';
 
 const ResetPassword = () => {
@@ -73,7 +74,8 @@ const ResetPassword = () => {
             setSuccess(true);
             toast.success('Reset link sent! Check your email.');
         } catch (error) {
-            toast.error(error.message || 'Failed to send reset email');
+            console.error('Reset request error:', error);
+            toast.error(friendlyAuthError(error));
         } finally {
             setLoading(false);
         }
@@ -108,12 +110,13 @@ const ResetPassword = () => {
             if (error) throw error;
 
             toast.success('Password updated successfully!');
-            
+
             // Sign out and redirect to login
             await supabase.auth.signOut();
             setTimeout(() => navigate('/login'), 1500);
         } catch (error) {
-            toast.error(error.message || 'Failed to update password');
+            console.error('Password update error:', error);
+            toast.error(friendlyAuthError(error));
         } finally {
             setLoading(false);
         }

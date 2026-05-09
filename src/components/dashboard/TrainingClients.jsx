@@ -7,10 +7,12 @@ import {
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 
 const TrainingClients = () => {
     const { user, profile } = useAuth();
     const toast = useToast();
+    const confirm = useConfirm();
     const [clients, setClients] = useState([]);
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -103,7 +105,13 @@ const TrainingClients = () => {
 
     // Delete client
     const deleteClient = async (clientId) => {
-        if (!confirm('Delete this client? This cannot be undone.')) return;
+        const ok = await confirm({
+            title: 'Delete this client?',
+            body: "This cannot be undone. The client's session history will be removed too.",
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return;
         
         try {
             await supabase.from('training_clients').delete().eq('id', clientId);
@@ -162,7 +170,14 @@ const TrainingClients = () => {
 
     // Cancel session
     const cancelSession = async (sessionId) => {
-        if (!confirm('Cancel this session?')) return;
+        const ok = await confirm({
+            title: 'Cancel this session?',
+            body: "The client will be marked cancelled. You can re-schedule later.",
+            confirmLabel: 'Cancel session',
+            cancelLabel: 'Keep it',
+            destructive: true,
+        });
+        if (!ok) return;
         
         try {
             await supabase

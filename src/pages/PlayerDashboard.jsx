@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import PlayerCard from '../components/player/PlayerCard';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
@@ -7,10 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
 import FireBall from '../game/FireBall';
-import PlayerEvaluationModal from '../components/dashboard/PlayerEvaluationModal';
-import ParentSessionBuilder from '../components/dashboard/ParentSessionBuilder';
 import BadgeCelebration from '../components/BadgeCelebration';
 import BadgeUnlockBanner from '../components/BadgeUnlockBanner';
+
+// Heavy modals — only loaded when the user opens them.
+const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
+const ParentSessionBuilder = lazy(() => import('../components/dashboard/ParentSessionBuilder'));
 
 import { supabase } from '../supabaseClient';
 
@@ -433,11 +435,13 @@ const PlayerDashboard = () => {
 
             {/* Player Details Modal */}
             {showDetails && (
-                <PlayerEvaluationModal
-                    player={playerProfile}
-                    onClose={() => setShowDetails(false)}
-                    readOnly={true}
-                />
+                <Suspense fallback={null}>
+                    <PlayerEvaluationModal
+                        player={playerProfile}
+                        onClose={() => setShowDetails(false)}
+                        readOnly={true}
+                    />
+                </Suspense>
             )}
 
             {/* Celebration Overlay */}
@@ -620,21 +624,23 @@ const PlayerDashboard = () => {
 
             {/* Solo Training Builder modal */}
             {showSessionBuilder && playerRecord && (
-                <ParentSessionBuilder
-                    saveMode="player"
-                    onClose={() => setShowSessionBuilder(false)}
-                    onSave={() => {
-                        // Refetch the assignments list immediately so the
-                        // newly-saved drills show up in HomeworkHub without
-                        // a page reload. Also dispatch the drill-completed
-                        // event so Leaderboard refreshes.
-                        refetchAssignments();
-                        window.dispatchEvent(new CustomEvent('drill-completed'));
-                    }}
-                    playerId={playerRecord.id}
-                    teamId={playerRecord.team_id}
-                    playerName={playerRecord.first_name}
-                />
+                <Suspense fallback={null}>
+                    <ParentSessionBuilder
+                        saveMode="player"
+                        onClose={() => setShowSessionBuilder(false)}
+                        onSave={() => {
+                            // Refetch the assignments list immediately so the
+                            // newly-saved drills show up in HomeworkHub without
+                            // a page reload. Also dispatch the drill-completed
+                            // event so Leaderboard refreshes.
+                            refetchAssignments();
+                            window.dispatchEvent(new CustomEvent('drill-completed'));
+                        }}
+                        playerId={playerRecord.id}
+                        teamId={playerRecord.team_id}
+                        playerName={playerRecord.first_name}
+                    />
+                </Suspense>
             )}
         </div>
     );

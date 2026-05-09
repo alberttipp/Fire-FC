@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { isValidEmail, isValidPassword, isValidName, isValidPin } from '../utils/validation';
+import { friendlyAuthError } from '../utils/authErrors';
 import { Rocket, Shield, Users, User, ArrowRight, Lock, UserCircle, Mail } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
@@ -98,7 +99,7 @@ const Login = () => {
                         if (joinError) throw joinError;
                     } catch (codeErr) {
                         console.error("Invite Code Error:", codeErr);
-                        toast.warning(`Account created, but failed to join team: ${codeErr.message}`);
+                        toast.warning(`Account created, but the team code didn't work: ${friendlyAuthError(codeErr)}`);
                     }
                 }
 
@@ -125,7 +126,8 @@ const Login = () => {
                 }
             }
         } catch (error) {
-            toast.error(error.message || 'Authentication failed');
+            console.error('Auth error:', error);
+            toast.error(friendlyAuthError(error));
         } finally {
             setLoading(false);
         }
@@ -155,7 +157,8 @@ const Login = () => {
             setTeamRoster(data);
             toast.success("Team found! Select your name.");
         } catch (err) {
-            toast.error(err.message);
+            console.error('Team lookup error:', err);
+            toast.error(friendlyAuthError(err));
         } finally {
             setLoading(false);
         }
@@ -177,7 +180,10 @@ const Login = () => {
             navigate('/player-dashboard');
 
         } catch (err) {
-            toast.error(err.message || 'Invalid PIN');
+            console.error('Player login error:', err);
+            toast.error(friendlyAuthError(err) === err.message
+                ? 'That PIN is wrong. Try again.'
+                : friendlyAuthError(err));
         } finally {
             setLoading(false);
         }

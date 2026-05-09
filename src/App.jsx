@@ -8,13 +8,23 @@ import ResetPassword from './pages/ResetPassword';
 import PlayerAccessPage from './pages/PlayerAccessPage';
 import PrivateRoute from './components/PrivateRoute';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ToastProvider } from './components/Toast';
+import { ToastProvider, useToast } from './components/Toast';
+import { ConfirmDialogProvider } from './components/ConfirmDialog';
+import { useVersionDrift } from './hooks/useVersionDrift';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { VoiceCommandProvider } from './context/VoiceCommandContext';
 import AIAssistant from './components/AIAssistant';
 import VoiceCommandOverlay from './components/VoiceCommandOverlay';
 import BuildStamp from './components/BuildStamp';
 import { logBuildInfo } from './utils/buildInfo';
+
+// Watches for a new deploy while the user has the app open. Lives inside
+// the ToastProvider so it can surface the "new version" prompt as a toast.
+const VersionDriftWatcher = () => {
+  const toast = useToast();
+  useVersionDrift({ toast });
+  return null;
+};
 
 // Wrapper to conditionally show AI Assistant and Voice Commands
 const AIAssistantWrapper = () => {
@@ -58,6 +68,8 @@ function App() {
   return (
     <ErrorBoundary>
       <ToastProvider>
+        <ConfirmDialogProvider>
+        <VersionDriftWatcher />
         <Router>
           <AuthProvider>
             <VoiceCommandWrapper>
@@ -97,6 +109,7 @@ function App() {
             </VoiceCommandWrapper>
           </AuthProvider>
         </Router>
+        </ConfirmDialogProvider>
       </ToastProvider>
     </ErrorBoundary>
   );
