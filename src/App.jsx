@@ -6,6 +6,7 @@ import PlayerDashboard from './pages/PlayerDashboard';
 import ParentDashboard from './pages/ParentDashboard';
 import ResetPassword from './pages/ResetPassword';
 import PlayerAccessPage from './pages/PlayerAccessPage';
+import TryoutSignup from './pages/TryoutSignup';
 import PrivateRoute from './components/PrivateRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './components/Toast';
@@ -77,6 +78,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/player-access/:token" element={<PlayerAccessPage />} />
+                <Route path="/tryout-signup" element={<TryoutSignup />} />
                 <Route path="/dashboard" element={
                   <PrivateRoute>
                     <Dashboard />
