@@ -37,18 +37,16 @@ export function useVersionDrift({ toast, intervalMs = 5 * 60 * 1000 } = {}) {
                     prompted.current = true;
                     if (toast?.info) {
                         toast.info(
-                            'A new version of Fire FC is available — reload to update.',
-                            // sticky-ish: 12 seconds gives the user time to click reload
-                            12000
+                            'A new version of Fire FC is available.',
+                            // 30 seconds — long enough that a parent on a phone
+                            // can read it and tap before it auto-dismisses.
+                            30000,
+                            {
+                                label: 'Reload',
+                                onClick: () => window.location.reload(),
+                            }
                         );
                     }
-                    // Wait a beat so the toast has a chance to render, then
-                    // hard-reload. We don't auto-reload to avoid yanking
-                    // unsaved input out from under the user.
-                    setTimeout(() => {
-                        // Intentionally no-op: the user reloads when ready.
-                        // Future: wire a Reload button onto the toast itself.
-                    }, 0);
                 }
             } catch {
                 // Network blip; just try again next tick.
