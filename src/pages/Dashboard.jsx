@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
 
@@ -235,10 +235,12 @@ const Dashboard = () => {
 
                         <button
                             onClick={() => setShowPreviewPicker(true)}
-                            className="text-xs text-brand-gold border border-brand-gold/30 px-3 py-1.5 rounded hover:bg-brand-gold/10 uppercase tracking-wider hidden sm:inline-block"
+                            className="text-xs text-brand-gold border border-brand-gold/30 px-2 sm:px-3 py-1.5 rounded hover:bg-brand-gold/10 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5"
                             title="Preview the parent or player view of any player on your teams"
                         >
-                            Preview as…
+                            <Eye className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Preview as…</span>
+                            <span className="sm:hidden">Preview</span>
                         </button>
 
                         {/* Mobile View Switcher */}
