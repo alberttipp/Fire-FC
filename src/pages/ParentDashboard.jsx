@@ -956,7 +956,10 @@ const ParentDashboard = () => {
     };
 
     return (
-        <div className="min-h-screen bg-brand-dark pb-20">
+        // overflow-x-hidden defends against any decorative element (messi
+        // badge pokes 32px past the card's right edge, player image pokes
+        // 10px past) creating a horizontal scrollbar on narrow phones.
+        <div className="min-h-screen bg-brand-dark pb-20 overflow-x-hidden">
             {/* Drill Library Modal */}
             {showDrillLibrary && selectedChild && (
                 <Suspense fallback={null}>

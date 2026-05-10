@@ -34,7 +34,10 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
     return (
         <div
             onClick={handleCardClick}
-            className="relative w-80 h-[480px] group font-sans select-none cursor-pointer"
+            // w-full lets the card shrink on narrow phones (iPhone SE ≈ 343px
+            // available after page padding); max-w-80 keeps the original
+            // 320px size on anything wider so the layout looks identical.
+            className="relative w-full max-w-80 h-[480px] mx-auto group font-sans select-none cursor-pointer"
             style={{ perspective: '1000px' }}
         >
             {/* Messi Mode Badge Overlay */}
