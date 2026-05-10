@@ -3,7 +3,6 @@ import { X, Save, TrendingUp, Award, Medal, Clock, FileText, Target } from 'luci
 import CoachNotesPanel from './CoachNotesPanel';
 import IDPBuilder from './IDPBuilder';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import confetti from 'canvas-confetti';
 import { badges as mockBadges } from '../../data/badges';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -147,69 +146,6 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         fetchData();
     }, [player]);
 
-    // Effect for readOnly confetti
-    useEffect(() => {
-        if (readOnly) {
-            // "Soccer Ball Explosion" Effect
-            const count = 200;
-            const defaults = {
-                origin: { y: 0.7 },
-                zIndex: 1000,
-            };
-
-            const fire = (particleRatio, opts) => {
-                confetti({
-                    ...defaults,
-                    ...opts,
-                    particleCount: Math.floor(count * particleRatio),
-                    scalar: 2,
-                });
-            }
-
-            // Burst 1: "Soccer Balls"
-            fire(0.25, {
-                spread: 26,
-                startVelocity: 55,
-                shapes: ['circle'],
-                colors: ['#ffffff', '#000000', '#e0e0e0']
-            });
-
-            // Burst 2: More Balls
-            fire(0.2, {
-                spread: 60,
-                shapes: ['circle'],
-                colors: ['#ffffff', '#000000']
-            });
-
-            // Burst 3: Club Colors
-            fire(0.35, {
-                spread: 100,
-                decay: 0.91,
-                scalar: 0.8,
-                shapes: ['square'],
-                colors: ['#3b82f6', '#FFD700']
-            });
-
-            // Burst 4: Wide Energy
-            fire(0.1, {
-                spread: 120,
-                startVelocity: 25,
-                decay: 0.92,
-                scalar: 1.2,
-                shapes: ['circle'],
-                colors: ['#ffffff']
-            });
-
-            // Burst 5: Final Pop
-            fire(0.1, {
-                spread: 120,
-                startVelocity: 45,
-                shapes: ['circle'],
-                colors: ['#000000', '#ffffff']
-            });
-        }
-    }, [readOnly]);
-
     const data = Object.keys(stats).map(key => ({
         subject: key,
         A: stats[key],
@@ -227,15 +163,6 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
 
         // Optimistic UI Update
         setAwardedBadges(prev => ({ ...prev, [badgeId]: (prev[badgeId] || 0) + 1 }));
-
-        // Confetti
-        confetti({
-            particleCount: 30,
-            spread: 50,
-            origin: { y: 0.8 },
-            colors: ['#3b82f6', '#FFD700'],
-            zIndex: 10000
-        });
 
         // Database Insert - use player_user_id (the auth.users UUID linked to this player).
         // The column NAME says "user_id" so it MUST be the auth.users UUID, never the
@@ -321,15 +248,6 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 .insert([evaluationData]);
 
             if (error) throw error;
-
-            // Confetti on success
-            confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 },
-                colors: ['#3b82f6', '#FFD700', '#ffffff'],
-                zIndex: 10000
-            });
 
             toast.success('Evaluation saved.');
             onClose();

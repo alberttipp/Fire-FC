@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Shield, Star, TrendingUp } from 'lucide-react';
+import { Shield, Star, TrendingUp, RotateCw, ChevronRight } from 'lucide-react';
 
 const PlayerCard = ({ player, onClick, showBack = false }) => {
-    const [isFlipped, setIsFlipped] = useState(false);
+    const [isFlipped, setIsFlipped] = useState(showBack);
 
     // Default values if no player provided
     const {
@@ -20,22 +20,21 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
         image = "https://images.unsplash.com/photo-1511886929837-354d827aae26?q=80&w=1000&auto=format&fit=crop"
     } = player || {};
 
-    const handleClick = () => {
-        if (onClick) {
-            // Flip animation then call onClick
-            setIsFlipped(true);
-            setTimeout(() => {
-                onClick();
-                // Reset flip after modal opens
-                setTimeout(() => setIsFlipped(false), 300);
-            }, 600);
-        }
+    const handleCardClick = () => {
+        // Just flip — no auto-open. The back has a "View Full Profile" button
+        // that fires onClick when the user actually wants the detail modal.
+        setIsFlipped((f) => !f);
+    };
+
+    const handleOpenProfile = (e) => {
+        e.stopPropagation();
+        if (onClick) onClick();
     };
 
     return (
         <div
-            onClick={handleClick}
-            className={`relative w-80 h-[480px] group font-sans select-none ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
+            onClick={handleCardClick}
+            className="relative w-80 h-[480px] group font-sans select-none cursor-pointer"
             style={{ perspective: '1000px' }}
         >
             {/* Messi Mode Badge Overlay */}
@@ -147,47 +146,90 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
                     className="absolute inset-0 w-full h-full"
                     style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                 >
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-t-[2rem] rounded-br-[4rem] rounded-bl-[2rem] border-2 border-[#e94560]/30">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-t-[2rem] rounded-br-[4rem] rounded-bl-[2rem] border-2 border-brand-gold/40 overflow-hidden">
                         {/* Pattern overlay */}
-                        <div className="absolute inset-0 opacity-10">
+                        <div className="absolute inset-0 opacity-10 pointer-events-none">
                             <div className="w-full h-full" style={{
-                                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(233, 69, 96, 0.1) 10px, rgba(233, 69, 96, 0.1) 20px)'
+                                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(212, 175, 55, 0.15) 10px, rgba(212, 175, 55, 0.15) 20px)'
                             }}></div>
                         </div>
 
+                        {/* Inner frame */}
+                        <div className="absolute top-2 bottom-2 left-2 right-2 border-[1.5px] border-brand-gold/20 rounded-t-[1.8rem] rounded-br-[3.8rem] rounded-bl-[1.8rem] pointer-events-none"></div>
+
                         {/* Content */}
-                        <div className="relative w-full h-full flex flex-col items-center justify-center p-6">
-                            {/* Logo */}
-                            <div className="w-32 h-32 mb-4 filter drop-shadow-[0_0_30px_rgba(59,130,246,0.3)]">
-                                <img src="/branding/logo.png" alt="RFC" className="w-full h-full object-contain" />
-                            </div>
-
-                            <h3 className="text-2xl font-display font-bold text-white uppercase tracking-widest mb-2">
-                                Rockford Fire
-                            </h3>
-                            <p className="text-brand-green text-sm uppercase tracking-wider mb-6">Football Club</p>
-
-                            {/* Stats summary */}
-                            <div className="w-full max-w-[200px] space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-400 flex items-center gap-2">
-                                        <Star className="w-4 h-4 text-brand-gold" /> Overall
-                                    </span>
-                                    <span className="text-white font-bold">{rating}</span>
+                        <div className="relative w-full h-full flex flex-col p-6">
+                            {/* Header — name + number + position */}
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="min-w-0">
+                                    <p className="text-[10px] uppercase tracking-widest text-brand-gold font-bold mb-1">Player Card</p>
+                                    <h3 className="text-2xl text-white font-display font-black uppercase truncate leading-tight">{name}</h3>
+                                    <p className="text-brand-green text-xs uppercase tracking-wider mt-1">{position} · #{number}</p>
                                 </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-400 flex items-center gap-2">
-                                        <TrendingUp className="w-4 h-4 text-brand-green" /> Position
-                                    </span>
-                                    <span className="text-white font-bold">{position}</span>
+                                <div className="flex flex-col items-center shrink-0 ml-3">
+                                    <span className="text-4xl font-black text-brand-gold leading-none">{rating}</span>
+                                    <span className="text-[10px] uppercase tracking-widest text-gray-400 mt-1">Overall</span>
                                 </div>
                             </div>
 
-                            {/* Tap hint */}
-                            <div className="absolute bottom-8 text-center">
-                                <p className="text-gray-500 text-xs uppercase tracking-widest animate-pulse">
-                                    Opening Report Card...
+                            <div className="h-[1px] bg-brand-gold/30 mb-4"></div>
+
+                            {/* Strengths — top 3 stats */}
+                            <div className="mb-4">
+                                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 flex items-center gap-1.5">
+                                    <TrendingUp className="w-3 h-3 text-brand-green" />
+                                    Strengths
                                 </p>
+                                {[
+                                    { label: 'Pace', val: pace },
+                                    { label: 'Dribbling', val: dribbling },
+                                    { label: 'Shooting', val: shooting },
+                                    { label: 'Passing', val: passing },
+                                    { label: 'Defending', val: defending },
+                                    { label: 'Physical', val: physical },
+                                ]
+                                    .sort((a, b) => b.val - a.val)
+                                    .slice(0, 3)
+                                    .map((s) => (
+                                        <div key={s.label} className="flex items-center justify-between text-sm py-1">
+                                            <span className="text-gray-300 uppercase tracking-wider text-xs">{s.label}</span>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-brand-gold rounded-full" style={{ width: `${Math.min(100, s.val)}%` }} />
+                                                </div>
+                                                <span className="text-brand-gold font-bold text-sm w-7 text-right">{s.val}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+
+                            {/* Logo + club name */}
+                            <div className="flex items-center gap-3 mb-auto">
+                                <div className="w-10 h-10 flex items-center justify-center filter drop-shadow">
+                                    <img src="/branding/logo.png" alt="RFC" className="w-full h-full object-contain" />
+                                </div>
+                                <div>
+                                    <p className="text-white text-sm font-display font-bold uppercase tracking-wider leading-none">Rockford Fire</p>
+                                    <p className="text-gray-500 text-[10px] uppercase tracking-wider">Football Club</p>
+                                </div>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex gap-2 mt-auto">
+                                {onClick && (
+                                    <button
+                                        onClick={handleOpenProfile}
+                                        className="flex-1 bg-brand-green text-brand-dark font-bold uppercase tracking-wider text-xs py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 hover:bg-white transition-colors"
+                                    >
+                                        Full Profile <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsFlipped(false); }}
+                                    className="bg-white/5 border border-white/10 text-gray-300 font-bold uppercase tracking-wider text-xs py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 hover:bg-white/10 transition-colors"
+                                >
+                                    <RotateCw className="w-3.5 h-3.5" /> Flip
+                                </button>
                             </div>
                         </div>
                     </div>

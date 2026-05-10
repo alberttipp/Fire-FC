@@ -17,15 +17,25 @@ export const useVoiceCommand = () => {
 
 // Command patterns and their actions
 const COMMAND_PATTERNS = {
-    // Navigation commands
+    // Navigation commands. Some target IDs differ between coach view ('club',
+    // 'team', 'practice', 'calendar') and parent view ('overview', 'schedule',
+    // 'messages'). The dashboard that's mounted decides which IDs are valid;
+    // we send the ID and trust the dashboard's setView to ignore unknown ones.
     navigation: [
+        // Coach / manager
         { patterns: ['go to club', 'show club', 'club view', 'open club'], action: 'navigate', target: 'club' },
         { patterns: ['go to team', 'show team', 'team view', 'open team', 'show roster', 'roster'], action: 'navigate', target: 'team' },
-        { patterns: ['go to training', 'show training', 'training view', 'open training', 'drills'], action: 'navigate', target: 'training' },
-        { patterns: ['go to chat', 'show chat', 'open chat', 'messages', 'open messages'], action: 'navigate', target: 'chat' },
-        { patterns: ['go to calendar', 'show calendar', 'open calendar', 'schedule', 'show schedule'], action: 'navigate', target: 'calendar' },
+        { patterns: ['go to practice', 'show practice', 'practice view', 'open practice', 'go to training', 'show training', 'training view', 'open training', 'drills'], action: 'navigate', target: 'practice' },
+        { patterns: ['go to private', 'private training', 'open private'], action: 'navigate', target: 'private' },
+        { patterns: ['go to chat', 'show chat', 'open chat', 'go to messages', 'open messages'], action: 'navigate', target: 'chat' },
+        { patterns: ['go to calendar', 'show calendar', 'open calendar', 'show schedule', 'go to schedule', 'open schedule'], action: 'navigate', target: 'calendar' },
         { patterns: ['go to tryouts', 'show tryouts', 'open tryouts'], action: 'navigate', target: 'tryouts' },
         { patterns: ['go to financial', 'show financial', 'money', 'finances'], action: 'navigate', target: 'financial' },
+        // Parent dashboard
+        { patterns: ['go to overview', 'home', 'go home', 'overview', 'dashboard home'], action: 'navigate', target: 'overview' },
+        { patterns: ['parent schedule', 'my schedule'], action: 'navigate', target: 'schedule' },
+        { patterns: ['parent messages', 'my messages'], action: 'navigate', target: 'messages' },
+        // Cross-dashboard hops (route changes, not just view changes)
         { patterns: ['player dashboard', 'switch to player', 'view as player'], action: 'route', target: '/player-dashboard' },
         { patterns: ['parent dashboard', 'switch to parent', 'view as parent'], action: 'route', target: '/parent-dashboard' },
         { patterns: ['coach dashboard', 'switch to coach', 'main dashboard'], action: 'route', target: '/dashboard' },
@@ -273,6 +283,11 @@ export const VoiceCommandProvider = ({ children }) => {
                 if (setDashboardView.current) {
                     setDashboardView.current(command.target);
                     setCommandResult({ type: 'navigation', message: `Navigating to ${command.target}` });
+                } else {
+                    setCommandResult({
+                        type: 'error',
+                        message: `Can't navigate from this screen — try saying "coach dashboard" or "parent dashboard" first.`,
+                    });
                 }
                 break;
 

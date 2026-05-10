@@ -63,7 +63,9 @@ const VoiceCommandOverlay = () => {
     return (
         <>
             {/* Voice Control FAB - Bottom Left */}
-            <div className="fixed bottom-6 left-6 z-40 flex flex-col items-start gap-3">
+            {/* Lifted above the mobile bottom nav (z-[80], ~64px tall) on small screens.
+                Desktop has no bottom nav so the FAB sits at the corner. */}
+            <div className="fixed bottom-24 md:bottom-6 left-4 md:left-6 z-[100] flex flex-col items-start gap-3">
                 {/* Hints Popup */}
                 {showHint && (
                     <div className="bg-brand-dark border border-white/10 rounded-xl p-4 shadow-2xl animate-fade-in-up max-w-xs">
@@ -72,11 +74,12 @@ const VoiceCommandOverlay = () => {
                             Voice Commands
                         </h4>
                         <ul className="text-xs text-gray-400 space-y-1">
-                            <li><span className="text-brand-green">"Hey Fire"</span> - Wake word</li>
-                            <li><span className="text-white">"Go to team"</span> - Navigate</li>
-                            <li><span className="text-white">"Show stats for Bo"</span> - Query</li>
-                            <li><span className="text-white">"When is next practice"</span> - Schedule</li>
-                            <li><span className="text-white">"Open chat"</span> - Actions</li>
+                            <li><span className="text-white">Tap mic</span> — listen now</li>
+                            <li><span className="text-white">Long-press mic</span> — "Hey Fire" mode</li>
+                            <li><span className="text-white">"Go to team"</span> — Navigate</li>
+                            <li><span className="text-white">"Show stats for Bo"</span> — Query</li>
+                            <li><span className="text-white">"When is next practice"</span> — Schedule</li>
+                            <li><span className="text-white">"Open chat"</span> — Actions</li>
                         </ul>
                         <button
                             onClick={() => setShowHint(false)}
@@ -88,35 +91,42 @@ const VoiceCommandOverlay = () => {
                 )}
 
                 {/* Main Voice Button */}
+                {/* Single click → start listening immediately (Siri-style tap-to-talk).
+                    Long-press → toggle "Hey Fire" wake-word mode for hands-free use. */}
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => {
                             if (isListening) {
                                 stopListening();
-                            } else if (isWakeWordMode) {
+                            } else {
+                                startListening();
+                            }
+                        }}
+                        onContextMenu={(e) => {
+                            e.preventDefault();
+                            if (isWakeWordMode) {
                                 disableWakeWord();
                             } else {
                                 enableWakeWord();
                             }
                         }}
-                        onDoubleClick={startListening}
-                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg ${
+                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg ${
                             isListening
                                 ? 'bg-red-500 text-white animate-pulse shadow-red-500/30'
                                 : isWakeWordMode
                                     ? 'bg-brand-gold text-brand-dark shadow-brand-gold/30'
-                                    : 'bg-white/10 text-gray-400 hover:bg-white/20 border border-white/10'
+                                    : 'bg-brand-gold text-brand-dark shadow-brand-gold/30 hover:scale-105'
                         }`}
-                        title={isListening ? 'Listening... (click to stop)' : isWakeWordMode ? '"Hey Fire" mode active' : 'Enable voice commands'}
+                        title={isListening ? 'Listening… (tap to stop)' : isWakeWordMode ? '"Hey Fire" mode active — long-press to disable' : 'Tap to talk · long-press for "Hey Fire" mode'}
                     >
                         {isProcessing ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <Loader2 className="w-6 h-6 animate-spin" />
                         ) : isListening ? (
-                            <Mic className="w-5 h-5" />
+                            <Mic className="w-6 h-6" />
                         ) : isWakeWordMode ? (
-                            <Volume2 className="w-5 h-5" />
+                            <Volume2 className="w-6 h-6" />
                         ) : (
-                            <MicOff className="w-5 h-5" />
+                            <Mic className="w-6 h-6" />
                         )}
                     </button>
 

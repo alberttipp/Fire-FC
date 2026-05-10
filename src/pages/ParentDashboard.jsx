@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight } from 'lucide-react';
 import { supabase } from '../supabaseClient';
@@ -31,9 +32,18 @@ const ParentDashboard = () => {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
     const toast = useToast();
+    const voiceCommand = useVoiceCommand();
     const [currentView, setCurrentView] = useState('overview');
     const [showDetails, setShowDetails] = useState(false);
     const [loading, setLoading] = useState(true);
+
+    // Wire voice navigation: lets the user say "go to schedule" / "messages"
+    // / "overview" and have the parent dashboard switch tabs.
+    useEffect(() => {
+        if (voiceCommand?.registerDashboardControls) {
+            voiceCommand.registerDashboardControls(setCurrentView);
+        }
+    }, [voiceCommand]);
 
     // Real data state
     const [children, setChildren] = useState([]);
