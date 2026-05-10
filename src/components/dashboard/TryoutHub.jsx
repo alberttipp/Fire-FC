@@ -87,9 +87,11 @@ const TryoutHub = () => {
 
     const updateStatus = async (prospectId, newStatus) => {
         try {
+            // tryout_waitlist has no updated_at column — older code wrote it
+            // and silently failed. Just write status.
             const { error } = await supabase
                 .from('tryout_waitlist')
-                .update({ status: newStatus, updated_at: new Date().toISOString() })
+                .update({ status: newStatus })
                 .eq('id', prospectId);
 
             if (error) throw error;

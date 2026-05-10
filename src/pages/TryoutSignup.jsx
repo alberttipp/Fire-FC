@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { CheckCircle, Mail, Phone, User, Calendar, FileText, Send, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle, Mail, Phone, User, Calendar, FileText, Send, Loader2, AlertCircle, Users, Target } from 'lucide-react';
 
 // Public-facing tryout signup form. No auth required.
 //
@@ -11,12 +11,27 @@ import { CheckCircle, Mail, Phone, User, Calendar, FileText, Send, Loader2, Aler
 
 const AGE_GROUPS = ['U6', 'U8', 'U10', 'U11', 'U12', 'U13', 'U14', 'U15', 'U16', 'U17', 'U18', 'High School', 'Other'];
 
+const POSITIONS = [
+    'Goalkeeper',
+    'Center Back',
+    'Fullback',
+    'Defensive Midfielder',
+    'Center Midfielder',
+    'Attacking Midfielder',
+    'Winger',
+    'Striker',
+    'Anywhere',
+];
+
 const TryoutSignup = () => {
     const [form, setForm] = useState({
         name: '',
+        parent_name: '',
         age_group: '',
         email: '',
         phone: '',
+        position1: '',
+        position2: '',
         notes: '',
     });
     const [submitting, setSubmitting] = useState(false);
@@ -35,18 +50,32 @@ const TryoutSignup = () => {
             setError("Player's name is required.");
             return;
         }
+        if (!form.parent_name.trim()) {
+            setError("Parent or guardian name is required.");
+            return;
+        }
         if (!form.email.trim() && !form.phone.trim()) {
             setError('Add at least one way to contact you — email or phone.');
+            return;
+        }
+        if (form.position1 && form.position2 && form.position1 === form.position2) {
+            setError('First and second choice positions should be different.');
             return;
         }
 
         setSubmitting(true);
         try {
+            const positions = [form.position1, form.position2]
+                .map((p) => p.trim())
+                .filter(Boolean);
+
             const { error: rpcErr } = await supabase.rpc('submit_tryout_application', {
                 p_name: form.name.trim(),
+                p_parent_name: form.parent_name.trim(),
                 p_email: form.email.trim() || null,
                 p_phone: form.phone.trim() || null,
                 p_age_group: form.age_group || null,
+                p_preferred_positions: positions.length ? positions : null,
                 p_notes: form.notes.trim() || null,
             });
             if (rpcErr) throw rpcErr;
@@ -118,6 +147,23 @@ const TryoutSignup = () => {
                                 onChange={(e) => update('name', e.target.value)}
                                 className="w-full bg-black/50 border border-white/10 rounded p-3 pl-10 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green outline-none"
                                 placeholder="First Last"
+                                autoComplete="off"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">
+                            Parent / Guardian Name <span className="text-red-400">*</span>
+                        </label>
+                        <div className="relative">
+                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            <input
+                                type="text"
+                                value={form.parent_name}
+                                onChange={(e) => update('parent_name', e.target.value)}
+                                className="w-full bg-black/50 border border-white/10 rounded p-3 pl-10 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green outline-none"
+                                placeholder="Your full name"
                                 autoComplete="name"
                             />
                         </div>
@@ -139,6 +185,43 @@ const TryoutSignup = () => {
                                     <option key={g} value={g} className="bg-gray-800">{g}</option>
                                 ))}
                             </select>
+                        </div>
+                    </div>
+
+                    {/* Top 2 favorite positions */}
+                    <div>
+                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">
+                            Favorite Positions <span className="text-gray-500 normal-case font-normal">(top 2)</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="relative">
+                                <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                                <select
+                                    value={form.position1}
+                                    onChange={(e) => update('position1', e.target.value)}
+                                    className="w-full bg-black/50 border border-white/10 rounded p-3 pl-10 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green outline-none appearance-none"
+                                >
+                                    <option value="">1st choice…</option>
+                                    {POSITIONS.map((p) => (
+                                        <option key={p} value={p} className="bg-gray-800">{p}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="relative">
+                                <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                                <select
+                                    value={form.position2}
+                                    onChange={(e) => update('position2', e.target.value)}
+                                    className="w-full bg-black/50 border border-white/10 rounded p-3 pl-10 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green outline-none appearance-none"
+                                >
+                                    <option value="">2nd choice…</option>
+                                    {POSITIONS
+                                        .filter((p) => p !== form.position1)
+                                        .map((p) => (
+                                            <option key={p} value={p} className="bg-gray-800">{p}</option>
+                                        ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
