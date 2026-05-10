@@ -8,7 +8,10 @@ import { GitCommit } from 'lucide-react';
  */
 const BuildStamp = () => {
     return (
-        <div className="fixed bottom-2 right-2 z-50 flex items-center gap-2 px-3 py-1.5 bg-gray-900/90 border border-gray-700 rounded-lg text-xs backdrop-blur-sm">
+        // Hide on mobile — there's no real estate that doesn't collide with the
+        // bottom nav, and end users don't need to see the commit SHA on a phone.
+        // Visible on desktop where there's room.
+        <div className="hidden md:flex fixed bottom-2 right-2 z-50 items-center gap-2 px-3 py-1.5 bg-gray-900/90 border border-gray-700 rounded-lg text-xs backdrop-blur-sm">
             <GitCommit className="w-3 h-3 text-brand-green" />
             <span className="text-gray-400">Build:</span>
             <a

@@ -3,12 +3,13 @@ import PlayerCard from '../components/player/PlayerCard';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, Flame, Zap, AlertTriangle, Dumbbell, ChevronRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
 import FireBall from '../game/FireBall';
 import BadgeCelebration from '../components/BadgeCelebration';
 import BadgeUnlockBanner from '../components/BadgeUnlockBanner';
+import PreviewBanner from '../components/PreviewBanner';
 
 // Heavy modals — only loaded when the user opens them.
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
@@ -19,6 +20,9 @@ import { supabase } from '../supabaseClient';
 const PlayerDashboard = () => {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const previewPlayerId = searchParams.get('preview');
+    const isPreview = Boolean(previewPlayerId);
 
     // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
     const [showCelebration, setShowCelebration] = useState(false);
@@ -70,7 +74,18 @@ const PlayerDashboard = () => {
             const isPinLogin = user.email === 'player@firefc.com';
             let playerData = null;
 
-            if (isPinLogin) {
+            // Preview mode (coach/manager previewing player view): pull the
+            // requested player by id directly. RLS already grants staff
+            // access to all players on their team.
+            if (isPreview && previewPlayerId) {
+                const { data, error } = await supabase
+                    .from('players')
+                    .select('*')
+                    .eq('id', previewPlayerId)
+                    .maybeSingle();
+                if (error) console.error('[PlayerDashboard] preview lookup failed:', error);
+                playerData = data;
+            } else if (isPinLogin) {
                 // PIN login: user.id IS the players table ID
                 console.log('[PlayerDashboard] PIN login detected - querying by players.id');
                 const { data, error } = await supabase
@@ -419,6 +434,11 @@ const PlayerDashboard = () => {
 
     return (
         <div className="min-h-screen bg-brand-dark pb-24 relative overflow-hidden">
+            <PreviewBanner
+                isPreview={isPreview}
+                role="player"
+                playerName={playerRecord?.first_name || playerRecord?.display_name}
+            />
             {/* Badge Celebration */}
             {showBadgeCelebration && (
                 <BadgeCelebration

@@ -6,6 +6,8 @@ import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, C
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
 
+const PreviewPickerModal = lazy(() => import('../components/dashboard/PreviewPickerModal'));
+
 // Lazy-load every tab view so the initial Dashboard bundle is small.
 // Each view is its own chunk; users only download the ones they actually
 // open. ClubView is the default landing view but still lazy — Suspense
@@ -37,6 +39,7 @@ const Dashboard = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [showPreviewPicker, setShowPreviewPicker] = useState(false);
 
     // Voice command integration
     const voiceCommand = useVoiceCommand();
@@ -151,7 +154,7 @@ const Dashboard = () => {
     // Check profile.role (Real User) or user.role (Demo User)
     const isManager = profile?.role === 'manager' || user?.role === 'manager';
     return (
-        <div className="min-h-screen bg-brand-dark pb-20">
+        <div className="min-h-screen bg-brand-dark pb-20 overflow-x-hidden">
             {/* Top Navigation Bar */}
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-6 py-4">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -231,10 +234,11 @@ const Dashboard = () => {
                         </div>
 
                         <button
-                            onClick={() => navigate('/player-dashboard')}
-                            className="text-xs text-brand-gold border border-brand-gold/30 px-3 py-1.5 rounded hover:bg-brand-gold/10 uppercase tracking-wider"
+                            onClick={() => setShowPreviewPicker(true)}
+                            className="text-xs text-brand-gold border border-brand-gold/30 px-3 py-1.5 rounded hover:bg-brand-gold/10 uppercase tracking-wider hidden sm:inline-block"
+                            title="Preview the parent or player view of any player on your teams"
                         >
-                            View as Player
+                            Preview as…
                         </button>
 
                         {/* Mobile View Switcher */}
@@ -332,6 +336,13 @@ const Dashboard = () => {
                         }}
                         onAutoGenerate={handleAutoGenerate}
                     />
+                </Suspense>
+            )}
+
+            {/* Preview Picker — coach/manager previews parent or player view */}
+            {showPreviewPicker && (
+                <Suspense fallback={null}>
+                    <PreviewPickerModal onClose={() => setShowPreviewPicker(false)} />
                 </Suspense>
             )}
         </div>

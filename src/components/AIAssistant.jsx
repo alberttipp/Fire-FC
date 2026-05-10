@@ -248,14 +248,14 @@ IMPORTANT INSTRUCTIONS:
             {/* Floating Button */}
             <button
                 onClick={() => setIsOpen(true)}
-                className={`fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-brand-green to-green-600 rounded-full shadow-lg shadow-brand-green/30 flex items-center justify-center text-brand-dark hover:scale-110 transition-all z-40 ${isOpen ? 'hidden' : ''}`}
+                className={`fixed bottom-24 md:bottom-6 right-4 md:right-6 w-14 h-14 bg-gradient-to-br from-brand-green to-green-600 rounded-full shadow-lg shadow-brand-green/30 flex items-center justify-center text-brand-dark hover:scale-110 transition-all z-[100] ${isOpen ? 'hidden' : ''}`}
             >
                 <Sparkles className="w-6 h-6" />
             </button>
 
             {/* Chat Panel */}
             {isOpen && (
-                <div className="fixed bottom-6 right-6 w-[380px] h-[550px] bg-brand-dark border border-white/10 rounded-2xl shadow-2xl flex flex-col z-50 animate-fade-in overflow-hidden">
+                <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 w-[calc(100vw-2rem)] sm:w-[380px] max-w-[380px] h-[calc(100vh-8rem)] sm:h-[550px] max-h-[550px] bg-brand-dark border border-white/10 rounded-2xl shadow-2xl flex flex-col z-[100] animate-fade-in overflow-hidden">
                     {/* Header */}
                     <div className="bg-gradient-to-r from-brand-green/20 to-transparent p-4 border-b border-white/10 flex items-center justify-between">
                         <div className="flex items-center gap-3">

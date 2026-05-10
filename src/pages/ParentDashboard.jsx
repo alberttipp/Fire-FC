@@ -1,13 +1,14 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import Leaderboard from '../components/player/Leaderboard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import { useToast } from '../components/Toast';
+import PreviewBanner from '../components/PreviewBanner';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -33,6 +34,9 @@ const ParentDashboard = () => {
     const navigate = useNavigate();
     const toast = useToast();
     const voiceCommand = useVoiceCommand();
+    const [searchParams] = useSearchParams();
+    const previewPlayerId = searchParams.get('preview');
+    const isPreview = Boolean(previewPlayerId);
     const [currentView, setCurrentView] = useState('overview');
     const [showDetails, setShowDetails] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -90,14 +94,23 @@ const ParentDashboard = () => {
     const fetchChildrenData = async () => {
         setLoading(true);
         try {
-            // Get linked children via family_members table
-            const { data: links } = await supabase
-                .from('family_members')
-                .select('player_id')
-                .eq('user_id', user.id)
-                .in('relationship', ['guardian', 'fan']);
+            // Preview mode (coach/manager previewing parent view): bypass the
+            // family_members lookup and pull the requested player directly.
+            // Manager/coach RLS already permits this; we just override the
+            // selection logic.
+            let playerIds = [];
+            if (isPreview && previewPlayerId) {
+                playerIds = [previewPlayerId];
+            } else {
+                // Get linked children via family_members table
+                const { data: links } = await supabase
+                    .from('family_members')
+                    .select('player_id')
+                    .eq('user_id', user.id)
+                    .in('relationship', ['guardian', 'fan']);
 
-            let playerIds = links?.map(l => l.player_id) || [];
+                playerIds = links?.map(l => l.player_id) || [];
+            }
 
             if (playerIds.length > 0) {
                 // Fetch full player data
@@ -960,6 +973,11 @@ const ParentDashboard = () => {
         // badge pokes 32px past the card's right edge, player image pokes
         // 10px past) creating a horizontal scrollbar on narrow phones.
         <div className="min-h-screen bg-brand-dark pb-20 overflow-x-hidden">
+            <PreviewBanner
+                isPreview={isPreview}
+                role="parent"
+                playerName={selectedChild?.first_name || selectedChild?.display_name}
+            />
             {/* Drill Library Modal */}
             {showDrillLibrary && selectedChild && (
                 <Suspense fallback={null}>
