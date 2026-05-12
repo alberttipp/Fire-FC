@@ -1,15 +1,34 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { X, Target, Check, Lock, Dumbbell, Loader2, Award } from 'lucide-react';
+import { X, Target, Check, Lock, Dumbbell, Loader2, Award, Square, CheckSquare, ChevronRight } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 import { SKILL_BY_SLUG } from '../../data/idpSkills';
 
-// Player-side read-only full view of the IDP. Three blocks stacked,
-// current block highlighted, drills surfaced with "Start solo" buttons
-// that deep-link into ParentSessionBuilder (handled by parent component
-// via onStartSoloDrill, or via new-tab URL if absent).
+// Player-side read-only full view of the IDP.
+//
+// Three blocks stacked, current block highlighted, future blocks locked,
+// past blocks marked Done. The current block's drills are multi-select
+// with a single bottom CTA:
+//
+//   • mode='player' (default): "Start with N drill(s)" → solo builder
+//     deep-link with all selected drills pre-loaded
+//   • mode='parent': "Assign as homework" → inserts assignment rows
+//     tagged source='parent' for the player
+//
+// The mode is inferred from which dashboard rendered the card: if the
+// component receives `onStartSoloDrill`, we're on the player dashboard
+// and use Start. Otherwise (parent dashboard), we use Assign.
 
-const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartSoloDrill }) => {
+const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, teamId = null, onClose, onStartSoloDrill }) => {
+    const { user } = useAuth();
+    const toast = useToast();
     const [drillsByBlock, setDrillsByBlock] = useState({});
+    const [loadingDrills, setLoadingDrills] = useState(true);
+    const [selectedDrills, setSelectedDrills] = useState(new Set());
+    const [submitting, setSubmitting] = useState(false);
+
+    const isParentMode = !onStartSoloDrill;
 
     const skillsByBlock = useMemo(() => {
         const out = { 1: [], 2: [], 3: [] };
@@ -25,6 +44,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartS
     useEffect(() => {
         let cancelled = false;
         (async () => {
+            setLoadingDrills(true);
             const map = {};
             for (const n of [1, 2, 3]) {
                 const slugs = skillsByBlock[n].map((s) => s.skill_slug);
@@ -41,22 +61,75 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartS
                 if (cancelled) return;
                 map[n] = data || [];
             }
-            if (!cancelled) setDrillsByBlock(map);
+            if (!cancelled) {
+                setDrillsByBlock(map);
+                setLoadingDrills(false);
+            }
         })();
         return () => {
             cancelled = true;
         };
     }, [skillsByBlock]);
 
-    const handleSolo = (drillId) => {
+    const toggleDrill = (drillId) => {
+        setSelectedDrills((prev) => {
+            const next = new Set(prev);
+            if (next.has(drillId)) next.delete(drillId);
+            else next.add(drillId);
+            return next;
+        });
+    };
+
+    const selectedCount = selectedDrills.size;
+    const currentDrills = drillsByBlock[currentBlock] || [];
+
+    const handleStartSelected = () => {
+        if (selectedDrills.size === 0) return;
         if (onStartSoloDrill) {
-            onStartSoloDrill(drillId);
+            // Player mode: deep-link into solo builder with all selected ids
+            const ids = Array.from(selectedDrills).join(',');
+            onStartSoloDrill(ids);
+            onClose();
             return;
         }
-        // Fallback: open a new tab on the player dashboard with the drill
-        // pre-selected (for the case where coach is previewing).
-        const params = new URLSearchParams({ drillIds: drillId, from: 'idp' });
-        window.open(`/player-dashboard?${params.toString()}`, '_blank');
+    };
+
+    const handleAssignAsHomework = async () => {
+        if (selectedDrills.size === 0) return;
+        if (!playerId || !user?.id) {
+            toast.error("Couldn't assign — missing player info.");
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+            const sessionId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const drillList = currentDrills.filter((d) => selectedDrills.has(d.id));
+            const rows = drillList.map((d) => ({
+                drill_id: d.id,
+                player_id: playerId,
+                team_id: teamId || null,
+                assigned_by: user.id,
+                source: 'parent',
+                status: 'pending',
+                custom_duration: d.duration || 15,
+                due_date: dueDate.toISOString(),
+                session_id: sessionId,
+            }));
+            const { error } = await supabase.from('assignments').insert(rows);
+            if (error) throw error;
+            toast.success(`Assigned ${rows.length} drill${rows.length === 1 ? '' : 's'} to ${playerName}.`);
+            setSelectedDrills(new Set());
+            onClose();
+        } catch (err) {
+            console.error('[PlayerIDPView] assign error', err);
+            toast.error("Couldn't assign those drills. Try again.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -67,20 +140,21 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartS
             <div
                 className="bg-brand-dark border border-white/10 w-full max-w-2xl h-[95vh] sm:h-auto sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
+                style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
             >
-                <div className="p-5 border-b border-white/10 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center">
+                <div className="pt-7 sm:pt-5 px-5 pb-4 border-b border-white/10 flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center shrink-0 mt-0.5">
                         <Target className="w-5 h-5 text-brand-gold" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-display font-bold uppercase tracking-wider">{playerName}'s IDP</h3>
-                        <p className="text-xs text-gray-400">
-                            {idp.status === 'completed'
-                                ? '90-day plan completed 🏆'
-                                : `Block ${currentBlock} of 3`}
+                        <h3 className="text-white font-display font-bold uppercase tracking-wider text-base truncate leading-snug">
+                            {playerName}'s IDP
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                            {idp.status === 'completed' ? '90-day plan completed 🏆' : `Block ${currentBlock} of 3`}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-1 -m-1 text-gray-500 hover:text-white">
+                    <button onClick={onClose} className="p-1 -m-1 text-gray-500 hover:text-white shrink-0">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -92,6 +166,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartS
                         const isComplete = n < currentBlock || idp.status === 'completed';
                         const isLocked = n > currentBlock && idp.status !== 'completed';
                         const mastered = rows.filter((r) => r.status === 'mastered').length;
+                        const blockDrills = drillsByBlock[n] || [];
 
                         return (
                             <div
@@ -105,7 +180,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartS
                                 }`}
                             >
                                 <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <span
                                             className={`text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded ${
                                                 isCurrent
@@ -118,9 +193,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartS
                                             Block {n}
                                         </span>
                                         {isCurrent && (
-                                            <span className="text-[10px] uppercase tracking-widest text-brand-gold/80 font-bold">
-                                                Current
-                                            </span>
+                                            <span className="text-[10px] uppercase tracking-widest text-brand-gold/80 font-bold">Current</span>
                                         )}
                                         {isComplete && (
                                             <span className="text-[10px] uppercase tracking-widest text-brand-green/80 font-bold flex items-center gap-1">
@@ -174,33 +247,48 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartS
                                     })}
                                 </div>
 
-                                {/* Current block drills */}
-                                {isCurrent && (drillsByBlock[n]?.length || 0) > 0 && (
+                                {/* Current block drills (multi-select) */}
+                                {isCurrent && (
                                     <div className="mt-4 pt-4 border-t border-white/10">
                                         <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 flex items-center gap-1.5">
-                                            <Dumbbell className="w-3 h-3 text-brand-green" /> Drills for this block
+                                            <Dumbbell className="w-3 h-3 text-brand-green" /> Drills for this block — tap to select
                                         </p>
-                                        <div className="space-y-1.5">
-                                            {drillsByBlock[n].slice(0, 6).map((d) => (
-                                                <div
-                                                    key={d.id}
-                                                    className="flex items-center gap-2 p-2 rounded bg-white/[0.02] border border-white/5"
-                                                >
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm text-white truncate">{d.name}</p>
-                                                        <p className="text-[10px] text-gray-500 truncate">
-                                                            {d.category} · {d.duration || 10} min
-                                                        </p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleSolo(d.id)}
-                                                        className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-brand-green/15 border border-brand-green/30 text-brand-green hover:bg-brand-green/25"
-                                                    >
-                                                        Solo
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        {loadingDrills ? (
+                                            <div className="flex items-center justify-center py-4">
+                                                <Loader2 className="w-5 h-5 text-brand-green animate-spin" />
+                                            </div>
+                                        ) : blockDrills.length === 0 ? (
+                                            <p className="text-xs text-gray-500 italic py-2">No matching drills in the library yet.</p>
+                                        ) : (
+                                            <div className="space-y-1.5">
+                                                {blockDrills.map((d) => {
+                                                    const isSelected = selectedDrills.has(d.id);
+                                                    return (
+                                                        <button
+                                                            key={d.id}
+                                                            onClick={() => toggleDrill(d.id)}
+                                                            className={`w-full text-left flex items-center gap-2 p-2 rounded border transition-colors ${
+                                                                isSelected
+                                                                    ? 'bg-brand-green/15 border-brand-green/40'
+                                                                    : 'bg-white/[0.02] border-white/5 hover:bg-white/5 hover:border-white/10'
+                                                            }`}
+                                                        >
+                                                            {isSelected ? (
+                                                                <CheckSquare className="w-4 h-4 text-brand-green shrink-0" />
+                                                            ) : (
+                                                                <Square className="w-4 h-4 text-gray-500 shrink-0" />
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className={`text-sm truncate ${isSelected ? 'text-brand-green font-bold' : 'text-white'}`}>{d.name}</p>
+                                                                <p className="text-[10px] text-gray-500 truncate">
+                                                                    {d.category} · {d.duration || 10} min
+                                                                </p>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -211,6 +299,39 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartS
                         Only your coach can mark skills mastered.
                     </p>
                 </div>
+
+                {/* Sticky bottom CTA */}
+                {currentDrills.length > 0 && (
+                    <div className="border-t border-white/10 p-4 shrink-0 bg-brand-dark">
+                        {isParentMode ? (
+                            <button
+                                onClick={handleAssignAsHomework}
+                                disabled={selectedCount === 0 || submitting}
+                                className="w-full py-3 rounded-xl font-display font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-blue-500/40"
+                            >
+                                {submitting ? (
+                                    <><Loader2 className="w-4 h-4 animate-spin" /> Assigning…</>
+                                ) : (
+                                    <>Assign {selectedCount > 0 ? `${selectedCount} ` : ''}as Homework <ChevronRight className="w-4 h-4" /></>
+                                )}
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleStartSelected}
+                                disabled={selectedCount === 0}
+                                className="w-full py-3 rounded-xl font-display font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-brand-green to-green-500 text-brand-dark shadow-lg shadow-brand-green/30 hover:shadow-brand-green/50 hover:scale-[1.02]"
+                            >
+                                Start {selectedCount > 0 ? `${selectedCount} ` : ''}Drill{selectedCount === 1 ? '' : 's'}
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        )}
+                        <p className="text-[10px] text-gray-500 text-center mt-2">
+                            {isParentMode
+                                ? 'Drills land in coach homework — kid sees them on their dashboard.'
+                                : 'Selected drills will load into your solo training session.'}
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );

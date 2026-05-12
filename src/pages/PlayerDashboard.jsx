@@ -583,14 +583,14 @@ const PlayerDashboard = () => {
                     {playerRecord?.id && (
                         <PlayerIDPCard
                             playerId={playerRecord.id}
+                            teamId={playerRecord.team_id || null}
                             playerName={`${playerRecord.first_name || ''} ${playerRecord.last_name || ''}`.trim()}
-                            onStartSoloDrill={(drillId) => {
-                                // Open the solo builder pre-loaded with this drill.
-                                // PlayerDashboard already mounts ParentSessionBuilder when
-                                // showSessionBuilder is true; the builder reads ?drillIds=
-                                // from the URL (Task #42 wiring).
+                            onStartSoloDrill={(drillIds) => {
+                                // drillIds can be a single uuid or a comma-separated list
+                                // for multi-select. Either way: write to URL, open the
+                                // solo builder which reads ?drillIds= on mount.
                                 const url = new URL(window.location.href);
-                                url.searchParams.set('drillIds', drillId);
+                                url.searchParams.set('drillIds', drillIds);
                                 url.searchParams.set('from', 'idp');
                                 window.history.replaceState({}, '', url);
                                 setShowSessionBuilder(true);

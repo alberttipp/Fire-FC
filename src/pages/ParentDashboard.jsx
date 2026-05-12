@@ -548,10 +548,13 @@ const ParentDashboard = () => {
                             </div>
                         )}
 
-                        {/* IDP card — mirrors what the player sees, read-only */}
+                        {/* IDP card — mirrors what the player sees + lets parent
+                            assign block drills as homework (no onStartSoloDrill →
+                            parent mode renders an "Assign as Homework" button). */}
                         {selectedChild?.id && (
                             <PlayerIDPCard
                                 playerId={selectedChild.id}
+                                teamId={selectedChild.team_id || null}
                                 playerName={`${selectedChild.first_name || ''} ${selectedChild.last_name || ''}`.trim()}
                             />
                         )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Target, Loader2, Plus, Check, ChevronRight, Trash2, Award, Dumbbell, ArrowRight } from 'lucide-react';
+import { X, Target, Loader2, Plus, Check, ChevronRight, Trash2, Award, Dumbbell, ArrowRight, FileText, Save, Search } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { IDP_SKILLS, SKILL_BY_SLUG, OFFENSE_SKILLS, DEFENSE_SKILLS } from '../../data/idpSkills';
@@ -21,11 +21,68 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
     const [idp, setIdp] = useState(existingIDP);
     const [skills, setSkills] = useState(existingSkills);
     const [busy, setBusy] = useState(false);
-    const [activePicker, setActivePicker] = useState(null); // block number when picker open
+    const [activePicker, setActivePicker] = useState(null); // block number when skill picker open
+    const [activeDrillPicker, setActiveDrillPicker] = useState(null); // block number when drill library open
     const [drillsCache, setDrillsCache] = useState({}); // skill_slug -> drills[]
     const [didChange, setDidChange] = useState(false);
 
+    // Coach notes (timestamped) — uses the existing coach_notes table for
+    // per-player logging. Notes are not strictly IDP-scoped; they show
+    // the player's full timeline so the coach sees context while planning.
+    const [notes, setNotes] = useState([]);
+    const [notesLoading, setNotesLoading] = useState(true);
+    const [newNote, setNewNote] = useState('');
+    const [savingNote, setSavingNote] = useState(false);
+
     const playerName = player?.display_name || `${player?.first_name || ''} ${player?.last_name || ''}`.trim() || 'Player';
+
+    // Fetch coach notes for this player
+    useEffect(() => {
+        if (!player?.id) return;
+        let cancelled = false;
+        (async () => {
+            setNotesLoading(true);
+            try {
+                const { data } = await supabase
+                    .from('coach_notes')
+                    .select('id, note_text, tags, created_at, coach_id')
+                    .eq('player_id', player.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                if (!cancelled) setNotes(data || []);
+            } finally {
+                if (!cancelled) setNotesLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [player?.id]);
+
+    const handleAddNote = async () => {
+        if (!newNote.trim() || !player?.id || !user?.id) return;
+        setSavingNote(true);
+        try {
+            const { data, error } = await supabase
+                .from('coach_notes')
+                .insert({
+                    player_id: player.id,
+                    coach_id: user.id,
+                    note_text: newNote.trim(),
+                    tags: ['idp'],
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            setNotes((prev) => [data, ...prev]);
+            setNewNote('');
+            setDidChange(true);
+            onToast?.('success', 'Note saved.');
+        } catch (err) {
+            console.error('[IDPBuilder] add note error', err);
+            onToast?.('error', "Couldn't save note. Try again.");
+        } finally {
+            setSavingNote(false);
+        }
+    };
 
     const skillsByBlock = useMemo(() => {
         const out = { 1: [], 2: [], 3: [] };
@@ -274,23 +331,25 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
             <div
                 className="bg-brand-dark border border-white/10 w-full max-w-2xl h-[95vh] sm:h-auto sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
+                style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
             >
-                {/* Header */}
-                <div className="p-5 border-b border-white/10 flex items-center gap-3 shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center">
+                {/* Header — extra top padding so iOS notch and the rounded
+                    modal corner don't clip the title. */}
+                <div className="pt-7 sm:pt-5 px-5 pb-4 border-b border-white/10 flex items-start gap-3 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center shrink-0 mt-0.5">
                         <Target className="w-5 h-5 text-brand-gold" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-bold text-base truncate">{playerName}'s IDP</h3>
+                        <h3 className="text-white font-bold text-base truncate leading-snug">{playerName}'s IDP</h3>
                         {idp ? (
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-gray-400 mt-0.5">
                                 Block {idp.current_block || 1} of 3 · {idp.status === 'completed' ? 'COMPLETED' : 'ACTIVE'}
                             </p>
                         ) : (
-                            <p className="text-xs text-gray-400">No active plan yet</p>
+                            <p className="text-xs text-gray-400 mt-0.5">No active plan yet</p>
                         )}
                     </div>
-                    <button onClick={() => onClose(didChange)} className="p-1 -m-1 text-gray-500 hover:text-white">
+                    <button onClick={() => onClose(didChange)} className="p-1 -m-1 text-gray-500 hover:text-white shrink-0">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -332,6 +391,7 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
                                     onUnmark={unmarkMastered}
                                     drills={(idp.current_block || 1) === blockNumber ? currentDrills : []}
                                     onSoloTrain={handleSoloTrain}
+                                    onOpenDrillPicker={() => setActiveDrillPicker(blockNumber)}
                                     busy={busy}
                                 />
                             ))}
@@ -348,9 +408,70 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
                                         : <>Graduate to Block {(idp.current_block || 1) + 1} <ArrowRight className="w-4 h-4" /></>}
                                 </button>
                             )}
+
+                            {/* Coach Notes (timestamped) */}
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <FileText className="w-4 h-4 text-brand-green" />
+                                    <h4 className="text-white font-bold text-sm uppercase tracking-wider">Coach Notes</h4>
+                                </div>
+
+                                <div className="flex gap-2 mb-3 min-w-0">
+                                    <input
+                                        type="text"
+                                        value={newNote}
+                                        onChange={(e) => setNewNote(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddNote(); }}
+                                        placeholder="Add a quick note about this player…"
+                                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm outline-none focus:border-brand-green"
+                                        disabled={savingNote}
+                                    />
+                                    <button
+                                        onClick={handleAddNote}
+                                        disabled={!newNote.trim() || savingNote}
+                                        className="shrink-0 px-3 py-2 bg-brand-green/15 border border-brand-green/30 hover:bg-brand-green/25 text-brand-green text-xs font-bold uppercase tracking-wider rounded-lg disabled:opacity-50"
+                                    >
+                                        {savingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
+                                    </button>
+                                </div>
+
+                                {notesLoading ? (
+                                    <div className="flex justify-center py-3">
+                                        <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+                                    </div>
+                                ) : notes.length === 0 ? (
+                                    <p className="text-xs text-gray-500 italic text-center py-3">No notes yet for this player.</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                        {notes.map((n) => (
+                                            <div key={n.id} className="p-2 rounded-lg bg-white/5 border border-white/5">
+                                                <p className="text-sm text-white leading-relaxed">{n.note_text}</p>
+                                                <p className="text-[10px] text-gray-500 mt-1">
+                                                    {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </>
                     )}
                 </div>
+
+                {/* Footer: Save & Close button */}
+                {idp && (
+                    <div className="border-t border-white/10 p-4 shrink-0 bg-brand-dark">
+                        <button
+                            onClick={() => onClose(didChange)}
+                            className="w-full py-3 rounded-xl font-display font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-brand-green to-green-500 text-brand-dark shadow-lg shadow-brand-green/30 hover:shadow-brand-green/50 hover:scale-[1.01] transition-all"
+                        >
+                            <Save className="w-4 h-4" /> Save & Close
+                        </button>
+                        <p className="text-[10px] text-gray-500 text-center mt-2">
+                            Changes are saved automatically as you make them.
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Skill Picker overlay */}
@@ -364,11 +485,28 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
                     onClose={() => setActivePicker(null)}
                 />
             )}
+
+            {/* Drill library picker — coach can pull in any drill (filtered
+                by skills picked in the block by default, but searchable
+                across the whole catalog) */}
+            {activeDrillPicker !== null && (
+                <DrillLibraryPicker
+                    blockNumber={activeDrillPicker}
+                    blockSlugs={blockSkillSlugs[activeDrillPicker]}
+                    onPick={(drillId) => {
+                        // For now we just open the solo training deep-link, which
+                        // matches the existing recommended-drills "Solo" button
+                        // behavior. Future v2 could link the drill to the IDP block.
+                        handleSoloTrain(drillId);
+                    }}
+                    onClose={() => setActiveDrillPicker(null)}
+                />
+            )}
         </div>
     );
 };
 
-const BlockPanel = ({ blockNumber, isCurrent, isComplete, rows, onOpenPicker, onRemoveSkill, onMarkMastered, onUnmark, drills, onSoloTrain, busy }) => {
+const BlockPanel = ({ blockNumber, isCurrent, isComplete, rows, onOpenPicker, onRemoveSkill, onMarkMastered, onUnmark, drills, onSoloTrain, onOpenDrillPicker, busy }) => {
     const mastered = rows.filter((r) => r.status === 'mastered').length;
     const total = rows.length;
     const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
@@ -488,28 +626,42 @@ const BlockPanel = ({ blockNumber, isCurrent, isComplete, rows, onOpenPicker, on
                     )}
                 </div>
 
-                {/* Recommended drills (current block only) */}
-                {isCurrent && drills.length > 0 && (
+                {/* Recommended drills + "Add from library" (current block only) */}
+                {isCurrent && (
                     <div className="mt-4 pt-4 border-t border-white/10">
-                        <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 flex items-center gap-1.5">
-                            <Dumbbell className="w-3 h-3 text-brand-green" /> Recommended Drills
-                        </p>
-                        <div className="space-y-1.5">
-                            {drills.slice(0, 6).map((d) => (
-                                <div key={d.id} className="flex items-center gap-2 p-2 rounded bg-white/[0.02] border border-white/5">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-white truncate">{d.name}</p>
-                                        <p className="text-[10px] text-gray-500 truncate">{d.category} · {d.duration || 10} min</p>
-                                    </div>
-                                    <button
-                                        onClick={() => onSoloTrain(d.id)}
-                                        className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-brand-green/15 border border-brand-green/30 text-brand-green hover:bg-brand-green/25"
-                                    >
-                                        Solo
-                                    </button>
-                                </div>
-                            ))}
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-1.5">
+                                <Dumbbell className="w-3 h-3 text-brand-green" /> Recommended Drills
+                            </p>
+                            {onOpenDrillPicker && (
+                                <button
+                                    onClick={onOpenDrillPicker}
+                                    className="text-[10px] uppercase tracking-widest font-bold text-brand-gold hover:text-white transition-colors flex items-center gap-1"
+                                >
+                                    <Plus className="w-3 h-3" /> Browse library
+                                </button>
+                            )}
                         </div>
+                        {drills.length > 0 ? (
+                            <div className="space-y-1.5">
+                                {drills.slice(0, 6).map((d) => (
+                                    <div key={d.id} className="flex items-center gap-2 p-2 rounded bg-white/[0.02] border border-white/5">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm text-white truncate">{d.name}</p>
+                                            <p className="text-[10px] text-gray-500 truncate">{d.category} · {d.duration || 10} min</p>
+                                        </div>
+                                        <button
+                                            onClick={() => onSoloTrain(d.id)}
+                                            className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-brand-green/15 border border-brand-green/30 text-brand-green hover:bg-brand-green/25"
+                                        >
+                                            Solo
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-500 italic">No matching drills yet — try "Browse library" above to pull from the full catalog.</p>
+                        )}
                     </div>
                 )}
             </div>
@@ -587,6 +739,132 @@ const SkillPicker = ({ blockNumber, alreadyPicked, onPick, onClose }) => {
                             </button>
                         );
                     })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// A lightweight drill library picker scoped to the IDP modal. Pre-filters
+// to drills tagged with one of the current block's skill slugs, but the
+// coach can switch to "All drills" and search by name. Tapping a drill
+// fires onPick(drillId) — the parent decides what to do (currently:
+// deep-link to a solo training session).
+const DrillLibraryPicker = ({ blockNumber, blockSlugs = [], onPick, onClose }) => {
+    const [drills, setDrills] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [filter, setFilter] = useState(blockSlugs.length > 0 ? 'block' : 'all');
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            try {
+                let query = supabase
+                    .from('drills')
+                    .select('id, name, category, duration, tagged_skills')
+                    .eq('is_custom', false)
+                    .order('name', { ascending: true });
+                if (filter === 'block' && blockSlugs.length > 0) {
+                    query = query.overlaps('tagged_skills', blockSlugs);
+                }
+                const { data } = await query.limit(120);
+                if (!cancelled) setDrills(data || []);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [filter, blockSlugs]);
+
+    const filtered = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return drills;
+        return drills.filter((d) =>
+            (d.name || '').toLowerCase().includes(q) ||
+            (d.category || '').toLowerCase().includes(q)
+        );
+    }, [drills, search]);
+
+    return (
+        <div
+            className="fixed inset-0 z-[210] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
+            onClick={onClose}
+        >
+            <div
+                className="bg-brand-dark border border-white/10 w-full max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[85vh]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-4 border-b border-white/10 flex items-center gap-3">
+                    <h4 className="text-white font-bold text-sm flex-1">Browse drills for Block {blockNumber}</h4>
+                    <button onClick={onClose} className="text-gray-500 hover:text-white">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="px-3 pt-3 space-y-2 border-b border-white/10 pb-3">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search by name or category…"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-3 py-2 text-sm text-white outline-none focus:border-brand-green"
+                        />
+                    </div>
+                    <div className="flex gap-1.5">
+                        {blockSlugs.length > 0 && (
+                            <button
+                                onClick={() => setFilter('block')}
+                                className={`px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider ${
+                                    filter === 'block'
+                                        ? 'bg-brand-gold text-brand-dark'
+                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                }`}
+                            >
+                                Block skills only
+                            </button>
+                        )}
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={`px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider ${
+                                filter === 'all'
+                                    ? 'bg-brand-gold text-brand-dark'
+                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            }`}
+                        >
+                            All drills
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                    {loading ? (
+                        <div className="flex justify-center py-6">
+                            <Loader2 className="w-5 h-5 text-brand-green animate-spin" />
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <p className="text-xs text-gray-500 text-center py-6">No drills match.</p>
+                    ) : (
+                        filtered.map((d) => (
+                            <button
+                                key={d.id}
+                                onClick={() => onPick(d.id)}
+                                className="w-full text-left flex items-center gap-2 p-2 rounded bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-white truncate">{d.name}</p>
+                                    <p className="text-[10px] text-gray-500 truncate">
+                                        {d.category} · {d.duration || 10} min
+                                        {d.tagged_skills?.length > 0 && ` · ${d.tagged_skills.length} skill${d.tagged_skills.length === 1 ? '' : 's'} tagged`}
+                                    </p>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-gray-500" />
+                            </button>
+                        ))
+                    )}
                 </div>
             </div>
         </div>

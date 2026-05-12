@@ -18,7 +18,7 @@ const PlayerIDPView = lazy(() => import('./PlayerIDPView'));
 //                                falls back to a new-tab /player-dashboard?drillIds=
 //                                deep-link.
 
-const PlayerIDPCard = ({ playerId, playerName = 'Player', onStartSoloDrill = null }) => {
+const PlayerIDPCard = ({ playerId, playerName = 'Player', teamId = null, onStartSoloDrill = null }) => {
     const [idp, setIdp] = useState(null);
     const [skills, setSkills] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -171,9 +171,12 @@ const PlayerIDPCard = ({ playerId, playerName = 'Player', onStartSoloDrill = nul
                     </p>
                 )}
 
-                <p className="mt-4 text-xs text-brand-gold font-bold uppercase tracking-widest text-center group-hover:text-white transition-colors">
-                    Click to lock in →
-                </p>
+                <div className="mt-4 flex justify-center">
+                    <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-brand-green to-green-500 text-brand-dark font-display font-black uppercase tracking-widest text-sm shadow-lg shadow-brand-green/30 group-hover:scale-105 group-hover:shadow-brand-green/50 transition-all">
+                        Click to Lock In
+                        <ChevronRight className="w-4 h-4" />
+                    </span>
+                </div>
             </button>
 
             {showView && (
@@ -182,6 +185,8 @@ const PlayerIDPCard = ({ playerId, playerName = 'Player', onStartSoloDrill = nul
                         idp={idp}
                         skills={skills}
                         playerName={firstName}
+                        playerId={playerId}
+                        teamId={teamId}
                         onClose={() => setShowView(false)}
                         onStartSoloDrill={onStartSoloDrill}
                     />

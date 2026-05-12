@@ -158,10 +158,10 @@ const Dashboard = () => {
     return (
         <div className="min-h-screen bg-brand-dark pb-20 overflow-x-hidden">
             {/* Top Navigation Bar */}
-            <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-6 py-4">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(59,130,246,0.4)]">
+            <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-3 sm:px-6 py-3 sm:py-4">
+                <div className="max-w-7xl mx-auto flex justify-between items-center gap-2">
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(59,130,246,0.4)] shrink-0">
                             <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
                         </div>
                         <h1 className="hidden md:block text-2xl text-white font-display uppercase font-bold tracking-wider">
@@ -169,7 +169,7 @@ const Dashboard = () => {
                         </h1>
                     </div>
 
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-1.5 sm:gap-6 shrink-0">
                         {/* View Switcher Dropdown (Styled as buttons for now for simplicity/touch) */}
                         <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10">
                             <button
@@ -243,21 +243,21 @@ const Dashboard = () => {
 
                         <button
                             onClick={() => setShowPreviewPicker(true)}
-                            className="text-xs text-brand-gold border border-brand-gold/30 px-2 sm:px-3 py-1.5 rounded hover:bg-brand-gold/10 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5"
+                            className="text-xs text-brand-gold border border-brand-gold/30 px-2 sm:px-3 py-1.5 rounded hover:bg-brand-gold/10 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 shrink-0"
                             title="Preview the parent or player view of any player on your teams"
                         >
                             <Eye className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Preview as…</span>
-                            <span className="sm:hidden">Preview</span>
                         </button>
 
-                        {/* Mobile View Switcher */}
-                        <div className="md:hidden relative">
+                        {/* Mobile View Switcher — abbreviated when navbar is tight */}
+                        <div className="md:hidden relative shrink-0">
                             <button
                                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                                className="flex items-center gap-2 text-brand-green font-display font-bold uppercase border border-brand-green/30 px-3 py-1.5 rounded bg-brand-green/5"
+                                className="flex items-center gap-1 text-brand-green font-display font-bold uppercase border border-brand-green/30 px-2 py-1.5 rounded bg-brand-green/5 text-xs"
                             >
-                                {currentView.toUpperCase()} <ChevronDown className={`w-4 h-4 transition-transform ${mobileMenuOpen ? 'rotate-180' : ''}`} />
+                                <span className="max-w-[60px] truncate">{currentView.toUpperCase()}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${mobileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {mobileMenuOpen && (
                                 <>
@@ -293,10 +293,11 @@ const Dashboard = () => {
                             )}
                         </div>
 
-                        {/* Notification Bell */}
+                        {/* Notification Bell — hide on smallest screens; users
+                            still get the alert badge on the More tab if needed */}
                         <button
                             onClick={() => setShowNotifications(true)}
-                            className="relative text-gray-400 hover:text-white transition-colors p-1.5 rounded hover:bg-white/5"
+                            className="hidden xs:flex sm:flex relative text-gray-400 hover:text-white transition-colors p-1.5 rounded hover:bg-white/5 shrink-0"
                             title="Notifications"
                         >
                             <Bell className="w-5 h-5" />
@@ -307,9 +308,9 @@ const Dashboard = () => {
                             )}
                         </button>
 
-                        <button onClick={handleLogout} className="flex items-center gap-1.5 text-gray-400 hover:text-red-400 transition-colors px-2 py-1.5 rounded hover:bg-red-500/10" title="Logout">
-                            <LogOut className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Logout</span>
+                        <button onClick={handleLogout} className="flex items-center gap-1 text-gray-400 hover:text-red-400 transition-colors px-2 py-1.5 rounded hover:bg-red-500/10 shrink-0" title="Logout">
+                            <LogOut className="w-4 h-4 shrink-0" />
+                            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider">Logout</span>
                         </button>
                     </div>
                 </div>
