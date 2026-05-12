@@ -10,6 +10,7 @@ import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
+import FamilyInviteModal from '../components/dashboard/FamilyInviteModal';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -41,6 +42,7 @@ const ParentDashboard = () => {
     const [currentView, setCurrentView] = useState('overview');
     const [showDetails, setShowDetails] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [inviteOpen, setInviteOpen] = useState(false);
 
     // Wire voice navigation: lets the user say "go to schedule" / "messages"
     // / "overview" and have the parent dashboard switch tabs.
@@ -556,6 +558,21 @@ const ParentDashboard = () => {
                                         {child.first_name}
                                     </button>
                                 ))}
+                            </div>
+                        )}
+
+                        {/* Family-share action row — lets a linked parent send
+                            the same guardian code to a partner/grandparent so
+                            they can sign up too without going through coach. */}
+                        {selectedChild?.id && (
+                            <div className="flex justify-end -mb-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setInviteOpen(true)}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-gold/10 border border-brand-gold/30 text-brand-gold hover:bg-brand-gold/20 text-[11px] font-bold uppercase tracking-wider transition-colors"
+                                >
+                                    <Link2 className="w-3.5 h-3.5" /> Invite another parent
+                                </button>
                             </div>
                         )}
 
@@ -1093,6 +1110,24 @@ const ParentDashboard = () => {
                         readOnly={true}
                     />
                 </Suspense>
+            )}
+
+            {/* Family invite — share guardian code via SMS / Email / Copy.
+                FamilyInviteModal pulls guardian_code from players.id if it
+                isn't passed in, so we don't need to query it here. */}
+            {inviteOpen && selectedChild && (
+                <FamilyInviteModal
+                    player={{
+                        id: selectedChild.id,
+                        name: `${selectedChild.first_name || ''} ${selectedChild.last_name || ''}`.trim(),
+                        firstName: selectedChild.first_name,
+                        lastName: selectedChild.last_name,
+                        number: selectedChild.jersey_number,
+                        guardian_code: selectedChild.guardian_code,
+                        avatar: selectedChild.avatar_url,
+                    }}
+                    onClose={() => setInviteOpen(false)}
+                />
             )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
