@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { X, Shield } from 'lucide-react';
@@ -16,23 +16,65 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Clubs (orgs) where this user is a club_director — the only role the
+    // teams INSERT RLS policy lets create teams. We need to know which to
+    // attach the new team to. One club → auto-select. Multiple → picker.
+    const [clubs, setClubs] = useState([]);
+    const [selectedOrgId, setSelectedOrgId] = useState('');
+    const [clubsLoading, setClubsLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        const fetchClubs = async () => {
+            if (!user?.id) return;
+            setClubsLoading(true);
+            const { data, error: orgErr } = await supabase
+                .from('org_memberships')
+                .select('org_id, role, organizations:org_id (id, name)')
+                .eq('user_id', user.id)
+                .eq('role', 'club_director');
+            if (cancelled) return;
+            if (orgErr) {
+                console.error('[CreateTeamModal] club fetch failed', orgErr);
+                setClubs([]);
+            } else {
+                const list = (data || [])
+                    .map(r => r.organizations)
+                    .filter(Boolean);
+                setClubs(list);
+                if (list.length > 0) setSelectedOrgId(list[0].id);
+            }
+            setClubsLoading(false);
+        };
+        fetchClubs();
+        return () => { cancelled = true; };
+    }, [user?.id]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+
+        if (!selectedOrgId) {
+            setError('You must be a club director to create a team. Ask your club admin to grant you access.');
+            setLoading(false);
+            return;
+        }
 
         // Generate a random 6-character code (e.g., FC-A1B2)
         const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
         const joinCode = `FC-${randomStr}`;
 
         try {
-            // 1. Insert the team. teams.org_id has a default (Rockford Fire FC)
-            // so we don't need to send it. teams has NO coach_id column —
-            // the coach/manager linkage lives in team_memberships, which we
-            // add immediately after.
+            // 1. Insert the team. org_id is sent explicitly so this works
+            // for any club the director belongs to (not just the default
+            // Rockford Fire FC org). The teams RLS INSERT policy requires
+            // has_org_role(uid, org_id, 'club_director'); the SELECT policy
+            // (post-RETURNING) accepts the same director check.
             const { data: teamData, error: teamError } = await supabase
                 .from('teams')
                 .insert({
+                    org_id: selectedOrgId,
                     name,
                     age_group: ageGroup,
                     join_code: joinCode,
@@ -41,20 +83,18 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
                 .single();
             if (teamError) throw teamError;
 
-            // 2. Link the creator as manager of the new team. Default role:
-            //    'manager' (creators are typically the team's manager; they
-            //    can add coaches afterward). The Staff-can-manage policies
-            //    use this row to gate roster / IDP / homework access.
+            // 2. Link the creator as manager. upsert + ignoreDuplicates so
+            // this stays safe if a future trigger ever re-introduces an
+            // auto-insert path (the unique (team_id, user_id) constraint
+            // already blocks real duplicates).
             const { error: membershipError } = await supabase
                 .from('team_memberships')
-                .insert({
-                    team_id: teamData.id,
-                    user_id: user.id,
-                    role: 'manager',
-                });
+                .upsert(
+                    { team_id: teamData.id, user_id: user.id, role: 'manager' },
+                    { onConflict: 'team_id,user_id', ignoreDuplicates: true }
+                );
             if (membershipError) throw membershipError;
 
-            // Success
             onTeamCreated(teamData);
             onClose();
         } catch (err) {
@@ -86,7 +126,28 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
                         </div>
                     )}
 
+                    {!clubsLoading && clubs.length === 0 && (
+                        <div className="mb-4 bg-yellow-500/10 border border-yellow-500/50 text-yellow-400 p-3 rounded text-sm">
+                            You aren't a club director on any club yet. Create a club first or ask an admin to grant you access.
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {clubs.length > 1 && (
+                            <div>
+                                <label className="block text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Club</label>
+                                <select
+                                    value={selectedOrgId}
+                                    onChange={(e) => setSelectedOrgId(e.target.value)}
+                                    className="w-full bg-black/50 border border-white/10 rounded p-3 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all outline-none"
+                                >
+                                    {clubs.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
                         <div>
                             <label className="block text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Team Name</label>
                             <input
@@ -133,7 +194,7 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
                             </button>
                             <button
                                 type="submit"
-                                disabled={loading}
+                                disabled={loading || clubsLoading || clubs.length === 0}
                                 className="px-6 py-2 rounded bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Creating...' : 'Create Team'}

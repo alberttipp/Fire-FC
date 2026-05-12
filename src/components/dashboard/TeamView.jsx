@@ -7,6 +7,7 @@ import AIFeedbackModal from './AIFeedbackModal';
 import CreateTeamModal from './CreateTeamModal';
 import InviteManager from './InviteManager';
 import CreatePlayerModal from './CreatePlayerModal';
+import AddExistingPlayerModal from './AddExistingPlayerModal';
 import FamilyInviteModal from './FamilyInviteModal';
 import UpcomingWeek from './UpcomingWeek';
 
@@ -19,6 +20,7 @@ const TeamView = () => {
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showPlayerModal, setShowPlayerModal] = useState(false);
+    const [showAddExisting, setShowAddExisting] = useState(false);
 
     // UI State
     const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -107,10 +109,13 @@ const TeamView = () => {
                 currentTeamId = teamData?.id; // Use local variable
             }
 
-            // Fetch roster using local variable (not stale state)
+            // Fetch roster using local variable (not stale state). Reads
+            // through team_active_roster view, which joins player_teams
+            // (status='active') to players — supports a kid being on
+            // multiple teams with a different jersey on each.
             if (currentTeamId) {
                 const { data: players } = await supabase
-                    .from('players')
+                    .from('team_active_roster')
                     .select('*')
                     .eq('team_id', currentTeamId)
                     .order('last_name', { ascending: true });
@@ -178,7 +183,7 @@ const TeamView = () => {
         if (!teamId) return;
 
         const { data: players } = await supabase
-            .from('players')
+            .from('team_active_roster')
             .select('*')
             .eq('team_id', teamId)
             .order('last_name', { ascending: true });
@@ -375,6 +380,15 @@ const TeamView = () => {
                 />
             )}
 
+            {showAddExisting && (
+                <AddExistingPlayerModal
+                    teamId={myTeam.id}
+                    teamName={myTeam.name}
+                    onClose={() => setShowAddExisting(false)}
+                    onAdded={() => fetchRosterForTeam(myTeam.id)}
+                />
+            )}
+
             {invitePlayer && (
                 <FamilyInviteModal
                     player={invitePlayer}
@@ -394,12 +408,21 @@ const TeamView = () => {
                         <h3 className="text-lg text-brand-gold font-display uppercase font-bold flex items-center gap-2">
                             Roster
                         </h3>
-                        <button
-                            onClick={() => setShowPlayerModal(true)}
-                            className="bg-brand-green/10 text-brand-green border border-brand-green/30 px-3 py-1.5 rounded text-xs font-bold uppercase hover:bg-brand-green/20 transition-colors flex items-center gap-2"
-                        >
-                            <Trophy className="w-3 h-3" /> Add Player
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowAddExisting(true)}
+                                className="bg-brand-gold/10 text-brand-gold border border-brand-gold/30 px-3 py-1.5 rounded text-xs font-bold uppercase hover:bg-brand-gold/20 transition-colors flex items-center gap-2"
+                                title="Pull a player from another team in your club"
+                            >
+                                <Users className="w-3 h-3" /> Add Existing
+                            </button>
+                            <button
+                                onClick={() => setShowPlayerModal(true)}
+                                className="bg-brand-green/10 text-brand-green border border-brand-green/30 px-3 py-1.5 rounded text-xs font-bold uppercase hover:bg-brand-green/20 transition-colors flex items-center gap-2"
+                            >
+                                <Trophy className="w-3 h-3" /> Add Player
+                            </button>
+                        </div>
                     </div>
 
                     {roster.length === 0 ? (

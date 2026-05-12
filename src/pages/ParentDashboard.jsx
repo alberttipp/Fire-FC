@@ -210,13 +210,24 @@ const ParentDashboard = () => {
 
             setPlayerBadges(badges);
 
-            // Fetch upcoming events
-            const teamId = selectedChild?.team_id;
-            if (teamId) {
+            // Fetch upcoming events — across EVERY team the kid is active
+            // on (kid may be rostered to U11 + Summer Squad at the same
+            // time). Pulls team ids from player_teams (status='active');
+            // falls back to legacy primary team_id when no active rows.
+            const { data: activeTeams } = await supabase
+                .from('player_teams')
+                .select('team_id')
+                .eq('player_id', playerId)
+                .eq('status', 'active');
+            const kidTeamIds = (activeTeams?.length
+                ? activeTeams.map(r => r.team_id)
+                : [selectedChild?.team_id]).filter(Boolean);
+
+            if (kidTeamIds.length > 0) {
                 const { data: events } = await supabase
                     .from('events')
                     .select('*')
-                    .eq('team_id', teamId)
+                    .in('team_id', kidTeamIds)
                     .gte('start_time', new Date().toISOString())
                     .order('start_time', { ascending: true })
                     .limit(5);

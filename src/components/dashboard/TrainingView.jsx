@@ -68,17 +68,17 @@ const TrainingView = () => {
         const fetchData = async () => {
             setLoading(true);
 
-            // Get team ID - prioritize coach's teams
+            // Get team ID - prioritize coach's teams (sourced from
+            // team_memberships; teams has no coach_id column).
             if (profile?.team_id) {
                 setTeamId(profile.team_id);
-            } else if (profile?.id && profile?.role === 'coach') {
-                // For coaches, get their first team
-                const { data: coachTeams } = await supabase
-                    .from('teams')
-                    .select('id')
-                    .eq('coach_id', profile.id)
+            } else if (profile?.id && (profile?.role === 'coach' || profile?.role === 'manager')) {
+                const { data: memberships } = await supabase
+                    .from('team_memberships')
+                    .select('team_id')
+                    .eq('user_id', profile.id)
                     .limit(1);
-                if (coachTeams?.length) setTeamId(coachTeams[0].id);
+                if (memberships?.length) setTeamId(memberships[0].team_id);
             } else {
                 // For other roles, get first available team
                 const { data: teams } = await supabase

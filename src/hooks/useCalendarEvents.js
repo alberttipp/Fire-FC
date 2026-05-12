@@ -19,6 +19,9 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
             const userRole = profile?.role;
 
             if (userRole === 'parent') {
+                // Parent → all teams that any of their linked kids is
+                // ACTIVE on (read from player_teams, not the deprecated
+                // players.team_id scalar).
                 const { data: links } = await supabase
                     .from('family_members')
                     .select('player_id')
@@ -26,18 +29,50 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
                     .in('relationship', ['guardian', 'fan']);
                 if (links?.length > 0) {
                     const playerIds = links.map(l => l.player_id);
-                    const { data: players } = await supabase.from('players').select('team_id').in('id', playerIds);
-                    if (players) teamIds = [...new Set(players.map(p => p.team_id).filter(Boolean))];
+                    const { data: memberships } = await supabase
+                        .from('player_teams')
+                        .select('team_id')
+                        .in('player_id', playerIds)
+                        .eq('status', 'active');
+                    if (memberships) {
+                        teamIds = [...new Set(memberships.map(m => m.team_id).filter(Boolean))];
+                    }
                 }
             } else if (userRole === 'manager' || userRole === 'coach') {
                 const { data: teams } = await supabase.from('teams').select('id');
                 if (teams) teamIds = teams.map(t => t.id);
+            } else if (userRole === 'player') {
+                // Player → all teams they are ACTIVE on. Even if profile.team_id
+                // is set (legacy primary pointer), still merge from player_teams
+                // so a kid on U11 + Summer sees both feeds.
+                const { data: playerRow } = await supabase
+                    .from('players')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                if (playerRow?.id) {
+                    const { data: memberships } = await supabase
+                        .from('player_teams')
+                        .select('team_id')
+                        .eq('player_id', playerRow.id)
+                        .eq('status', 'active');
+                    if (memberships?.length > 0) {
+                        teamIds = memberships.map(m => m.team_id).filter(Boolean);
+                    }
+                }
+                // Hard fallback to profile.team_id only if the lookup found nothing
+                if (teamIds.length === 0 && profile?.team_id) teamIds = [profile.team_id];
             } else {
                 if (profile?.team_id) {
                     teamIds = [profile.team_id];
                 } else if (user) {
-                    const { data: team } = await supabase.from('teams').select('id').eq('coach_id', user.id).single();
-                    if (team) teamIds = [team.id];
+                    const { data: memberships } = await supabase
+                        .from('team_memberships')
+                        .select('team_id')
+                        .eq('user_id', user.id);
+                    if (memberships?.length > 0) {
+                        teamIds = memberships.map(m => m.team_id).filter(Boolean);
+                    }
                 }
             }
 

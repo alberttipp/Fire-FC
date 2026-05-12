@@ -76,17 +76,34 @@ Deno.serve(async (req) => {
     if (authError) throw authError
 
     try {
-      // Create player record
-      const { error: playerError } = await supabaseAdmin.from('players').insert({
-        user_id: authUser.user.id,
-        team_id: teamId,
-        first_name: firstName,
-        last_name: lastName,
-        jersey_number: jerseyNumber,
-        display_name: displayName
-      })
+      // Create player identity row. team_id/jersey_number on `players` are
+      // now legacy "primary team" pointers — the source of truth for roster
+      // membership is `player_teams`. We still populate them so older
+      // read-paths that haven't migrated yet keep working.
+      const { data: playerRow, error: playerError } = await supabaseAdmin
+        .from('players')
+        .insert({
+          user_id: authUser.user.id,
+          team_id: teamId,
+          first_name: firstName,
+          last_name: lastName,
+          jersey_number: jerseyNumber,
+          display_name: displayName
+        })
+        .select('id')
+        .single()
 
       if (playerError) throw playerError
+
+      // Active membership on player_teams (authoritative source).
+      const { error: ptError } = await supabaseAdmin.from('player_teams').insert({
+        player_id: playerRow.id,
+        team_id: teamId,
+        jersey_number: jerseyNumber,
+        status: 'active'
+      })
+
+      if (ptError) throw ptError
 
       // Create team membership
       const { error: membershipError } = await supabaseAdmin.from('team_memberships').insert({
