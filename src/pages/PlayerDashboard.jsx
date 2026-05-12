@@ -197,14 +197,24 @@ const PlayerDashboard = () => {
             }
 
             // 2. Fetch ALL assignments for this player (coach + parent + self).
-            // Now that players have real auth.users sessions (magic-link flow),
-            // RLS lets them read their own rows directly — no more RPC bypass.
-            console.log('[PlayerDashboard] Fetching assignments for player_id:', playerId);
+            // Filter: pending/in_progress always visible; completed rows only
+            // if completed THIS WEEK. Older completions stay in the DB
+            // (career stats already credited at completion), but don't clutter
+            // the kid's dashboard. Matches the cron's ISO week boundary.
+            const weekStart = new Date();
+            const dayOfWeek = weekStart.getDay(); // 0=Sun
+            const daysFromMonday = (dayOfWeek + 6) % 7; // Mon-anchored
+            weekStart.setDate(weekStart.getDate() - daysFromMonday);
+            weekStart.setHours(0, 0, 0, 0);
+            const weekStartIso = weekStart.toISOString();
+
+            console.log('[PlayerDashboard] Fetching assignments for player_id:', playerId, 'week start:', weekStartIso);
             const { data: assignData, error: assignErr } = await supabase
                 .from('assignments')
                 .select('*, drills:drill_id (id, name, duration, category, video_url, description)')
                 .eq('player_id', playerId)
                 .in('source', ['coach', 'parent', 'player'])
+                .or(`status.neq.completed,completed_at.gte.${weekStartIso}`)
                 .order('due_date', { ascending: true });
 
             if (assignErr) {
