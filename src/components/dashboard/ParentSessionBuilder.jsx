@@ -614,24 +614,65 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                             AI Session Builder
                         </h3>
 
-                        {/* Voice button */}
-                        <button
-                            onClick={toggleListening}
-                            disabled={aiProcessing}
-                            className={`w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all ${
-                                isListening
-                                    ? 'bg-red-500/20 border-2 border-red-500 text-red-400 animate-pulse'
-                                    : 'bg-brand-green/10 border-2 border-brand-green/30 text-brand-green hover:bg-brand-green/20'
-                            }`}
-                        >
-                            {aiProcessing ? (
-                                <><div className="w-5 h-5 border-2 border-brand-green border-t-transparent rounded-full animate-spin" /> Processing...</>
-                            ) : isListening ? (
-                                <><MicOff className="w-5 h-5" /> Stop & Create</>
-                            ) : (
-                                <><Mic className="w-5 h-5" /> Speak Your Practice Plan</>
-                            )}
-                        </button>
+                        {/* Voice button — three states:
+                            1. processing → disabled spinner
+                            2. listening → red "Stop & Create"
+                            3. captured (voiceInput && !listening) → two buttons:
+                                  Create Practice | Speak More
+                               This is what was missing — on phones, the browser
+                               fires onend the moment you pause speaking, which
+                               drops isListening back to false. The captured
+                               transcript was sitting there with no submit button.
+                            4. idle → "Speak Your Practice Plan"
+                        */}
+                        {aiProcessing ? (
+                            <button
+                                disabled
+                                className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-brand-green/10 border-2 border-brand-green/30 text-brand-green opacity-80"
+                            >
+                                <div className="w-5 h-5 border-2 border-brand-green border-t-transparent rounded-full animate-spin" /> Processing...
+                            </button>
+                        ) : isListening ? (
+                            <button
+                                onClick={toggleListening}
+                                className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-red-500/20 border-2 border-red-500 text-red-400 animate-pulse"
+                            >
+                                <MicOff className="w-5 h-5" /> Stop & Create
+                            </button>
+                        ) : voiceInput.trim() ? (
+                            // Captured speech — give the user an explicit Create button
+                            // and a Speak More fallback (which restarts recognition without
+                            // wiping the captured text yet).
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => processWithAI(voiceInput)}
+                                    className="py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-brand-green text-brand-dark hover:bg-white transition-all"
+                                >
+                                    <Sparkles className="w-5 h-5" /> Create Practice
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        // Append-more: don't clear, just resume listening
+                                        try {
+                                            recognitionRef.current?.start();
+                                            setIsListening(true);
+                                        } catch (err) {
+                                            toast.error("Couldn't restart the mic. Try again.");
+                                        }
+                                    }}
+                                    className="py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-white/5 border-2 border-white/10 text-gray-300 hover:bg-white/10 transition-all"
+                                >
+                                    <Mic className="w-5 h-5" /> Speak More
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={toggleListening}
+                                className="w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold bg-brand-green/10 border-2 border-brand-green/30 text-brand-green hover:bg-brand-green/20 transition-all"
+                            >
+                                <Mic className="w-5 h-5" /> Speak Your Practice Plan
+                            </button>
+                        )}
                         {voiceInput && <p className="mt-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">"{voiceInput}"</p>}
 
                         {/* Text input fallback */}
