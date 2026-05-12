@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Mic, MicOff, StopCircle, Save, Star, ChevronLeft, Wand2, Loader2, Clock, Trash2, Tag } from 'lucide-react';
+import { X, Mic, MicOff, StopCircle, Save, Star, ChevronLeft, Wand2, Loader2, Clock, Trash2, Tag, Users, Mail, Phone, Target } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
@@ -187,13 +187,13 @@ const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 {/* Player Header */}
-                <div className="flex items-start justify-between mb-6">
-                    <div className="flex gap-4">
-                        <div className="w-16 h-16 bg-gray-800 rounded-lg flex items-center justify-center border-2 border-white/10 text-2xl font-bold text-gray-500">
+                <div className="flex items-start justify-between mb-4">
+                    <div className="flex gap-4 min-w-0">
+                        <div className="w-16 h-16 bg-gray-800 rounded-lg flex items-center justify-center border-2 border-white/10 text-2xl font-bold text-gray-500 shrink-0">
                             {prospect.name?.charAt(0)?.toUpperCase() || '?'}
                         </div>
-                        <div>
-                            <h2 className="text-2xl text-white font-display uppercase font-bold tracking-wider leading-none">{prospect.name}</h2>
+                        <div className="min-w-0">
+                            <h2 className="text-2xl text-white font-display uppercase font-bold tracking-wider leading-none truncate">{prospect.name}</h2>
                             <div className="flex items-center gap-3 mt-2 text-sm flex-wrap">
                                 {prospect.age_group && (
                                     <span className="bg-white/10 px-2 py-0.5 rounded text-white font-bold">{prospect.age_group}</span>
@@ -216,6 +216,66 @@ const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
                         </div>
                     </div>
                 </div>
+
+                {/* Contact + Preferences — pulled from the public tryout signup form */}
+                {(prospect.parent_name || prospect.email || prospect.phone || prospect.preferred_positions?.length > 0) && (
+                    <div className="mb-6 p-4 bg-black/20 rounded-xl border border-white/5 space-y-2.5">
+                        <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3">Contact & Preferences</h4>
+                        {prospect.parent_name && (
+                            <div className="flex items-start gap-2.5 text-sm">
+                                <Users className="w-4 h-4 text-brand-green mt-0.5 shrink-0" />
+                                <div className="min-w-0">
+                                    <span className="text-gray-500 text-[11px] uppercase tracking-wider block">Parent / Guardian</span>
+                                    <span className="text-white truncate block">{prospect.parent_name}</span>
+                                </div>
+                            </div>
+                        )}
+                        {prospect.email && (
+                            <div className="flex items-start gap-2.5 text-sm">
+                                <Mail className="w-4 h-4 text-brand-green mt-0.5 shrink-0" />
+                                <div className="min-w-0">
+                                    <span className="text-gray-500 text-[11px] uppercase tracking-wider block">Email</span>
+                                    <a href={`mailto:${prospect.email}`} className="text-white hover:text-brand-green truncate block">
+                                        {prospect.email}
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+                        {prospect.phone && (
+                            <div className="flex items-start gap-2.5 text-sm">
+                                <Phone className="w-4 h-4 text-brand-green mt-0.5 shrink-0" />
+                                <div className="min-w-0">
+                                    <span className="text-gray-500 text-[11px] uppercase tracking-wider block">Phone</span>
+                                    <a href={`tel:${prospect.phone}`} className="text-white hover:text-brand-green block">
+                                        {prospect.phone}
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+                        {prospect.preferred_positions?.length > 0 && (
+                            <div className="flex items-start gap-2.5 text-sm">
+                                <Target className="w-4 h-4 text-brand-gold mt-0.5 shrink-0" />
+                                <div className="min-w-0">
+                                    <span className="text-gray-500 text-[11px] uppercase tracking-wider block">Favorite Positions</span>
+                                    <div className="flex flex-wrap gap-1.5 mt-0.5">
+                                        {prospect.preferred_positions.slice(0, 2).map((pos, i) => (
+                                            <span
+                                                key={pos}
+                                                className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
+                                                    i === 0
+                                                        ? 'bg-brand-gold/20 text-brand-gold border border-brand-gold/30'
+                                                        : 'bg-white/5 text-gray-300 border border-white/10'
+                                                }`}
+                                            >
+                                                {i === 0 ? '1st: ' : '2nd: '}{pos}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Quick Rating Grid */}
                 <div className="mb-6 p-4 bg-black/20 rounded-xl border border-white/5">

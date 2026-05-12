@@ -181,17 +181,25 @@ const TryoutHub = () => {
                                     <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center font-display font-bold text-gray-400 border border-white/10 text-sm">
                                         {prospect.name?.charAt(0)?.toUpperCase() || '?'}
                                     </div>
-                                    <div>
-                                        <h4 className={`font-bold text-sm ${selectedPlayer?.id === prospect.id ? 'text-brand-green' : 'text-white'}`}>
+                                    <div className="min-w-0">
+                                        <h4 className={`font-bold text-sm truncate ${selectedPlayer?.id === prospect.id ? 'text-brand-green' : 'text-white'}`}>
                                             {prospect.name}
                                         </h4>
-                                        <div className="flex items-center gap-2 mt-0.5">
+                                        {prospect.parent_name && (
+                                            <p className="text-[11px] text-gray-500 truncate">Parent: {prospect.parent_name}</p>
+                                        )}
+                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                             {prospect.age_group && (
                                                 <span className="text-xs text-gray-500 uppercase font-bold">{prospect.age_group}</span>
                                             )}
                                             {prospect.status && (
                                                 <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${STATUS_COLORS[prospect.status] || 'bg-gray-500/20 text-gray-400'}`}>
                                                     {prospect.status.replace('_', ' ')}
+                                                </span>
+                                            )}
+                                            {prospect.preferred_positions?.[0] && (
+                                                <span className="text-[10px] text-brand-gold/80 uppercase tracking-wider">
+                                                    {prospect.preferred_positions.slice(0, 2).join(' / ')}
                                                 </span>
                                             )}
                                         </div>
