@@ -90,26 +90,28 @@ const DebugStatus = () => {
         fetchData();
     }, [user]);
 
-    // Link current user as coach of a team
+    // Link current user as coach of a team via team_memberships
+    // (teams has no coach_id column — staff↔team lives in team_memberships).
     const linkMeToTeam = async (teamId) => {
         if (!user?.id) return;
 
         setMessage('Linking...');
 
-        // Update the team's coach_id
-        const { error: teamErr } = await supabase
-            .from('teams')
-            .update({ coach_id: user.id })
-            .eq('id', teamId);
+        const { error: membershipErr } = await supabase
+            .from('team_memberships')
+            .upsert(
+                { team_id: teamId, user_id: user.id, role: 'coach' },
+                { onConflict: 'team_id,user_id' }
+            );
 
-        // Update my profile's team_id
+        // Mirror to profile so client UI shows the team without a re-login.
         const { error: profileErr } = await supabase
             .from('profiles')
             .update({ team_id: teamId, role: 'coach' })
             .eq('id', user.id);
 
-        if (teamErr || profileErr) {
-            setMessage(`❌ Error: ${teamErr?.message || profileErr?.message}`);
+        if (membershipErr || profileErr) {
+            setMessage(`❌ Error: ${membershipErr?.message || profileErr?.message}`);
         } else {
             setMessage('✅ Successfully linked! Refresh the page and go to Teams.');
             fetchData();

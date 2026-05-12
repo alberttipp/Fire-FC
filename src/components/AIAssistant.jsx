@@ -111,15 +111,24 @@ const AIAssistant = () => {
                 roster = players || [];
             }
 
-            // Get coach info
+            // Get coach info — look up via team_memberships (teams has no
+            // coach_id column). Prefer the manager; fall back to first coach.
             let coachInfo = null;
-            if (teamData?.coach_id) {
-                const { data: coach } = await supabase
-                    .from('profiles')
-                    .select('full_name, email')
-                    .eq('id', teamData.coach_id)
-                    .single();
-                coachInfo = coach;
+            if (teamId) {
+                const { data: staff } = await supabase
+                    .from('team_memberships')
+                    .select('user_id, role')
+                    .eq('team_id', teamId)
+                    .in('role', ['manager', 'coach']);
+                const headStaff = staff?.find(s => s.role === 'manager') || staff?.[0];
+                if (headStaff?.user_id) {
+                    const { data: coach } = await supabase
+                        .from('profiles')
+                        .select('full_name, email')
+                        .eq('id', headStaff.user_id)
+                        .single();
+                    coachInfo = coach;
+                }
             }
 
             setContextData({

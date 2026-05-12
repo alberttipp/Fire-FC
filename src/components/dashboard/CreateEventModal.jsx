@@ -45,14 +45,18 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
 
         try {
             // 1. Get Team ID validation
-            // Ideally we get this from profile.team_id. 
-            // If the user doesn't have a team_id but is a coach, he might need to create a team first?
+            // Ideally we get this from profile.team_id.
+            // Fallback to team_memberships if profile hasn't refreshed since
+            // a fresh team was created (teams has no coach_id column).
             let teamId = profile?.team_id;
 
-            // Fallback check (if profile not refreshed)
             if (!teamId) {
-                const { data: team } = await supabase.from('teams').select('id').eq('coach_id', user.id).single();
-                if (team) teamId = team?.id;
+                const { data: memberships } = await supabase
+                    .from('team_memberships')
+                    .select('team_id')
+                    .eq('user_id', user.id)
+                    .limit(1);
+                if (memberships?.length > 0) teamId = memberships[0].team_id;
             }
 
             if (!teamId) {
