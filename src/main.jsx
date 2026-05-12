@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react'
 import './index.css'
 import './buildInfo.js'
 import App from './App.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 
 // Initialize Sentry error tracking (production only)
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
@@ -64,6 +65,8 @@ if (sentryDsn) {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )

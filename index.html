@@ -28,6 +28,56 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- ============================================================
+         Boot guard: prevents the "white-screen-of-stale-cache" trap
+         that hits PWA-installed Android Chrome (and sometimes iOS
+         Safari). If the cached index.html references a /assets/*.js
+         bundle that no longer exists on the server (because a new
+         deploy renamed it), the module script load fails silently
+         and the user is stuck on a blank page. This catches that
+         error and force-reloads with a cache-busting query string.
+         ============================================================ -->
+    <script>
+      (function () {
+        var BOOT_MARK = 'firefc_boot_recovered_at';
+        // If we already tried to recover in the last 60s, don't loop —
+        // surface a visible error instead of reloading forever.
+        function recentlyRecovered() {
+          try {
+            var last = parseInt(sessionStorage.getItem(BOOT_MARK) || '0', 10);
+            return last && (Date.now() - last) < 60000;
+          } catch (_) { return false; }
+        }
+        function recover() {
+          try { sessionStorage.setItem(BOOT_MARK, String(Date.now())); } catch (_) {}
+          var url = location.pathname
+            + (location.search ? location.search + '&' : '?')
+            + '__r=' + Date.now()
+            + (location.hash || '');
+          location.replace(url);
+        }
+        window.addEventListener('error', function (e) {
+          var tgt = e && e.target;
+          var isScript = tgt && (tgt.tagName === 'SCRIPT' || tgt.tagName === 'LINK');
+          var src = tgt && (tgt.src || tgt.href) || '';
+          if (isScript && src && src.indexOf('/assets/') !== -1) {
+            if (recentlyRecovered()) {
+              document.body && (document.body.innerHTML =
+                '<div style="font-family:sans-serif;padding:24px;color:#fff;background:#0f0f10;min-height:100vh">' +
+                '<h2>Fire FC — couldn\'t load</h2>' +
+                '<p style="opacity:.8">The app failed to download its latest bundle and a clean reload didn\'t fix it. Likely a caching issue with the installed app.</p>' +
+                '<p style="opacity:.8"><b>Try:</b> uninstall the home-screen icon, open <code>fire-fc.vercel.app</code> in Chrome, re-install via the menu.</p>' +
+                '<button onclick="sessionStorage.removeItem(\'' + BOOT_MARK + '\');location.reload()" ' +
+                'style="margin-top:16px;padding:10px 16px;background:#3b82f6;color:#fff;border:0;border-radius:8px;font-weight:bold">Try again</button>' +
+                '</div>');
+              return;
+            }
+            recover();
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
