@@ -1,5 +1,88 @@
 # Fire-FC Development Notes
 
+## Session: 2026-05-12 evening → 2026-05-13 (IDP polish + homework automation)
+
+### Context
+- After the IDP v2 ship on 05-12 morning, Albert tested on his phone and surfaced six UX issues. Fixed all six.
+- Then asked about the original "auto-default homework if coach didn't assign by Sunday" design. Audit confirmed it was defined in the 2026-02-03 migration but **never installed** (cron lines commented, function referenced columns that don't exist on current `drills` schema). Built that out properly.
+
+### IDP v2 polish (commit 2b3100c)
+1. **"Click to lock in"** is now a brand-green gradient button with chevron + glow + hover scale, not a flat gold link.
+2. **Modal title clipping** — both `PlayerIDPView` and `IDPBuilderModal` got iOS safe-area top padding (`pt-7 sm:pt-5 + style.paddingTop = env(safe-area-inset-top)`) + `items-start` + `truncate`. Title is fully visible on notched phones.
+3. **Coach navbar overflow** — Logout was getting pushed off-screen on phones once the "Logout" text always rendered. Tightened: navbar `px-3 sm:px-6`, right cluster `gap-1.5 sm:gap-6`, shrunk logo (`w-10` on mobile), Preview button hides the "…" suffix on mobile, mobile view-switcher truncates at 60px, Logout text dropped to `text-[11px]`. Every right-side element has `shrink-0` so nothing overflows.
+4. **Per-drill "Solo" buttons → multi-select + bulk action** in `PlayerIDPView`. Drill rows are now checkboxes. Single sticky bottom CTA adapts by viewer:
+   - Player dashboard mode (`onStartSoloDrill` passed): green **"Start N drill(s)"** button → deep-links into ParentSessionBuilder with all selected IDs comma-separated. `ParentSessionBuilder` already accepted `?drillIds=` from the earlier IDP work — extended naturally.
+   - Parent dashboard mode (no `onStartSoloDrill`): blue **"Assign N as Homework"** button → INSERTs `assignments` rows with `source='parent'`. Fixes the "Player not found" dead-end tippjr hit (the old per-drill Solo button tried to open `/player-dashboard` which parents can't access).
+5. **"Save & Close" footer button** added to `IDPBuilderModal`. Changes were already auto-saved per action, but coach asked for explicit Save. Bright green gradient at bottom; sub-copy clarifies auto-save behavior.
+6. **Coach IDP notes (timestamped) + Add-from-library drill picker** in `IDPBuilderModal`:
+   - Notes section uses the existing `coach_notes` table tagged `['idp']`. Inline text input + Save, shows last 10 notes with timestamps.
+   - "Browse library" link per current block opens a searchable `DrillLibraryPicker` modal. Defaults to filtering by the block's tagged_skills; one-tap "All drills" toggle widens to the full catalog (120-row limit). Picking a drill triggers the same solo deep-link.
+
+### Homework automation (commit d703c33)
+Closed the gap between the original design and reality.
+
+**Pre-state audit findings:**
+- `pg_cron` extension NOT installed on the project.
+- `clear_weekly_assignments()` existed but had no cron schedule.
+- `create_assignment_reminders()` + `auto_assign_weekly_drills()` were **defined in the migration file but never applied to prod**, likely because they reference `drills.group_size` / `drills.players` columns that don't exist on the current schema.
+
+**Migration `20260513_homework_automation.sql` (applied):**
+- `CREATE EXTENSION IF NOT EXISTS pg_cron` — succeeded; pg_cron 1.6.4 installed in `pg_catalog`.
+- `check_coach_has_weekly_assignments(uid, team_id)` — refreshed helper.
+- `pick_solo_drills(target_minutes)` — new selector that uses the CURRENT drills schema (`category IN ('Ball Mastery (Solo)','First Touch','Conditioning','Speed & Agility')`).
+- `create_assignment_reminders()` — refreshed; now matches all staff roles (coach/head_coach/assistant_coach/manager/team_manager), idempotent for 24h.
+- `auto_assign_weekly_drills()` — refreshed; uses `pick_solo_drills(100)`, inserts one row per (drill × player), `NOT EXISTS` guard prevents duplicates, inserts notification only if assignments were created.
+- `auto_fill_team_homework(team_uuid)` — NEW on-demand variant. Auth-checked (must be team staff via team_memberships). Returns `(created_count, total_minutes)`. Granted EXECUTE to `authenticated`.
+
+**Cron jobs scheduled (UTC):**
+| Job | Cron | Central Time | Function |
+|---|---|---|---|
+| `fire-fc-sat-reminder` | `0 17 * * 6` | Sat 12pm | `create_assignment_reminders()` |
+| `fire-fc-sun-clear` | `0 11 * * 0` | Sun 6am | `clear_weekly_assignments()` |
+| `fire-fc-sun-auto-assign` | `0 17 * * 0` | Sun 12pm | `auto_assign_weekly_drills()` |
+
+All three `active=true` in `cron.job`.
+
+**On-demand button (`src/components/dashboard/TrainingView.jsx`):**
+- New "🪄 Auto-fill Week" button (purple) in the Practice tab header next to "Assign Homework".
+- Calls `auto_fill_team_homework(p_team_id)` RPC. Toasts the outcome:
+  - 0 created → "Your players already have homework for this week."
+  - N created → "Auto-filled N drill assignments (X min of solo training) for your team."
+
+### Career stats preservation — verified 2026-05-13
+Per Albert's question: confirmed by inspecting `clear_weekly_assignments()` source, triggers on `assignments`, and `player_stats` schema.
+
+**Career counters survive every cleanup path:**
+- `player_stats.training_minutes` (lifetime minutes) — never reset
+- `player_stats.career_touches` — never reset
+- `player_stats.drills_completed` — never reset
+- `player_stats.season_minutes` / `season_touches` — persistent (no scheduled reset; revisit at season boundaries)
+- `player_stats.yearly_minutes` / `yearly_touches` — persistent
+- `streak_days`, evaluation ratings, badges — untouched
+
+**The Sunday weekly cleanup ONLY:**
+- DELETEs `assignments` rows where `status IN ('pending', 'in_progress')` and `created_at < this_week_start`. Those rows never fired the completion trigger, so no stats were ever earned from them.
+- UPDATEs `player_stats SET weekly_minutes = 0, weekly_touches = 0`. Those are the ONLY columns it touches.
+
+**Completed assignments are kept in the table indefinitely.** No `AFTER DELETE` trigger on `assignments` — even if a completed row is manually deleted later, the minutes/touches that were credited at completion stay in `player_stats`.
+
+**Verdict:** safe. Career stats are durable across weekly resets, manual cleanup of old rows, and any future season-boundary work. The Leaderboard's career-touches view will continue showing accurate lifetime totals.
+
+### Still TODO (carried)
+- [ ] Albert: smoke-test all 3 login paths in a clean browser
+- [ ] tippjr: regenerate Bo's kid access link
+- [ ] Smoke-test the cron jobs after the first Saturday/Sunday cycle (check `cron.job_run_details`)
+- [ ] Test Auto-fill Week button end-to-end on phone
+- [ ] Rockford Christian Royals club setup
+- [ ] Resend email — skipped
+- [ ] Tier 2 backlog: audit log, COPPA consent, send-coach-feedback PII refactor, Storage policy SQL
+
+### Revert points
+- `pre-idp-rewrite` git tag at `d2618f5` — anything IDP-related broken: revert client + run `20260513_idp_v2_skill_catalog_ROLLBACK.sql`.
+- For homework automation broken: run `20260513_homework_automation_ROLLBACK.sql` (drops the new functions + unschedules the three cron jobs; leaves pg_cron extension in place).
+
+---
+
 ## Session: 2026-05-09 → 2026-05-12 (post-launch polish + IDP v2 rebuild)
 
 ### Context
