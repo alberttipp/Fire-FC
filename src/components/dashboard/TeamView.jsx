@@ -376,7 +376,23 @@ const TeamView = () => {
                 <CreatePlayerModal
                     teamId={myTeam.id}
                     onClose={() => setShowPlayerModal(false)}
-                    onPlayerCreated={() => fetchTeamData()}
+                    onPlayerCreated={(result) => {
+                        fetchTeamData();
+                        // Auto-open the parent-invite share modal so Albert
+                        // can send the guardian code right after creating
+                        // the kid — saves a navigation step.
+                        if (result?.guardian_code) {
+                            setInvitePlayer({
+                                id: result.player_id,
+                                name: `${result.first_name} ${result.last_name}`,
+                                firstName: result.first_name,
+                                lastName: result.last_name,
+                                number: result.jersey_number,
+                                guardian_code: result.guardian_code,
+                                avatar: null,
+                            });
+                        }
+                    }}
                 />
             )}
 

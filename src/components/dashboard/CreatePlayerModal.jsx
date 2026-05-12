@@ -68,6 +68,10 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
 
             toast.success(`Player ${result.display_name} created! They can now login with their PIN.`);
 
+            // Hand the whole payload to the parent so it can immediately
+            // open the FamilyInviteModal with the new player + guardian
+            // code. result includes: player_id, user_id, display_name,
+            // first_name, last_name, jersey_number, guardian_code.
             if (onPlayerCreated) onPlayerCreated(result);
             onClose();
 
@@ -89,7 +93,7 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
                     <X className="w-6 h-6" />
                 </button>
 
-                <div className="p-8">
+                <div className="p-8 pb-[max(2rem,env(safe-area-inset-bottom)+1.5rem)]">
                     <h2 className="text-2xl font-display font-bold text-white uppercase tracking-wider mb-2">
                         Add New Player
                     </h2>
