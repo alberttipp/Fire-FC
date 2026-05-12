@@ -26,49 +26,40 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
         const joinCode = `FC-${randomStr}`;
 
         try {
-            // Check if user profile exists in database (real users have profiles, demo users don't)
-            const { data: profileExists } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('id', user.id)
-                .single();
-
-            // 1. Insert Team (only set coach_id if profile exists)
-            const teamInsert = {
-                name,
-                age_group: ageGroup,
-                join_code: joinCode,
-            };
-
-            if (profileExists) {
-                teamInsert.coach_id = user.id;
-            }
-
+            // 1. Insert the team. teams.org_id has a default (Rockford Fire FC)
+            // so we don't need to send it. teams has NO coach_id column —
+            // the coach/manager linkage lives in team_memberships, which we
+            // add immediately after.
             const { data: teamData, error: teamError } = await supabase
                 .from('teams')
-                .insert(teamInsert)
+                .insert({
+                    name,
+                    age_group: ageGroup,
+                    join_code: joinCode,
+                })
                 .select()
                 .single();
-
             if (teamError) throw teamError;
 
-            // 2. Update Coach's Profile with correct team_id (only if profile exists)
-            if (profileExists) {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .update({ team_id: teamData.id })
-                    .eq('id', user.id);
-
-                if (profileError) throw profileError;
-            }
+            // 2. Link the creator as manager of the new team. Default role:
+            //    'manager' (creators are typically the team's manager; they
+            //    can add coaches afterward). The Staff-can-manage policies
+            //    use this row to gate roster / IDP / homework access.
+            const { error: membershipError } = await supabase
+                .from('team_memberships')
+                .insert({
+                    team_id: teamData.id,
+                    user_id: user.id,
+                    role: 'manager',
+                });
+            if (membershipError) throw membershipError;
 
             // Success
             onTeamCreated(teamData);
             onClose();
-
         } catch (err) {
             console.error("Error creating team:", err);
-            setError(err.message);
+            setError(err.message || 'Could not create team. Try again.');
         } finally {
             setLoading(false);
         }
