@@ -607,20 +607,24 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                         {voiceInput && <p className="mt-3 text-sm text-gray-400 bg-white/5 p-3 rounded-lg">"{voiceInput}"</p>}
 
                         {/* Text input fallback */}
-                        <div className="flex gap-2 mt-3">
+                        {/* min-w-0 on the row + input lets the input actually shrink on
+                            narrow screens. Without it, the input's content (the
+                            placeholder text) sets a min size that pushes the Go button
+                            out past the gray container's right edge on phones. */}
+                        <div className="flex gap-2 mt-3 min-w-0">
                             <input
                                 type="text"
                                 value={textInput}
                                 onChange={(e) => setTextInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
                                 placeholder="Or type: 30 min warmup, dribbling, shooting"
-                                className="flex-1 bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm"
+                                className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm"
                                 disabled={aiProcessing}
                             />
                             <button
                                 onClick={handleTextSubmit}
                                 disabled={!textInput.trim() || aiProcessing}
-                                className="px-4 py-2 bg-brand-gold/20 border border-brand-gold/30 rounded-lg text-brand-gold text-sm font-bold disabled:opacity-50"
+                                className="px-4 py-2 shrink-0 bg-brand-gold/20 border border-brand-gold/30 rounded-lg text-brand-gold text-sm font-bold disabled:opacity-50"
                             >
                                 Go
                             </button>
