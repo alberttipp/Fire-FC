@@ -9,6 +9,7 @@ import Leaderboard from '../components/player/Leaderboard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
+import PlayerIDPCard from '../components/player/PlayerIDPCard';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -545,6 +546,14 @@ const ParentDashboard = () => {
                                     </button>
                                 ))}
                             </div>
+                        )}
+
+                        {/* IDP card — mirrors what the player sees, read-only */}
+                        {selectedChild?.id && (
+                            <PlayerIDPCard
+                                playerId={selectedChild.id}
+                                playerName={`${selectedChild.first_name || ''} ${selectedChild.last_name || ''}`.trim()}
+                            />
                         )}
 
                         {/* Top Row: Player Card + Stats Grid */}

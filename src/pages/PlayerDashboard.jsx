@@ -10,6 +10,7 @@ import FireBall from '../game/FireBall';
 import BadgeCelebration from '../components/BadgeCelebration';
 import BadgeUnlockBanner from '../components/BadgeUnlockBanner';
 import PreviewBanner from '../components/PreviewBanner';
+import PlayerIDPCard from '../components/player/PlayerIDPCard';
 
 // Heavy modals — only loaded when the user opens them.
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
@@ -577,6 +578,25 @@ const PlayerDashboard = () => {
                             "Train like a champion today."
                         </h2>
                     </div>
+
+                    {/* IDP Card — sits below the motivational banner */}
+                    {playerRecord?.id && (
+                        <PlayerIDPCard
+                            playerId={playerRecord.id}
+                            playerName={`${playerRecord.first_name || ''} ${playerRecord.last_name || ''}`.trim()}
+                            onStartSoloDrill={(drillId) => {
+                                // Open the solo builder pre-loaded with this drill.
+                                // PlayerDashboard already mounts ParentSessionBuilder when
+                                // showSessionBuilder is true; the builder reads ?drillIds=
+                                // from the URL (Task #42 wiring).
+                                const url = new URL(window.location.href);
+                                url.searchParams.set('drillIds', drillId);
+                                url.searchParams.set('from', 'idp');
+                                window.history.replaceState({}, '', url);
+                                setShowSessionBuilder(true);
+                            }}
+                        />
+                    )}
 
                     {/* Trophy Case / Badges */}
                     <div className="glass-panel p-6 relative overflow-hidden">

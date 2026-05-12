@@ -327,7 +327,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
     };
 
     const addDrill = (template) => {
-        setBlocks([...blocks, {
+        setBlocks((prev) => [...prev, {
             ...template,
             id: `${template.id}-${Date.now()}`,
             drillId: template.id,
@@ -338,6 +338,34 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
         }]);
         setShowDrillPicker(false);
     };
+
+    // ?drillIds=<uuid>,<uuid>... deep-link from the IDP Hub / PlayerIDPView
+    // "Solo" button. Pre-populate the builder with those drills once the
+    // catalog has loaded. Clear the param after to avoid re-triggering.
+    const preloadConsumedRef = useRef(false);
+    useEffect(() => {
+        if (preloadConsumedRef.current) return;
+        if (drillTemplates.length === 0) return;
+        const params = new URLSearchParams(window.location.search);
+        const idsParam = params.get('drillIds');
+        if (!idsParam) return;
+        const ids = idsParam.split(',').map((s) => s.trim()).filter(Boolean);
+        if (ids.length === 0) return;
+        preloadConsumedRef.current = true;
+        const matches = ids
+            .map((id) => drillTemplates.find((d) => d.id === id))
+            .filter(Boolean);
+        matches.forEach((tmpl) => addDrill(tmpl));
+        // Strip the params so a reload doesn't double-add.
+        params.delete('drillIds');
+        params.delete('from');
+        const url = new URL(window.location.href);
+        url.search = params.toString();
+        window.history.replaceState({}, '', url.toString());
+        if (matches.length > 0) {
+            toast.info(`Loaded ${matches.length} drill${matches.length === 1 ? '' : 's'} from your IDP.`);
+        }
+    }, [drillTemplates]);
 
     const removeDrill = (index) => setBlocks(blocks.filter((_, i) => i !== index));
 
