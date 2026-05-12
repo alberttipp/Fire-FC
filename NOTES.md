@@ -1,5 +1,88 @@
 # Fire-FC Development Notes
 
+## Session: 2026-05-09 → 2026-05-12 (post-launch polish + IDP v2 rebuild)
+
+### Context
+- After the data-safety hardening + Orlando onboarding wrapped on 05-09, Albert hit the app on his phone and surfaced a stack of UX issues. Fixed those incrementally over three days, then rebuilt the IDP into a flagship feature.
+- Revert point before IDP rebuild: `git tag pre-idp-rewrite` at commit `d2618f5` (pushed to origin).
+
+### 2026-05-09 → 2026-05-10: phone UX punch list (commits 88be4f2 → 99dfb60)
+- **Voice mic FAB hidden behind mobile bottom nav** — lifted to `bottom-24 md:bottom-6 z-[100]`. Same fix later applied to the AIAssistant FAB and BuildStamp (hidden on mobile entirely).
+- **"Hey Fire" did nothing on parent side** — two bugs: single tap was enabling wake-word mode instead of listening (inverted: tap = start listening, long-press = toggle wake word); ParentDashboard never registered its setCurrentView with the voice context (added). Plus parent-specific navigation patterns ("overview", "messages", "schedule").
+- **PlayerCard auto-flipped then opened modal** — refactored to a real toggle flip. Back of card redesigned with top-3 stats, progress bars, club branding, and a "Full Profile" button.
+- **Removed all canvas-confetti** — PlayerEvaluationModal save burst, readOnly soccer-ball cascade, badge toggle pop, messiMode trigger. messiMode.js kept as a no-op.
+- **Horizontal scroll on parent dashboard** — PlayerCard's hardcoded `w-80` plus the messi badge `-right-8` pushed past the viewport. Added `w-full max-w-80` on the card + `overflow-x-hidden` on the dashboard root. Same defensive `overflow-x-hidden` applied to coach Dashboard.
+- **"View as Player" → Preview Picker** — replaced the one-line nav link with a 3-step modal (team → player → role). Routes to `/parent-dashboard?preview=<id>&previewRole=parent` (or player). Sticky gold "PREVIEW · PARENT VIEW · BO TIPP · Exit" banner pinned at top. Both dashboards bypass the family/auth lookup when previewing.
+- **Toast action button** — extended Toast provider with an optional `{label, onClick}` action prop. Wired the version-drift detector to pass `{label: 'Reload', onClick: () => window.location.reload()}` so the new-version prompt is one-tap instead of "you'll have to pull-to-refresh."
+
+### 2026-05-10 → 2026-05-11: tryout signup (commits c13a3b1, 2936d3d, 6378175)
+- **Built `/tryout-signup` public page** — that link in ClubView ("Copy waitlist signup link") had no route wired; anyone Albert sent it to saw a blank screen.
+- **Locked PII leak on tryout_waitlist** — pre-state had `qual = true` SELECT for `public` role, meaning anonymous web visitors could read every prospect's name/email/phone. Replaced with staff-only SELECT/UPDATE/DELETE. Public submission goes through a SECURITY DEFINER RPC `submit_tryout_application(...)` (validates inputs, fills org_id from a slug, forces status='pending'). Migration `20260510_tryout_waitlist_rls.sql` + ROLLBACK + later `20260510_tryout_signup_v2_fields.sql` adding parent_name + preferred_positions.
+- **Tryout form v2** — coaches asked for parent name + favorite positions. Form now requires Parent / Guardian Name and offers two side-by-side position dropdowns (1st choice / 2nd choice with auto-exclude logic). 9 position options from Goalkeeper to Anywhere.
+- **Surface new fields in TryoutHub + ScoutCard** — list row gets a "Parent: Albert Tipp" subline plus the two favorite positions in gold lettering. ScoutCard right panel gets a Contact & Preferences block with mailto / tel links and 1st-choice-in-gold positions.
+- **Sidebar fix:** `tryout_waitlist` has no `updated_at` column; `TryoutHub.updateStatus` was writing one and would have errored the first time a coach changed a prospect's status. Removed.
+
+### 2026-05-12 morning: solo builder + logout (commits 61ce157, d2618f5)
+- **Solo builder "Go" button outside the gray panel** — flexbox / Tailwind quirk: `flex-1` alone keeps min-content size, so the input refused to shrink on narrow phones and pushed Go past the panel's right edge. Added `min-w-0` to the row + input, `shrink-0` to the Go button.
+- **Logout button hidden on mobile** — all three dashboards had `hidden sm:inline` on the "Logout" text, leaving only a tiny LogOut icon. Removed the class so the word shows on every screen size. Also added a red Logout entry to the MobileBottomNav More drawer so it's reachable from any tab.
+
+### 2026-05-12 afternoon: IDP v2 (commits 5ea7fde, 33e2b5f)
+Biggest piece of work. Plan was approved + saved at `.claude/plans/pure-wobbling-galaxy.md`.
+
+**Migration `20260513_idp_v2_skill_catalog.sql` (applied to prod):**
+- New `skills` catalog (20 named moves: 10 offense, 10 defense) with slug, name, category, icon, description, badge_id, sort_order.
+- 20 new badges seeded under new category `'Skill Move'` — one per move (Step-Over Specialist, Cruyff Master, The Wall, etc.).
+- New `idp_skill_progress` table — per-skill, per-block mastery (`pending` / `active` / `mastered`). RLS: staff full CRUD via `has_team_role`, family/self read-only via `is_guardian` / `is_fan` / `players.user_id`.
+- `player_idps` gains `current_block` (1-3) and `block_duration_days` (30 default).
+- `drills.tagged_skills text[]` + GIN index. 49 library drills auto-tagged via name match (Cruyff Turn Reps → cruyff_turn, Step-Over Reps → step_over, Tackling Technique → block_tackle, etc.).
+- Trigger `award_badge_on_skill_mastery()` — flip `status` to 'mastered' → matching badge inserted into `player_badges` atomically. Idempotent (manual `NOT EXISTS` check since player_badges has no unique constraint on player+badge).
+
+**The 20 moves (locked):**
+- **Offense:** step_over, cruyff_turn, body_feint, la_croqueta, drag_back, roulette, elastico, heel_flick, first_touch_setup, one_v_one_finishing
+- **Defense:** jockeying, block_tackle, one_v_one_containment, pressing_trigger, defensive_header, tracking_runs, marking, safe_clearance, recovery_run, interception
+
+**Coach UI (new components):**
+- `IDPHub.jsx` — roster overview grid, one tile per player. Shows current block, days remaining, mastered/total bar, top skills chips. New 🎯 IDP tab in Dashboard navbar (between Practice and Private). Mobile dropdown + MobileBottomNav More menu also gets it.
+- `IDPBuilderModal.jsx` — per-player editor. Three block panels (current highlighted gold, complete green, locked grey). Tile-grid skill picker with offense/defense tabs. "Mark Mastered" button → trigger awards badge. "Recommended Drills" section queries drills WHERE `tagged_skills && block_slugs`, each with a "Solo" button that deep-links into ParentSessionBuilder via `?drillIds=`. "Graduate to Block N" / "Complete the Plan" button.
+
+**Player + Parent UI (new components):**
+- `PlayerIDPCard.jsx` — slots into PlayerDashboard right under "Train like a champion today." FIFA-card brand-gold border, current block name, progress bar, skill chips with mastery checkmarks, "Click to lock in →" CTA. Same card mirrored read-only on ParentDashboard Overview.
+- `PlayerIDPView.jsx` — read-only modal: three blocks stacked, drills for current block with "Solo" buttons.
+- `IDPBuilder.jsx` (legacy) — stripped to a read-only summary inside PlayerEvaluationModal's IDP tab. No duplication with the new Hub.
+
+**Plumbing:**
+- `ParentSessionBuilder.jsx` reads `?drillIds=uuid1,uuid2,...` on mount and pre-adds those drills to the block list. Strips the params after consumption so refresh doesn't double-add.
+- `src/data/idpSkills.js` — static client-side mirror of the 20 moves (no fetch needed for the picker).
+
+**Mastery → Badge flow verified end-to-end via SQL: insert a `pending` row → update status to 'mastered' → check `player_badges` for the new row → confirmed badge appears with correct `player_user_id` + `badge_id` + `awarded_by`.**
+
+### Final account map (unchanged since 05-09)
+| Email | Role | Team | Owner |
+|---|---|---|---|
+| `alberttipp@gmail.com` | manager | Fire FC U11 + U11 Summer | Albert |
+| `berttipp@gmail.com` | coach | Fire FC U11 | Albert (test) |
+| `tippjr@yahoo.com` | parent | Fire FC U11 | Albert (Bo's guardian) |
+| `o.raptors0709@gmail.com` | coach | Fire FC U11 | Orlando Jimenez |
+| Password for all: `252525` |
+
+### Still TODO (carried over)
+- [ ] Albert: smoke-test all 3 login paths in a clean browser
+- [ ] tippjr: regenerate Bo's kid access link (7-day backfill killed the old one)
+- [ ] Smoke-test IDP v2 end-to-end on phone: build IDP for Bo → mark mastered → verify badge appears → preview as Bo → tap card → tap Solo drill
+- [ ] Rockford Christian Royals club setup — waiting on the coach's signup
+- [ ] Resend email — skipped per Albert
+- [ ] Tier 2 backlog: audit log, COPPA consent, send-coach-feedback PII refactor, Storage policy SQL
+- [ ] Tier 3: PIN login hardening, multi-team isolation tests, data retention, coach self-signup-with-team, coach settings UI
+
+### Revert points / safety
+- `pre-idp-rewrite` git tag at `d2618f5` — pushed to GitHub. If the IDP rebuild explodes: `git reset --hard pre-idp-rewrite` locally + run `20260513_idp_v2_skill_catalog_ROLLBACK.sql`.
+- All migrations have a sibling ROLLBACK file under `supabase/migrations/`.
+
+### Bundle stats after IDP work
+- Initial: ~170 KB gzipped (effectively unchanged from 05-09 thanks to lazy-load of IDPHub + IDPBuilderModal as their own chunks).
+
+---
+
 ## Session: 2026-05-09 (commercial-readiness pass + Orlando onboarded)
 
 ### Context
