@@ -3,6 +3,12 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { X, Shield } from 'lucide-react';
 
+// Age-group options. Generated from two arrays so adding an age bracket
+// or a new gender category later is a one-line change (instead of 14+
+// hardcoded option tags). Coed added per Albert's summer-team request.
+const AGE_BRACKETS = ['U6', 'U7', 'U8', 'U9', 'U10', 'U11', 'U12', 'U13', 'U14', 'U15', 'U16', 'U17', 'U18'];
+const GENDER_GROUPS = ['Boys', 'Girls', 'Coed'];
+
 const CreateTeamModal = ({ onClose, onTeamCreated }) => {
     const { user } = useAuth();
     const [name, setName] = useState('');
@@ -109,20 +115,16 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
                                 onChange={(e) => setAgeGroup(e.target.value)}
                                 className="w-full bg-black/50 border border-white/10 rounded p-3 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all outline-none"
                             >
-                                <option>U8 Boys</option>
-                                <option>U9 Boys</option>
-                                <option>U10 Boys</option>
-                                <option>U11 Boys</option>
-                                <option>U12 Boys</option>
-                                <option>U13 Boys</option>
-                                <option>U14 Boys</option>
-                                <option>U8 Girls</option>
-                                <option>U9 Girls</option>
-                                <option>U10 Girls</option>
-                                <option>U11 Girls</option>
-                                <option>U12 Girls</option>
-                                <option>U13 Girls</option>
-                                <option>U14 Girls</option>
+                                {GENDER_GROUPS.map((gender) => (
+                                    <optgroup key={gender} label={gender}>
+                                        {AGE_BRACKETS.map((bracket) => {
+                                            const value = `${bracket} ${gender}`;
+                                            return <option key={value} value={value}>{value}</option>;
+                                        })}
+                                    </optgroup>
+                                ))}
+                                <option value="High School">High School</option>
+                                <option value="Adult">Adult</option>
                             </select>
                         </div>
 
