@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Dumbbell, Calendar, MoreHorizontal, X, MessageSquare, Camera, Tv, Car, Briefcase, Settings, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, Calendar, MoreHorizontal, X, MessageSquare, Camera, Tv, Car, Briefcase, Settings, FileText, LogOut } from 'lucide-react';
 
-const MobileBottomNav = ({ currentView, onViewChange, extraItems = [] }) => {
+const MobileBottomNav = ({ currentView, onViewChange, extraItems = [], onLogout = null }) => {
     const [showMore, setShowMore] = useState(false);
 
     const mainItems = [
@@ -54,6 +54,18 @@ const MobileBottomNav = ({ currentView, onViewChange, extraItems = [] }) => {
                                     </button>
                                 );
                             })}
+                            {/* Defensive logout entry — accessible from the mobile More
+                                menu in addition to the navbar button, so the user can
+                                always reach signout regardless of where they are. */}
+                            {onLogout && (
+                                <button
+                                    onClick={() => { setShowMore(false); onLogout(); }}
+                                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors min-h-[64px]"
+                                >
+                                    <LogOut className="w-6 h-6" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">Logout</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
