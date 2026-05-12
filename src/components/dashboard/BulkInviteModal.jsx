@@ -52,13 +52,18 @@ const BulkInviteModal = ({ teamId, teamName, onClose }) => {
 
 Hi parents! Our team is now set up in the Fire FC app. Each player has a unique 6-character code below — find your kid, then:
 
-1) Open the app: ${appUrl}
+1) Open the app on your phone: ${appUrl}
 2) Sign up as a FAMILY account (your email + a password)
 3) Tap "Link to Your Player" and enter your child's code
-4) Fill in your relationship to the kid, your name, and your cell
+4) Fill in your relationship, name, and cell
 
 Your child's code:
 ${lines || '  (Roster loading — try again in a sec)'}
+
+ADD IT TO YOUR HOME SCREEN (one-time, takes 10 seconds):
+• iPhone (Safari): tap the Share button (square + up arrow) at the bottom → scroll down → "Add to Home Screen" → Add
+• Android (Chrome): tap the ⋮ menu top-right → "Add to Home screen" or "Install app" → Add
+After that, the Fire FC icon launches it like a real app — full-screen, no browser bar.
 
 Both parents/guardians can use the same code — each one signs up with their own account so we have separate contact info for everyone. Reach out with any questions. Thanks!`
         );
