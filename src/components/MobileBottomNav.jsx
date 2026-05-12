@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Dumbbell, Calendar, MoreHorizontal, X, MessageSquare, Camera, Tv, Car, Briefcase, Settings, FileText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, Calendar, MoreHorizontal, X, MessageSquare, Camera, Tv, Car, Briefcase, Settings, FileText, LogOut, Target } from 'lucide-react';
 
 const MobileBottomNav = ({ currentView, onViewChange, extraItems = [], onLogout = null }) => {
     const [showMore, setShowMore] = useState(false);
@@ -12,6 +12,7 @@ const MobileBottomNav = ({ currentView, onViewChange, extraItems = [], onLogout 
     ];
 
     const moreItems = [
+        { id: 'idp', label: 'IDP', icon: Target },
         { id: 'private', label: 'Private Training', icon: Briefcase },
         { id: 'chat', label: 'Messages', icon: MessageSquare },
         { id: 'rules', label: 'Rules', icon: FileText },

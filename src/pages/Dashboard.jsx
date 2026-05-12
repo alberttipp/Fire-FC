@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
 
@@ -25,6 +25,7 @@ const LiveScoringView = lazy(() => import('../components/dashboard/LiveScoringVi
 const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolVolunteerView'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
 const NotificationPanel = lazy(() => import('../components/dashboard/NotificationPanel'));
+const IDPHub = lazy(() => import('../components/dashboard/IDPHub'));
 
 const ViewLoader = () => (
     <div className="flex items-center justify-center py-20">
@@ -138,6 +139,7 @@ const Dashboard = () => {
             case 'club': return <ClubView />;
             case 'team': return <TeamView />;
             case 'practice': return <TrainingView />;
+            case 'idp': return <IDPHub />;
             case 'private': return <PrivateTrainingView />;
             case 'chat': return <ChatView />;
             case 'calendar': return <CalendarHub />;
@@ -187,6 +189,12 @@ const Dashboard = () => {
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'practice' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 <Dumbbell className="w-3 h-3" /> Practice
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('idp')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'idp' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold/80 hover:text-brand-gold'}`}
+                            >
+                                <Target className="w-3 h-3" /> IDP
                             </button>
                             <button
                                 onClick={() => setCurrentView('private')}
@@ -259,6 +267,7 @@ const Dashboard = () => {
                                             { id: 'club', label: 'Club' },
                                             { id: 'team', label: 'Team' },
                                             { id: 'practice', label: 'Practice' },
+                                            { id: 'idp', label: 'IDP' },
                                             { id: 'private', label: 'Private Training' },
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },

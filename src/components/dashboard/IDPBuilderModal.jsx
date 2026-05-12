@@ -1,0 +1,596 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Target, Loader2, Plus, Check, ChevronRight, Trash2, Award, Dumbbell, ArrowRight } from 'lucide-react';
+import { supabase } from '../../supabaseClient';
+import { useAuth } from '../../context/AuthContext';
+import { IDP_SKILLS, SKILL_BY_SLUG, OFFENSE_SKILLS, DEFENSE_SKILLS } from '../../data/idpSkills';
+
+// Coach-side modal. Builds and updates a player's IDP — three 30-day
+// blocks of skill moves. Coach taps "Mark mastered" on a skill, which
+// fires the DB trigger that awards the matching badge automatically.
+//
+// Props:
+//   player        — { id, first_name, ... }
+//   existingIDP   — player_idps row or null
+//   existingSkills — array of idp_skill_progress rows (may be empty)
+//   onClose(didChange) — called when the user dismisses. `didChange`=true
+//                        tells the parent to refetch the hub.
+//   onToast(type, msg) — bridge to the toast provider
+
+const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, onToast }) => {
+    const { user } = useAuth();
+    const [idp, setIdp] = useState(existingIDP);
+    const [skills, setSkills] = useState(existingSkills);
+    const [busy, setBusy] = useState(false);
+    const [activePicker, setActivePicker] = useState(null); // block number when picker open
+    const [drillsCache, setDrillsCache] = useState({}); // skill_slug -> drills[]
+    const [didChange, setDidChange] = useState(false);
+
+    const playerName = player?.display_name || `${player?.first_name || ''} ${player?.last_name || ''}`.trim() || 'Player';
+
+    const skillsByBlock = useMemo(() => {
+        const out = { 1: [], 2: [], 3: [] };
+        for (const s of skills) {
+            if (out[s.block_number]) out[s.block_number].push(s);
+        }
+        return out;
+    }, [skills]);
+
+    const blockSkillSlugs = useMemo(() => {
+        const out = { 1: [], 2: [], 3: [] };
+        for (const n of [1, 2, 3]) {
+            out[n] = skillsByBlock[n].map((s) => s.skill_slug);
+        }
+        return out;
+    }, [skillsByBlock]);
+
+    // Fetch drills covering the current block whenever it changes
+    useEffect(() => {
+        if (!idp) return;
+        const currentBlock = idp.current_block || 1;
+        const slugs = blockSkillSlugs[currentBlock];
+        if (slugs.length === 0) {
+            setDrillsCache((c) => ({ ...c, [currentBlock]: [] }));
+            return;
+        }
+        const key = `${currentBlock}:${slugs.sort().join(',')}`;
+        if (drillsCache[key]) return;
+        (async () => {
+            const { data, error } = await supabase
+                .from('drills')
+                .select('id, name, description, category, duration, tagged_skills')
+                .overlaps('tagged_skills', slugs)
+                .eq('is_custom', false)
+                .limit(12);
+            if (error) {
+                console.error('[IDPBuilder] drill fetch error', error);
+                return;
+            }
+            setDrillsCache((c) => ({ ...c, [key]: data || [] }));
+        })();
+    }, [idp?.current_block, blockSkillSlugs, drillsCache, idp]);
+
+    const currentDrills = useMemo(() => {
+        if (!idp) return [];
+        const currentBlock = idp.current_block || 1;
+        const slugs = blockSkillSlugs[currentBlock];
+        const key = `${currentBlock}:${[...slugs].sort().join(',')}`;
+        return drillsCache[key] || [];
+    }, [idp, blockSkillSlugs, drillsCache]);
+
+    const startIDP = async () => {
+        if (!player?.id || !user?.id) return;
+        setBusy(true);
+        try {
+            const today = new Date();
+            const end = new Date(today);
+            end.setDate(end.getDate() + 90);
+            const { data, error } = await supabase
+                .from('player_idps')
+                .insert({
+                    player_id: player.id,
+                    coach_id: user.id,
+                    title: `${playerName.split(' ')[0]}'s 90-Day Plan`,
+                    start_date: today.toISOString().slice(0, 10),
+                    end_date: end.toISOString().slice(0, 10),
+                    status: 'active',
+                    current_block: 1,
+                    block_duration_days: 30,
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            setIdp(data);
+            setSkills([]);
+            setDidChange(true);
+            onToast?.('success', 'IDP started.');
+        } catch (err) {
+            console.error('[IDPBuilder] startIDP error', err);
+            onToast?.('error', "Couldn't start the IDP. Try again.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const addSkill = async (blockNumber, skillSlug) => {
+        if (!idp) return;
+        if (blockSkillSlugs[blockNumber].includes(skillSlug)) return;
+        if (blockSkillSlugs[blockNumber].length >= 3) {
+            onToast?.('warning', 'Pick a maximum of 3 skills per block.');
+            return;
+        }
+        setBusy(true);
+        try {
+            const { data, error } = await supabase
+                .from('idp_skill_progress')
+                .insert({
+                    idp_id: idp.id,
+                    block_number: blockNumber,
+                    skill_slug: skillSlug,
+                    status: blockNumber === (idp.current_block || 1) ? 'active' : 'pending',
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            setSkills((prev) => [...prev, data]);
+            setDidChange(true);
+        } catch (err) {
+            console.error('[IDPBuilder] addSkill error', err);
+            onToast?.('error', "Couldn't add that skill. Try again.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const removeSkill = async (rowId) => {
+        setBusy(true);
+        try {
+            const { error } = await supabase.from('idp_skill_progress').delete().eq('id', rowId);
+            if (error) throw error;
+            setSkills((prev) => prev.filter((s) => s.id !== rowId));
+            setDidChange(true);
+        } catch (err) {
+            console.error('[IDPBuilder] removeSkill error', err);
+            onToast?.('error', "Couldn't remove that skill.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const markMastered = async (row) => {
+        setBusy(true);
+        try {
+            const { data, error } = await supabase
+                .from('idp_skill_progress')
+                .update({
+                    status: 'mastered',
+                    mastered_at: new Date().toISOString(),
+                    mastered_by: user.id,
+                })
+                .eq('id', row.id)
+                .select()
+                .single();
+            if (error) throw error;
+            setSkills((prev) => prev.map((s) => (s.id === row.id ? data : s)));
+            setDidChange(true);
+            const meta = SKILL_BY_SLUG[row.skill_slug];
+            onToast?.('success', `${meta?.name || 'Skill'} mastered! Badge unlocked.`);
+        } catch (err) {
+            console.error('[IDPBuilder] markMastered error', err);
+            onToast?.('error', "Couldn't mark mastered. Try again.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const unmarkMastered = async (row) => {
+        setBusy(true);
+        try {
+            const { data, error } = await supabase
+                .from('idp_skill_progress')
+                .update({ status: 'active', mastered_at: null, mastered_by: null })
+                .eq('id', row.id)
+                .select()
+                .single();
+            if (error) throw error;
+            setSkills((prev) => prev.map((s) => (s.id === row.id ? data : s)));
+            setDidChange(true);
+        } catch (err) {
+            console.error('[IDPBuilder] unmark error', err);
+            onToast?.('error', "Couldn't update.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const graduateToNextBlock = async () => {
+        if (!idp) return;
+        const next = (idp.current_block || 1) + 1;
+        if (next > 3) {
+            // Complete the IDP entirely
+            try {
+                const { data, error } = await supabase
+                    .from('player_idps')
+                    .update({ status: 'completed', current_block: 3 })
+                    .eq('id', idp.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                setIdp(data);
+                setDidChange(true);
+                onToast?.('success', `${playerName.split(' ')[0]} graduated the full 90-day plan! 🎉`);
+            } catch (err) {
+                console.error('[IDPBuilder] complete error', err);
+                onToast?.('error', "Couldn't graduate.");
+            }
+            return;
+        }
+        setBusy(true);
+        try {
+            const { data, error } = await supabase
+                .from('player_idps')
+                .update({ current_block: next })
+                .eq('id', idp.id)
+                .select()
+                .single();
+            if (error) throw error;
+            setIdp(data);
+            // Flip next-block pending → active
+            const toActivate = skills.filter((s) => s.block_number === next && s.status === 'pending');
+            if (toActivate.length > 0) {
+                await supabase
+                    .from('idp_skill_progress')
+                    .update({ status: 'active' })
+                    .in('id', toActivate.map((s) => s.id));
+                setSkills((prev) => prev.map((s) => (toActivate.find((t) => t.id === s.id) ? { ...s, status: 'active' } : s)));
+            }
+            setDidChange(true);
+            onToast?.('success', `Graduated to Block ${next}!`);
+        } catch (err) {
+            console.error('[IDPBuilder] graduate error', err);
+            onToast?.('error', "Couldn't graduate to the next block.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleSoloTrain = (drillId) => {
+        // Deep-link into ParentSessionBuilder via player dashboard
+        // (PlayerDashboard mounts ParentSessionBuilder when showSessionBuilder
+        // is set). Coach previewing isn't supposed to start solo training, so
+        // we just open the URL and let the player view handle it.
+        const params = new URLSearchParams({
+            drillIds: drillId,
+            from: 'idp',
+        });
+        const url = `/player-dashboard?${params.toString()}`;
+        window.open(url, '_blank');
+    };
+
+    return (
+        <div
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+            onClick={() => onClose(didChange)}
+        >
+            <div
+                className="bg-brand-dark border border-white/10 w-full max-w-2xl h-[95vh] sm:h-auto sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="p-5 border-b border-white/10 flex items-center gap-3 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-brand-gold/20 flex items-center justify-center">
+                        <Target className="w-5 h-5 text-brand-gold" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-bold text-base truncate">{playerName}'s IDP</h3>
+                        {idp ? (
+                            <p className="text-xs text-gray-400">
+                                Block {idp.current_block || 1} of 3 · {idp.status === 'completed' ? 'COMPLETED' : 'ACTIVE'}
+                            </p>
+                        ) : (
+                            <p className="text-xs text-gray-400">No active plan yet</p>
+                        )}
+                    </div>
+                    <button onClick={() => onClose(didChange)} className="p-1 -m-1 text-gray-500 hover:text-white">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                    {!idp ? (
+                        <div className="text-center py-10 space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center mx-auto">
+                                <Target className="w-8 h-8 text-brand-gold" />
+                            </div>
+                            <div>
+                                <p className="text-white font-bold mb-1">Start a 90-Day Plan</p>
+                                <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                                    Three 30-day blocks. Pick up to 3 skills per block. Mark them mastered and the badges unlock automatically.
+                                </p>
+                            </div>
+                            <button
+                                onClick={startIDP}
+                                disabled={busy}
+                                className="px-6 py-2.5 bg-brand-green text-brand-dark rounded-lg font-bold uppercase tracking-wider text-sm hover:bg-white transition-colors disabled:opacity-60"
+                            >
+                                {busy ? 'Starting…' : 'Start IDP'}
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Block panels */}
+                            {[1, 2, 3].map((blockNumber) => (
+                                <BlockPanel
+                                    key={blockNumber}
+                                    blockNumber={blockNumber}
+                                    isCurrent={(idp.current_block || 1) === blockNumber}
+                                    isComplete={blockNumber < (idp.current_block || 1) || idp.status === 'completed'}
+                                    rows={skillsByBlock[blockNumber]}
+                                    onOpenPicker={() => setActivePicker(blockNumber)}
+                                    onRemoveSkill={removeSkill}
+                                    onMarkMastered={markMastered}
+                                    onUnmark={unmarkMastered}
+                                    drills={(idp.current_block || 1) === blockNumber ? currentDrills : []}
+                                    onSoloTrain={handleSoloTrain}
+                                    busy={busy}
+                                />
+                            ))}
+
+                            {/* Graduate to next block */}
+                            {idp.status !== 'completed' && (
+                                <button
+                                    onClick={graduateToNextBlock}
+                                    disabled={busy}
+                                    className="w-full py-3 bg-brand-green/10 hover:bg-brand-green/20 border-2 border-brand-green/30 hover:border-brand-green/50 rounded-xl text-brand-green font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                                >
+                                    {(idp.current_block || 1) === 3
+                                        ? <>Complete the Plan <Award className="w-4 h-4" /></>
+                                        : <>Graduate to Block {(idp.current_block || 1) + 1} <ArrowRight className="w-4 h-4" /></>}
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Skill Picker overlay */}
+            {activePicker !== null && (
+                <SkillPicker
+                    blockNumber={activePicker}
+                    alreadyPicked={blockSkillSlugs[activePicker]}
+                    onPick={async (slug) => {
+                        await addSkill(activePicker, slug);
+                    }}
+                    onClose={() => setActivePicker(null)}
+                />
+            )}
+        </div>
+    );
+};
+
+const BlockPanel = ({ blockNumber, isCurrent, isComplete, rows, onOpenPicker, onRemoveSkill, onMarkMastered, onUnmark, drills, onSoloTrain, busy }) => {
+    const mastered = rows.filter((r) => r.status === 'mastered').length;
+    const total = rows.length;
+    const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
+
+    return (
+        <div
+            className={`rounded-2xl border-2 transition-colors ${
+                isCurrent
+                    ? 'border-brand-gold/50 bg-brand-gold/5'
+                    : isComplete
+                        ? 'border-brand-green/30 bg-brand-green/5'
+                        : 'border-white/10 bg-white/[0.02]'
+            }`}
+        >
+            <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <span
+                            className={`text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded ${
+                                isCurrent
+                                    ? 'bg-brand-gold text-brand-dark'
+                                    : isComplete
+                                        ? 'bg-brand-green/20 text-brand-green'
+                                        : 'bg-white/10 text-gray-400'
+                            }`}
+                        >
+                            Block {blockNumber}
+                        </span>
+                        {isCurrent && (
+                            <span className="text-[10px] uppercase tracking-widest text-brand-gold/80 font-bold">Current</span>
+                        )}
+                        {isComplete && !isCurrent && (
+                            <span className="text-[10px] uppercase tracking-widest text-brand-green/80 font-bold">Done</span>
+                        )}
+                    </div>
+                    <span className="text-xs text-gray-500">
+                        {mastered}/{total} mastered
+                    </span>
+                </div>
+
+                {total > 0 && (
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mb-3">
+                        <div
+                            className="h-full bg-gradient-to-r from-brand-green to-brand-gold rounded-full"
+                            style={{ width: `${pct}%` }}
+                        />
+                    </div>
+                )}
+
+                {/* Skill rows */}
+                <div className="space-y-2">
+                    {rows.length === 0 && (
+                        <p className="text-xs text-gray-500 italic py-2">No skills picked yet for this block.</p>
+                    )}
+                    {rows.map((row) => {
+                        const meta = SKILL_BY_SLUG[row.skill_slug];
+                        if (!meta) return null;
+                        const isMastered = row.status === 'mastered';
+                        return (
+                            <div
+                                key={row.id}
+                                className={`flex items-center gap-2 p-2 rounded-lg border ${
+                                    isMastered
+                                        ? 'bg-brand-green/10 border-brand-green/30'
+                                        : 'bg-white/5 border-white/10'
+                                }`}
+                            >
+                                <span className="text-lg shrink-0">{meta.icon}</span>
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-bold ${isMastered ? 'text-brand-green' : 'text-white'}`}>
+                                        {meta.name}
+                                    </p>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-500">{meta.category}</p>
+                                </div>
+                                {isMastered ? (
+                                    <>
+                                        <span className="text-[10px] uppercase tracking-wider text-brand-green font-bold flex items-center gap-1">
+                                            <Check className="w-3 h-3" /> Mastered
+                                        </span>
+                                        <button
+                                            onClick={() => onUnmark(row)}
+                                            disabled={busy}
+                                            className="text-[10px] text-gray-500 hover:text-white px-2"
+                                            title="Undo mastery"
+                                        >
+                                            Undo
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => onMarkMastered(row)}
+                                        disabled={busy}
+                                        className="px-3 py-1.5 bg-brand-gold/15 border border-brand-gold/30 hover:bg-brand-gold/25 text-brand-gold text-xs font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-60"
+                                    >
+                                        Mark Mastered
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => onRemoveSkill(row.id)}
+                                    disabled={busy || isMastered}
+                                    className="p-1.5 text-gray-500 hover:text-red-400 disabled:opacity-30"
+                                    title={isMastered ? 'Already mastered — undo first' : 'Remove'}
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        );
+                    })}
+                    {rows.length < 3 && (
+                        <button
+                            onClick={onOpenPicker}
+                            disabled={busy}
+                            className="w-full p-2 rounded-lg border-2 border-dashed border-white/15 hover:border-brand-gold/40 hover:bg-white/5 text-gray-400 hover:text-brand-gold text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                        >
+                            <Plus className="w-3.5 h-3.5" /> Add skill
+                        </button>
+                    )}
+                </div>
+
+                {/* Recommended drills (current block only) */}
+                {isCurrent && drills.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                        <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 flex items-center gap-1.5">
+                            <Dumbbell className="w-3 h-3 text-brand-green" /> Recommended Drills
+                        </p>
+                        <div className="space-y-1.5">
+                            {drills.slice(0, 6).map((d) => (
+                                <div key={d.id} className="flex items-center gap-2 p-2 rounded bg-white/[0.02] border border-white/5">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-white truncate">{d.name}</p>
+                                        <p className="text-[10px] text-gray-500 truncate">{d.category} · {d.duration || 10} min</p>
+                                    </div>
+                                    <button
+                                        onClick={() => onSoloTrain(d.id)}
+                                        className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-brand-green/15 border border-brand-green/30 text-brand-green hover:bg-brand-green/25"
+                                    >
+                                        Solo
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Tile-grid skill picker — opens as a sheet over the modal.
+const SkillPicker = ({ blockNumber, alreadyPicked, onPick, onClose }) => {
+    const [tab, setTab] = useState('offense');
+    const list = tab === 'offense' ? OFFENSE_SKILLS : DEFENSE_SKILLS;
+
+    return (
+        <div
+            className="fixed inset-0 z-[210] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
+            onClick={onClose}
+        >
+            <div
+                className="bg-brand-dark border border-white/10 w-full max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[80vh]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-4 border-b border-white/10 flex items-center gap-3">
+                    <h4 className="text-white font-bold text-sm flex-1">Pick a skill for Block {blockNumber}</h4>
+                    <button onClick={onClose} className="text-gray-500 hover:text-white">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="p-3 border-b border-white/10 flex gap-1">
+                    <button
+                        onClick={() => setTab('offense')}
+                        className={`flex-1 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors ${
+                            tab === 'offense'
+                                ? 'bg-brand-gold text-brand-dark'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                        }`}
+                    >
+                        Offense
+                    </button>
+                    <button
+                        onClick={() => setTab('defense')}
+                        className={`flex-1 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors ${
+                            tab === 'defense'
+                                ? 'bg-brand-gold text-brand-dark'
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                        }`}
+                    >
+                        Defense
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2">
+                    {list.map((s) => {
+                        const taken = alreadyPicked.includes(s.slug);
+                        return (
+                            <button
+                                key={s.slug}
+                                disabled={taken}
+                                onClick={async () => {
+                                    await onPick(s.slug);
+                                    onClose();
+                                }}
+                                className={`p-3 rounded-xl border-2 text-left transition-colors ${
+                                    taken
+                                        ? 'border-white/10 bg-white/[0.02] opacity-40 cursor-not-allowed'
+                                        : 'border-white/10 bg-white/5 hover:border-brand-gold/40 hover:bg-brand-gold/5'
+                                }`}
+                            >
+                                <div className="text-2xl mb-1">{s.icon}</div>
+                                <p className="text-sm font-bold text-white truncate">{s.name}</p>
+                                <p className="text-[10px] text-gray-500 leading-snug mt-1 line-clamp-2">{s.description}</p>
+                                {taken && (
+                                    <span className="mt-2 inline-block text-[9px] uppercase tracking-wider text-gray-500">Already picked</span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default IDPBuilderModal;
