@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, Play, Plus, ClipboardList, Calendar, AlertCircle, X, Clock, Target, Zap, Shield, Footprints, Wind, Brain, Heart, Flame, Eye } from 'lucide-react';
+import { Dumbbell, Play, Plus, ClipboardList, Calendar, AlertCircle, X, Clock, Target, Zap, Shield, Footprints, Wind, Brain, Heart, Flame, Eye, Wand2, Loader2 } from 'lucide-react';
 import AssignDrillModal from './AssignDrillModal';
 import PracticeSessionBuilder from './PracticeSessionBuilder';
 import CreateEventModal from './CreateEventModal';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 
 const CATEGORY_CONFIG = {
     'Ball Mastery (Solo)': { bg: 'bg-purple-500/20', border: 'border-purple-500/30', text: 'text-purple-400', glow: 'shadow-purple-500/20', gradient: 'from-purple-900/80 to-purple-600/20', icon: Footprints, emoji: '🎯', label: 'Ball Mastery' },
@@ -24,6 +25,7 @@ const getCategoryConfig = (category) => CATEGORY_CONFIG[category] || { color: 'g
 
 const TrainingView = () => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showPracticeBuilder, setShowPracticeBuilder] = useState(false);
     const [showAddPractice, setShowAddPractice] = useState(false);
@@ -32,6 +34,35 @@ const TrainingView = () => {
     const [teamId, setTeamId] = useState(null);
     const [selectedDrill, setSelectedDrill] = useState(null);
     const [filterCategory, setFilterCategory] = useState('all');
+    const [autoFilling, setAutoFilling] = useState(false);
+
+    // On-demand "fill this week's homework" — calls the same SECURITY DEFINER
+    // RPC that Sunday's cron job uses, scoped to this coach's team. Skips
+    // any (drill, player) pair that's already assigned for the week.
+    const handleAutoFill = async () => {
+        if (!teamId) {
+            toast.warning('No team selected — try refreshing.');
+            return;
+        }
+        setAutoFilling(true);
+        try {
+            const { data, error } = await supabase.rpc('auto_fill_team_homework', { p_team_id: teamId });
+            if (error) throw error;
+            const row = Array.isArray(data) ? data[0] : data;
+            const created = row?.created_count ?? 0;
+            const mins = row?.total_minutes ?? 0;
+            if (created === 0) {
+                toast.info("Your players already have homework for this week.");
+            } else {
+                toast.success(`Auto-filled ${created} drill assignment${created === 1 ? '' : 's'} (${mins} min of solo training) for your team.`);
+            }
+        } catch (err) {
+            console.error('[TrainingView] auto-fill error', err);
+            toast.error("Couldn't auto-fill homework. Try again.");
+        } finally {
+            setAutoFilling(false);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -80,22 +111,31 @@ const TrainingView = () => {
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl text-white font-display uppercase">Practice Center</h2>
 
-                <div className="flex gap-3">
+                <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
                     <button
                         onClick={() => setShowAddPractice(true)}
-                        className="bg-brand-green text-brand-dark px-4 py-2 rounded font-bold uppercase text-sm flex items-center gap-2 hover:bg-white transition-colors"
+                        className="bg-brand-green text-brand-dark px-3 sm:px-4 py-2 rounded font-bold uppercase text-xs sm:text-sm flex items-center gap-2 hover:bg-white transition-colors"
                     >
                         <Calendar className="w-4 h-4" /> Add Practice
                     </button>
                     <button
                         onClick={() => setShowPracticeBuilder(true)}
-                        className="bg-brand-gold/10 border border-brand-gold/30 text-brand-gold px-4 py-2 rounded font-bold uppercase text-sm flex items-center gap-2 hover:bg-brand-gold/20 transition-colors"
+                        className="bg-brand-gold/10 border border-brand-gold/30 text-brand-gold px-3 sm:px-4 py-2 rounded font-bold uppercase text-xs sm:text-sm flex items-center gap-2 hover:bg-brand-gold/20 transition-colors"
                     >
                         <ClipboardList className="w-4 h-4" /> Build Session
                     </button>
                     <button
+                        onClick={handleAutoFill}
+                        disabled={autoFilling || !teamId}
+                        className="bg-purple-500/15 border border-purple-500/40 text-purple-300 px-3 sm:px-4 py-2 rounded font-bold uppercase text-xs sm:text-sm flex items-center gap-2 hover:bg-purple-500/25 transition-colors disabled:opacity-50"
+                        title="Generate ~100 min of solo drills for every player on this team (skips any already assigned)"
+                    >
+                        {autoFilling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                        Auto-fill Week
+                    </button>
+                    <button
                         onClick={() => setShowAssignModal(true)}
-                        className="btn-primary flex items-center gap-2 px-4 py-2 text-sm"
+                        className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm"
                     >
                         <Plus className="w-4 h-4" /> Assign Homework
                     </button>
