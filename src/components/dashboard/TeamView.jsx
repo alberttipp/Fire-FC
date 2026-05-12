@@ -8,6 +8,7 @@ import CreateTeamModal from './CreateTeamModal';
 import InviteManager from './InviteManager';
 import CreatePlayerModal from './CreatePlayerModal';
 import AddExistingPlayerModal from './AddExistingPlayerModal';
+import BulkInviteModal from './BulkInviteModal';
 import FamilyInviteModal from './FamilyInviteModal';
 import UpcomingWeek from './UpcomingWeek';
 
@@ -21,6 +22,7 @@ const TeamView = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showPlayerModal, setShowPlayerModal] = useState(false);
     const [showAddExisting, setShowAddExisting] = useState(false);
+    const [showBulkInvite, setShowBulkInvite] = useState(false);
 
     // UI State
     const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -405,6 +407,14 @@ const TeamView = () => {
                 />
             )}
 
+            {showBulkInvite && (
+                <BulkInviteModal
+                    teamId={myTeam.id}
+                    teamName={myTeam.name}
+                    onClose={() => setShowBulkInvite(false)}
+                />
+            )}
+
             {invitePlayer && (
                 <FamilyInviteModal
                     player={invitePlayer}
@@ -424,7 +434,15 @@ const TeamView = () => {
                         <h3 className="text-lg text-brand-gold font-display uppercase font-bold flex items-center gap-2">
                             Roster
                         </h3>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                            <button
+                                onClick={() => setShowBulkInvite(true)}
+                                disabled={roster.length === 0}
+                                className="bg-brand-gold/10 text-brand-gold border border-brand-gold/30 px-3 py-1.5 rounded text-xs font-bold uppercase hover:bg-brand-gold/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                                title="Generate one message with every player's guardian code"
+                            >
+                                <Copy className="w-3 h-3" /> Invite Families
+                            </button>
                             <button
                                 onClick={() => setShowAddExisting(true)}
                                 className="bg-brand-gold/10 text-brand-gold border border-brand-gold/30 px-3 py-1.5 rounded text-xs font-bold uppercase hover:bg-brand-gold/20 transition-colors flex items-center gap-2"
