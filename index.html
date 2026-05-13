@@ -59,25 +59,43 @@
             + (location.hash || '');
           location.replace(url);
         }
+        function showFailureUI() {
+          document.body && (document.body.innerHTML =
+            '<div style="font-family:sans-serif;padding:24px;color:#fff;background:#0f0f10;min-height:100vh">' +
+            '<h2>Fire FC — couldn\'t load</h2>' +
+            '<p style="opacity:.8">The app failed to download its latest bundle and a clean reload didn\'t fix it. Likely a caching issue with the installed app.</p>' +
+            '<p style="opacity:.8"><b>Try:</b> uninstall the home-screen icon, open <code>firefcapp.com</code> in Chrome, re-install via the menu.</p>' +
+            '<button onclick="sessionStorage.removeItem(\'' + BOOT_MARK + '\');location.reload()" ' +
+            'style="margin-top:16px;padding:10px 16px;background:#3b82f6;color:#fff;border:0;border-radius:8px;font-weight:bold">Try again</button>' +
+            '</div>');
+        }
+        function attemptRecovery() {
+          if (recentlyRecovered()) { showFailureUI(); return; }
+          recover();
+        }
+        // Layer 1: explicit script/link load failures
         window.addEventListener('error', function (e) {
           var tgt = e && e.target;
           var isScript = tgt && (tgt.tagName === 'SCRIPT' || tgt.tagName === 'LINK');
           var src = tgt && (tgt.src || tgt.href) || '';
           if (isScript && src && src.indexOf('/assets/') !== -1) {
-            if (recentlyRecovered()) {
-              document.body && (document.body.innerHTML =
-                '<div style="font-family:sans-serif;padding:24px;color:#fff;background:#0f0f10;min-height:100vh">' +
-                '<h2>Fire FC — couldn\'t load</h2>' +
-                '<p style="opacity:.8">The app failed to download its latest bundle and a clean reload didn\'t fix it. Likely a caching issue with the installed app.</p>' +
-                '<p style="opacity:.8"><b>Try:</b> uninstall the home-screen icon, open <code>firefcapp.com</code> in Chrome, re-install via the menu.</p>' +
-                '<button onclick="sessionStorage.removeItem(\'' + BOOT_MARK + '\');location.reload()" ' +
-                'style="margin-top:16px;padding:10px 16px;background:#3b82f6;color:#fff;border:0;border-radius:8px;font-weight:bold">Try again</button>' +
-                '</div>');
-              return;
-            }
-            recover();
+            attemptRecovery();
           }
         }, true);
+        // Layer 2: mount watchdog. If React hasn't put anything inside
+        // #root within 8s, the bundle either failed silently or threw
+        // during module-eval (no error event reaches us). Force a
+        // cache-busting reload so the user isn't stuck on a black screen.
+        // Tuned for slow 3G: 8s is comfortably above typical first-paint
+        // for our ~178KB gzipped bundle, well below the user's patience.
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            var root = document.getElementById('root');
+            if (root && root.childElementCount === 0) {
+              attemptRecovery();
+            }
+          }, 8000);
+        });
       })();
     </script>
   </head>
