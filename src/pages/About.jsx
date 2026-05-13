@@ -84,7 +84,7 @@ const About = () => {
                         <span className="text-brand-gold">Built for our team.</span>
                     </h1>
                     <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-                        Fire FC is the app we built to track training, growth, and game-day prep for our players — automatically. Less paperwork for coaches. More confidence for families. Real progress kids can see.
+                        Fire FC is the app I built for our team to track training, growth, and game-day prep for our players — automatically. Less paperwork for the coach. More confidence for families. Real progress kids can see.
                     </p>
                     <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
                         <Link
@@ -214,7 +214,7 @@ const About = () => {
                                 <Step
                                     n="2"
                                     title="Link to your player"
-                                    body="Enter the 6-character code Coach Albert sent you"
+                                    body="Enter the 6-character code from the team text"
                                 />
                                 <Step
                                     n="3"
