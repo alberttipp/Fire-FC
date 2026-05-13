@@ -1,5 +1,124 @@
 # Fire-FC Development Notes
 
+## Session: 2026-05-13 afternoon (Layer 1 — custom domain LIVE)
+
+### Outcome
+- **`https://firefcapp.com` is LIVE** and serves the Fire FC app over HTTPS with valid SSL.
+- **`https://www.firefcapp.com` 307-redirects to apex** as designed.
+- **Vercel default `fire-fc.vercel.app` still works** as a fallback (not removed).
+
+### What was done (executed by a browser-driving Claude session per a copy-paste playbook)
+1. **Vercel** — added `firefcapp.com` (apex/Production) + `www.firefcapp.com` (redirect → apex) to the `fire-fc` project. Both show "Valid Configuration" and SSL Issued.
+2. **GoDaddy DNS** — deleted the parked-page A record and default www CNAME. Added:
+   - `A   @    216.198.79.1                       TTL=600` (Custom — GoDaddy has no 600s preset)
+   - `CNAME  www  42f873f4a93265c5.vercel-dns-017.com.  TTL=600`
+   - Preserved untouched: NS×2, CNAME `_domainconnect`, SOA, TXT `_dmarc`.
+3. **Supabase** (project `bcfemytoburctssnemwn`) — Auth → URL Configuration:
+   - Site URL changed from `https://fire-fc.vercel.app` → `https://firefcapp.com`
+   - Redirect URLs (3 total now): kept `https://fire-fc.vercel.app/**`, added `https://firefcapp.com/*` and `https://www.firefcapp.com/*`
+
+### Code changes (commit pending)
+- `index.html`: added `og:url`, `og:image` (absolute), and `<link rel="canonical">` pointing at `https://firefcapp.com/`
+- `index.html`: boot-guard fallback text now says `firefcapp.com` instead of `fire-fc.vercel.app`
+
+### Notable observations from the deploy
+- **Vercel rolled out new IP ranges in 2026.** Domains added now should use:
+  - `A   @   216.198.79.1` (not the legacy `76.76.21.21`)
+  - `CNAME www  <hash>.vercel-dns-017.com.` (per-domain custom CNAME, not generic `cname.vercel-dns.com`)
+  - Both old and new values still work — Vercel just recommends the new ones for new domains.
+- **First HTTPS load failed transiently** with a Chrome "Privacy error" (~15s after DNS propagated). Second load succeeded — consistent with SSL cert provisioning finalizing. Not a regression.
+- **Pre-existing `_dmarc` TXT record** found on the GoDaddy DNS — `v=DMARC1; p=quarantine; ...`. Unusual on a fresh domain but left untouched per scope.
+
+### TODO before declaring Layer 1 100% done
+- [ ] Albert: sign in on `https://firefcapp.com` and confirm post-login URL stays on apex (auth redirect didn't bounce to `fire-fc.vercel.app`)
+- [ ] **Consider:** upgrade the two new Supabase redirect URLs from `/*` → `/**` to match the existing `fire-fc.vercel.app/**` pattern (matches multi-segment paths like `/auth/callback/google`). Current single-level routes work with `/*` but `/**` is safer.
+- [ ] Commit + push the `index.html` changes so production deploy reflects the new canonical URL + boot-guard text
+- [ ] Update repo `.claude/CLAUDE.md` deploy notes if they reference the old URL anywhere
+
+### Next layer
+Layer 2 — Vercel staging/production branch split. Queued for immediately after this session is saved.
+
+---
+
+## Session: 2026-05-13 morning (foundation/hosting plan — PC crashed mid-session)
+
+### Context
+- After yesterday's "make-the-PWA-bulletproof" arc shipped, Albert asked the bigger question: *"Verify I haven't already bought a domain for the app, then plan out the foundation so it's extremely stable on hosting — I only want to deal with app-specific issues, not tech-stack issues."*
+- Plan was delivered at ~07:58 Central. Session ended (PC crash) right after — **no decisions were committed, no actions taken.**
+
+### Domain audit (read-only)
+- Searched memory + repo. Confirmed: no Fire FC custom domain has been purchased.
+- Existing: `tippinsurance.com` (insurance business, SiteGround) and `fire-fc.vercel.app` (free Vercel default subdomain).
+- Caveat: I can't see Albert's registrar inboxes (GoDaddy / Namecheap / Cloudflare). Worth Albert checking before buying.
+
+### Foundation plan as delivered (5 layers)
+| # | Layer | Priority | Cost | Time | Status |
+|---|---|---|---|---|---|
+| 1 | **Custom domain** — buy `firefcapp.com` from **Cloudflare Registrar** (at-cost, no upsells), point at Vercel via DNS | DO FIRST | ~$12/yr | — | Not started |
+| 2 | **Staging vs Production split** — switch Vercel so `production` branch is the live one and `main` is preview-only. Ends the "every commit auto-ships to Albert's phone" pattern | DO FIRST | $0 | 15 min | Not started |
+| 3 | **Uptime monitoring** — UptimeRobot free, 5-min ping, texts on downtime | DO FIRST | $0 | 5 min | Not started |
+| 4 | **DB safety** — Supabase Pro for Point-in-Time Recovery (7-day rewind) | Wait for real families | $25/mo | — | Not started |
+| 5 | **Process guardrails** — ErrorBoundary, boot guard, no-store HTML headers, Sentry | ✅ Already shipped | — | — | Done 2026-05-12 |
+
+### Where the session stopped
+Last assistant question was *"Want me to start with Layer 2 (staging separation)?"* — Albert never got to answer.
+
+### Resume plan
+- Albert: spot-check registrar accounts so we don't double-buy a domain
+- Decide: Layer 2 first (highest impact, free, 15 min) or Layer 1 first (commit on a name)
+- Then Layer 3 (UptimeRobot) the same hour — these three are the foundation triad
+
+---
+
+## Session: 2026-05-12 midday → afternoon (team/parent onboarding + PWA install + stability hardening)
+
+### Context
+- After the 11:32am NOTES checkpoint (homework automation done), Albert kept shipping. Three arcs over the next 3 hours: (1) team-creation + multi-team-roster hardening, (2) parent onboarding + invite messaging UX, (3) PWA install + stability layers so the installed app stops white-screening.
+
+### Team + multi-team architecture (commits 1d67b86, 1bdcd72, 965f0f3, d2625b3)
+- **CreateTeamModal** got the full U6–U18 age range plus a **Coed** variant alongside Boys/Girls. Removed the phantom `coach_id` write and stopped writing `profiles.team_id` (deprecated single-team field).
+- **RLS hardening pass:** migrations `20260513_team_and_club_creation_hardening.sql`, `20260513_teams_select_policy_allow_directors.sql`, `20260513_drop_team_creator_trigger.sql`, `20260513_players_auto_guardian_code.sql`. Outcomes:
+  - Teams SELECT policy now allows org directors, not just member-role users
+  - Team-creator trigger dropped — it was inserting incorrect rows on team creation
+  - Players auto-generate a guardian code at creation (no manual step required)
+- **Multi-team rosters:** migrations `20260513_player_teams_multi_team_support.sql` + `20260513_db_functions_use_player_teams.sql`. A kid can now play on N teams at once via a `player_teams` join table. Helper DB functions (roster queries, eligibility checks) all read from `player_teams` instead of `players.team_id`.
+- **Touched components:** `CreateTeamModal.jsx`, `AddExistingPlayerModal.jsx`, `useCalendarEvents.js`, `CreateEventModal.jsx`, `AIAssistant.jsx`, `DebugStatus.jsx`, `TrainingView.jsx`.
+
+### Parent onboarding + family invites (commits 94fc7af, 151cbda, 7170790)
+- **Parent profile capture:** migration `20260513_family_members_profile_capture.sql` adds relationship + name + phone fields. UI in `GuardianCodeEntry.jsx` collects these on first link.
+- **Share-code UX:** cleaner copy/share flow on the modal, clear instructions for what the code does.
+- **"Invite another parent" button** on ParentDashboard overview → opens `FamilyInviteModal.jsx`, generates a one-tap message ready to text.
+- **"Invite Families" bulk message generator** in TeamView (`BulkInviteModal.jsx`) — coach picks players, app spits out a pre-filled SMS/email per family with the access link baked in.
+- **Edge function:** `supabase/functions/create-player/index.ts` updated to match new schema (auto-generated guardian code, optional family_members profile fields).
+
+### PWA install + stability (commits 6cd106c, 8e7d156, 1a1993d)
+This is the "make the installed app bulletproof" arc — three commits forming one defense in depth.
+
+**`6cd106c` PWA install support**
+- `public/manifest.json` created with app name, theme color, icons, standalone display mode
+- `apple-touch-icon` link in `index.html`
+- Install instructions surfaced in UI
+
+**`8e7d156` Drills SELECT readable by anon**
+- Migration `20260513_drills_readable_by_anon.sql` — anon role can SELECT from `drills`
+- Fixes the kid-link AI session generation, which was 500'ing because the unauthenticated player-access flow couldn't read drill rows
+
+**`1a1993d` Three-layer stability** — final commit before crash
+1. **Boot guard in `index.html`** (inline JS, pre-React) — catches `/assets/*.js` load failures (the classic PWA stale-cache trap where cached HTML references a deleted bundle), auto-reloads with `?__r=<timestamp>`. Loop protection: 2 recoveries in 60s → visible error UI with uninstall/reinstall instructions + Try Again button.
+2. **ErrorBoundary wired up in `src/main.jsx`** — the component existed since January but was never used; now wraps `<App />`. Uncaught render errors show a real message + Reload button instead of white screen. Hooks Sentry.
+3. **`vercel.json` cache headers** — `/`, `/index.html`, `/version.json` switched from `public, max-age=0, must-revalidate` → `no-store, max-age=0, must-revalidate`. Reason: installed Android Chrome PWAs were over-caching HTML; only `no-store` forced network on every load. Assets stay long-cached + immutable.
+
+### Other commits in the window
+- `21d4cff` HomeworkHub — short list view + "See all" + hide last-week completions
+- `b452490` Solo builder — added Create / Speak More buttons after voice capture
+
+### Verified state at end of 2026-05-12
+- All commits pushed to `origin/main`
+- Only uncommitted: `.claude/settings.local.json` (local permission additions) + `dist/index.html` (build artifact, in .gitignore but legacy-tracked)
+- 9 SQL migrations applied to Fire FC PROD on 2026-05-13 (despite client-local date being 05-12)
+
+---
+
 ## Session: 2026-05-12 evening → 2026-05-13 (IDP polish + homework automation)
 
 ### Context
