@@ -68,12 +68,21 @@ All "seeded for testing" rows MUST be identifiable so they can be cleaned safely
 
 Never delete "all rows" from a table.
 
-## 7) Git workflow guardrails
+## 7) Git workflow guardrails (main/production split — 2026-05-13)
 - Always check branch and status before and after changes:
   - `git status`
   - `git branch -vv`
-- Prefer PRs; do not push to main if branch protection exists.
-- After changes: commit with a clear message and include what was verified.
+- **Two-branch model:**
+  - `main` — working/integration branch. Pushes here create **Preview Deployments** on Vercel only. Safe to push freely.
+  - `production` — what `firefcapp.com` serves. Pushes here ship to real families. Treat as protected.
+- **Promotion flow (main → production):**
+  1. Verify the preview deployment from `main` works (test the preview URL on phone if it's a UI change)
+  2. `git checkout production && git merge --ff-only main && git push origin production && git checkout main`
+  3. (Or open a PR `main → production` for visibility, then merge)
+  4. Vercel auto-deploys production within ~60s
+- **Never commit directly to `production`.** Always merge from `main`. This keeps the audit trail clean.
+- **Hotfix exception:** if production is broken and `main` has unshippable WIP, branch `hotfix/<name>` from `production`, fix, push, merge back into both `production` and `main`.
+- After any commit: include in the message what was verified (build passed, preview tested, etc.)
 
 ## 8) Supabase workflow guardrails
 - Never ask for secrets to be pasted into chat.
