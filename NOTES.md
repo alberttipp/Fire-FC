@@ -1,5 +1,74 @@
 # Fire-FC Development Notes
 
+## Session: 2026-05-13 afternoon (Layer 3 — uptime monitoring LIVE)
+
+### Outcome
+- **UptimeRobot configured** by Albert directly at uptimerobot.com (free tier)
+- Monitoring `https://firefcapp.com` at 5-min intervals over HTTPS
+- Alerts go to `alberttipp@gmail.com` (email)
+- Foundation plan now 4-of-5 done. Only Layer 4 (Supabase Pro PITR) remains — deferred until real families.
+
+### Foundation plan final status today
+- ✅ Layer 1 (custom domain — firefcapp.com)
+- ✅ Layer 2 (main/production branch split)
+- ✅ Layer 3 (UptimeRobot)
+- 🟡 Layer 4 (Supabase Pro PITR) — deferred until real families
+- ✅ Layer 5 (process guardrails — shipped 2026-05-12 in `1a1993d`)
+
+### Launch-readiness check (2026-05-13 EOD)
+- ✅ Custom domain with valid SSL
+- ✅ Login verified end-to-end on firefcapp.com
+- ✅ Two-branch workflow protecting families from in-progress commits
+- ✅ External uptime monitoring with email alerts
+- ✅ Boot guard + ErrorBoundary + tightened cache headers shipped yesterday
+- ✅ Sentry error reporting active
+- 🟡 Still open: Supabase redirect URLs `/*` → `/**` upgrade (nice-to-have), Bo's kid access link regen, cron job smoke-test after first Sat/Sun cycle, phone end-to-end Auto-fill Week test, Tier 2 hardening backlog
+
+---
+
+## Session: 2026-05-13 afternoon (Layer 2 — staging/production branch split LIVE)
+
+### Outcome
+- **Two-branch model in effect.** `main` = working/preview, `production` = what `firefcapp.com` serves.
+- Verified end-to-end: identical commit `5cbcaf7` produced one Preview deployment (from `main`) and one Production deployment (from `production`) on the same push cycle.
+
+### What was done
+1. **Created `production` branch** from `main` HEAD `71e518e` and pushed to origin.
+2. **Vercel setting flipped** (via Claude ext): Project Settings → **Environments → Production** → Production Branch changed from `main` → `production`. *(Note for future prompts: this setting moved out of Settings → Git in current Vercel UI.)*
+3. **First test commit (`5cbcaf7`)** committed to `main`, pushed → Vercel built it as Preview only.
+4. **ff-merge `main` → `production`** locally, pushed → Vercel built it as Production, replaced previous Current production deployment.
+
+### Verified deployment labels after first push cycle
+| Deployment | Branch | Label | Status | Notes |
+|---|---|---|---|---|
+| `8bmoBQL2h` | `production` | Production (Current) | Ready (15s build) | Live on firefcapp.com |
+| `6LBL2gYfT` | `main` | Preview | Ready (24s build) | Preview URL only |
+| `FWGD6kVmP` | `main` | Production (superseded) | Ready | Old; no longer Current |
+
+### New promotion workflow (now canonical)
+```
+# normal work — all on main, gets preview deploys, never touches production
+git checkout main
+# ... edit, commit, push ...
+
+# when preview looks good and ready to ship to families:
+git checkout production
+git merge --ff-only main
+git push origin production
+git checkout main
+```
+- Hotfix exception (production broken + main has WIP): branch `hotfix/<name>` from `production`, fix, push to production, then back-merge into main.
+- Documented in `.claude/CLAUDE.md` section 7.
+
+### Foundation plan status after Layer 2
+- ✅ Layer 1 (custom domain — firefcapp.com)
+- ✅ Layer 2 (main/production split)
+- ⏳ Layer 3 (UptimeRobot) — next, ~5 min
+- 🟡 Layer 4 (Supabase Pro PITR) — deferred until real families
+- ✅ Layer 5 (process guardrails — shipped 2026-05-12 in `1a1993d`)
+
+---
+
 ## Session: 2026-05-13 afternoon (Layer 1 — custom domain LIVE)
 
 ### Outcome
