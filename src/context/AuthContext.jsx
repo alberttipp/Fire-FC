@@ -173,9 +173,12 @@ export const AuthProvider = ({ children }) => {
     };
 
     const signUp = async (email, password, metadata = {}) => {
-        // Ensure role is set, defaulting to parent if not provided (though DB handles default too)
+        // Default role is 'coach' (the no-code self-serve flow always means
+        // someone setting up their own team). When the caller passes
+        // `role: null` (e.g. a code-based signup), the RPC will fill in
+        // the real role from the invite and we don't preassume here.
         const data = {
-            role: 'parent',
+            role: 'coach',
             ...metadata
         };
 

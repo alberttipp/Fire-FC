@@ -84,8 +84,13 @@ const Login = () => {
 
         try {
             if (isSignUp) {
+                // Initial metadata role: 'coach' for self-serve signups with no
+                // code (small team setup flow). When a code IS provided we DON'T
+                // preassume parent — the join_team_via_code RPC is the source of
+                // truth and will sync the auth metadata to match the invite's
+                // role on success.
                 const { data, error } = await signUp(email, password, {
-                    role: joinCode ? 'parent' : 'coach',
+                    role: joinCode ? null : 'coach',
                     full_name: fullName.trim()
                 });
 
@@ -93,10 +98,20 @@ const Login = () => {
 
                 if (joinCode && data?.user) {
                     try {
-                        const { error: joinError } = await supabase.rpc('join_team_via_code', {
+                        const { data: joinResult, error: joinError } = await supabase.rpc('join_team_via_code', {
                             input_code: joinCode
                         });
                         if (joinError) throw joinError;
+
+                        // Sync auth metadata.role to match the invite role so the
+                        // app routes the user to the right dashboard immediately
+                        // (AuthContext also reads from team_memberships on the next
+                        // fetchProfile, but metadata is what Login.jsx:120-ish uses
+                        // for the initial navigation).
+                        const grantedRole = joinResult?.role;
+                        if (grantedRole) {
+                            await supabase.auth.updateUser({ data: { role: grantedRole } });
+                        }
                     } catch (codeErr) {
                         console.error("Invite Code Error:", codeErr);
                         toast.warning(`Account created, but the team code didn't work: ${friendlyAuthError(codeErr)}`);
