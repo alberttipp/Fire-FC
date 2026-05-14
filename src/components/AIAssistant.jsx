@@ -217,7 +217,7 @@ TODAY'S DATE: ${today}
 CURRENT USER: ${user.name} (${user.role})
 
 TEAM INFO:
-- Team: ${team?.name || 'Rockford Fire FC'} (${team?.age_group || 'U11 Boys'})
+- Team: ${team?.name || 'Rockford Fire FC'} (${team?.age_group || 'U12 Coed'})
 - Team Code: ${team?.join_code || 'N/A'}
 ${coach ? `- Coach: ${coach.full_name} (${coach.email})` : ''}
 

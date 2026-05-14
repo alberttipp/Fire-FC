@@ -44,7 +44,7 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
             } else if (userRole === 'player') {
                 // Player → all teams they are ACTIVE on. Even if profile.team_id
                 // is set (legacy primary pointer), still merge from player_teams
-                // so a kid on U11 + Summer sees both feeds.
+                // so a kid on a club team + Summer Squad sees both feeds.
                 const { data: playerRow } = await supabase
                     .from('players')
                     .select('id')

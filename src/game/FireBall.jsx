@@ -868,7 +868,7 @@ const FireBall = ({ onClose }) => {
                         <span className="text-orange-500">🔥</span>
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500"> FIRE BALL</span>
                     </h1>
-                    <p className="text-gray-300 mb-8 uppercase tracking-widest">Rockford Fire FC • U11 Boys</p>
+                    <p className="text-gray-300 mb-8 uppercase tracking-widest">Rockford Fire FC • U12 Coed</p>
                     
                     <button
                         onClick={() => setScreen(STATES.SELECT)}

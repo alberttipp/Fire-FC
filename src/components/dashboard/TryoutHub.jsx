@@ -240,7 +240,7 @@ const TryoutHub = () => {
                         />
                         <input
                             type="text"
-                            placeholder="Age Group (e.g. U11)"
+                            placeholder="Age Group (e.g. U12)"
                             value={newProspect.age_group}
                             onChange={(e) => setNewProspect({ ...newProspect, age_group: e.target.value })}
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"

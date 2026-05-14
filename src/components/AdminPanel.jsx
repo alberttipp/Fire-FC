@@ -116,7 +116,7 @@ const AdminPanel = ({ onClose }) => {
             // ============================================================
             setResult({ status: 'progress', message: 'Step 3/7: Creating 42 players...' });
 
-            // U11 Players (Bo's team)
+            // U11 Players (demo seed for Spring 2026 sample data — not the real roster)
             const u11Players = [
                 { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Bo', last_name: 'Tipp', jersey_number: 58, position: 'Forward', overall_rating: 72, training_minutes: 340, pace: 75, shooting: 78, passing: 70, dribbling: 74, defending: 45, physical: 68 },
                 { team_id: 'd02aba3e-3c30-430f-9377-3b334cffcd04', first_name: 'Marcus', last_name: 'Chen', jersey_number: 10, position: 'Midfielder', overall_rating: 70, training_minutes: 310, pace: 68, shooting: 65, passing: 78, dribbling: 75, defending: 60, physical: 62 },

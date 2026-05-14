@@ -213,7 +213,7 @@ const ParentDashboard = () => {
             setPlayerBadges(badges);
 
             // Fetch upcoming events — across EVERY team the kid is active
-            // on (kid may be rostered to U11 + Summer Squad at the same
+            // on (kid may be rostered to a club team + Summer Squad at the same
             // time). Pulls team ids from player_teams (status='active');
             // falls back to legacy primary team_id when no active rows.
             const { data: activeTeams } = await supabase

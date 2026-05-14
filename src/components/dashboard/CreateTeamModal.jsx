@@ -12,7 +12,7 @@ const GENDER_GROUPS = ['Boys', 'Girls', 'Coed'];
 const CreateTeamModal = ({ onClose, onTeamCreated }) => {
     const { user } = useAuth();
     const [name, setName] = useState('');
-    const [ageGroup, setAgeGroup] = useState('U11 Boys');
+    const [ageGroup, setAgeGroup] = useState('U12 Coed');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
