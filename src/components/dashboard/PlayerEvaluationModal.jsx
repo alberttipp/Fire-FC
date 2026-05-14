@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, TrendingUp, Award, Medal, Clock, FileText, Target } from 'lucide-react';
 import CoachNotesPanel from './CoachNotesPanel';
 import IDPBuilder from './IDPBuilder';
+import AvatarUploader from '../player/AvatarUploader';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { badges as mockBadges } from '../../data/badges';
 import { supabase } from '../../supabaseClient';
@@ -13,6 +14,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     const toast = useToast();
     const [activeTab, setActiveTab] = useState('eval'); // 'eval', 'awards', or 'training'
     const [saving, setSaving] = useState(false);
+    // Local avatar URL — initialized from the player prop and updated
+    // optimistically when AvatarUploader reports a successful upload, so the
+    // modal reflects the new photo without waiting for a parent re-fetch.
+    const [currentAvatar, setCurrentAvatar] = useState(player?.avatar_url || player?.avatar || null);
     const [coachNotes, setCoachNotes] = useState('');
     const [season, setSeason] = useState('Spring 2026');
     const [existingEvalId, setExistingEvalId] = useState(null);
@@ -294,9 +299,19 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
 
                 {/* Visual Section (Left) */}
                 <div className="w-full md:w-1/2 bg-gradient-to-br from-gray-900 to-black p-3 md:p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-white/10 shrink-0">
-                    <div className="text-center mb-2 md:mb-6">
-                        <h2 className="text-xl md:text-3xl text-white font-display uppercase font-bold tracking-wider">{player?.name || 'Player Name'}</h2>
-                        <p className="text-brand-green tracking-widest uppercase text-[10px] md:text-sm font-bold">Midfielder • U10</p>
+                    <div className="text-center mb-2 md:mb-6 flex flex-col items-center gap-2 md:gap-3">
+                        <AvatarUploader
+                            playerId={player?.id}
+                            playerName={player?.name}
+                            currentAvatarUrl={currentAvatar}
+                            canEdit={!readOnly}
+                            size="md"
+                            onUploaded={(newUrl) => setCurrentAvatar(newUrl)}
+                        />
+                        <div>
+                            <h2 className="text-xl md:text-3xl text-white font-display uppercase font-bold tracking-wider">{player?.name || 'Player Name'}</h2>
+                            <p className="text-brand-green tracking-widest uppercase text-[10px] md:text-sm font-bold">Midfielder • U10</p>
+                        </div>
                     </div>
 
                     <div className="w-full h-[160px] md:h-[300px] relative">
