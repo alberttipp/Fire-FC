@@ -9,13 +9,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import UpcomingWeek from './UpcomingWeek';
 import VoiceScoutingNotes from './VoiceScoutingNotes';
+import KeyDatesPanel from './KeyDatesPanel';
 
 const ClubView = () => {
     const { user, profile } = useAuth();
     const toast = useToast();
     const [stats, setStats] = useState({ players: 0, teams: 0, events: 0 });
     const [waitlist, setWaitlist] = useState([]);
-    const [keyDates, setKeyDates] = useState([]);
     const [showAddWaitlist, setShowAddWaitlist] = useState(false);
     const [showScoutingNotes, setShowScoutingNotes] = useState(false);
     const [recentNotes, setRecentNotes] = useState([]);
@@ -82,16 +82,8 @@ const ClubView = () => {
 
                 setWaitlist(waitlistData || []);
 
-                // Fetch key dates (future events marked as key dates or specific types)
-                const { data: keyDateData } = await supabase
-                    .from('events')
-                    .select('*')
-                    .in('type', ['tryout', 'tournament', 'break', 'season_start', 'season_end'])
-                    .gte('start_time', today.toISOString())
-                    .order('start_time', { ascending: true })
-                    .limit(10);
-
-                setKeyDates(keyDateData || []);
+                // Key dates are now fetched + managed inside <KeyDatesPanel /> so
+                // this view stays the lightweight aggregator it always was.
 
                 // Fetch recent scouting notes
                 const { data: notesData } = await supabase
@@ -156,26 +148,6 @@ const ClubView = () => {
         toast.success('Waitlist signup link copied.');
     };
 
-    // Sample key dates if none exist
-    const displayKeyDates = keyDates.length > 0 ? keyDates : [
-        { id: 1, title: 'Spring Tryouts', start_time: '2026-03-15T10:00:00', type: 'tryout', location_name: 'Main Field' },
-        { id: 2, title: 'Winter Season Ends', start_time: '2026-02-28T18:00:00', type: 'season_end' },
-        { id: 3, title: 'Spring Break - No Practice', start_time: '2026-03-20T00:00:00', type: 'break' },
-        { id: 4, title: 'Spring Season Starts', start_time: '2026-04-01T00:00:00', type: 'season_start' },
-        { id: 5, title: 'Summer Tournament', start_time: '2026-06-15T08:00:00', type: 'tournament', location_name: 'Regional Complex' },
-    ];
-
-    const getKeyDateIcon = (type) => {
-        switch (type) {
-            case 'tryout': return <UserPlus className="w-4 h-4 text-green-400" />;
-            case 'tournament': return <Trophy className="w-4 h-4 text-yellow-400" />;
-            case 'break': return <AlertCircle className="w-4 h-4 text-orange-400" />;
-            case 'season_start': return <Star className="w-4 h-4 text-blue-400" />;
-            case 'season_end': return <Calendar className="w-4 h-4 text-red-400" />;
-            default: return <CalendarDays className="w-4 h-4 text-gray-400" />;
-        }
-    };
-
     return (
         <div className="space-y-6 animate-fade-in-up">
             {/* Stats Cards */}
@@ -218,43 +190,8 @@ const ClubView = () => {
                     <UpcomingWeek showAllTeams={true} />
                 </div>
 
-                {/* Key Dates - Next 6-12 Months */}
-                <div className="glass-panel p-6">
-                    <h3 className="text-lg text-brand-gold font-display uppercase font-bold mb-4 flex items-center gap-2">
-                        <CalendarDays className="w-5 h-5" /> Key Dates
-                    </h3>
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                        {displayKeyDates.map((date) => {
-                            const eventDate = new Date(date.start_time);
-                            return (
-                                <div
-                                    key={date.id}
-                                    className="p-3 bg-white/5 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        {getKeyDateIcon(date.type)}
-                                        <div className="flex-1">
-                                            <h4 className="text-white font-bold text-sm">{date.title}</h4>
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                {eventDate.toLocaleDateString('en-US', { 
-                                                    weekday: 'short', 
-                                                    month: 'short', 
-                                                    day: 'numeric',
-                                                    year: eventDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-                                                })}
-                                            </p>
-                                            {date.location_name && (
-                                                <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                                                    <MapPin className="w-3 h-3" /> {date.location_name}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
+                {/* Key Dates panel — self-contained: fetch, add/edit/delete for staff */}
+                <KeyDatesPanel />
             </div>
 
             {/* Recruiting Tools Section */}
