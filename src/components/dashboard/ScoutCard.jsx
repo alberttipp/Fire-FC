@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Mic, MicOff, StopCircle, Save, Star, ChevronLeft, Wand2, Loader2, Clock, Trash2, Tag, Users, Mail, Phone, Target } from 'lucide-react';
+import { X, Mic, MicOff, StopCircle, Save, Star, ChevronLeft, Wand2, Loader2, Clock, Trash2, Tag, Users, Mail, Phone, Target, Pencil } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
@@ -12,7 +12,13 @@ const TAG_OPTIONS = [
     'Left Foot', 'Right Foot', 'Positioning', 'Passing', 'Shooting', 'Defending'
 ];
 
-const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
+// Same 9-position vocabulary as the public TryoutSignup form
+const POSITIONS = [
+    'Goalkeeper', 'Center Back', 'Fullback', 'Defensive Midfielder',
+    'Center Midfielder', 'Attacking Midfielder', 'Winger', 'Striker', 'Anywhere',
+];
+
+const ScoutCard = ({ prospect, onClose, onStatusChange, onUpdate, onDelete }) => {
     const { user } = useAuth();
     const toast = useToast();
     const confirm = useConfirm();
@@ -24,6 +30,66 @@ const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
     const [saving, setSaving] = useState(false);
     const [rating, setRating] = useState({ technical: 3, tactical: 3, physical: 3, mental: 3 });
     const recognitionRef = useRef(null);
+
+    // Edit-profile form state
+    const [editing, setEditing] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [editForm, setEditForm] = useState({
+        name: '',
+        age_group: '',
+        parent_name: '',
+        email: '',
+        phone: '',
+        notes: '',
+        position1: '',
+        position2: '',
+    });
+
+    // Reset edit form whenever the loaded prospect changes
+    useEffect(() => {
+        if (!prospect) return;
+        setEditing(false);
+        setEditForm({
+            name: prospect.name || '',
+            age_group: prospect.age_group || '',
+            parent_name: prospect.parent_name || '',
+            email: prospect.email || '',
+            phone: prospect.phone || '',
+            notes: prospect.notes || '',
+            position1: prospect.preferred_positions?.[0] || '',
+            position2: prospect.preferred_positions?.[1] || '',
+        });
+    }, [prospect?.id]);
+
+    const handleSaveProfile = async () => {
+        if (!editForm.name.trim()) {
+            toast.error('Name is required.');
+            return;
+        }
+        if (editForm.position1 && editForm.position2 && editForm.position1 === editForm.position2) {
+            toast.error("1st and 2nd favorite positions can't be the same.");
+            return;
+        }
+        const fields = {
+            name: editForm.name.trim(),
+            age_group: editForm.age_group.trim() || null,
+            parent_name: editForm.parent_name.trim() || null,
+            email: editForm.email.trim() || null,
+            phone: editForm.phone.trim() || null,
+            notes: editForm.notes.trim() || null,
+            preferred_positions: [editForm.position1, editForm.position2].filter(Boolean),
+        };
+        setSavingProfile(true);
+        const ok = await (onUpdate ? onUpdate(prospect.id, fields) : Promise.resolve(false));
+        setSavingProfile(false);
+        if (ok) setEditing(false);
+    };
+
+    const handleDeleteClick = async () => {
+        if (!onDelete) return;
+        await onDelete(prospect);
+        // Parent (TryoutHub) clears selectedPlayer on success, which unmounts this card.
+    };
 
     // Fetch scouting notes for this prospect
     useEffect(() => {
@@ -187,7 +253,7 @@ const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 {/* Player Header */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-4 gap-3">
                     <div className="flex gap-4 min-w-0">
                         <div className="w-16 h-16 bg-gray-800 rounded-lg flex items-center justify-center border-2 border-white/10 text-2xl font-bold text-gray-500 shrink-0">
                             {prospect.name?.charAt(0)?.toUpperCase() || '?'}
@@ -210,12 +276,132 @@ const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
                                     </select>
                                 )}
                             </div>
-                            {prospect.notes && (
+                            {prospect.notes && !editing && (
                                 <p className="text-gray-400 text-xs mt-2 max-w-md">{prospect.notes}</p>
                             )}
                         </div>
                     </div>
+                    {onUpdate && !editing && (
+                        <button
+                            onClick={() => setEditing(true)}
+                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-gray-300 text-xs font-bold uppercase tracking-wider hover:bg-white/5 hover:text-white transition-colors"
+                            aria-label="Edit prospect"
+                        >
+                            <Pencil className="w-3.5 h-3.5" /> Edit
+                        </button>
+                    )}
                 </div>
+
+                {/* Edit Profile form (inline, replaces Contact & Preferences while open) */}
+                {editing && (
+                    <div className="mb-6 p-4 bg-black/30 rounded-xl border border-brand-green/30 space-y-3">
+                        <div className="flex items-center justify-between mb-1">
+                            <h4 className="text-brand-green text-xs uppercase font-bold tracking-wider">Edit prospect</h4>
+                            <button
+                                onClick={() => setEditing(false)}
+                                className="text-gray-400 hover:text-white text-xs"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label className="block">
+                                <span className="text-gray-400 text-[11px] uppercase tracking-wider">Full name</span>
+                                <input
+                                    type="text"
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                    className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="text-gray-400 text-[11px] uppercase tracking-wider">Age group</span>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. U12"
+                                    value={editForm.age_group}
+                                    onChange={(e) => setEditForm({ ...editForm, age_group: e.target.value })}
+                                    className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="text-gray-400 text-[11px] uppercase tracking-wider">Parent / Guardian name</span>
+                                <input
+                                    type="text"
+                                    value={editForm.parent_name}
+                                    onChange={(e) => setEditForm({ ...editForm, parent_name: e.target.value })}
+                                    className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="text-gray-400 text-[11px] uppercase tracking-wider">Phone</span>
+                                <input
+                                    type="tel"
+                                    value={editForm.phone}
+                                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                                    className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green"
+                                />
+                            </label>
+                            <label className="block sm:col-span-2">
+                                <span className="text-gray-400 text-[11px] uppercase tracking-wider">Email</span>
+                                <input
+                                    type="email"
+                                    value={editForm.email}
+                                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                    className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="text-gray-400 text-[11px] uppercase tracking-wider">1st favorite position</span>
+                                <select
+                                    value={editForm.position1}
+                                    onChange={(e) => {
+                                        const next = e.target.value;
+                                        setEditForm({
+                                            ...editForm,
+                                            position1: next,
+                                            position2: next && editForm.position2 === next ? '' : editForm.position2,
+                                        });
+                                    }}
+                                    className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green"
+                                >
+                                    <option value="">(none)</option>
+                                    {POSITIONS.map(p => (<option key={p} value={p}>{p}</option>))}
+                                </select>
+                            </label>
+                            <label className="block">
+                                <span className="text-gray-400 text-[11px] uppercase tracking-wider">2nd favorite position</span>
+                                <select
+                                    value={editForm.position2}
+                                    onChange={(e) => setEditForm({ ...editForm, position2: e.target.value })}
+                                    className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green"
+                                >
+                                    <option value="">(none)</option>
+                                    {POSITIONS.filter(p => p !== editForm.position1).map(p => (<option key={p} value={p}>{p}</option>))}
+                                </select>
+                            </label>
+                            <label className="block sm:col-span-2">
+                                <span className="text-gray-400 text-[11px] uppercase tracking-wider">Notes</span>
+                                <textarea
+                                    rows={2}
+                                    value={editForm.notes}
+                                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                                    className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green resize-none"
+                                />
+                            </label>
+                        </div>
+
+                        <button
+                            onClick={handleSaveProfile}
+                            disabled={savingProfile}
+                            className="w-full mt-2 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand-green text-brand-dark text-sm font-bold uppercase tracking-wider hover:bg-brand-green/90 disabled:opacity-50"
+                        >
+                            {savingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {savingProfile ? 'Saving…' : 'Save changes'}
+                        </button>
+                    </div>
+                )}
 
                 {/* Contact + Preferences — pulled from the public tryout signup form */}
                 {(prospect.parent_name || prospect.email || prospect.phone || prospect.preferred_positions?.length > 0) && (
@@ -394,6 +580,19 @@ const ScoutCard = ({ prospect, onClose, onStatusChange }) => {
                         </div>
                     )}
                 </div>
+
+                {/* Danger zone — full delete */}
+                {onDelete && (
+                    <div className="mt-8 pt-6 border-t border-red-500/20">
+                        <button
+                            onClick={handleDeleteClick}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-500/30 text-red-400 text-xs font-bold uppercase tracking-wider hover:bg-red-500/10 transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4" /> Delete prospect
+                        </button>
+                        <p className="text-[11px] text-gray-600 mt-2">Removes this prospect from the waitlist permanently. Their scouting notes stay in the system.</p>
+                    </div>
+                )}
             </div>
 
             {/* Voice Control Footer */}

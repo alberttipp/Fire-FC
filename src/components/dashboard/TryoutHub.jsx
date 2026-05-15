@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Filter, Mic, Search, ChevronRight, UserPlus, Loader2, X } from 'lucide-react';
+import { Users, Filter, Mic, Search, ChevronRight, UserPlus, Loader2, X, Trash2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 import ScoutCard from './ScoutCard';
 
 const STATUS_COLORS = {
@@ -17,6 +18,7 @@ const STATUS_COLORS = {
 const TryoutHub = () => {
     const { user } = useAuth();
     const toast = useToast();
+    const confirm = useConfirm();
     const [prospects, setProspects] = useState([]);
     const [ageGroups, setAgeGroups] = useState([]);
     const [selectedGroup, setSelectedGroup] = useState('All');
@@ -98,6 +100,53 @@ const TryoutHub = () => {
             setProspects(prev => prev.map(p => p.id === prospectId ? { ...p, status: newStatus } : p));
         } catch (err) {
             console.error('Error updating status:', err);
+        }
+    };
+
+    // Full profile update (name, age_group, contact, positions, notes…)
+    const handleUpdateProspect = async (prospectId, fields) => {
+        try {
+            const { error } = await supabase
+                .from('tryout_waitlist')
+                .update(fields)
+                .eq('id', prospectId);
+            if (error) throw error;
+            setProspects(prev => prev.map(p => p.id === prospectId ? { ...p, ...fields } : p));
+            if (selectedPlayer?.id === prospectId) {
+                setSelectedPlayer(prev => ({ ...prev, ...fields }));
+            }
+            toast.success('Prospect updated.');
+            return true;
+        } catch (err) {
+            console.error('Error updating prospect:', err);
+            toast.error(err?.message?.includes('policy') ? "You don't have permission to edit this prospect." : 'Update failed.');
+            return false;
+        }
+    };
+
+    // Hard delete. RLS blocks non-staff so unauthorized users see an error.
+    const handleDeleteProspect = async (prospect) => {
+        const ok = await confirm({
+            title: 'Delete prospect?',
+            body: `Permanently remove ${prospect.name || 'this prospect'} from the waitlist? This can't be undone.`,
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return false;
+        try {
+            const { error } = await supabase
+                .from('tryout_waitlist')
+                .delete()
+                .eq('id', prospect.id);
+            if (error) throw error;
+            setProspects(prev => prev.filter(p => p.id !== prospect.id));
+            if (selectedPlayer?.id === prospect.id) setSelectedPlayer(null);
+            toast.success(`Removed ${prospect.name || 'prospect'} from the waitlist.`);
+            return true;
+        } catch (err) {
+            console.error('Error deleting prospect:', err);
+            toast.error(err?.message?.includes('policy') ? "You don't have permission to delete this prospect." : 'Delete failed.');
+            return false;
         }
     };
 
@@ -205,7 +254,17 @@ const TryoutHub = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <ChevronRight className={`w-4 h-4 ${selectedPlayer?.id === prospect.id ? 'text-brand-green' : 'text-gray-600'}`} />
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteProspect(prospect); }}
+                                        aria-label="Delete prospect"
+                                        title="Delete prospect"
+                                        className="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <ChevronRight className={`w-4 h-4 ${selectedPlayer?.id === prospect.id ? 'text-brand-green' : 'text-gray-600'}`} />
+                                </div>
                             </div>
                         ))
                     )}
@@ -285,6 +344,8 @@ const TryoutHub = () => {
                         prospect={selectedPlayer}
                         onClose={() => setSelectedPlayer(null)}
                         onStatusChange={updateStatus}
+                        onUpdate={handleUpdateProspect}
+                        onDelete={handleDeleteProspect}
                     />
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-50">

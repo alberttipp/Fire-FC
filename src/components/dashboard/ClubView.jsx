@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Users, Trophy, Calendar, Plus, UserPlus, ClipboardList, 
+import {
+    Users, Trophy, Calendar, Plus, UserPlus, ClipboardList,
     Mic, Send, Clock, MapPin, ChevronRight, Star, FileText,
-    CalendarDays, AlertCircle
+    CalendarDays, AlertCircle, Trash2
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 import UpcomingWeek from './UpcomingWeek';
 import VoiceScoutingNotes from './VoiceScoutingNotes';
 import KeyDatesPanel from './KeyDatesPanel';
@@ -14,6 +15,9 @@ import KeyDatesPanel from './KeyDatesPanel';
 const ClubView = () => {
     const { user, profile } = useAuth();
     const toast = useToast();
+    const confirm = useConfirm();
+    const STAFF_ROLES = new Set(['coach', 'manager', 'head_coach', 'assistant_coach', 'team_manager', 'director']);
+    const isStaff = STAFF_ROLES.has(profile?.role);
     const [stats, setStats] = useState({ players: 0, teams: 0, events: 0 });
     const [waitlist, setWaitlist] = useState([]);
     const [showAddWaitlist, setShowAddWaitlist] = useState(false);
@@ -141,6 +145,31 @@ const ClubView = () => {
         }
     };
 
+    // Quick-delete a waitlist prospect from the ClubView preview. The full
+    // edit experience lives in the Tryouts tab (TryoutHub + ScoutCard); this
+    // is just a one-tap remove for tidying up the preview list.
+    const handleDeleteWaitlist = async (prospect) => {
+        const ok = await confirm({
+            title: 'Delete prospect?',
+            body: `Permanently remove ${prospect.name || 'this prospect'} from the waitlist?`,
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return;
+        try {
+            const { error } = await supabase
+                .from('tryout_waitlist')
+                .delete()
+                .eq('id', prospect.id);
+            if (error) throw error;
+            setWaitlist(prev => prev.filter(p => p.id !== prospect.id));
+            toast.success(`Removed ${prospect.name || 'prospect'}.`);
+        } catch (err) {
+            console.error('Error deleting prospect:', err);
+            toast.error(err?.message?.includes('policy') ? "You don't have permission." : 'Delete failed.');
+        }
+    };
+
     // Copy waitlist signup link
     const copyWaitlistLink = () => {
         const link = `${window.location.origin}/tryout-signup`;
@@ -248,6 +277,16 @@ const ClubView = () => {
                                         }`}>
                                             {prospect.status || 'pending'}
                                         </span>
+                                        {isStaff && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteWaitlist(prospect); }}
+                                                aria-label="Delete prospect"
+                                                title="Delete prospect"
+                                                className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
                                         <ChevronRight className="w-4 h-4 text-gray-500" />
                                     </div>
                                 </div>
