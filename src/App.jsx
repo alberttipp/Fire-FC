@@ -36,10 +36,13 @@ const AIAssistantWrapper = () => {
   // Only show on dashboard pages when logged in
   const showAssistant = user && !location.pathname.includes('login') && !location.pathname.includes('reset');
 
+  // Yellow "Hey Fire" mic (VoiceCommandOverlay) is intentionally disabled
+  // 2026-05-15 — feature is half-baked. Re-enable here when we find a
+  // real use for it (and remove the corresponding memory reminder).
   return showAssistant ? (
     <>
       <AIAssistant />
-      <VoiceCommandOverlay />
+      {/* <VoiceCommandOverlay /> */}
     </>
   ) : null;
 };
