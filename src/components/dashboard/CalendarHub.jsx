@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Grid3X3, List, CalendarDays } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Grid3X3, List, CalendarDays, ClipboardList } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 import useCalendarEvents from '../../hooks/useCalendarEvents';
@@ -9,6 +9,7 @@ import MonthGrid from './calendar/MonthGrid';
 import AgendaList from './calendar/AgendaList';
 import EventDetailModal from './calendar/EventDetailModal';
 import SessionRunner from './calendar/SessionRunner';
+import RosterPlan from './calendar/RosterPlan';
 
 const CalendarHub = () => {
     const { user, profile } = useAuth();
@@ -87,10 +88,18 @@ const CalendarHub = () => {
                         >
                             <List className="w-3 h-3" /> List
                         </button>
+                        {isCoach && (
+                            <button
+                                onClick={() => setViewMode('plan')}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase flex items-center gap-1 transition-all ${viewMode === 'plan' ? 'bg-brand-gold text-brand-dark' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <ClipboardList className="w-3 h-3" /> Plan
+                            </button>
+                        )}
                     </div>
 
-                    {/* Month Navigation (hidden in week mode) */}
-                    {viewMode !== 'week' && (
+                    {/* Month Navigation (hidden in week + plan modes — plan has its own range) */}
+                    {viewMode !== 'week' && viewMode !== 'plan' && (
                         <div className="flex items-center bg-white/5 rounded-lg px-1 border border-white/10">
                             <button onClick={handlePrev} className="p-2 text-gray-400 hover:text-white">
                                 <ChevronLeft className="w-5 h-5" />
@@ -154,6 +163,8 @@ const CalendarHub = () => {
                     onRsvp={handleRsvp}
                 />
             )}
+
+            {viewMode === 'plan' && isCoach && <RosterPlan />}
 
             {/* Modals */}
             {showCreateModal && (
