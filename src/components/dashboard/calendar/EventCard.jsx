@@ -8,8 +8,8 @@ const EventCard = ({ event, rsvpStatus, rsvpCounts, onRsvp, onClick, compact = f
     const config = getEventConfig(event.type);
     const eventDate = new Date(event.start_time);
     const isGame = event.type === 'game';
-    const counts = rsvpCounts || { going: 0, maybe: 0, not_going: 0 };
-    const totalRsvps = counts.going + counts.maybe + counts.not_going;
+    const counts = rsvpCounts || { going: 0, not_going: 0, vacation: 0 };
+    const totalRsvps = (counts.going || 0) + (counts.not_going || 0) + (counts.vacation || 0);
 
     const countdown = (() => {
         try {
@@ -53,8 +53,9 @@ const EventCard = ({ event, rsvpStatus, rsvpCounts, onRsvp, onClick, compact = f
                 </div>
                 {totalRsvps > 0 && (
                     <div className="flex gap-2 mt-1 text-[10px]">
-                        {counts.going > 0 && <span className="text-green-400">{counts.going} going</span>}
-                        {counts.maybe > 0 && <span className="text-yellow-400">{counts.maybe} maybe</span>}
+                        {counts.going > 0    && <span className="text-green-400">{counts.going} going</span>}
+                        {counts.not_going > 0 && <span className="text-red-400">{counts.not_going} out</span>}
+                        {counts.vacation > 0 && <span className="text-sky-400">{counts.vacation} vacation</span>}
                     </div>
                 )}
             </div>
@@ -100,9 +101,9 @@ const EventCard = ({ event, rsvpStatus, rsvpCounts, onRsvp, onClick, compact = f
                         )}
                         {totalRsvps > 0 && (
                             <div className="flex gap-2 text-[10px]">
-                                {counts.going > 0 && <span className="text-green-400 font-bold">{counts.going} going</span>}
-                                {counts.maybe > 0 && <span className="text-yellow-400 font-bold">{counts.maybe} maybe</span>}
+                                {counts.going > 0     && <span className="text-green-400 font-bold">{counts.going} going</span>}
                                 {counts.not_going > 0 && <span className="text-red-400 font-bold">{counts.not_going} out</span>}
+                                {counts.vacation > 0  && <span className="text-sky-400 font-bold">{counts.vacation} vacation</span>}
                             </div>
                         )}
                     </div>

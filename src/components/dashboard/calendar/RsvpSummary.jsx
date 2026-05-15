@@ -3,7 +3,7 @@ import { Users } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 
 const RsvpSummary = ({ eventId }) => {
-    const [attendees, setAttendees] = useState({ going: [], maybe: [], not_going: [] });
+    const [attendees, setAttendees] = useState({ going: [], not_going: [], vacation: [] });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -31,10 +31,11 @@ const RsvpSummary = ({ eventId }) => {
             (players || []).forEach(p => { nameMap[p.id] = `${p.first_name} ${p.last_name?.charAt(0)}.  #${p.jersey_number || ''}`; });
             (profiles || []).forEach(p => { if (!nameMap[p.id] && p.full_name) nameMap[p.id] = p.full_name; });
 
-            const grouped = { going: [], maybe: [], not_going: [] };
+            const grouped = { going: [], not_going: [], vacation: [] };
             data.forEach(r => {
                 const name = nameMap[r.player_id] || 'Unknown';
                 if (grouped[r.status]) grouped[r.status].push(name);
+                // Legacy 'maybe' rows are intentionally dropped from the summary.
             });
 
             setAttendees(grouped);
@@ -45,13 +46,13 @@ const RsvpSummary = ({ eventId }) => {
 
     if (loading) return <div className="text-gray-500 text-xs">Loading attendance...</div>;
 
-    const total = attendees.going.length + attendees.maybe.length + attendees.not_going.length;
+    const total = attendees.going.length + attendees.not_going.length + attendees.vacation.length;
     if (total === 0) return <div className="text-gray-500 text-xs">No RSVPs yet</div>;
 
     const sections = [
-        { key: 'going', label: 'Going', items: attendees.going, color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20' },
-        { key: 'maybe', label: 'Maybe', items: attendees.maybe, color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-        { key: 'not_going', label: "Can't Go", items: attendees.not_going, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+        { key: 'going',     label: 'Going',    items: attendees.going,     color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20' },
+        { key: 'not_going', label: 'Out',      items: attendees.not_going, color: 'text-red-400',   bg: 'bg-red-500/10',   border: 'border-red-500/20' },
+        { key: 'vacation',  label: 'Vacation', items: attendees.vacation,  color: 'text-sky-400',   bg: 'bg-sky-500/10',   border: 'border-sky-500/20' },
     ];
 
     return (

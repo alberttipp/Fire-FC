@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import FamilyInviteModal from '../components/dashboard/FamilyInviteModal';
+import VacationPeriodsManager from '../components/family/VacationPeriodsManager';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -584,6 +585,16 @@ const ParentDashboard = () => {
                                 playerId={selectedChild.id}
                                 teamId={selectedChild.team_id || null}
                                 playerName={`${selectedChild.first_name || ''} ${selectedChild.last_name || ''}`.trim()}
+                            />
+                        )}
+
+                        {/* Vacation periods — parent enters a date range once;
+                            a DB trigger auto-marks every team event in that
+                            window as RSVP=vacation for this player. */}
+                        {selectedChild?.id && (
+                            <VacationPeriodsManager
+                                playerId={selectedChild.id}
+                                playerName={selectedChild.first_name || 'your player'}
                             />
                         )}
 

@@ -7,7 +7,9 @@ export const EVENT_TYPE_CONFIG = {
 export const getEventConfig = (type) => EVENT_TYPE_CONFIG[type] || EVENT_TYPE_CONFIG.practice;
 
 export const RSVP_OPTIONS = {
-    going:     { label: 'Going',     color: 'green',  bg: 'bg-green-500',  bgLight: 'bg-green-500/20', text: 'text-green-400' },
-    maybe:     { label: 'Maybe',     color: 'yellow', bg: 'bg-yellow-500', bgLight: 'bg-yellow-500/20', text: 'text-yellow-400' },
-    not_going: { label: "Can't Go",  color: 'red',    bg: 'bg-red-500',    bgLight: 'bg-red-500/20',    text: 'text-red-400' },
+    going:     { label: 'Going',    color: 'green',  bg: 'bg-green-500',  bgLight: 'bg-green-500/20',  text: 'text-green-400' },
+    not_going: { label: 'Out',      color: 'red',    bg: 'bg-red-500',    bgLight: 'bg-red-500/20',    text: 'text-red-400' },
+    vacation:  { label: 'Vacation', color: 'blue',   bg: 'bg-sky-500',    bgLight: 'bg-sky-500/20',    text: 'text-sky-400' },
 };
+// Legacy 'maybe' rsvps in the DB are tolerated but no longer surfaced as
+// a button — counts roll up into "no response" in views.

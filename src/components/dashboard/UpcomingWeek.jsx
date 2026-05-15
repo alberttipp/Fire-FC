@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Calendar, MapPin, Clock, Users, ChevronLeft, ChevronRight,
-    CheckCircle2, XCircle, HelpCircle, Bell, BellOff, Shirt,
+    CheckCircle2, XCircle, Plane, Bell, BellOff, Shirt,
     Trophy, Dumbbell, Coffee, Users2, AlertCircle, Plus
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
@@ -19,9 +19,9 @@ const EVENT_STYLES = {
 };
 
 const RSVP_OPTIONS = [
-    { status: 'going', icon: CheckCircle2, label: 'Going', color: 'text-green-400 bg-green-500/20 border-green-500' },
-    { status: 'maybe', icon: HelpCircle, label: 'Maybe', color: 'text-yellow-400 bg-yellow-500/20 border-yellow-500' },
-    { status: 'not_going', icon: XCircle, label: "Can't Go", color: 'text-red-400 bg-red-500/20 border-red-500' },
+    { status: 'going',     icon: CheckCircle2, label: 'Going',    color: 'text-green-400 bg-green-500/20 border-green-500' },
+    { status: 'not_going', icon: XCircle,      label: 'Out',      color: 'text-red-400 bg-red-500/20 border-red-500' },
+    { status: 'vacation',  icon: Plane,        label: 'Vacation', color: 'text-sky-400 bg-sky-500/20 border-sky-500' },
 ];
 
 const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) => {
