@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, TrendingUp, Award, Medal, Clock, FileText, Target } from 'lucide-react';
+import { X, Save, TrendingUp, Award, Medal, Clock, FileText, Target, IdCard, Loader2 } from 'lucide-react';
 import CoachNotesPanel from './CoachNotesPanel';
 import IDPBuilder from './IDPBuilder';
 import AvatarUploader from '../player/AvatarUploader';
@@ -18,6 +18,20 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     // optimistically when AvatarUploader reports a successful upload, so the
     // modal reflects the new photo without waiting for a parent re-fetch.
     const [currentAvatar, setCurrentAvatar] = useState(player?.avatar_url || player?.avatar || null);
+
+    // Info-tab state. Initial values from the prop (which uses TeamView's
+    // formatted shape), then enriched via a small fetch on mount so we also
+    // have display_name (not in the prop). On save, we update both the DB
+    // and this local state so the modal header reflects edits immediately.
+    const [info, setInfo] = useState({
+        first_name: player?.firstName || (player?.name || '').split(' ')[0] || '',
+        last_name: player?.lastName || (player?.name || '').split(' ').slice(1).join(' ') || '',
+        jersey_number: player?.number ?? '',
+        position: player?.position || '',
+        display_name: '',
+    });
+    const [savingInfo, setSavingInfo] = useState(false);
+    const POSITIONS = ['Forward', 'Midfielder', 'Defender', 'Goalkeeper'];
     const [coachNotes, setCoachNotes] = useState('');
     const [season, setSeason] = useState('Spring 2026');
     const [existingEvalId, setExistingEvalId] = useState(null);
@@ -150,6 +164,73 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         };
         fetchData();
     }, [player]);
+
+    // Fetch the canonical Info-tab fields (display_name not in the prop)
+    useEffect(() => {
+        if (!player?.id) return;
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase
+                .from('players')
+                .select('first_name, last_name, jersey_number, position, display_name')
+                .eq('id', player.id)
+                .single();
+            if (cancelled || error || !data) return;
+            setInfo({
+                first_name: data.first_name || '',
+                last_name: data.last_name || '',
+                jersey_number: data.jersey_number ?? '',
+                position: data.position || '',
+                display_name: data.display_name || '',
+            });
+        })();
+        return () => { cancelled = true; };
+    }, [player?.id]);
+
+    const handleSaveInfo = async () => {
+        const first_name = (info.first_name || '').trim();
+        const last_name = (info.last_name || '').trim();
+        const jersey = info.jersey_number === '' ? null : parseInt(info.jersey_number, 10);
+
+        if (!first_name) { toast.error('First name is required.'); return; }
+        if (!last_name)  { toast.error('Last name is required.');  return; }
+        if (jersey === null || Number.isNaN(jersey) || jersey < 0 || jersey > 999) {
+            toast.error('Jersey number must be 0–999.'); return;
+        }
+
+        setSavingInfo(true);
+        try {
+            const { error } = await supabase
+                .from('players')
+                .update({
+                    first_name,
+                    last_name,
+                    jersey_number: jersey,
+                    position: info.position || null,
+                    display_name: (info.display_name || '').trim() || `${first_name} ${last_name}`,
+                })
+                .eq('id', player.id);
+            if (error) throw error;
+            toast.success('Player info updated.');
+            // Keep our local mirror in sync with what we wrote
+            setInfo(prev => ({
+                ...prev,
+                first_name,
+                last_name,
+                jersey_number: jersey,
+                position: info.position || '',
+                display_name: (info.display_name || '').trim() || `${first_name} ${last_name}`,
+            }));
+        } catch (err) {
+            console.error('[PlayerEvaluationModal] save info failed:', err);
+            const msg = err?.message || 'Save failed.';
+            toast.error(msg.includes('policy') || msg.includes('permission')
+                ? "You don't have permission to edit this player."
+                : `Save failed: ${msg}`);
+        } finally {
+            setSavingInfo(false);
+        }
+    };
 
     const data = Object.keys(stats).map(key => ({
         subject: key,
@@ -309,8 +390,12 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                             onUploaded={(newUrl) => setCurrentAvatar(newUrl)}
                         />
                         <div>
-                            <h2 className="text-xl md:text-3xl text-white font-display uppercase font-bold tracking-wider">{player?.name || 'Player Name'}</h2>
-                            <p className="text-brand-green tracking-widest uppercase text-[10px] md:text-sm font-bold">Midfielder • U10</p>
+                            <h2 className="text-xl md:text-3xl text-white font-display uppercase font-bold tracking-wider">
+                                {info.display_name || `${info.first_name || ''} ${info.last_name || ''}`.trim() || player?.name || 'Player Name'}
+                            </h2>
+                            <p className="text-brand-green tracking-widest uppercase text-[10px] md:text-sm font-bold">
+                                {[info.position || 'Position not set', info.jersey_number !== '' ? `#${info.jersey_number}` : null].filter(Boolean).join(' • ')}
+                            </p>
                         </div>
                     </div>
 
@@ -367,6 +452,12 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                     {/* Header / Tabs */}
                     <div className="px-3 md:px-6 pt-4 md:pt-6 pb-0 shrink-0">
                         <div className="flex gap-1 md:gap-6 border-b border-white/10 mb-4 md:mb-6 overflow-x-auto no-scrollbar -mx-1 px-1 pr-12">
+                            <button
+                                onClick={() => setActiveTab('info')}
+                                className={`pb-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0 ${activeTab === 'info' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                            >
+                                <span className="flex items-center gap-1.5"><IdCard className="w-3.5 h-3.5 md:w-4 md:h-4" /> Info</span>
+                            </button>
                             <button
                                 onClick={() => setActiveTab('eval')}
                                 className={`pb-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-colors border-b-2 shrink-0 ${activeTab === 'eval' ? 'border-brand-green text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
@@ -612,6 +703,92 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                             <CoachNotesPanel player={player} readOnly={readOnly} />
                         ) : activeTab === 'idp' ? (
                             <IDPBuilder player={player} readOnly={readOnly} />
+                        ) : activeTab === 'info' ? (
+                            <div className="space-y-4">
+                                <p className="text-xs text-gray-500 leading-relaxed">
+                                    Core player identity. Updates here flow to every screen — the roster card, the parent dashboard, and the kid's locker room.
+                                </p>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">First name</label>
+                                        <input
+                                            type="text"
+                                            value={info.first_name}
+                                            onChange={(e) => setInfo({ ...info, first_name: e.target.value })}
+                                            disabled={readOnly}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-60"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">Last name</label>
+                                        <input
+                                            type="text"
+                                            value={info.last_name}
+                                            onChange={(e) => setInfo({ ...info, last_name: e.target.value })}
+                                            disabled={readOnly}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-60"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">Jersey #</label>
+                                        <input
+                                            type="number"
+                                            inputMode="numeric"
+                                            min={0}
+                                            max={999}
+                                            value={info.jersey_number}
+                                            onChange={(e) => setInfo({ ...info, jersey_number: e.target.value })}
+                                            disabled={readOnly}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-60"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">Position</label>
+                                        <select
+                                            value={info.position}
+                                            onChange={(e) => setInfo({ ...info, position: e.target.value })}
+                                            disabled={readOnly}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-60"
+                                        >
+                                            <option value="">(unset)</option>
+                                            {POSITIONS.map(p => (
+                                                <option key={p} value={p}>{p}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">
+                                        Display name <span className="text-gray-500 text-[10px] normal-case font-normal ml-1">(optional — defaults to "First Last")</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={info.display_name}
+                                        onChange={(e) => setInfo({ ...info, display_name: e.target.value })}
+                                        disabled={readOnly}
+                                        placeholder={`${info.first_name || 'First'} ${info.last_name || 'Last'}`}
+                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-60"
+                                    />
+                                </div>
+
+                                {!readOnly && (
+                                    <div className="pt-2">
+                                        <button
+                                            onClick={handleSaveInfo}
+                                            disabled={savingInfo}
+                                            className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto sm:ml-auto"
+                                        >
+                                            {savingInfo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                            {savingInfo ? 'Saving…' : 'Save Info'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         ) : null}
                     </div>
 
