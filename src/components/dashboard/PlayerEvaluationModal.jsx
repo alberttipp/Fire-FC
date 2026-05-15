@@ -27,11 +27,37 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         first_name: player?.firstName || (player?.name || '').split(' ')[0] || '',
         last_name: player?.lastName || (player?.name || '').split(' ').slice(1).join(' ') || '',
         jersey_number: player?.number ?? '',
-        position: player?.position || '',
+        position: player?.position || '',          // 1st-choice position
+        position_secondary: '',                    // 2nd-choice
+        birthdate: '',                             // 'YYYY-MM-DD'
         display_name: '',
     });
     const [savingInfo, setSavingInfo] = useState(false);
-    const POSITIONS = ['Forward', 'Midfielder', 'Defender', 'Goalkeeper'];
+    // 9 positions, matching the TryoutSignup form so families and coaches
+    // pick from the same vocabulary.
+    const POSITIONS = [
+        'Goalkeeper',
+        'Center Back',
+        'Fullback',
+        'Defensive Midfielder',
+        'Center Midfielder',
+        'Attacking Midfielder',
+        'Winger',
+        'Striker',
+        'Anywhere',
+    ];
+
+    // Years (whole) from a YYYY-MM-DD string, or null if unset/invalid.
+    const ageFromBirthdate = (yyyyMmDd) => {
+        if (!yyyyMmDd) return null;
+        const d = new Date(yyyyMmDd + 'T00:00');
+        if (Number.isNaN(d.getTime())) return null;
+        const today = new Date();
+        let age = today.getFullYear() - d.getFullYear();
+        const m = today.getMonth() - d.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+        return age >= 0 && age < 120 ? age : null;
+    };
     const [coachNotes, setCoachNotes] = useState('');
     const [season, setSeason] = useState('Spring 2026');
     const [existingEvalId, setExistingEvalId] = useState(null);
@@ -172,7 +198,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         (async () => {
             const { data, error } = await supabase
                 .from('players')
-                .select('first_name, last_name, jersey_number, position, display_name')
+                .select('first_name, last_name, jersey_number, position, position_secondary, birthdate, display_name')
                 .eq('id', player.id)
                 .single();
             if (cancelled || error || !data) return;
@@ -181,6 +207,8 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 last_name: data.last_name || '',
                 jersey_number: data.jersey_number ?? '',
                 position: data.position || '',
+                position_secondary: data.position_secondary || '',
+                birthdate: data.birthdate || '',
                 display_name: data.display_name || '',
             });
         })();
@@ -198,6 +226,13 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
             toast.error('Jersey number must be 0–999.'); return;
         }
 
+        // Disallow same primary + secondary position (DB CHECK constraint
+        // catches it too, but give a friendlier error here).
+        if (info.position && info.position_secondary && info.position === info.position_secondary) {
+            toast.error("1st and 2nd choice can't be the same position.");
+            return;
+        }
+
         setSavingInfo(true);
         try {
             const { error } = await supabase
@@ -207,6 +242,8 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                     last_name,
                     jersey_number: jersey,
                     position: info.position || null,
+                    position_secondary: info.position_secondary || null,
+                    birthdate: info.birthdate || null,
                     display_name: (info.display_name || '').trim() || `${first_name} ${last_name}`,
                 })
                 .eq('id', player.id);
@@ -219,6 +256,8 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 last_name,
                 jersey_number: jersey,
                 position: info.position || '',
+                position_secondary: info.position_secondary || '',
+                birthdate: info.birthdate || '',
                 display_name: (info.display_name || '').trim() || `${first_name} ${last_name}`,
             }));
         } catch (err) {
@@ -747,15 +786,60 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">Position</label>
+                                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">
+                                            Birthday
+                                            {ageFromBirthdate(info.birthdate) !== null && (
+                                                <span className="text-gray-500 text-[10px] normal-case font-normal ml-2">
+                                                    (age {ageFromBirthdate(info.birthdate)})
+                                                </span>
+                                            )}
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={info.birthdate}
+                                            onChange={(e) => setInfo({ ...info, birthdate: e.target.value })}
+                                            disabled={readOnly}
+                                            max={new Date().toISOString().slice(0, 10)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-60"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">1st-choice position</label>
                                         <select
                                             value={info.position}
-                                            onChange={(e) => setInfo({ ...info, position: e.target.value })}
+                                            onChange={(e) => {
+                                                const next = e.target.value;
+                                                // If the new primary collides with the secondary, clear secondary.
+                                                setInfo({
+                                                    ...info,
+                                                    position: next,
+                                                    position_secondary: next && info.position_secondary === next ? '' : info.position_secondary,
+                                                });
+                                            }}
                                             disabled={readOnly}
                                             className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-60"
                                         >
                                             <option value="">(unset)</option>
                                             {POSITIONS.map(p => (
+                                                <option key={p} value={p}>{p}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">
+                                            2nd-choice position <span className="text-gray-500 text-[10px] normal-case font-normal ml-1">(optional)</span>
+                                        </label>
+                                        <select
+                                            value={info.position_secondary}
+                                            onChange={(e) => setInfo({ ...info, position_secondary: e.target.value })}
+                                            disabled={readOnly}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-60"
+                                        >
+                                            <option value="">(none)</option>
+                                            {POSITIONS.filter(p => p !== info.position).map(p => (
                                                 <option key={p} value={p}>{p}</option>
                                             ))}
                                         </select>
