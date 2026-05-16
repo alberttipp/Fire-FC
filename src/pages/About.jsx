@@ -8,22 +8,28 @@ import {
     Users,
     Trophy,
     ArrowRight,
-    Mail,
     CheckCircle2,
     Smartphone,
+    CalendarDays,
+    Flame as FlameIcon,
 } from 'lucide-react';
 
-const Feature = ({ icon: Icon, title, body }) => (
-    <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 hover:border-brand-gold/40 transition-colors">
-        <div className="w-11 h-11 rounded-xl bg-brand-gold/15 flex items-center justify-center mb-3">
-            <Icon className="w-5 h-5 text-brand-gold" />
+const Feature = ({ icon: Icon, title, body, accent = 'gold' }) => {
+    const cls = accent === 'gold'
+        ? { ring: 'border-brand-gold/40', iconBg: 'bg-brand-gold/15', iconText: 'text-brand-gold' }
+        : { ring: 'border-orange-500/40', iconBg: 'bg-orange-500/15', iconText: 'text-orange-400' };
+    return (
+        <div className={`bg-white/[0.03] border border-white/10 rounded-2xl p-5 hover:${cls.ring} transition-colors`}>
+            <div className={`w-11 h-11 rounded-xl ${cls.iconBg} flex items-center justify-center mb-3`}>
+                <Icon className={`w-5 h-5 ${cls.iconText}`} />
+            </div>
+            <h3 className="text-white font-display font-bold uppercase tracking-wider text-sm mb-1.5">
+                {title}
+            </h3>
+            <p className="text-gray-400 text-sm leading-relaxed">{body}</p>
         </div>
-        <h3 className="text-white font-display font-bold uppercase tracking-wider text-sm mb-1.5">
-            {title}
-        </h3>
-        <p className="text-gray-400 text-sm leading-relaxed">{body}</p>
-    </div>
-);
+    );
+};
 
 const Step = ({ n, title, body }) => (
     <div className="flex gap-3">
@@ -79,12 +85,12 @@ const About = () => {
                         </span>
                     </div>
                     <h1 className="font-display font-bold uppercase tracking-tight text-4xl sm:text-6xl leading-[1.05] mb-4">
-                        Real player development.
+                        Welcome to Fire FC.
                         <br />
-                        <span className="text-brand-gold">Built for our team.</span>
+                        <span className="text-brand-gold">Built for our families.</span>
                     </h1>
                     <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-                        Fire FC is the app I built for our team to track training, growth, and game-day prep for our players — automatically. Less paperwork for the coach. More confidence for families. Real progress kids can see.
+                        Everything our team needs in one place — schedule, RSVPs, training tracking, evaluations, and a real-time leaderboard so the kids can see exactly who's putting in the work. Built around our players, our coach, and our families.
                     </p>
                     <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
                         <Link
@@ -106,7 +112,7 @@ const About = () => {
             {/* Why */}
             <section className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-12 border-t border-white/5">
                 <p className="text-gray-300 text-base sm:text-lg leading-relaxed text-center max-w-3xl mx-auto">
-                    Most youth-soccer apps are glorified scheduling tools. Fire FC tracks <span className="text-brand-gold font-semibold">what actually makes a player better</span> — minutes trained, ball touches, skill progression, evaluation history — and shows it to parents and kids in a way that motivates them to keep working between practices.
+                    Most youth-soccer apps just handle the schedule. Ours tracks <span className="text-brand-gold font-semibold">what actually makes a player better</span> — minutes trained, ball touches, skill progression, evaluation history — and shows it to parents and kids in a way that motivates them to keep working between practices.
                 </p>
             </section>
 
@@ -119,7 +125,13 @@ const About = () => {
                     <Feature
                         icon={BarChart3}
                         title="Training Tracking"
-                        body="Every drill, every minute, every estimated ball touch — logged automatically when a player completes homework or attends a practice. Weekly, season, and career stats."
+                        body="Every drill, every minute, every estimated ball touch — logged automatically when a player completes homework or attends a practice. Weekly, season, and career stats follow them everywhere."
+                    />
+                    <Feature
+                        icon={FlameIcon}
+                        title="Who's Grinding?"
+                        accent="orange"
+                        body="The Leaderboard ranks the team by weekly minutes, season total, and career touches. The kids can see who's putting in the work between practices — and coach watches it every week. Friendly competition that lifts everybody."
                     />
                     <Feature
                         icon={Target}
@@ -129,17 +141,22 @@ const About = () => {
                     <Feature
                         icon={Trophy}
                         title="Evaluations + Radar"
-                        body="Six-skill radar chart with baseline overlay. See exactly where a player started and how far they've come — visually, over time."
+                        body="Six-skill radar chart with a baseline overlay. See exactly where a player started and how far they've come — visually, over time. Updated whenever coach has new feedback."
                     />
                     <Feature
                         icon={NotebookPen}
                         title="Coach Notes"
-                        body="A timestamped journal per player. The full story of a kid's growth in the club — no more lost paper notes, no more 'how was their season?' guessing."
+                        body="A timestamped journal per player. The full story of a kid's growth across the season — no more lost paper notes, no more 'how was their season?' guessing."
+                    />
+                    <Feature
+                        icon={CalendarDays}
+                        title="Custom Scheduling"
+                        body="Games, practices, and key dates with kit colors, locations, and opponents — all in one place. Parents RSVP for every event (going / out / vacation). Set a vacation date range once and every event in that window auto-marks."
                     />
                     <Feature
                         icon={Users}
                         title="Parent Dashboard"
-                        body="Parents see their kid's training streak, weekly touches, upcoming events, homework assignments, and the same evaluations the coach sees. One source of truth."
+                        body="Parents see their kid's training streak, weekly touches, upcoming events, homework assignments, and the same evaluations the coach sees. One source of truth, always current."
                     />
                     <Feature
                         icon={Smartphone}
@@ -182,12 +199,12 @@ const About = () => {
                                 <Step
                                     n="2"
                                     title="Sign in"
-                                    body="Email + password (or sign up if your first time)"
+                                    body="Email + password (set up with the team invite)"
                                 />
                                 <Step
                                     n="3"
                                     title="Coach Dashboard opens"
-                                    body="Roster, practices, IDP, evaluations, everything"
+                                    body="Roster, practices, IDPs, evaluations — everything"
                                 />
                             </div>
                         </div>
@@ -256,43 +273,26 @@ const About = () => {
                 </div>
             </section>
 
-            {/* For other coaches */}
-            <section className="max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-                <div className="bg-gradient-to-br from-brand-gold/10 to-transparent border border-brand-gold/30 rounded-2xl p-6 sm:p-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-gold/15 border border-brand-gold/40 mb-4">
-                        <Trophy className="w-3.5 h-3.5 text-brand-gold" />
-                        <span className="text-brand-gold text-[11px] font-bold uppercase tracking-widest">
-                            For Coaches & Clubs
-                        </span>
-                    </div>
-                    <h2 className="font-display font-bold uppercase tracking-tight text-2xl sm:text-4xl mb-4 leading-tight">
-                        Running your own team?
-                    </h2>
-                    <p className="text-gray-300 text-base sm:text-lg leading-relaxed mb-6 max-w-2xl">
-                        I built Fire FC because nothing on the market actually tracks <em>development</em> — they all track schedules. If you coach a youth team and want to see what real player-development tracking looks like, I'd love to show you.
-                    </p>
-                    <ul className="space-y-2 mb-7 text-gray-300 text-sm">
-                        <li className="flex items-start gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-brand-gold mt-0.5 shrink-0" />
-                            <span>Live demo in 15 minutes, on a real team</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-brand-gold mt-0.5 shrink-0" />
-                            <span>Works for U6 through U18, boys / girls / coed</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-brand-gold mt-0.5 shrink-0" />
-                            <span>Multi-team / multi-club support — one kid can play on multiple teams</span>
-                        </li>
-                    </ul>
-                    <a
-                        href="mailto:alberttipp@gmail.com?subject=Fire%20FC%20demo%20-%20%5Byour%20club%20name%5D&body=Hi%20Albert%2C%20I%20coach%20%5Bteam%20name%5D%20and%20I%27d%20like%20a%20demo%20of%20Fire%20FC.%20Best%20time%20to%20chat%3A%20"
-                        className="inline-flex items-center gap-2 bg-brand-gold text-black px-5 py-3 rounded-xl font-bold uppercase tracking-wider text-sm hover:bg-brand-gold/90 transition-colors"
-                    >
-                        <Mail className="w-4 h-4" />
-                        Email me for a demo
-                    </a>
+            {/* Closing note */}
+            <section className="max-w-3xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-gold/10 border border-brand-gold/30 mb-5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-brand-gold" />
+                    <span className="text-brand-gold text-[11px] font-bold uppercase tracking-widest">
+                        Built for you
+                    </span>
                 </div>
+                <h2 className="font-display font-bold uppercase tracking-tight text-2xl sm:text-4xl mb-4 leading-tight">
+                    Let's make this a great season.
+                </h2>
+                <p className="text-gray-300 text-base leading-relaxed max-w-xl mx-auto">
+                    The app is a tool — what makes it work is families using it. RSVP for the games, set vacations as soon as you know them, and cheer your kid on as they climb the leaderboard. Questions or stuff that feels broken? Text Albert or Coach Orlando.
+                </p>
+                <Link
+                    to="/login"
+                    className="inline-flex items-center gap-2 mt-7 bg-brand-gold text-black px-5 py-3 rounded-xl font-bold uppercase tracking-wider text-sm hover:bg-brand-gold/90 transition-colors"
+                >
+                    Open the App <ArrowRight className="w-4 h-4" />
+                </Link>
             </section>
 
             {/* Footer */}
@@ -310,12 +310,6 @@ const About = () => {
                         <Link to="/login" className="hover:text-white transition-colors">
                             Sign in
                         </Link>
-                        <a
-                            href="mailto:alberttipp@gmail.com"
-                            className="hover:text-white transition-colors"
-                        >
-                            Contact
-                        </a>
                     </div>
                 </div>
             </footer>
