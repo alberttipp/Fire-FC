@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Flame,
@@ -12,7 +12,15 @@ import {
     Smartphone,
     CalendarDays,
     Flame as FlameIcon,
+    KeyRound,
+    Copy,
+    Check,
 } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+
+// Hardcoded for the Summer Squad rollout. When we have more than one
+// active public team this becomes a per-org list.
+const PUBLIC_TEAM_ID = '57ea33d1-f8c8-4ed8-9749-37226e5780bb';
 
 const Feature = ({ icon: Icon, title, body, accent = 'gold' }) => {
     const cls = accent === 'gold'
@@ -42,6 +50,96 @@ const Step = ({ n, title, body }) => (
         </div>
     </div>
 );
+
+// Public roster + guardian codes section. Reads via a SECURITY DEFINER
+// RPC so we don't have to loosen players RLS for anon. This is a temporary
+// rollout convenience — once all 19 families have linked their kids, the
+// RPC + this component can be deleted with no other changes.
+const RosterCodesSection = () => {
+    const [rows, setRows] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [copiedCode, setCopiedCode] = useState(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase.rpc('get_public_team_roster_invites', {
+                p_team_id: PUBLIC_TEAM_ID,
+            });
+            if (cancelled) return;
+            if (error) {
+                console.error('[About] roster invites fetch:', error);
+                setRows([]);
+            } else {
+                setRows(data || []);
+            }
+            setLoading(false);
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    const copy = async (code) => {
+        try {
+            await navigator.clipboard.writeText(code);
+            setCopiedCode(code);
+            setTimeout(() => setCopiedCode(null), 1600);
+        } catch (_) { /* clipboard unavailable */ }
+    };
+
+    if (!loading && rows.length === 0) return null;
+
+    return (
+        <section className="border-y border-white/5 bg-white/[0.02]">
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-gold/10 border border-brand-gold/30 mb-4">
+                        <KeyRound className="w-3.5 h-3.5 text-brand-gold" />
+                        <span className="text-brand-gold text-[11px] font-bold uppercase tracking-widest">
+                            Find your kid's code
+                        </span>
+                    </div>
+                    <h2 className="font-display font-bold uppercase tracking-tight text-2xl sm:text-3xl mb-2">
+                        Linking your family account
+                    </h2>
+                    <p className="text-gray-400 text-sm max-w-xl mx-auto leading-relaxed">
+                        Tap your child's code to copy, then paste it into <span className="text-white font-semibold">Step 2</span> above when you sign up. Both parents can use the same code on their own accounts.
+                    </p>
+                </div>
+
+                {loading ? (
+                    <div className="text-center text-gray-500 text-sm py-6">Loading roster…</div>
+                ) : (
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {rows.map((r) => {
+                            const label = `${r.first_name} ${r.last_initial}.${r.jersey_number != null ? ` · #${r.jersey_number}` : ''}`;
+                            const isCopied = copiedCode === r.guardian_code;
+                            return (
+                                <li key={r.guardian_code}>
+                                    <button
+                                        onClick={() => copy(r.guardian_code)}
+                                        className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/10 hover:border-brand-gold/40 hover:bg-white/[0.06] transition-colors text-left"
+                                    >
+                                        <span className="text-white text-sm font-bold truncate">{label}</span>
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-brand-dark border border-brand-gold/40 text-brand-gold font-mono font-bold text-sm tracking-widest shrink-0">
+                                            {r.guardian_code}
+                                            {isCopied
+                                                ? <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                                : <Copy className="w-3.5 h-3.5 opacity-60" />}
+                                        </span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+
+                <p className="text-[11px] text-gray-600 mt-6 text-center max-w-md mx-auto">
+                    Once everyone's linked we'll remove this list. Until then, only share this page with families on our team.
+                </p>
+            </div>
+        </section>
+    );
+};
 
 const About = () => {
     return (
@@ -272,6 +370,9 @@ const About = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Find your code — rollout helper, remove when families have linked */}
+            <RosterCodesSection />
 
             {/* Closing note */}
             <section className="max-w-3xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
