@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import BulkInviteModal from './BulkInviteModal';
+import PrivateSessionsPanel from './PrivateSessionsPanel';
 
 // =====================================================================
 // Private Training — Phase A
@@ -56,6 +57,7 @@ const PrivateTrainingView = () => {
     const [showInvite, setShowInvite] = useState(false);
     const [renaming, setRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState('');
+    const [groupTab, setGroupTab] = useState('roster'); // 'roster' | 'sessions'
 
     const selected = useMemo(() => groups.find(g => g.id === selectedId) || null, [groups, selectedId]);
 
@@ -377,25 +379,29 @@ const PrivateTrainingView = () => {
                                 )}
 
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <button
-                                        onClick={() => setShowAddCurrent(true)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-brand-green/10 border border-brand-green/30 text-brand-green hover:bg-brand-green/20"
-                                    >
-                                        <UserPlus className="w-3.5 h-3.5" /> Current Player
-                                    </button>
-                                    <button
-                                        onClick={() => setShowAddNew(true)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" /> New Player
-                                    </button>
-                                    <button
-                                        onClick={() => setShowInvite(true)}
-                                        disabled={roster.length === 0}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        <Send className="w-3.5 h-3.5" /> Invite Families
-                                    </button>
+                                    {groupTab === 'roster' && (
+                                        <>
+                                            <button
+                                                onClick={() => setShowAddCurrent(true)}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-brand-green/10 border border-brand-green/30 text-brand-green hover:bg-brand-green/20"
+                                            >
+                                                <UserPlus className="w-3.5 h-3.5" /> Current Player
+                                            </button>
+                                            <button
+                                                onClick={() => setShowAddNew(true)}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" /> New Player
+                                            </button>
+                                            <button
+                                                onClick={() => setShowInvite(true)}
+                                                disabled={roster.length === 0}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                <Send className="w-3.5 h-3.5" /> Invite Families
+                                            </button>
+                                        </>
+                                    )}
                                     <button
                                         onClick={handleDeleteGroup}
                                         className="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10"
@@ -406,7 +412,30 @@ const PrivateTrainingView = () => {
                                 </div>
                             </div>
 
-                            {roster.length === 0 ? (
+                            {/* Tab switcher: Roster | Sessions */}
+                            <div className="flex gap-1 border-b border-white/10 mb-5">
+                                <button
+                                    onClick={() => setGroupTab('roster')}
+                                    className={`pb-2.5 px-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${groupTab === 'roster' ? 'border-brand-gold text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    Roster ({roster.length})
+                                </button>
+                                <button
+                                    onClick={() => setGroupTab('sessions')}
+                                    className={`pb-2.5 px-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${groupTab === 'sessions' ? 'border-brand-gold text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    Sessions
+                                </button>
+                            </div>
+
+                            {groupTab === 'sessions' ? (
+                                <PrivateSessionsPanel
+                                    groupId={selected.id}
+                                    groupName={selected.name}
+                                    roster={roster}
+                                    orgId={selected.org_id}
+                                />
+                            ) : roster.length === 0 ? (
                                 <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
                                     <UserPlus className="w-10 h-10 text-gray-700 mx-auto mb-2" />
                                     <p className="text-gray-500 text-sm">No players in this group yet</p>
