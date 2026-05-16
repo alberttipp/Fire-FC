@@ -400,8 +400,8 @@ const ChatView = () => {
                     ) : channels.length === 0 ? (
                         <div className="text-center py-8 px-2">
                             <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                            <p className="text-gray-500 text-xs">No channels yet.</p>
-                            <p className="text-gray-600 text-xs mt-1">Your team chat will appear here once set up by your coach.</p>
+                            <p className="text-gray-500 text-xs">No conversations yet.</p>
+                            <p className="text-gray-600 text-xs mt-1">If you just joined the team, refresh this page in a few seconds — your team chat is auto-created when you're added to the roster.</p>
                         </div>
                     ) : (
                         channels.map(channel => (
