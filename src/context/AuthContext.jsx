@@ -173,12 +173,14 @@ export const AuthProvider = ({ children }) => {
     };
 
     const signUp = async (email, password, metadata = {}) => {
-        // Default role is 'coach' (the no-code self-serve flow always means
-        // someone setting up their own team). When the caller passes
-        // `role: null` (e.g. a code-based signup), the RPC will fill in
-        // the real role from the invite and we don't preassume here.
+        // Default role is 'parent' — every Fire FC family rollout uses the
+        // no-code self-serve path, and parents who haven't yet linked their
+        // kid still need to land on ParentDashboard (which prompts them for
+        // a guardian code). When the caller passes `role: null` (e.g. a
+        // code-based coach signup), the join_team_via_code RPC fills in the
+        // real role from the invite and we don't preassume here.
         const data = {
-            role: 'coach',
+            role: 'parent',
             ...metadata
         };
 

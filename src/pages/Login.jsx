@@ -84,13 +84,13 @@ const Login = () => {
 
         try {
             if (isSignUp) {
-                // Initial metadata role: 'coach' for self-serve signups with no
-                // code (small team setup flow). When a code IS provided we DON'T
-                // preassume parent — the join_team_via_code RPC is the source of
-                // truth and will sync the auth metadata to match the invite's
-                // role on success.
+                // Default signup is a parent / guardian — 95% of new accounts
+                // are families linking to their kid. When a code IS provided
+                // (coach invite), the join_team_via_code RPC overrides this
+                // with the invite's role; we pass null here so we don't fight
+                // the RPC's outcome.
                 const { data, error } = await signUp(email, password, {
-                    role: joinCode ? null : 'coach',
+                    role: joinCode ? null : 'parent',
                     full_name: fullName.trim()
                 });
 
@@ -243,7 +243,7 @@ const Login = () => {
                                 onClick={() => switchAuthMode('standard')}
                                 className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${authMode === 'standard' ? 'bg-brand-green text-brand-dark' : 'text-gray-400 hover:text-white'}`}
                             >
-                                Member
+                                Family
                             </button>
                             <button
                                 onClick={() => switchAuthMode('player')}
@@ -354,7 +354,9 @@ const Login = () => {
 
                         {isSignUp && (
                             <div>
-                                <label className="block text-brand-gold text-xs font-bold uppercase tracking-widest mb-2 ml-1">Join Code (Optional)</label>
+                                <label className="block text-brand-gold text-xs font-bold uppercase tracking-widest mb-2 ml-1">
+                                    Coach invite code <span className="normal-case font-normal text-gray-500">(only if you're a coach)</span>
+                                </label>
                                 <input
                                     type="text"
                                     value={joinCode}
@@ -362,6 +364,9 @@ const Login = () => {
                                     className="w-full bg-black/50 border border-brand-gold/30 rounded p-3 text-brand-gold placeholder-gray-600 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold transition-all outline-none font-mono tracking-wider"
                                     placeholder="FC-XXXX"
                                 />
+                                <p className="text-[11px] text-gray-500 mt-1 ml-1">
+                                    Parents: leave blank. After signup we'll ask for your child's 6-character family code.
+                                </p>
                             </div>
                         )}
 
