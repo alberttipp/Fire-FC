@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Plus, Users, UserPlus, Search, Trash2, Settings, X,
-    Save, Loader2, ChevronRight, Send, Mail, Pencil,
+    Save, Loader2, ChevronRight, Send, Mail, Pencil, Link2,
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -57,6 +57,7 @@ const PrivateTrainingView = () => {
     const [showInvite, setShowInvite] = useState(false);
     const [renaming, setRenaming] = useState(false);
     const [renameValue, setRenameValue] = useState('');
+    const [showSettings, setShowSettings] = useState(false);
     const [groupTab, setGroupTab] = useState('roster'); // 'roster' | 'sessions'
 
     const selected = useMemo(() => groups.find(g => g.id === selectedId) || null, [groups, selectedId]);
@@ -69,7 +70,7 @@ const PrivateTrainingView = () => {
         if (!user?.id) return;
         const { data: memberships, error } = await supabase
             .from('team_memberships')
-            .select('role, teams!inner(id, name, team_type, org_id, join_code)')
+            .select('role, teams!inner(id, name, team_type, org_id, join_code, payment_link, description, color)')
             .eq('user_id', user.id);
         if (error) {
             console.error('[PrivateTraining] fetch groups failed:', error);
@@ -403,6 +404,14 @@ const PrivateTrainingView = () => {
                                         </>
                                     )}
                                     <button
+                                        onClick={() => setShowSettings(true)}
+                                        className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10"
+                                        aria-label="Group settings"
+                                        title="Group settings"
+                                    >
+                                        <Settings className="w-4 h-4" />
+                                    </button>
+                                    <button
                                         onClick={handleDeleteGroup}
                                         className="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10"
                                         aria-label="Delete group"
@@ -515,6 +524,130 @@ const PrivateTrainingView = () => {
                     onClose={() => setShowInvite(false)}
                 />
             )}
+
+            {showSettings && selected && (
+                <GroupSettingsModal
+                    group={selected}
+                    onClose={() => setShowSettings(false)}
+                    onSaved={async () => { await fetchGroups(); setShowSettings(false); }}
+                />
+            )}
+        </div>
+    );
+};
+
+// =====================================================================
+// Group Settings modal (Phase D)
+// =====================================================================
+
+const COLOR_PRESETS = [
+    { value: '',         label: 'None',   sw: 'bg-white/5 border-white/10' },
+    { value: '#d4af37',  label: 'Gold',   sw: 'bg-[#d4af37]' },
+    { value: '#3b82f6',  label: 'Blue',   sw: 'bg-[#3b82f6]' },
+    { value: '#10b981',  label: 'Green',  sw: 'bg-[#10b981]' },
+    { value: '#f59e0b',  label: 'Orange', sw: 'bg-[#f59e0b]' },
+    { value: '#ef4444',  label: 'Red',    sw: 'bg-[#ef4444]' },
+    { value: '#a855f7',  label: 'Purple', sw: 'bg-[#a855f7]' },
+];
+
+const GroupSettingsModal = ({ group, onClose, onSaved }) => {
+    const toast = useToast();
+    const [form, setForm] = useState({
+        description: group.description || '',
+        payment_link: group.payment_link || '',
+        color: group.color || '',
+    });
+    const [saving, setSaving] = useState(false);
+
+    const submit = async () => {
+        // Light client-side URL sanity (DB enforces the same)
+        if (form.payment_link && !/^https?:\/\//i.test(form.payment_link.trim())) {
+            toast.error('Payment link must start with http:// or https://');
+            return;
+        }
+        setSaving(true);
+        try {
+            const { error } = await supabase
+                .from('teams')
+                .update({
+                    description: form.description.trim() || null,
+                    payment_link: form.payment_link.trim() || null,
+                    color: form.color || null,
+                })
+                .eq('id', group.id);
+            if (error) throw error;
+            toast.success('Group settings saved.');
+            await onSaved?.();
+        } catch (err) {
+            console.error('[GroupSettings] save:', err);
+            toast.error(err?.message || 'Save failed.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-2xl w-full md:max-w-md max-h-[90vh] overflow-y-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+                <div className="p-6 space-y-4">
+                    <h3 className="text-xl font-display uppercase font-bold text-white tracking-wider">Group settings</h3>
+                    <p className="text-[11px] text-gray-500 -mt-2">{group.name}</p>
+
+                    <label className="block">
+                        <span className="text-gray-400 text-[11px] uppercase tracking-wider">Description <span className="normal-case font-normal">(shown to families)</span></span>
+                        <textarea
+                            rows={2}
+                            value={form.description}
+                            onChange={(e) => setForm({ ...form, description: e.target.value })}
+                            placeholder="e.g. Tuesday and Thursday solo footskills"
+                            className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-gold resize-none"
+                        />
+                    </label>
+
+                    <label className="block">
+                        <span className="text-gray-400 text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                            <Link2 className="w-3.5 h-3.5" /> Payment link <span className="normal-case font-normal">(Venmo / Stripe / Zelle — optional)</span>
+                        </span>
+                        <input
+                            type="url"
+                            value={form.payment_link}
+                            onChange={(e) => setForm({ ...form, payment_link: e.target.value })}
+                            placeholder="https://venmo.com/your-handle"
+                            className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-gold"
+                        />
+                        <p className="text-[10px] text-gray-600 mt-1">Parents see a "Pay for sessions" button on their dashboard when this is set.</p>
+                    </label>
+
+                    <div>
+                        <span className="text-gray-400 text-[11px] uppercase tracking-wider block mb-1.5">Accent color</span>
+                        <div className="flex flex-wrap gap-2">
+                            {COLOR_PRESETS.map(c => (
+                                <button
+                                    key={c.label}
+                                    type="button"
+                                    onClick={() => setForm({ ...form, color: c.value })}
+                                    className={`w-9 h-9 rounded-full border-2 transition-all ${c.sw} ${form.color === c.value ? 'border-white scale-110' : 'border-white/10 hover:border-white/30'}`}
+                                    title={c.label}
+                                    aria-label={c.label}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                        <button onClick={onClose} disabled={saving}
+                            className="flex-1 py-2 rounded-lg border border-white/10 text-gray-300 text-sm font-bold uppercase tracking-wider hover:bg-white/5 disabled:opacity-50">
+                            Cancel
+                        </button>
+                        <button onClick={submit} disabled={saving}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-brand-gold text-black text-sm font-bold uppercase tracking-wider hover:bg-brand-gold/90 disabled:opacity-50">
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? 'Saving' : 'Save'}
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
