@@ -28,6 +28,23 @@ const VersionDriftWatcher = () => {
   return null;
 };
 
+// Rendered when React Router can't match the current path (typical when a
+// cached bundle is older than the current deploy and doesn't yet know
+// about a newly-added route). Force a cache-busting reload so the browser
+// pulls the current HTML + bundle, which will have the route. Renders a
+// neutral background during the brief reload so the user isn't staring
+// at a blank screen.
+const UnknownRouteReload = () => {
+  useEffect(() => {
+    const ts = Date.now();
+    const sep = window.location.search ? '&' : '?';
+    window.location.replace(
+      window.location.pathname + window.location.search + sep + '__r=' + ts + window.location.hash
+    );
+  }, []);
+  return <div className="min-h-screen bg-brand-dark" />;
+};
+
 // Wrapper to conditionally show AI Assistant and Voice Commands
 const AIAssistantWrapper = () => {
   const { user } = useAuth();
@@ -106,6 +123,14 @@ function App() {
                   </Suspense>
                 } />
                 <Route path="/" element={<Navigate to="/login" />} />
+                {/* Catch-all: if no route matched, the user navigated to a
+                    path the loaded bundle doesn't know about (e.g. a path
+                    added in a newer deploy). Hard-reload to fetch the fresh
+                    HTML + bundle. Layer 3 of the boot guard normally catches
+                    stale bundles before React mounts, but this is a backstop
+                    for cases that slip past — including the first load after
+                    a deploy on a PWA that ignored cache-control headers. */}
+                <Route path="*" element={<UnknownRouteReload />} />
               </Routes>
 
               {/* AI Assistant & Voice Commands - appears on all logged-in pages */}

@@ -96,6 +96,46 @@
             }
           }, 8000);
         });
+        // Layer 3: stale-bundle check. PWA-installed iOS/Android Chrome
+        // serve a cached HTML on app launch even with no-store headers —
+        // that cached HTML references an old /assets/index-XXX.js. If
+        // the bundle still exists on Vercel's CDN, the JS "loads" fine,
+        // no error fires, and the watchdog can't catch it (because the
+        // surrounding chrome renders into #root). But if a route was
+        // added since (e.g. /about), it's not in the cached bundle's
+        // router → blank page for that path.
+        //
+        // Fix: on boot, fetch the current server HTML and compare the
+        // bundle hash referenced there against the one we're about to
+        // execute. Mismatch = stale cache = force-reload before React
+        // mounts. Async/fire-and-forget so we don't block initial paint
+        // when bundles match.
+        try {
+          var currentScript = document.querySelector('script[type="module"][src*="/assets/index-"]');
+          var currentSrc = (currentScript && currentScript.src) || '';
+          var currentMatch = currentSrc.match(/\/assets\/(index-[^./?]+\.js)/);
+          if (currentMatch) {
+            var currentBundle = currentMatch[1];
+            fetch('/?__bundlecheck=' + Date.now(), {
+              cache: 'no-store',
+              credentials: 'omit',
+              headers: { 'Cache-Control': 'no-store' }
+            })
+              .then(function (res) { return res.ok ? res.text() : ''; })
+              .then(function (html) {
+                if (!html) return;
+                var freshMatch = html.match(/\/assets\/(index-[^."?]+\.js)/);
+                if (!freshMatch) return;
+                var freshBundle = freshMatch[1];
+                if (freshBundle !== currentBundle) {
+                  // Stale cached HTML pointing at an old bundle. Reload
+                  // with cache-bust before the user notices.
+                  attemptRecovery();
+                }
+              })
+              .catch(function () { /* network blip — let other layers cover */ });
+          }
+        } catch (_) { /* defensive — never block boot */ }
       })();
     </script>
   </head>
