@@ -12,6 +12,7 @@ import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import FamilyInviteModal from '../components/dashboard/FamilyInviteModal';
 import VacationPeriodsManager from '../components/family/VacationPeriodsManager';
+import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -593,6 +594,17 @@ const ParentDashboard = () => {
                             window as RSVP=vacation for this player. */}
                         {selectedChild?.id && (
                             <VacationPeriodsManager
+                                playerId={selectedChild.id}
+                                playerName={selectedChild.first_name || 'your player'}
+                            />
+                        )}
+
+                        {/* Private training badge — renders only when the kid
+                            is in at least one private_group team. Shows next
+                            session, last credited attendance, and a "Pay" link
+                            when the group has a payment_link set. */}
+                        {selectedChild?.id && (
+                            <PrivateTrainingBadge
                                 playerId={selectedChild.id}
                                 playerName={selectedChild.first_name || 'your player'}
                             />
