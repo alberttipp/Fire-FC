@@ -124,29 +124,38 @@ const PrivateTrainingView = () => {
             return;
         }
 
+        // IMPORTANT: do NOT chain .select() after the teams INSERT here.
+        // The teams SELECT policy requires team membership, and the creator
+        // isn't yet a member at the moment the inserted row is returned —
+        // PostgREST's implicit RETURNING would trip RLS and surface as a
+        // bogus "violates row-level security policy" error even though the
+        // INSERT itself succeeded. Workaround: mint the team UUID client-
+        // side so we never need the row back, insert the team, then insert
+        // the membership row (which makes the team SELECT-able in subsequent
+        // queries — fetchGroups below picks it up cleanly).
+        const newTeamId = crypto.randomUUID();
         try {
-            const { data: teamData, error: teamErr } = await supabase
+            const { error: teamErr } = await supabase
                 .from('teams')
                 .insert({
+                    id: newTeamId,
                     name: trimmed,
                     age_group: 'Mixed',
                     team_type: 'private_group',
                     join_code: generateJoinCode(),
                     org_id: orgIdToUse,
-                })
-                .select()
-                .single();
+                });
             if (teamErr) throw teamErr;
 
             const { error: memErr } = await supabase
                 .from('team_memberships')
-                .insert({ team_id: teamData.id, user_id: user.id, role: 'coach' });
+                .insert({ team_id: newTeamId, user_id: user.id, role: 'coach' });
             if (memErr) throw memErr;
 
             toast.success(`Created group "${trimmed}".`);
             setShowCreate(false);
             await fetchGroups();
-            setSelectedId(teamData.id);
+            setSelectedId(newTeamId);
         } catch (err) {
             console.error('[PrivateTraining] create group failed:', err);
             toast.error(err?.message?.includes('policy')
