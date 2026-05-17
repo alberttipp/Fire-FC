@@ -1,5 +1,230 @@
 # Fire-FC Development Notes
 
+## Session: 2026-05-14 → 2026-05-17 (family rollout, private training, stability hardening)
+
+A multi-day run. Albert started rolling the app out to the 19 Summer Squad
+families on 2026-05-16. Most of the work below was either prep for that
+rollout, fixes for what families hit, or follow-up on the recurring
+stale-cache "white screen" issue.
+
+### Stability — recurring blank-screen issue (BIGGEST recurring problem)
+
+**Symptom:** parent installs `firefcapp.com` to their home screen, opens
+it once, works fine. Second open: blank / broken / "doesn't load."
+
+**Diagnosis chain:**
+1. Original boot guard (commit `1a1993d`, 2026-05-12): catches explicit
+   `/assets/*.js` 404s. Reloads with cache-bust. Doesn't fire when the old
+   bundle still exists on Vercel's CDN — and Vercel keeps old assets
+   essentially forever — so the JS "loads" successfully.
+2. Layer 2 watchdog (commit `21d4259`): if `#root` is still empty 8s after
+   `window.load`, force reload. Doesn't fire here because the cached
+   bundle's React DOES mount the surrounding chrome (Router, providers)
+   into `#root`. `childElementCount > 0`, watchdog skips. But the target
+   route was added AFTER the bundle was cached, so it renders nothing.
+3. Layer 3 bundle-hash check (commit `27c9413`, 2026-05-16): on boot,
+   fetch fresh HTML, compare its bundle hash to the one we're about to
+   execute. If different → reload with cache-bust before React mounts.
+   **THIS WORKS — for users whose cached HTML CONTAINS Layer 3.** Chicken
+   and egg: parents who installed before Layer 3 shipped have HTML
+   without it. Their PWA keeps serving that stale HTML on every relaunch
+   despite `Cache-Control: no-store` (iOS PWA / Android Chrome standalone
+   modes both ignore no-store for the app-shell HTML).
+4. Catch-all `<Route path="*">` reload (same commit): backstop in App.jsx
+   for unknown routes. Helps once Layer 3 runs at least once.
+5. Recover-with-cache-nuke (commit `e73a1d1`, 2026-05-17): the boot
+   guard's recover() now also clears the Cache API and unregisters any
+   service workers before reloading. Plus a visible "App acting weird?
+   Tap to reload fresh" link on the Login page so stuck parents can
+   self-rescue without uninstalling.
+
+**Current state:** New installs from 2026-05-17 onward are fully
+protected (3-layer boot guard + cache nuke + catch-all). Parents
+installed before 2026-05-16 17:52 UTC have stale HTML without Layer 3
+and need ONE manual reload via the escape-hatch link to upgrade.
+**There is no way to retroactively patch already-cached HTML.**
+Documented in detail in user_albert memory + this notes file so future
+sessions don't re-tread the diagnosis.
+
+### Private Training — complete 4-phase feature loop
+
+Built the player-based replacement for the old training_clients model.
+
+**Phase A** (commits `3b286c1`, `25b2398`, 2026-05-15): groups + roster + invites.
+- Each "private group" is a `teams` row with `team_type='private_group'`
+- Roster managed via `player_teams` (reuses multi-team join table)
+- "Add Current Player" picker for kids on coach's other staff teams
+- "Add New Player" creates a real `players` record + guardian code
+- Existing `BulkInviteModal` works unchanged via `team_active_roster`
+- RLS migration: any team-staff user can INSERT a `private_group` team
+- RLS bugfix: dropped `.insert().select()` (SELECT-back trap), uses
+  `crypto.randomUUID()` for the new team_id instead
+
+**Phase B** (commit `ccaa2be`): sessions log + auto-credit.
+- `private_sessions` + `private_session_attendees` tables with RLS
+- `complete_private_session(uuid)` SECURITY DEFINER RPC reuses
+  `log_training_minutes()` so credits flow into the SAME `player_stats`
+  row team practice attendance does
+- "Sessions" tab inside each group with add/edit/delete + per-attendee
+  attendance editor + "Complete & credit" button
+- Dropped legacy `training_clients` / `training_sessions` /
+  `training_session_attendees` tables (only ever had 2 test rows)
+- Deleted the old 954-line `TrainingClients.jsx` component
+
+**Phase C** (commit `77cdb6a`): parent visibility badge.
+- `PrivateTrainingBadge` on parent overview, renders only when the kid
+  is in at least one private_group
+- Shows: group accent color, next upcoming session, last credited
+  attendance with minutes/touches earned, "Pay" button when payment_link
+  is set on the group
+
+**Phase D** (commit `bc318a4`): group settings.
+- Added `teams.payment_link` (Venmo/Stripe URL, CHECK enforces URL shape)
+- Added `teams.description` + `teams.color`
+- Gear icon next to rename/delete opens the Group Settings modal
+
+### Player avatar upload (2026-05-14)
+
+- `AvatarUploader` component on `PlayerEvaluationModal`, gold camera
+  button on the avatar circle
+- Uploads to `media` bucket at `players/{player.id}/avatar-{ts}.{ext}`
+- Storage RLS limits writes to team_staff for the player's team
+- Background removal NOT implemented in-app; Albert pre-processes
+  externally via remove.bg
+
+### Player Info tab (2026-05-14)
+
+New "Info" tab on `PlayerEvaluationModal` (first in tab bar):
+- Edit first_name, last_name, jersey_number, position, position_secondary,
+  birthdate, display_name
+- Two side-by-side positions (1st choice + 2nd choice, auto-exclude)
+- Live age readout next to the birthday picker
+- 9-position vocabulary matches the public TryoutSignup form
+
+### Schema cleanups (2026-05-14)
+
+- Stale U11 references in code replaced with U12 Coed where user-facing
+  (commit `aba5d22`)
+- Deleted dead U11 seed files / SQL — 552 LOC gone (commit `2def645`)
+- Dropped the empty Fire FC U11 team itself, cascade cleared 8
+  team_memberships + 5 events + 1 invite (commit `ddd13db`)
+- Season-reset cleanup of Bo / Santiago Jimenez / Jameson McCarthy's
+  Spring 2026 data; deleted Luke Anderson's entire player record since
+  he didn't return (commit `02143bd`)
+- Migration `20260514_storage_media_players_staff_write.sql` for the
+  Storage RLS
+
+### Tryout waitlist edit/delete (2026-05-15, commit `cc24179`)
+
+- TryoutHub: trash icon per row + onDelete prop passed to ScoutCard
+- ScoutCard: inline Edit Profile form (name, age, parent name, contact,
+  preferred positions) + danger-zone Delete Prospect button
+- ClubView preview: quick-delete icon on each row (staff only)
+- All gated by existing `tryout_waitlist` RLS (head_coach/coach/manager etc.)
+
+### Key Dates panel (2026-05-15, commit `e33c119`)
+
+- Extracted to its own `KeyDatesPanel.jsx`
+- Add / Edit / Delete buttons gated by staff role
+- Inline modal: title, type (tryout/tournament/break/season_start/
+  season_end), date+time, location, notes, team picker if multi-team
+- Dropped the misleading hardcoded "sample key dates" fallback
+- Migration `20260515_events_type_check_add_key_date_types.sql` —
+  expanded `events.type` CHECK to allow the 5 key-date types (was
+  silently blocking inserts; the panel could never save until this)
+
+### CreateEventModal polish (2026-05-15, commit `968a4c9`)
+
+- Game type: title auto-built from "Fire Vs <opponent>"
+- Kit picker: Red/White cards with inline SVG jersey swatches
+- Location combobox: "Sportscore 1" preset + "Other (type your own)…"
+
+### Vacation periods + RSVP rewrite (2026-05-15, commit `870c64d`)
+
+- Dropped "Maybe" RSVP — three buttons now: **Going / Out / Vacation**
+  (sky-blue, Plane icon)
+- New `vacation_periods` table; parent sets a date range once → trigger
+  upserts `event_rsvps.status='vacation'` for every team event in that
+  window via `apply_vacation_rsvps()` SECURITY DEFINER function
+- `VacationPeriodsManager` widget on parent overview
+
+### Coach Roster Plan view (2026-05-15, commit `0d8670b`)
+
+- Fourth tab on the Calendar page (staff only): "Plan"
+- Tile view: per-event card with Going/Out/Vacation/TBD counts, tap to
+  expand per-kid breakdown
+- Season grid: rows = roster, cols = upcoming events, sticky names
+  column, color-coded status cells
+- "Copy as text" button for sharing in group chats
+
+### Custom domain + foundation (recap of 2026-05-13)
+
+`firefcapp.com` live with valid SSL. main → preview / production → live
+branch split. UptimeRobot monitoring. PWA stability layers (ErrorBoundary,
+no-store HTML, Sentry).
+
+### Family rollout (2026-05-16)
+
+- About page rewritten for the team — dropped sales-to-other-clubs
+  language, added "Who's Grinding?" (Leaderboard) feature card and
+  "Custom Scheduling" feature card (commit `644fb6b`)
+- Added "Find your kid's code" section to /about with tap-to-copy
+  guardian codes for the active Summer Squad roster, backed by a
+  SECURITY DEFINER RPC `get_public_team_roster_invites(uuid)` granted
+  to anon (commit `f4dd55b`). Rollout-only — delete the section + the
+  RPC once families have all linked.
+
+### Parent signup defaults fix (2026-05-16, commit `93f0731`)
+
+3 parents (Heather Bo's-mom, Jake McCarthy, Martin Jimenez) signed up
+and got stranded — default role was 'coach' for code-less signups.
+Hit the coach dashboard, no team, no kid linked. Manually patched all
+3 in DB (family_members + team_memberships role=parent + auth metadata
+role=parent). Then flipped:
+- `AuthContext.signUp` default: 'coach' → 'parent'
+- `Login.jsx` mode-switcher label: "Member" → "Family"
+- Join code field label: "Join Code (Optional)" → "Coach invite code
+  (only if you're a coach)" with hint
+
+### Auto team chat (2026-05-16, commit `a0023af`)
+
+Parents saw "Your team chat will appear here once set up by your coach."
+Misleading — no actual setup step existed, just no auto-create. Added
+trigger on `teams` INSERT that creates a `conversations` row with
+type='team', name='Team Chat' (or 'Group Chat' for private groups).
+Backfilled Summer Squad. RLS already supported parent-via-family view +
+post.
+
+### Auth misc
+
+- **2026-05-14**: Fixed `join_team_via_code` RPC — was trying to UPDATE
+  `profiles.role` but profiles has no role column. The exception rolled
+  back the whole RPC including the `team_memberships` INSERT, stranding
+  every code-based signup. Caught when Orlando signed up; patched his
+  membership + metadata manually, then fixed the RPC (commit `93471d8`).
+- **2026-05-16**: Heather's password reset emails — Supabase IS sending
+  them (recovery_sent_at populates), but Gmail aggressively filters
+  `mail.app.supabase.io` to Promotions/Spam. Workaround: Albert can set
+  her password directly via Supabase Studio → Authentication → Users.
+
+### Open / carry-over
+
+- Albert needs to manually upload each player photo via the camera
+  button in PlayerEvaluationModal. Pre-processed PNGs via remove.bg.
+  Phase 2 of avatar system (in-app processing, parent uploads) deferred.
+- Roster codes section on /about is rollout-only — remove once families
+  are all linked (one component reference + one migration to drop the
+  RPC).
+- Voice mic overlay (yellow "Hey Fire" FAB) disabled 2026-05-15 pending
+  Albert finding a real use case.
+- Phase 2 player profile customization (country flags, club crests,
+  card themes) not started.
+- Two old Orlando-related accounts to clean up if Albert wants:
+  `o.raptors0709@gmail.com` (earlier signup attempt) and
+  `tippjr@yahoo.com` (Bo's-dad parent account never linked to Bo).
+
+---
+
 ## Session: 2026-05-13 afternoon (Layer 3 — uptime monitoring LIVE)
 
 ### Outcome
