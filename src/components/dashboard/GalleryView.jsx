@@ -214,7 +214,14 @@ const GalleryView = () => {
             toast.success('Photo uploaded.');
         } catch (err) {
             console.error('Upload error:', err);
-            toast.error("Upload failed. Check your connection and try again.");
+            const msg = err?.message || '';
+            if (msg.includes('policy') || msg.includes('permission') || /row.level security/i.test(msg)) {
+                toast.error("You don't have permission to upload to this gallery.");
+            } else if (msg.toLowerCase().includes('network') || msg.toLowerCase().includes('fetch')) {
+                toast.error("Couldn't reach the server. Check your connection and try again.");
+            } else {
+                toast.error(`Upload failed: ${msg || 'Unknown error'}.`);
+            }
         } finally {
             setUploading(false);
         }
