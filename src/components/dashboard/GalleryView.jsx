@@ -20,6 +20,43 @@ const GalleryView = () => {
     const [selectedEventId, setSelectedEventId] = useState('');
     const [teamId, setTeamId] = useState(null);
     const fileInputRef = useRef(null);
+    // Pending-file state — user picks a file but the actual upload doesn't
+    // fire until they tap the "Upload" button. Lets them preview, add a
+    // caption, and pick the event first.
+    const [pendingFile, setPendingFile] = useState(null);
+    const [pendingPreview, setPendingPreview] = useState(null);
+
+    // Revoke the object URL when the pending file changes or unmounts so
+    // we don't leak memory.
+    useEffect(() => {
+        return () => {
+            if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+        };
+    }, [pendingPreview]);
+
+    const resetPendingFile = () => {
+        if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+        setPendingFile(null);
+        setPendingPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            toast.error('Only image files are allowed.');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('File too large — max 10MB.');
+            return;
+        }
+        // Replace any previously-pending file (and revoke its URL)
+        if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+        setPendingFile(file);
+        setPendingPreview(URL.createObjectURL(file));
+    };
 
     const [currentRole, setCurrentRole] = useState(profile?.role || user?.role || 'player');
     const canUpload = ['manager', 'coach', 'parent'].includes(currentRole);
@@ -134,19 +171,9 @@ const GalleryView = () => {
         }
     };
 
-    const handleUpload = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Validate type
-        if (!file.type.startsWith('image/')) {
-            toast.error('Only image files are allowed.');
-            return;
-        }
-
-        // Validate size (10MB)
-        if (file.size > 10 * 1024 * 1024) {
-            toast.error('File too large — max 10MB.');
+    const handleUpload = async () => {
+        if (!pendingFile) {
+            toast.error('Pick a photo first.');
             return;
         }
 
@@ -154,14 +181,14 @@ const GalleryView = () => {
 
         try {
             // Generate unique filename
-            const ext = file.name.split('.').pop();
+            const ext = pendingFile.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
             const filePath = `team-${teamId}/${fileName}`;
 
             // Upload to storage
             const { error: uploadErr } = await supabase.storage
                 .from('media')
-                .upload(filePath, file);
+                .upload(filePath, pendingFile);
 
             if (uploadErr) throw uploadErr;
 
@@ -182,7 +209,7 @@ const GalleryView = () => {
             setCaption('');
             setSelectedEventId('');
             setShowUpload(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            resetPendingFile();
             fetchMedia();
             toast.success('Photo uploaded.');
         } catch (err) {
@@ -340,26 +367,50 @@ const GalleryView = () => {
                     <div className="bg-brand-dark border border-white/10 rounded-2xl p-6 w-full max-w-md space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-white font-bold text-lg uppercase">Upload Photo</h3>
-                            <button onClick={() => setShowUpload(false)} className="text-gray-400 hover:text-white">
+                            <button
+                                onClick={() => { setShowUpload(false); resetPendingFile(); setCaption(''); setSelectedEventId(''); }}
+                                disabled={uploading}
+                                className="text-gray-400 hover:text-white disabled:opacity-50"
+                            >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        {/* File Input */}
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer hover:border-brand-green/50 transition-colors"
-                        >
-                            <ImageIcon className="w-10 h-10 text-gray-500 mx-auto mb-2" />
-                            <p className="text-gray-400 text-sm">Tap to select a photo</p>
-                            <p className="text-gray-600 text-xs mt-1">JPG, PNG, WebP up to 10MB</p>
-                        </div>
+                        {/* File picker: dropzone when nothing picked, preview when picked */}
+                        {pendingFile ? (
+                            <div className="relative">
+                                <img
+                                    src={pendingPreview}
+                                    alt="Preview"
+                                    className="w-full h-56 object-cover rounded-xl border border-white/10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="absolute top-2 right-2 px-2.5 py-1 rounded bg-black/70 border border-white/20 text-white text-[11px] uppercase font-bold tracking-wider hover:bg-black/90"
+                                >
+                                    Change
+                                </button>
+                                <p className="text-[11px] text-gray-500 mt-2 truncate">
+                                    {pendingFile.name} · {(pendingFile.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                            </div>
+                        ) : (
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer hover:border-brand-green/50 transition-colors"
+                            >
+                                <ImageIcon className="w-10 h-10 text-gray-500 mx-auto mb-2" />
+                                <p className="text-gray-400 text-sm">Tap to select a photo</p>
+                                <p className="text-gray-600 text-xs mt-1">JPG, PNG, WebP up to 10MB</p>
+                            </div>
+                        )}
                         <input
                             type="file"
                             ref={fileInputRef}
                             accept="image/jpeg,image/png,image/webp"
                             className="hidden"
-                            onChange={handleUpload}
+                            onChange={handleFileSelect}
                         />
 
                         {/* Caption */}
@@ -385,11 +436,27 @@ const GalleryView = () => {
                             ))}
                         </select>
 
-                        {uploading && (
-                            <div className="flex items-center justify-center gap-2 text-brand-green text-sm py-2">
-                                <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
-                            </div>
-                        )}
+                        {/* Action buttons */}
+                        <div className="flex gap-2 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => { setShowUpload(false); resetPendingFile(); setCaption(''); setSelectedEventId(''); }}
+                                disabled={uploading}
+                                className="flex-1 py-2.5 rounded-lg border border-white/10 text-gray-300 text-sm font-bold uppercase tracking-wider hover:bg-white/5 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleUpload}
+                                disabled={uploading || !pendingFile}
+                                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand-green text-brand-dark text-sm font-bold uppercase tracking-wider hover:bg-brand-green/90 disabled:opacity-50"
+                            >
+                                {uploading
+                                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
+                                    : <><Upload className="w-4 h-4" /> Upload</>}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
