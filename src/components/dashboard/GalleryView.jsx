@@ -132,20 +132,46 @@ const GalleryView = () => {
     const fetchMedia = async () => {
         setLoading(true);
         try {
+            // NOTE: previously this select had `profiles:uploaded_by(full_name)`
+            // as a PostgREST embed, but media_gallery.uploaded_by has its FK
+            // pointing at auth.users(id), not public.profiles(id). PostgREST
+            // can't auto-resolve that relationship → the WHOLE fetch errored
+            // → media array stayed empty → uploads "succeeded" but photos
+            // were invisible. We now fetch the media rows + events embed
+            // (events has a real FK) and look up uploader names separately.
             const { data, error } = await supabase
                 .from('media_gallery')
-                .select('*, profiles:uploaded_by(full_name), events:event_id(title)')
+                .select('*, events:event_id(title)')
                 .eq('team_id', teamId)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
-            // Build public URLs
-            const withUrls = (data || []).map(item => {
+            const rows = data || [];
+
+            // Resolve uploader names via profiles in a second query
+            const uploaderIds = [...new Set(rows.map(r => r.uploaded_by).filter(Boolean))];
+            let nameByUser = {};
+            if (uploaderIds.length > 0) {
+                const { data: profilesData } = await supabase
+                    .from('profiles')
+                    .select('id, full_name')
+                    .in('id', uploaderIds);
+                (profilesData || []).forEach(p => { nameByUser[p.id] = p.full_name; });
+            }
+
+            // Build public URLs and shape `profiles` to match the old embed
+            // contract so render code (e.g. lightbox.profiles?.full_name)
+            // keeps working unchanged.
+            const withUrls = rows.map(item => {
                 const { data: urlData } = supabase.storage
                     .from('media')
                     .getPublicUrl(item.file_path);
-                return { ...item, publicUrl: urlData?.publicUrl };
+                return {
+                    ...item,
+                    publicUrl: urlData?.publicUrl,
+                    profiles: { full_name: nameByUser[item.uploaded_by] || null },
+                };
             });
 
             setMedia(withUrls);
