@@ -4,6 +4,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import ReactionBar from '../ReactionBar';
+import useLongPress from '../../hooks/useLongPress';
 
 const ChatView = () => {
     const { user, profile } = useAuth();
@@ -12,6 +13,26 @@ const ChatView = () => {
     const [activeChannel, setActiveChannel] = useState(null);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
+    // When set, that message id shows the reaction picker. Cleared on
+    // any selection (auto-close) or on background tap.
+    const [reactionPickerFor, setReactionPickerFor] = useState(null);
+
+    // Close the picker when the user taps anywhere outside it. The
+    // ReactionBar component stops propagation on its own clicks so this
+    // only fires on truly-outside taps.
+    useEffect(() => {
+        if (!reactionPickerFor) return;
+        const close = () => setReactionPickerFor(null);
+        const t = setTimeout(() => {
+            document.addEventListener('click', close);
+            document.addEventListener('touchstart', close);
+        }, 0); // defer so the long-press that opened it doesn't immediately re-close
+        return () => {
+            clearTimeout(t);
+            document.removeEventListener('click', close);
+            document.removeEventListener('touchstart', close);
+        };
+    }, [reactionPickerFor]);
     const [isUrgent, setIsUrgent] = useState(false);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
@@ -497,53 +518,17 @@ const ChatView = () => {
                         </div>
                     ) : (
                         messages.map(msg => (
-                            <div key={msg.id} className={`flex gap-3 md:gap-4 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
-                                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs md:text-sm ${getAvatarStyle(msg.sender_role)}`}>
-                                    {msg.sender_name?.charAt(0)?.toUpperCase() || '?'}
-                                </div>
-                                <div className={`max-w-[85%] md:max-w-[70%] ${isOwnMessage(msg) ? 'items-end' : 'items-start'} flex flex-col`}>
-                                    <div className={`flex items-center gap-2 mb-1 ${isOwnMessage(msg) ? 'flex-row-reverse' : ''}`}>
-                                        <span className="text-sm font-bold text-white">{msg.sender_name || 'Unknown'}</span>
-                                        {msg.sender_role && (
-                                            <span className={`text-xs px-1.5 py-0.5 rounded uppercase font-bold ${getRoleBadgeStyle(msg.sender_role)}`}>
-                                                {msg.sender_role}
-                                            </span>
-                                        )}
-                                        <span className="text-xs text-gray-500">{formatTime(msg.created_at)}</span>
-                                    </div>
-                                    <div className={`p-3 rounded-2xl text-sm leading-relaxed ${
-                                        msg.is_urgent
-                                            ? 'bg-red-500/20 border border-red-500 text-red-100 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
-                                            : msg.message_type === 'announcement'
-                                                ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-100'
-                                                : isOwnMessage(msg)
-                                                    ? 'bg-brand-green/20 border border-brand-green/30 text-white rounded-tr-none'
-                                                    : 'bg-white/5 border border-white/10 text-gray-300 rounded-tl-none'
-                                    }`}>
-                                        {msg.is_urgent && (
-                                            <div className="flex items-center gap-1 text-red-400 font-bold text-xs uppercase mb-1">
-                                                <AlertCircle className="w-3 h-3" /> Urgent Alert
-                                            </div>
-                                        )}
-                                        {msg.message_type === 'announcement' && !msg.is_urgent && (
-                                            <div className="flex items-center gap-1 text-yellow-400 font-bold text-xs uppercase mb-1">
-                                                <Megaphone className="w-3 h-3" /> Announcement
-                                            </div>
-                                        )}
-                                        {msg.content}
-                                    </div>
-                                    {/* Emoji reactions — mirrors the bubble's alignment */}
-                                    <div className="mt-1.5">
-                                        <ReactionBar
-                                            tableName="message_reactions"
-                                            columnName="message_id"
-                                            targetId={msg.id}
-                                            compact
-                                            align={isOwnMessage(msg) ? 'right' : 'left'}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                            <MessageRow
+                                key={msg.id}
+                                msg={msg}
+                                own={isOwnMessage(msg)}
+                                getAvatarStyle={getAvatarStyle}
+                                getRoleBadgeStyle={getRoleBadgeStyle}
+                                formatTime={formatTime}
+                                pickerOpen={reactionPickerFor === msg.id}
+                                onOpenPicker={() => setReactionPickerFor(msg.id)}
+                                onClosePicker={() => setReactionPickerFor(null)}
+                            />
                         ))
                     )}
                     <div ref={messagesEndRef} />
@@ -621,6 +606,82 @@ const ChatView = () => {
                         </div>
                     </div>
                 )}
+            </div>
+        </div>
+    );
+};
+
+// ---------------------------------------------------------------------
+// MessageRow — extracted because useLongPress is a hook (can't be called
+// inside the messages.map). Owns the bubble + reactions area, accepts
+// the picker open/close state from the parent.
+// ---------------------------------------------------------------------
+const MessageRow = ({
+    msg,
+    own,
+    getAvatarStyle,
+    getRoleBadgeStyle,
+    formatTime,
+    pickerOpen,
+    onOpenPicker,
+    onClosePicker,
+}) => {
+    const longPress = useLongPress(() => onOpenPicker());
+
+    return (
+        <div className={`flex gap-3 md:gap-4 ${own ? 'flex-row-reverse' : ''}`}>
+            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs md:text-sm ${getAvatarStyle(msg.sender_role)}`}>
+                {msg.sender_name?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+            <div className={`max-w-[85%] md:max-w-[70%] ${own ? 'items-end' : 'items-start'} flex flex-col`}>
+                <div className={`flex items-center gap-2 mb-1 ${own ? 'flex-row-reverse' : ''}`}>
+                    <span className="text-sm font-bold text-white">{msg.sender_name || 'Unknown'}</span>
+                    {msg.sender_role && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded uppercase font-bold ${getRoleBadgeStyle(msg.sender_role)}`}>
+                            {msg.sender_role}
+                        </span>
+                    )}
+                    <span className="text-xs text-gray-500">{formatTime(msg.created_at)}</span>
+                </div>
+                <div
+                    {...longPress}
+                    onContextMenu={(e) => { e.preventDefault(); onOpenPicker(); }}
+                    className={`p-3 rounded-2xl text-sm leading-relaxed select-none cursor-pointer ${
+                        msg.is_urgent
+                            ? 'bg-red-500/20 border border-red-500 text-red-100 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                            : msg.message_type === 'announcement'
+                                ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-100'
+                                : own
+                                    ? 'bg-brand-green/20 border border-brand-green/30 text-white rounded-tr-none'
+                                    : 'bg-white/5 border border-white/10 text-gray-300 rounded-tl-none'
+                    }`}
+                    title="Press and hold to react"
+                >
+                    {msg.is_urgent && (
+                        <div className="flex items-center gap-1 text-red-400 font-bold text-xs uppercase mb-1">
+                            <AlertCircle className="w-3 h-3" /> Urgent Alert
+                        </div>
+                    )}
+                    {msg.message_type === 'announcement' && !msg.is_urgent && (
+                        <div className="flex items-center gap-1 text-yellow-400 font-bold text-xs uppercase mb-1">
+                            <Megaphone className="w-3 h-3" /> Announcement
+                        </div>
+                    )}
+                    {msg.content}
+                </div>
+                {/* Reactions — chips when collapsed (only emojis with count>0
+                    render), full picker when pickerOpen. Mirrors bubble side. */}
+                <div className="mt-1.5">
+                    <ReactionBar
+                        tableName="message_reactions"
+                        columnName="message_id"
+                        targetId={msg.id}
+                        compact
+                        align={own ? 'right' : 'left'}
+                        pickerOpen={pickerOpen}
+                        onClosePicker={onClosePicker}
+                    />
+                </div>
             </div>
         </div>
     );

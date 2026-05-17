@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import ReactionBar from '../ReactionBar';
+import useLongPress from '../../hooks/useLongPress';
 
 const GalleryView = () => {
     const { user, profile } = useAuth();
@@ -16,6 +17,10 @@ const GalleryView = () => {
     const [uploading, setUploading] = useState(false);
     const [showUpload, setShowUpload] = useState(false);
     const [lightbox, setLightbox] = useState(null);
+    const [lightboxPickerOpen, setLightboxPickerOpen] = useState(false);
+    // Close the picker whenever the user navigates between photos
+    useEffect(() => { setLightboxPickerOpen(false); }, [lightbox?.id]);
+    const lightboxLongPress = useLongPress(() => setLightboxPickerOpen(true));
     const [filterEvent, setFilterEvent] = useState('all');
     const [caption, setCaption] = useState('');
     const [selectedEventId, setSelectedEventId] = useState('');
@@ -560,7 +565,11 @@ const GalleryView = () => {
                         <img
                             src={lightbox.publicUrl}
                             alt={lightbox.caption || 'Photo'}
-                            className="max-h-[80vh] max-w-full object-contain rounded-lg"
+                            className="max-h-[80vh] max-w-full object-contain rounded-lg select-none"
+                            onContextMenu={(e) => { e.preventDefault(); setLightboxPickerOpen(true); }}
+                            {...lightboxLongPress}
+                            draggable={false}
+                            title="Press and hold to react"
                         />
 
                         {lightboxIndex < filtered.length - 1 && (
@@ -573,7 +582,8 @@ const GalleryView = () => {
                         )}
                     </div>
 
-                    {/* Reactions row + counter */}
+                    {/* Reactions + counter. Chips show existing reactions only;
+                        long-press the photo to open the full picker. */}
                     <div className="pb-4 px-4 space-y-2" onClick={(e) => e.stopPropagation()}>
                         <ReactionBar
                             key={lightbox.id}
@@ -581,9 +591,12 @@ const GalleryView = () => {
                             columnName="media_id"
                             targetId={lightbox.id}
                             align="center"
+                            pickerOpen={lightboxPickerOpen}
+                            onClosePicker={() => setLightboxPickerOpen(false)}
                         />
                         <div className="text-center text-gray-500 text-xs">
                             {lightboxIndex + 1} / {filtered.length}
+                            <span className="ml-3 opacity-60">· Press and hold the photo to react</span>
                         </div>
                     </div>
                 </div>
