@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
 
@@ -220,7 +220,13 @@ const Dashboard = () => {
                             >
                                 <FileText className="w-3 h-3" /> Rules
                             </button>
-                            {/* Gallery / Live / Carpool hidden until tested with real team. */}
+                            <button
+                                onClick={() => setCurrentView('gallery')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'gallery' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <Camera className="w-3 h-3" /> Gallery
+                            </button>
+                            {/* Live / Carpool still hidden until tested with real team. */}
 
                             {/* Manager Only Tabs */}
                             {isManager && (
@@ -272,7 +278,8 @@ const Dashboard = () => {
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
                                             { id: 'rules', label: 'Rules' },
-                                            // gallery / live / carpool hidden — re-add when those features are tested
+                                            { id: 'gallery', label: 'Gallery' },
+                                            // live / carpool still hidden — re-add when those features are tested
                                         ].map(tab => (
                                             <button
                                                 key={tab.id}

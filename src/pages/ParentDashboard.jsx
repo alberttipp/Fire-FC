@@ -1081,8 +1081,9 @@ const ParentDashboard = () => {
                                 { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                                 { id: 'schedule', label: 'Schedule', icon: Calendar },
                                 { id: 'messages', label: 'Messages', icon: MessageSquare },
-                                // Gallery / Live / Carpool / Billing hidden until each
-                                // is tested with a real team. Components and routing
+                                { id: 'gallery',  label: 'Gallery',  icon: Camera },
+                                // Live / Carpool / Billing still hidden until each is
+                                // tested with a real team. Components and routing
                                 // (case statements above) are intact so re-adding is
                                 // a one-line change here.
                             ].map(tab => (
@@ -1105,6 +1106,7 @@ const ParentDashboard = () => {
                                 { id: 'overview', icon: LayoutDashboard },
                                 { id: 'schedule', icon: Calendar },
                                 { id: 'messages', icon: MessageSquare },
+                                { id: 'gallery',  icon: Camera },
                             ].map(tab => (
                                 <button
                                     key={tab.id}

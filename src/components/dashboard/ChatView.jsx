@@ -567,6 +567,23 @@ const ChatView = () => {
                                 )}
                             </div>
 
+                            {/* Quick emoji row — tap to append. Mobile keyboards
+                                already expose the full emoji picker; this is just
+                                the most-used team-friendly shortcuts. */}
+                            <div className="flex gap-1 overflow-x-auto no-scrollbar -mx-1 px-1 mb-2 pb-1">
+                                {['👍', '🔥', '⚽', '👏', '🙌', '😂', '❤️', '🎉', '🤝', '👀', '💪', '✅', '🥳', '🙏'].map(e => (
+                                    <button
+                                        key={e}
+                                        type="button"
+                                        onClick={() => setNewMessage(m => m + e)}
+                                        className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-white/[0.04] border border-white/10 hover:bg-white/10 transition-colors text-lg leading-none"
+                                        aria-label={`Insert ${e}`}
+                                    >
+                                        {e}
+                                    </button>
+                                ))}
+                            </div>
+
                             {/* Text Box */}
                             <div className="flex gap-2">
                                 <input
