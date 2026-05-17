@@ -96,6 +96,27 @@ const ParentDashboard = () => {
         }
     }, [selectedChild?.id]);
 
+    // Refetch when the tab regains focus / page becomes visible — covers the
+    // common case where Albert (or a parent) creates an event in another tab
+    // or via coach view, then switches back here and expects to see it
+    // without manually refreshing. Quiet refresh — no loading spinner so the
+    // UI doesn't flash.
+    useEffect(() => {
+        if (!selectedChild?.id) return;
+        const refresh = () => {
+            if (document.visibilityState === 'visible') {
+                fetchChildDetails(selectedChild.id);
+            }
+        };
+        document.addEventListener('visibilitychange', refresh);
+        window.addEventListener('focus', refresh);
+        return () => {
+            document.removeEventListener('visibilitychange', refresh);
+            window.removeEventListener('focus', refresh);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedChild?.id]);
+
     const fetchChildrenData = async () => {
         setLoading(true);
         try {
@@ -939,18 +960,22 @@ const ParentDashboard = () => {
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        {/* RSVP buttons — Going / Out / Vacation, matches the
+                                                            rest of the app. "Maybe" was retired with the
+                                                            vacation-period rewrite; legacy maybe rsvps in the
+                                                            DB just won't highlight any button. */}
                                                         <div className="flex gap-2">
-                                                            {['going', 'maybe', 'not_going'].map(status => (
+                                                            {[
+                                                                { status: 'going',     label: 'Going',    activeCls: 'bg-green-500 text-white',  idleCls: 'bg-green-500/20 text-green-400 hover:bg-green-500/40' },
+                                                                { status: 'not_going', label: 'Out',      activeCls: 'bg-red-500 text-white',    idleCls: 'bg-red-500/20 text-red-400 hover:bg-red-500/40' },
+                                                                { status: 'vacation',  label: 'Vacation', activeCls: 'bg-sky-500 text-white',    idleCls: 'bg-sky-500/20 text-sky-400 hover:bg-sky-500/40' },
+                                                            ].map(({ status, label, activeCls, idleCls }) => (
                                                                 <button
                                                                     key={status}
                                                                     onClick={() => handleRsvp(event.id, status)}
-                                                                    className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
-                                                                        currentRsvp === status
-                                                                            ? status === 'going' ? 'bg-green-500 text-white' : status === 'maybe' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
-                                                                            : status === 'going' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/40' : status === 'maybe' ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40' : 'bg-red-500/20 text-red-400 hover:bg-red-500/40'
-                                                                    }`}
+                                                                    className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${currentRsvp === status ? activeCls : idleCls}`}
                                                                 >
-                                                                    {status === 'going' ? 'Going' : status === 'maybe' ? 'Maybe' : "Can't Go"}
+                                                                    {label}
                                                                 </button>
                                                             ))}
                                                         </div>
