@@ -53,6 +53,27 @@
         }
         function recover() {
           try { sessionStorage.setItem(BOOT_MARK, String(Date.now())); } catch (_) {}
+          // Best-effort: nuke the Cache API and unregister any SW before
+          // reloading. iOS PWA standalone mode caches the app shell beyond
+          // what Cache-Control: no-store dictates; clearing the Cache API
+          // gives us a fighting chance the reload actually fetches fresh
+          // HTML. All wrapped in try/catch since older browsers / contexts
+          // may not have these APIs. We don't await — the location.replace
+          // below will tear everything down anyway.
+          try {
+            if (typeof caches !== 'undefined' && caches.keys) {
+              caches.keys().then(function (keys) {
+                keys.forEach(function (k) { try { caches.delete(k); } catch (_) {} });
+              });
+            }
+          } catch (_) {}
+          try {
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (reg) { try { reg.unregister(); } catch (_) {} });
+              });
+            }
+          } catch (_) {}
           var url = location.pathname
             + (location.search ? location.search + '&' : '?')
             + '__r=' + Date.now()

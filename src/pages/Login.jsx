@@ -403,6 +403,42 @@ const Login = () => {
                                 {isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}
                             </button>
                         </div>
+
+                        {/* Stale-cache escape hatch. Some parents who installed the
+                            app to their home screen end up with a stale cached
+                            HTML that iOS PWA mode keeps serving despite no-store.
+                            One tap here clears the Cache API + unregisters any
+                            SW + force-reloads with a cache-bust query so the
+                            phone is forced to pull fresh files. Documented as
+                            "stuck? tap here" so parents can self-rescue without
+                            uninstalling the app. */}
+                        <div className="text-center pt-1">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    try {
+                                        if (typeof caches !== 'undefined' && caches.keys) {
+                                            const keys = await caches.keys();
+                                            await Promise.all(keys.map(k => caches.delete(k)));
+                                        }
+                                    } catch (_) {}
+                                    try {
+                                        if (navigator.serviceWorker?.getRegistrations) {
+                                            const regs = await navigator.serviceWorker.getRegistrations();
+                                            regs.forEach(r => { try { r.unregister(); } catch (_) {} });
+                                        }
+                                    } catch (_) {}
+                                    try { sessionStorage.clear(); } catch (_) {}
+                                    const sep = window.location.search ? '&' : '?';
+                                    window.location.replace(
+                                        window.location.pathname + window.location.search + sep + '__r=' + Date.now()
+                                    );
+                                }}
+                                className="text-gray-600 hover:text-gray-300 text-[11px] uppercase tracking-wider transition-colors"
+                            >
+                                App acting weird? Tap to reload fresh
+                            </button>
+                        </div>
                     </form>
                 )}
 
