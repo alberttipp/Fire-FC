@@ -4,6 +4,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
+import ReactionBar from '../ReactionBar';
 
 const GalleryView = () => {
     const { user, profile } = useAuth();
@@ -572,9 +573,18 @@ const GalleryView = () => {
                         )}
                     </div>
 
-                    {/* Counter */}
-                    <div className="text-center pb-4 text-gray-500 text-xs">
-                        {lightboxIndex + 1} / {filtered.length}
+                    {/* Reactions row + counter */}
+                    <div className="pb-4 px-4 space-y-2" onClick={(e) => e.stopPropagation()}>
+                        <ReactionBar
+                            key={lightbox.id}
+                            tableName="media_reactions"
+                            columnName="media_id"
+                            targetId={lightbox.id}
+                            align="center"
+                        />
+                        <div className="text-center text-gray-500 text-xs">
+                            {lightboxIndex + 1} / {filtered.length}
+                        </div>
                     </div>
                 </div>
             )}

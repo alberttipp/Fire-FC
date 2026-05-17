@@ -3,6 +3,7 @@ import { Send, AlertCircle, Hash, MessageSquare, Users, Bell, Megaphone, Lock, L
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
+import ReactionBar from '../ReactionBar';
 
 const ChatView = () => {
     const { user, profile } = useAuth();
@@ -530,6 +531,16 @@ const ChatView = () => {
                                             </div>
                                         )}
                                         {msg.content}
+                                    </div>
+                                    {/* Emoji reactions — mirrors the bubble's alignment */}
+                                    <div className="mt-1.5">
+                                        <ReactionBar
+                                            tableName="message_reactions"
+                                            columnName="message_id"
+                                            targetId={msg.id}
+                                            compact
+                                            align={isOwnMessage(msg) ? 'right' : 'left'}
+                                        />
                                     </div>
                                 </div>
                             </div>
