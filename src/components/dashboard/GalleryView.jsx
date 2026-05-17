@@ -378,8 +378,20 @@ const GalleryView = () => {
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                 loading="lazy"
                             />
-                            {/* Overlay on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Delete button — top-right, visible to uploader + staff.
+                                Always visible on touch devices (no hover); fades on
+                                desktop unless hovered. */}
+                            {canDelete(item) && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
+                                    aria-label="Delete photo"
+                                    className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-black/70 backdrop-blur border border-white/20 text-white hover:bg-red-500 hover:border-red-500 transition-colors md:opacity-0 md:group-hover:opacity-100"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                            {/* Bottom overlay on hover (caption + uploader) */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                 <div className="absolute bottom-2 left-2 right-2">
                                     {item.caption && (
                                         <p className="text-white text-xs truncate">{item.caption}</p>
