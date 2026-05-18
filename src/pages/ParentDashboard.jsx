@@ -68,6 +68,7 @@ const ParentDashboard = () => {
     const [playerEvaluation, setPlayerEvaluation] = useState(null); // Coach ratings from evaluations table
     const [playerBadges, setPlayerBadges] = useState([]);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const [upcomingCounts, setUpcomingCounts] = useState({}); // { eventId: { going, not_going, vacation, total } }
     const [coachAssignments, setCoachAssignments] = useState([]);
     const [parentAssignments, setParentAssignments] = useState([]);
     const [attendanceStats, setAttendanceStats] = useState({ attended: 0, missed: 0, rate: 0 });
@@ -190,11 +191,30 @@ const ParentDashboard = () => {
 
             setPlayerStats(stats);
 
-            // Training minutes from player_stats at all time levels
+            // Training minutes from player_stats at all time levels.
+            // Set the practice mins IMMEDIATELY so the dashboard renders the
+            // real numbers even if a downstream fetch (eval, assignments,
+            // attendance) throws. Previously the whole function shared one
+            // try/catch and a thrown error left the initial-state zeros
+            // visible — exactly the "all zeros" bug Albert hit on 2026-05-18.
+            // Real team-attended minutes get computed and re-set below; this
+            // first set guarantees we never display zeros if stats exist.
             const soloMins = stats?.training_minutes || 0;
             const weeklyMins = stats?.weekly_minutes || 0;
             const seasonMins = stats?.season_minutes || 0;
             const yearlyMins = stats?.yearly_minutes || 0;
+            setPracticeMins(prev => ({
+                ...prev,
+                solo: soloMins,
+                weekly: weeklyMins,
+                season: seasonMins,
+                yearly: yearlyMins,
+                career: soloMins,
+                weeklyTouches: stats?.weekly_touches || 0,
+                seasonTouches: stats?.season_touches || 0,
+                yearlyTouches: stats?.yearly_touches || 0,
+                careerTouches: stats?.career_touches || 0,
+            }));
 
             // Fetch player evaluation (coach ratings - same as PlayerDashboard)
             console.log('[ParentDashboard] Fetching evaluation for player_id:', playerId);
@@ -265,6 +285,24 @@ const ParentDashboard = () => {
                     .limit(5);
 
                 setUpcomingEvents(events || []);
+
+                // Fetch RSVP counts for those events so the inline card can
+                // show "5 going · 2 out · 1 vacation" before the parent taps
+                // to drill in. Matches UpcomingWeek + EventCard behavior.
+                if (events && events.length > 0) {
+                    const evIds = events.map(e => e.id);
+                    const { data: allRsvps } = await supabase
+                        .from('event_rsvps')
+                        .select('event_id, status')
+                        .in('event_id', evIds);
+                    const counts = {};
+                    (allRsvps || []).forEach(r => {
+                        if (!counts[r.event_id]) counts[r.event_id] = { going: 0, not_going: 0, vacation: 0, total: 0 };
+                        if (counts[r.event_id][r.status] !== undefined) counts[r.event_id][r.status]++;
+                        counts[r.event_id].total++;
+                    });
+                    setUpcomingCounts(counts);
+                }
             }
 
             // Fetch coach assignments (read-only for parent)
@@ -954,6 +992,7 @@ const ParentDashboard = () => {
                                             {upcomingEvents.slice(0, 3).map(event => {
                                                 const date = new Date(event.start_time);
                                                 const currentRsvp = eventRsvps[event.id];
+                                                const counts = upcomingCounts[event.id] || { going: 0, not_going: 0, vacation: 0, total: 0 };
                                                 return (
                                                     <div key={event.id} className="p-3 bg-white/5 rounded-lg space-y-2">
                                                         <button
@@ -976,7 +1015,19 @@ const ParentDashboard = () => {
                                                                 </div>
                                                                 <div className="text-xs text-gray-500">
                                                                     {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                                                    <span className="text-gray-600"> · tap for attendance</span>
+                                                                </div>
+                                                                {/* Attendance summary — always visible before tap. */}
+                                                                <div className="mt-1 flex items-center gap-2 text-[10px] flex-wrap">
+                                                                    {counts.total === 0 ? (
+                                                                        <span className="text-gray-500 italic">No RSVPs yet — tap to view</span>
+                                                                    ) : (
+                                                                        <>
+                                                                            {counts.going > 0    && <span className="text-green-400 font-bold">{counts.going} going</span>}
+                                                                            {counts.not_going > 0 && <span className="text-red-400 font-bold">{counts.not_going} out</span>}
+                                                                            {counts.vacation > 0 && <span className="text-sky-400 font-bold">{counts.vacation} vacation</span>}
+                                                                            <span className="text-gray-600">· tap for details</span>
+                                                                        </>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </button>

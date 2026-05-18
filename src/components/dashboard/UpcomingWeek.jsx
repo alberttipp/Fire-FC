@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
 import {
     Calendar, MapPin, Clock, Users, ChevronLeft, ChevronRight,
     CheckCircle2, XCircle, Plane, Bell, BellOff, Shirt,
     Trophy, Dumbbell, Coffee, Users2, AlertCircle, Plus
 } from 'lucide-react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { STAFF_ROLES } from '../../constants/roles';
 import { resolveWritablePlayers, upsertRsvpForMany, namesList, statusLabel } from '../../utils/rsvp';
 import CreateEventModal from './CreateEventModal';
+const EventDetailModal = lazy(() => import('./calendar/EventDetailModal'));
 
 // Event type icons and colors
 const EVENT_STYLES = {
@@ -32,8 +33,9 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     const toast = useToast();
     const [events, setEvents] = useState([]);
     const [rsvps, setRsvps] = useState({});
+    const [rsvpCounts, setRsvpCounts] = useState({}); // { eventId: { going, not_going, vacation, total } }
     const [loading, setLoading] = useState(true);
-    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [openEventDetail, setOpenEventDetail] = useState(null);
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [weekOffset, setWeekOffset] = useState(0);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -90,20 +92,32 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
             if (error) throw error;
             setEvents(data || []);
 
-            // Fetch RSVPs for these events
-            if (data && data.length > 0 && user?.id) {
+            // Fetch ALL RSVPs for visible events so we can render the
+            // "5 going · 2 out · 1 vacation" inline summary on each card.
+            // (Previous code filtered by player_id=user.id which only worked
+            // for player accounts; parents/staff got nothing. Same bug
+            // pattern as Martin's. Counts must be unfiltered.)
+            if (data && data.length > 0) {
                 const eventIds = data.map(e => e.id);
-                const { data: rsvpData } = await supabase
+                const { data: allRsvps } = await supabase
                     .from('event_rsvps')
-                    .select('*')
-                    .in('event_id', eventIds)
-                    .eq('player_id', user.id);
+                    .select('event_id, status, player_id')
+                    .in('event_id', eventIds);
 
-                const rsvpMap = {};
-                (rsvpData || []).forEach(r => {
-                    rsvpMap[r.event_id] = r.status;
+                const counts = {};
+                const myStatusByEvent = {};
+                // Resolve which player_id(s) belong to this user so we can
+                // also highlight which button is "mine".
+                const mine = await resolveWritablePlayers(user?.id, profile?.role);
+                const myIds = new Set(mine.map(m => m.id));
+                (allRsvps || []).forEach(r => {
+                    if (!counts[r.event_id]) counts[r.event_id] = { going: 0, not_going: 0, vacation: 0, total: 0 };
+                    if (counts[r.event_id][r.status] !== undefined) counts[r.event_id][r.status]++;
+                    counts[r.event_id].total++;
+                    if (myIds.has(r.player_id)) myStatusByEvent[r.event_id] = r.status;
                 });
-                setRsvps(rsvpMap);
+                setRsvpCounts(counts);
+                setRsvps(myStatusByEvent);
             }
         } catch (err) {
             console.error('Error fetching events:', err);
@@ -332,13 +346,14 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                         const style = EVENT_STYLES[event.type] || EVENT_STYLES.practice;
                         const Icon = style.icon;
                         const myRsvp = rsvps[event.id];
+                        const counts = rsvpCounts[event.id] || { going: 0, not_going: 0, vacation: 0, total: 0 };
                         const eventDate = new Date(event.start_time);
 
                         return (
                             <div
                                 key={event.id}
                                 className={`p-3 rounded-lg border ${style.border} ${style.bg} hover:bg-white/10 transition-colors cursor-pointer`}
-                                onClick={() => setSelectedEvent(selectedEvent?.id === event.id ? null : event)}
+                                onClick={() => setOpenEventDetail(event)}
                             >
                                 {/* Event Header */}
                                 <div className="flex items-start justify-between gap-3">
@@ -366,83 +381,29 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                                     {myRsvp && (
                                         <div className={`px-2 py-1 rounded text-xs font-bold ${
                                             myRsvp === 'going' ? 'bg-green-500/20 text-green-400' :
-                                            myRsvp === 'maybe' ? 'bg-yellow-500/20 text-yellow-400' :
+                                            myRsvp === 'vacation' ? 'bg-sky-500/20 text-sky-400' :
                                             'bg-red-500/20 text-red-400'
                                         }`}>
-                                            {myRsvp === 'going' ? '✓ Going' : myRsvp === 'maybe' ? '? Maybe' : '✗ Not Going'}
+                                            {myRsvp === 'going' ? '✓ Going' : myRsvp === 'vacation' ? '✈ Vacation' : '✗ Out'}
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Expanded Details */}
-                                {selectedEvent?.id === event.id && (
-                                    <div className="mt-3 pt-3 border-t border-white/10 space-y-3 animate-fade-in">
-                                        {/* Location */}
-                                        {event.location_name && (
-                                            <div className="flex items-start gap-2 text-sm">
-                                                <MapPin className="w-4 h-4 text-gray-500 mt-0.5" />
-                                                <div>
-                                                    <p className="text-white">{event.location_name}</p>
-                                                    {event.location_address && (
-                                                        <p className="text-gray-500 text-xs">{event.location_address}</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Arrival Time */}
-                                        {event.arrival_time_minutes && (
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <AlertCircle className="w-4 h-4 text-yellow-500" />
-                                                <p className="text-yellow-400">
-                                                    Arrive {event.arrival_time_minutes} minutes early
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {/* Kit Color */}
-                                        {event.kit_color && (
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <Shirt className="w-4 h-4 text-gray-500" />
-                                                <p className="text-white">Wear: <span className="font-bold">{event.kit_color}</span></p>
-                                            </div>
-                                        )}
-
-                                        {/* Notes */}
-                                        {event.notes && (
-                                            <p className="text-xs text-gray-400 bg-white/5 p-2 rounded">
-                                                {event.notes}
-                                            </p>
-                                        )}
-
-                                        {/* RSVP Buttons — hidden for staff (they manage from RsvpSummary instead) */}
-                                        {!isStaff && (
-                                        <div className="flex gap-2 pt-2">
-                                            {RSVP_OPTIONS.map((option) => {
-                                                const RsvpIcon = option.icon;
-                                                const isSelected = myRsvp === option.status;
-                                                return (
-                                                    <button
-                                                        key={option.status}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleRsvp(event.id, option.status);
-                                                        }}
-                                                        className={`flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
-                                                            isSelected
-                                                                ? option.color + ' border-current scale-105'
-                                                                : 'border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
-                                                        }`}
-                                                    >
-                                                        <RsvpIcon className="w-4 h-4" />
-                                                        {option.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                        )}
-                                    </div>
-                                )}
+                                {/* Attendance summary line — same idea as Byga. Always
+                                    visible before click so the coach/parent can read the
+                                    headcount at a glance. Tap the card to drill in. */}
+                                <div className="mt-2 flex items-center gap-3 text-[11px]">
+                                    {counts.total === 0 ? (
+                                        <span className="text-gray-500 italic">No RSVPs yet — tap to manage</span>
+                                    ) : (
+                                        <>
+                                            {counts.going > 0    && <span className="text-green-400 font-bold">{counts.going} going</span>}
+                                            {counts.not_going > 0 && <span className="text-red-400 font-bold">{counts.not_going} out</span>}
+                                            {counts.vacation > 0 && <span className="text-sky-400 font-bold">{counts.vacation} vacation</span>}
+                                            <span className="text-gray-500 ml-auto">Tap for details</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         );
                     })
@@ -470,6 +431,16 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                     onClose={() => setShowCreateModal(false)}
                     onEventCreated={() => fetchEvents()}
                 />
+            )}
+
+            {/* Event Detail Modal — consistent with CalendarHub: tap an event
+                anywhere → see the full attendance breakdown (going / out /
+                vacation / no response). Staff also get coach-override controls
+                inside this modal. */}
+            {openEventDetail && (
+                <Suspense fallback={null}>
+                    <EventDetailModal event={openEventDetail} onClose={() => { setOpenEventDetail(null); fetchEvents(); }} />
+                </Suspense>
             )}
         </div>
     );
