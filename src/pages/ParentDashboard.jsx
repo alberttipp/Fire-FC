@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import Leaderboard from '../components/player/Leaderboard';
@@ -586,6 +586,22 @@ const ParentDashboard = () => {
                 return <GalleryView />;
             case 'rules':
                 return <RulesView />;
+            case 'vacation':
+                // Moved out of the overview flow per Albert 2026-05-18 — the
+                // overview was too busy. Accessed from the More menu (mobile)
+                // or the desktop top-nav tab.
+                return (
+                    <div className="max-w-3xl mx-auto">
+                        {selectedChild?.id ? (
+                            <VacationPeriodsManager
+                                playerId={selectedChild.id}
+                                playerName={selectedChild.first_name || 'your player'}
+                            />
+                        ) : (
+                            <p className="text-gray-500 text-sm text-center py-12">Select a child first.</p>
+                        )}
+                    </div>
+                );
             case 'live':
                 return <LiveScoringView />;
             case 'carpool':
@@ -730,18 +746,10 @@ const ParentDashboard = () => {
                             )}
                         </div>
 
-                        {/* 3. Player Card (with family-share button above) */}
-                        {selectedChild?.id && (
-                            <div className="flex justify-end -mb-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setInviteOpen(true)}
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-gold/10 border border-brand-gold/30 text-brand-gold hover:bg-brand-gold/20 text-[11px] font-bold uppercase tracking-wider transition-colors"
-                                >
-                                    <Link2 className="w-3.5 h-3.5" /> Invite another parent
-                                </button>
-                            </div>
-                        )}
+                        {/* 3. Player Card. The "Invite another parent" action
+                             moved to the More menu (mobile) + a small icon in
+                             the top header (desktop) so the overview isn't
+                             cluttered with a button right above the card. */}
                         <div className="group cursor-pointer relative max-w-xl mx-auto" onClick={() => setShowDetails(true)}>
                             <div className="absolute -top-5 left-0 w-full text-center text-brand-green text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                                 Tap for Report Card
@@ -758,15 +766,9 @@ const ParentDashboard = () => {
                             />
                         )}
 
-                        {/* 5. Vacation + Private Training (small badges, tucked
-                             between IDP and tiles so they're discoverable but
-                             not dominant). */}
-                        {selectedChild?.id && (
-                            <VacationPeriodsManager
-                                playerId={selectedChild.id}
-                                playerName={selectedChild.first_name || 'your player'}
-                            />
-                        )}
+                        {/* 5. Private Training badge stays here when applicable.
+                             Vacation moved to the More menu / its own view to
+                             de-clutter the overview (it's an infrequent action). */}
                         {selectedChild?.id && (
                             <PrivateTrainingBadge
                                 playerId={selectedChild.id}
@@ -843,23 +845,11 @@ const ParentDashboard = () => {
                             </div>
                         </div>
 
-                        {/* Training Minutes — full width because of the touches +
-                             team/solo breakdown sub-sections. Shared component
-                             with the player dashboard. */}
-                        <TrainingStatsCard
-                            stats={{
-                                weekly_minutes: practiceMins.weekly,
-                                season_minutes: practiceMins.season,
-                                yearly_minutes: practiceMins.yearly,
-                                training_minutes: practiceMins.career,
-                                weekly_touches: practiceMins.weeklyTouches,
-                                season_touches: practiceMins.seasonTouches,
-                                yearly_touches: practiceMins.yearlyTouches,
-                                career_touches: practiceMins.careerTouches,
-                            }}
-                            teamMins={practiceMins.team}
-                            showBreakdown={true}
-                        />
+                        {/* Training Minutes tile removed from the overview per
+                             Albert 2026-05-18 — the same stats live on the back
+                             of the player card (PlayerEvaluationModal), so the
+                             front was duplicating. Tap the player card to flip
+                             for the full breakdown. */}
 
                         {/* 7. Leaderboard — always shown, no toggle. */}
                         <Leaderboard />
@@ -1086,6 +1076,7 @@ const ParentDashboard = () => {
                                 { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                                 { id: 'schedule', label: 'Schedule', icon: Calendar },
                                 { id: 'messages', label: 'Messages', icon: MessageSquare },
+                                { id: 'vacation', label: 'Vacation', icon: Plane },
                                 { id: 'gallery',  label: 'Gallery',  icon: Camera },
                                 { id: 'rules',    label: 'Rules',    icon: FileText },
                                 // Live / Carpool / Billing still hidden until each is
@@ -1107,9 +1098,20 @@ const ParentDashboard = () => {
                         </div>
 
                         {/* On mobile, navigation lives in MobileBottomNav at the
-                            bottom of the screen (mounted further down). Only the
-                            logout button stays in the top bar so it's always
-                            reachable from anywhere. */}
+                            bottom of the screen (mounted further down). On
+                            desktop, Invite Parent + Logout stay in the top bar
+                            so they're always reachable. */}
+
+                        {selectedChild?.id && (
+                            <button
+                                onClick={() => setInviteOpen(true)}
+                                className="hidden md:inline-flex items-center gap-1.5 text-brand-gold hover:bg-brand-gold/10 transition-colors px-2 py-1.5 rounded"
+                                title="Invite another parent"
+                            >
+                                <Link2 className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wider">Invite</span>
+                            </button>
+                        )}
 
                         <button onClick={handleLogout} className="flex items-center gap-1.5 text-gray-400 hover:text-red-400 transition-colors px-2 py-1.5 rounded hover:bg-red-500/10" title="Logout">
                             <LogOut className="w-4 h-4" />
@@ -1168,9 +1170,13 @@ const ParentDashboard = () => {
                     { id: 'messages', label: 'Messages', icon: MessageSquare },
                 ]}
                 moreItems={[
-                    { id: 'gallery', label: 'Gallery', icon: Camera },
-                    { id: 'rules',   label: 'Rules',   icon: FileText },
-                ]}
+                    { id: 'vacation', label: 'Vacation', icon: Plane },
+                    { id: 'gallery',  label: 'Gallery',  icon: Camera },
+                    { id: 'rules',    label: 'Rules',    icon: FileText },
+                    // Action item — fires the FamilyInviteModal directly from
+                    // the More sheet instead of switching views.
+                    selectedChild?.id ? { id: 'invite-parent', label: 'Invite Parent', icon: Link2, action: () => setInviteOpen(true) } : null,
+                ].filter(Boolean)}
             />
 
             {openEvent && (

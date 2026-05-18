@@ -55,10 +55,16 @@ const MobileBottomNav = ({
                             {moreItems.map(item => {
                                 const Icon = item.icon;
                                 const active = currentView === item.id;
+                                // Items can either navigate (id) or fire a callback (action) — used
+                                // for things like "Invite another parent" which open a modal instead
+                                // of switching views.
+                                const onTap = item.action
+                                    ? () => { setShowMore(false); item.action(); }
+                                    : () => handleSelect(item.id);
                                 return (
                                     <button
                                         key={item.id}
-                                        onClick={() => handleSelect(item.id)}
+                                        onClick={onTap}
                                         className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors min-h-[64px] ${
                                             active ? 'bg-brand-green/15 text-brand-green' : 'text-gray-400 hover:bg-white/5'
                                         }`}
