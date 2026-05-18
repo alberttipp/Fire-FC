@@ -6,6 +6,7 @@ import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loa
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import Leaderboard from '../components/player/Leaderboard';
+import TrainingStatsCard from '../components/player/TrainingStatsCard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
@@ -613,9 +614,26 @@ const ParentDashboard = () => {
                 const totalParent = parentAssignments.length;
                 const totalMins = practiceMins.team + practiceMins.solo;
 
+                // Per Albert 2026-05-18, the parent overview is laid out
+                // top-to-bottom in this order so the most-actioned items are
+                // up top. Each block is its own glass-panel; desktop and
+                // mobile both flow vertically for consistency.
+                //
+                //   1. Child selector (multi-kid only)
+                //   2. Upcoming Events
+                //   3. Player Card (+ family-share button right above)
+                //   4. IDP
+                //   5. Vacation + Private Training (small badges, kept
+                //      between IDP and tiles)
+                //   6. Tiles: Homework % | Attendance | Training Minutes
+                //   7. Leaderboard (always shown — no toggle)
+                //   8. Coach Homework
+                //   9. Parent Solo Practice
+                //  10. Player Link
+                //  11. Recent Badges (tail)
                 return (
                     <div className="space-y-6">
-                        {/* Child selector if multiple children */}
+                        {/* 1. Child selector if multiple children */}
                         {children.length > 1 && (
                             <div className="flex gap-2">
                                 {children.map(child => (
@@ -634,9 +652,85 @@ const ParentDashboard = () => {
                             </div>
                         )}
 
-                        {/* Family-share action row — lets a linked parent send
-                            the same guardian code to a partner/grandparent so
-                            they can sign up too without going through coach. */}
+                        {/* 2. Upcoming Events */}
+                        <div className="glass-panel p-5">
+                            <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5" /> Upcoming Events
+                            </h4>
+                            {upcomingEvents.length === 0 ? (
+                                <p className="text-gray-500 text-sm text-center py-4">No upcoming events</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {upcomingEvents.slice(0, 3).map(event => {
+                                        const date = new Date(event.start_time);
+                                        const currentRsvp = eventRsvps[event.id];
+                                        const counts = upcomingCounts[event.id] || { going: 0, not_going: 0, vacation: 0, total: 0 };
+                                        return (
+                                            <div key={event.id} className="p-3 bg-white/5 rounded-lg space-y-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOpenEvent(event)}
+                                                    className="w-full flex items-center gap-3 text-left hover:bg-white/5 -m-1 p-1 rounded transition-colors"
+                                                >
+                                                    <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center ${
+                                                        event.type === 'game' ? 'bg-red-500/20 text-red-400' :
+                                                        event.type === 'practice' ? 'bg-brand-green/20 text-brand-green' :
+                                                        'bg-blue-500/20 text-blue-400'
+                                                    }`}>
+                                                        <span className="text-xs font-bold uppercase leading-none">{date.toLocaleDateString('en-US', { month: 'short' })}</span>
+                                                        <span className="text-sm font-bold leading-none">{date.getDate()}</span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm text-white font-medium truncate flex items-center gap-1">
+                                                            {event.title}
+                                                            <ChevronRight className="w-3 h-3 text-gray-500" />
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                        </div>
+                                                        <div className="mt-1 flex items-center gap-2 text-[10px] flex-wrap">
+                                                            {counts.total === 0 ? (
+                                                                <span className="text-gray-500 italic">No RSVPs yet — tap to view</span>
+                                                            ) : (
+                                                                <>
+                                                                    {counts.going > 0    && <span className="text-green-400 font-bold">{counts.going} going</span>}
+                                                                    {counts.not_going > 0 && <span className="text-red-400 font-bold">{counts.not_going} out</span>}
+                                                                    {counts.vacation > 0 && <span className="text-sky-400 font-bold">{counts.vacation} vacation</span>}
+                                                                    <span className="text-gray-600">· tap for details</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                                <div className="flex gap-2">
+                                                    {[
+                                                        { status: 'going',     label: 'Going',    activeCls: 'bg-green-500 text-white',  idleCls: 'bg-green-500/20 text-green-400 hover:bg-green-500/40' },
+                                                        { status: 'not_going', label: 'Out',      activeCls: 'bg-red-500 text-white',    idleCls: 'bg-red-500/20 text-red-400 hover:bg-red-500/40' },
+                                                        { status: 'vacation',  label: 'Vacation', activeCls: 'bg-sky-500 text-white',    idleCls: 'bg-sky-500/20 text-sky-400 hover:bg-sky-500/40' },
+                                                    ].map(({ status, label, activeCls, idleCls }) => (
+                                                        <button
+                                                            key={status}
+                                                            onClick={() => handleRsvp(event.id, status, event)}
+                                                            className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${currentRsvp === status ? activeCls : idleCls}`}
+                                                        >
+                                                            {label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    <button
+                                        onClick={() => setCurrentView('schedule')}
+                                        className="w-full text-xs text-gray-400 hover:text-white transition-colors mt-1"
+                                    >
+                                        View Full Schedule
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 3. Player Card (with family-share button above) */}
                         {selectedChild?.id && (
                             <div className="flex justify-end -mb-2">
                                 <button
@@ -648,10 +742,14 @@ const ParentDashboard = () => {
                                 </button>
                             </div>
                         )}
+                        <div className="group cursor-pointer relative max-w-xl mx-auto" onClick={() => setShowDetails(true)}>
+                            <div className="absolute -top-5 left-0 w-full text-center text-brand-green text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                Tap for Report Card
+                            </div>
+                            <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
+                        </div>
 
-                        {/* IDP card — mirrors what the player sees + lets parent
-                            assign block drills as homework (no onStartSoloDrill →
-                            parent mode renders an "Assign as Homework" button). */}
+                        {/* 4. IDP */}
                         {selectedChild?.id && (
                             <PlayerIDPCard
                                 playerId={selectedChild.id}
@@ -660,20 +758,15 @@ const ParentDashboard = () => {
                             />
                         )}
 
-                        {/* Vacation periods — parent enters a date range once;
-                            a DB trigger auto-marks every team event in that
-                            window as RSVP=vacation for this player. */}
+                        {/* 5. Vacation + Private Training (small badges, tucked
+                             between IDP and tiles so they're discoverable but
+                             not dominant). */}
                         {selectedChild?.id && (
                             <VacationPeriodsManager
                                 playerId={selectedChild.id}
                                 playerName={selectedChild.first_name || 'your player'}
                             />
                         )}
-
-                        {/* Private training badge — renders only when the kid
-                            is in at least one private_group team. Shows next
-                            session, last credited attendance, and a "Pay" link
-                            when the group has a payment_link set. */}
                         {selectedChild?.id && (
                             <PrivateTrainingBadge
                                 playerId={selectedChild.id}
@@ -681,446 +774,262 @@ const ParentDashboard = () => {
                             />
                         )}
 
-                        {/* Top Row: Player Card + Stats Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                            {/* Player Card */}
-                            <div className="lg:col-span-5">
-                                <div className="group cursor-pointer relative" onClick={() => setShowDetails(true)}>
-                                    <div className="absolute -top-5 left-0 w-full text-center text-brand-green text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Tap for Report Card
+                        {/* 6. Tiles: Homework % | Attendance | Training Minutes */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Homework Progress */}
+                            <div className="glass-panel p-5 flex flex-col">
+                                <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                    <Target className="w-3.5 h-3.5 text-brand-gold" /> Homework
+                                </h4>
+                                <div className="flex items-center gap-4 flex-1">
+                                    <div className="relative w-16 h-16 shrink-0">
+                                        <svg className="w-full h-full transform -rotate-90">
+                                            <circle cx="32" cy="32" r="26" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-800" />
+                                            <circle
+                                                cx="32" cy="32" r="26"
+                                                stroke="currentColor"
+                                                strokeWidth="6"
+                                                fill="transparent"
+                                                strokeDasharray="163.4"
+                                                strokeDashoffset={163.4 - (163.4 * homeworkPercent / 100)}
+                                                strokeLinecap="round"
+                                                className={homeworkPercent === 100 ? 'text-brand-green' : 'text-brand-gold'}
+                                            />
+                                        </svg>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <span className="text-white font-bold text-sm">{homeworkPercent}%</span>
+                                        </div>
                                     </div>
-                                    <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
+                                    <div>
+                                        <div className="text-2xl text-white font-bold leading-none">
+                                            {completedCoach}<span className="text-gray-500 text-lg">/{totalCoach}</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">
+                                            {coachHomeworkDone && totalCoach > 0 ? 'All Done!' : 'Coach Drills'}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Stats Dashboard */}
-                            <div className="lg:col-span-7 grid grid-cols-2 gap-4">
-                                {/* Homework Progress */}
-                                <div className="glass-panel p-5 flex flex-col">
-                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                        <Target className="w-3.5 h-3.5 text-brand-gold" /> Homework
-                                    </h4>
-                                    <div className="flex items-center gap-4 flex-1">
-                                        <div className="relative w-16 h-16 shrink-0">
-                                            <svg className="w-full h-full transform -rotate-90">
-                                                <circle cx="32" cy="32" r="26" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-800" />
-                                                <circle
-                                                    cx="32" cy="32" r="26"
-                                                    stroke="currentColor"
-                                                    strokeWidth="6"
-                                                    fill="transparent"
-                                                    strokeDasharray="163.4"
-                                                    strokeDashoffset={163.4 - (163.4 * homeworkPercent / 100)}
-                                                    strokeLinecap="round"
-                                                    className={homeworkPercent === 100 ? 'text-brand-green' : 'text-brand-gold'}
-                                                />
-                                            </svg>
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <span className="text-white font-bold text-sm">{homeworkPercent}%</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="text-2xl text-white font-bold leading-none">
-                                                {completedCoach}<span className="text-gray-500 text-lg">/{totalCoach}</span>
-                                            </div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">
-                                                {coachHomeworkDone && totalCoach > 0 ? 'All Done!' : 'Coach Drills'}
-                                            </div>
+                            {/* Attendance */}
+                            <div className="glass-panel p-5 flex flex-col">
+                                <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                    <CheckCircle className="w-3.5 h-3.5 text-brand-green" /> Attendance
+                                </h4>
+                                <div className="flex items-center gap-4 flex-1">
+                                    <div className="relative w-16 h-16 shrink-0">
+                                        <svg className="w-full h-full transform -rotate-90">
+                                            <circle cx="32" cy="32" r="26" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-800" />
+                                            <circle
+                                                cx="32" cy="32" r="26"
+                                                stroke="currentColor"
+                                                strokeWidth="6"
+                                                fill="transparent"
+                                                strokeDasharray="163.4"
+                                                strokeDashoffset={163.4 - (163.4 * attendanceStats.rate / 100)}
+                                                strokeLinecap="round"
+                                                className="text-brand-green"
+                                            />
+                                        </svg>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <span className="text-white font-bold text-sm">{attendanceStats.rate}%</span>
                                         </div>
                                     </div>
-                                </div>
-
-                                {/* Attendance */}
-                                <div className="glass-panel p-5 flex flex-col">
-                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                        <CheckCircle className="w-3.5 h-3.5 text-brand-green" /> Attendance
-                                    </h4>
-                                    <div className="flex items-center gap-4 flex-1">
-                                        <div className="relative w-16 h-16 shrink-0">
-                                            <svg className="w-full h-full transform -rotate-90">
-                                                <circle cx="32" cy="32" r="26" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-800" />
-                                                <circle
-                                                    cx="32" cy="32" r="26"
-                                                    stroke="currentColor"
-                                                    strokeWidth="6"
-                                                    fill="transparent"
-                                                    strokeDasharray="163.4"
-                                                    strokeDashoffset={163.4 - (163.4 * attendanceStats.rate / 100)}
-                                                    strokeLinecap="round"
-                                                    className="text-brand-green"
-                                                />
-                                            </svg>
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <span className="text-white font-bold text-sm">{attendanceStats.rate}%</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="text-2xl text-white font-bold leading-none">{attendanceStats.attended}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">Sessions</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Training Minutes + Touches Breakdown */}
-                                <div className="glass-panel p-5 col-span-2">
-                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                        <Clock className="w-3.5 h-3.5 text-blue-400" /> Training Minutes
-                                    </h4>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                                        <div className="text-center">
-                                            <div className="text-xl text-blue-400 font-bold font-display">{practiceMins.weekly}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider">This Week</div>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-xl text-brand-green font-bold font-display">{practiceMins.season}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Season</div>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-xl text-brand-gold font-bold font-display">{practiceMins.yearly}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Year</div>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-xl text-white font-bold font-display">{practiceMins.career}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Career</div>
-                                        </div>
-                                    </div>
-                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                        ⚽ Est. Ball Touches
-                                    </h4>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                                        <div className="text-center">
-                                            <div className="text-lg text-blue-400 font-bold font-display">{(practiceMins.weeklyTouches || 0).toLocaleString()}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider">This Week</div>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-lg text-brand-green font-bold font-display">{(practiceMins.seasonTouches || 0).toLocaleString()}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Season</div>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-lg text-brand-gold font-bold font-display">{(practiceMins.yearlyTouches || 0).toLocaleString()}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Year</div>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="text-lg text-orange-400 font-bold font-display">{(practiceMins.careerTouches || 0).toLocaleString()}</div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider">Career</div>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="text-xs text-gray-400 uppercase tracking-wider">Team Practice</span>
-                                                <span className="text-xs text-white font-bold">{practiceMins.team} min</span>
-                                            </div>
-                                            <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-brand-green rounded-full transition-all duration-500"
-                                                    style={{ width: totalMins > 0 ? `${(practiceMins.team / totalMins) * 100}%` : '0%' }}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="text-xs text-gray-400 uppercase tracking-wider">Solo Practice</span>
-                                                <span className="text-xs text-white font-bold">{practiceMins.solo} min</span>
-                                            </div>
-                                            <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-brand-gold rounded-full transition-all duration-500"
-                                                    style={{ width: totalMins > 0 ? `${(practiceMins.solo / totalMins) * 100}%` : '0%' }}
-                                                />
-                                            </div>
-                                        </div>
+                                    <div>
+                                        <div className="text-2xl text-white font-bold leading-none">{attendanceStats.attended}</div>
+                                        <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">Sessions</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Quick Action Buttons */}
-                        {/* Solo Training Builder moved to the player dashboard.
-                            Parent dashboard only shows the Leaderboard tile here;
-                            the kid builds their own sessions when logged in via
-                            their access link. */}
-                        <div className="grid grid-cols-1 gap-4">
-                            <button
-                                onClick={() => setShowLeaderboard(!showLeaderboard)}
-                                className="glass-panel p-4 flex items-center gap-3 hover:border-brand-gold/50 transition-all group"
-                            >
-                                <div className="w-10 h-10 rounded-lg bg-brand-gold/10 flex items-center justify-center shrink-0 group-hover:bg-brand-gold/20 transition-colors">
-                                    <Trophy className="w-5 h-5 text-brand-gold" />
+                        {/* Training Minutes — full width because of the touches +
+                             team/solo breakdown sub-sections. Shared component
+                             with the player dashboard. */}
+                        <TrainingStatsCard
+                            stats={{
+                                weekly_minutes: practiceMins.weekly,
+                                season_minutes: practiceMins.season,
+                                yearly_minutes: practiceMins.yearly,
+                                training_minutes: practiceMins.career,
+                                weekly_touches: practiceMins.weeklyTouches,
+                                season_touches: practiceMins.seasonTouches,
+                                yearly_touches: practiceMins.yearlyTouches,
+                                career_touches: practiceMins.careerTouches,
+                            }}
+                            teamMins={practiceMins.team}
+                            showBreakdown={true}
+                        />
+
+                        {/* 7. Leaderboard — always shown, no toggle. */}
+                        <Leaderboard />
+
+                        {/* 8. Coach Homework */}
+                        <div className="glass-panel p-5 border-l-4 border-l-blue-500">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-blue-400 text-xs uppercase font-bold flex items-center gap-2">
+                                    <Target className="w-4 h-4" /> Coach Homework
+                                </h4>
+                                {totalCoach > 0 && (
+                                    <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
+                                        coachHomeworkDone ? 'bg-brand-green/20 text-brand-green' : 'bg-blue-500/20 text-blue-400'
+                                    }`}>
+                                        {completedCoach}/{totalCoach} Done
+                                    </span>
+                                )}
+                            </div>
+                            {coachAssignments.length === 0 ? (
+                                <div className="text-center py-4">
+                                    <Target className="w-6 h-6 text-gray-700 mx-auto mb-1" />
+                                    <p className="text-gray-500 text-xs">No coach homework this week</p>
                                 </div>
-                                <div className="text-left flex-1">
-                                    <div className="text-white font-bold text-sm">Leaderboard</div>
-                                    <div className="text-xs text-gray-500 uppercase tracking-wider">See team rankings</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {coachAssignments.map(assign => (
+                                        <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
+                                            {assign.status === 'completed' ? (
+                                                <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
+                                            ) : (
+                                                <div className="w-5 h-5 rounded-full border-2 border-blue-500/50 shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                                    {assign.drills?.name || assign.drills?.title || 'Drill'}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
+                                                </div>
+                                            </div>
+                                            {assign.status !== 'completed' && assign.due_date && (() => {
+                                                const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
+                                                if (days < 0) return <span className="text-xs text-red-400 font-bold shrink-0">Overdue</span>;
+                                                if (days === 0) return <span className="text-xs text-blue-400 font-bold shrink-0">Today</span>;
+                                                return <span className="text-xs text-gray-500 shrink-0">{days}d left</span>;
+                                            })()}
+                                        </div>
+                                    ))}
                                 </div>
-                                <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${showLeaderboard ? 'rotate-90' : ''}`} />
-                            </button>
+                            )}
                         </div>
 
-                        {/* Leaderboard (collapsible) */}
-                        {showLeaderboard && (
-                            <div className="animate-fade-in-up">
-                                <Leaderboard />
+                        {/* 9. Parent Solo Practice */}
+                        <div className="glass-panel p-5 border-l-4 border-l-brand-gold">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-brand-gold text-xs uppercase font-bold flex items-center gap-2">
+                                    <Zap className="w-4 h-4" /> Parent Solo Practice
+                                </h4>
+                                {totalParent > 0 && (
+                                    <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
+                                        completedParent === totalParent ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-gold/20 text-brand-gold'
+                                    }`}>
+                                        {completedParent}/{totalParent} Done
+                                    </span>
+                                )}
+                            </div>
+
+                            {!coachHomeworkDone && totalParent > 0 && (
+                                <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3 flex items-start gap-2">
+                                    <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
+                                    <p className="text-xs text-yellow-400">Complete coach homework first to unlock parent practice credit!</p>
+                                </div>
+                            )}
+
+                            {parentAssignments.length === 0 ? (
+                                <div className="text-center py-4">
+                                    <Dumbbell className="w-6 h-6 text-gray-700 mx-auto mb-1" />
+                                    <p className="text-gray-500 text-xs">No solo practice yet</p>
+                                    <p className="text-[10px] text-gray-600 mt-1">Your player can build their own from the kid app.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {parentAssignments.map(assign => (
+                                        <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
+                                            {assign.status === 'completed' ? (
+                                                <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleCompleteParentDrill(assign.id)}
+                                                    className="w-5 h-5 rounded-full border-2 border-brand-gold/50 shrink-0 hover:bg-brand-gold/20 transition-colors cursor-pointer"
+                                                    title={coachHomeworkDone ? 'Mark as done' : 'Complete coach homework first'}
+                                                />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
+                                                    {assign.drills?.name || assign.drills?.title || 'Drill'}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
+                                                </div>
+                                            </div>
+                                            {assign.status !== 'completed' && assign.due_date && (() => {
+                                                const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
+                                                if (days < 0) return <span className="text-xs text-red-400 font-bold shrink-0">Overdue</span>;
+                                                if (days === 0) return <span className="text-xs text-brand-gold font-bold shrink-0">Today</span>;
+                                                return <span className="text-xs text-gray-500 shrink-0">{days}d left</span>;
+                                            })()}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 10. Player Link */}
+                        <div className="glass-panel p-4 border-l-4 border-l-brand-gold">
+                            <h4 className="text-brand-gold text-xs uppercase font-bold mb-2 flex items-center gap-1.5">
+                                <Link2 className="w-3.5 h-3.5" /> Player Access Link
+                            </h4>
+                            <p className="text-gray-400 text-xs mb-3">
+                                Share with {selectedChild?.first_name} to access their player dashboard.
+                            </p>
+                            {!playerAccessLink ? (
+                                <button
+                                    onClick={generatePlayerLink}
+                                    disabled={generatingLink}
+                                    className="w-full py-2.5 bg-brand-gold/20 hover:bg-brand-gold/30 border border-brand-gold/50 rounded-lg text-brand-gold font-bold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {generatingLink ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Link2 className="w-3.5 h-3.5" /> Generate Access Link</>}
+                                </button>
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="bg-black/30 rounded-lg p-2 border border-white/10">
+                                        <p className="text-xs text-gray-400 font-mono break-all">{playerAccessLink}</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={copyLink}
+                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${linkCopied ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                                        >
+                                            {linkCopied ? <><CheckCircle className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy Link</>}
+                                        </button>
+                                        <button onClick={generatePlayerLink} className="py-2 px-2.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all" title="Generate new link">
+                                            <RefreshCw className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 11. Recent Badges — tail position, only renders when present. */}
+                        {playerBadges.length > 0 && (
+                            <div className="glass-panel p-5">
+                                <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
+                                    <Trophy className="w-3.5 h-3.5 text-brand-gold" /> Recent Badges
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {playerBadges.map(pb => (
+                                        <div
+                                            key={pb.id}
+                                            className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-lg"
+                                            title={pb.badges?.description}
+                                        >
+                                            <span className="text-lg">{pb.badges?.icon}</span>
+                                            <span className="text-xs text-white font-medium">{pb.badges?.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
-                        {/* Bottom Grid: Homework Detail + Events + Badges */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Coach Homework (read-only) + Parent Practice (completable) */}
-                            <div className="space-y-4">
-                                {/* Coach Homework */}
-                                <div className="glass-panel p-5 border-l-4 border-l-blue-500">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h4 className="text-blue-400 text-xs uppercase font-bold flex items-center gap-2">
-                                            <Target className="w-4 h-4" /> Coach Homework
-                                        </h4>
-                                        {totalCoach > 0 && (
-                                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
-                                                coachHomeworkDone ? 'bg-brand-green/20 text-brand-green' : 'bg-blue-500/20 text-blue-400'
-                                            }`}>
-                                                {completedCoach}/{totalCoach} Done
-                                            </span>
-                                        )}
-                                    </div>
-                                    {coachAssignments.length === 0 ? (
-                                        <div className="text-center py-4">
-                                            <Target className="w-6 h-6 text-gray-700 mx-auto mb-1" />
-                                            <p className="text-gray-500 text-xs">No coach homework this week</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {coachAssignments.map(assign => (
-                                                <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
-                                                    {assign.status === 'completed' ? (
-                                                        <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
-                                                    ) : (
-                                                        <div className="w-5 h-5 rounded-full border-2 border-blue-500/50 shrink-0" />
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
-                                                            {assign.drills?.name || assign.drills?.title || 'Drill'}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
-                                                        </div>
-                                                    </div>
-                                                    {assign.status !== 'completed' && assign.due_date && (() => {
-                                                        const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
-                                                        if (days < 0) return <span className="text-xs text-red-400 font-bold shrink-0">Overdue</span>;
-                                                        if (days === 0) return <span className="text-xs text-blue-400 font-bold shrink-0">Today</span>;
-                                                        return <span className="text-xs text-gray-500 shrink-0">{days}d left</span>;
-                                                    })()}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Parent Practice */}
-                                <div className="glass-panel p-5 border-l-4 border-l-brand-gold">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h4 className="text-brand-gold text-xs uppercase font-bold flex items-center gap-2">
-                                            <Zap className="w-4 h-4" /> Parent Solo Practice
-                                        </h4>
-                                        {totalParent > 0 && (
-                                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
-                                                completedParent === totalParent ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-gold/20 text-brand-gold'
-                                            }`}>
-                                                {completedParent}/{totalParent} Done
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Coach homework gate */}
-                                    {!coachHomeworkDone && totalParent > 0 && (
-                                        <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3 flex items-start gap-2">
-                                            <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-                                            <p className="text-xs text-yellow-400">Complete coach homework first to unlock parent practice credit!</p>
-                                        </div>
-                                    )}
-
-                                    {parentAssignments.length === 0 ? (
-                                        <div className="text-center py-4">
-                                            <Dumbbell className="w-6 h-6 text-gray-700 mx-auto mb-1" />
-                                            <p className="text-gray-500 text-xs">No solo practice yet</p>
-                                            <p className="text-[10px] text-gray-600 mt-1">Your player can build their own from the kid app.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {parentAssignments.map(assign => (
-                                                <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
-                                                    {assign.status === 'completed' ? (
-                                                        <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleCompleteParentDrill(assign.id)}
-                                                            className="w-5 h-5 rounded-full border-2 border-brand-gold/50 shrink-0 hover:bg-brand-gold/20 transition-colors cursor-pointer"
-                                                            title={coachHomeworkDone ? 'Mark as done' : 'Complete coach homework first'}
-                                                        />
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
-                                                            {assign.drills?.name || assign.drills?.title || 'Drill'}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
-                                                        </div>
-                                                    </div>
-                                                    {assign.status !== 'completed' && assign.due_date && (() => {
-                                                        const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
-                                                        if (days < 0) return <span className="text-xs text-red-400 font-bold shrink-0">Overdue</span>;
-                                                        if (days === 0) return <span className="text-xs text-brand-gold font-bold shrink-0">Today</span>;
-                                                        return <span className="text-xs text-gray-500 shrink-0">{days}d left</span>;
-                                                    })()}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Right: Events + Badges + Access Link */}
-                            <div className="space-y-6">
-                                {/* Upcoming Events */}
-                                <div className="glass-panel p-5">
-                                    <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                        <Calendar className="w-3.5 h-3.5" /> Upcoming Events
-                                    </h4>
-                                    {upcomingEvents.length === 0 ? (
-                                        <p className="text-gray-500 text-sm text-center py-4">No upcoming events</p>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {upcomingEvents.slice(0, 3).map(event => {
-                                                const date = new Date(event.start_time);
-                                                const currentRsvp = eventRsvps[event.id];
-                                                const counts = upcomingCounts[event.id] || { going: 0, not_going: 0, vacation: 0, total: 0 };
-                                                return (
-                                                    <div key={event.id} className="p-3 bg-white/5 rounded-lg space-y-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setOpenEvent(event)}
-                                                            className="w-full flex items-center gap-3 text-left hover:bg-white/5 -m-1 p-1 rounded transition-colors"
-                                                        >
-                                                            <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center ${
-                                                                event.type === 'game' ? 'bg-red-500/20 text-red-400' :
-                                                                event.type === 'practice' ? 'bg-brand-green/20 text-brand-green' :
-                                                                'bg-blue-500/20 text-blue-400'
-                                                            }`}>
-                                                                <span className="text-xs font-bold uppercase leading-none">{date.toLocaleDateString('en-US', { month: 'short' })}</span>
-                                                                <span className="text-sm font-bold leading-none">{date.getDate()}</span>
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="text-sm text-white font-medium truncate flex items-center gap-1">
-                                                                    {event.title}
-                                                                    <ChevronRight className="w-3 h-3 text-gray-500" />
-                                                                </div>
-                                                                <div className="text-xs text-gray-500">
-                                                                    {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                                                </div>
-                                                                {/* Attendance summary — always visible before tap. */}
-                                                                <div className="mt-1 flex items-center gap-2 text-[10px] flex-wrap">
-                                                                    {counts.total === 0 ? (
-                                                                        <span className="text-gray-500 italic">No RSVPs yet — tap to view</span>
-                                                                    ) : (
-                                                                        <>
-                                                                            {counts.going > 0    && <span className="text-green-400 font-bold">{counts.going} going</span>}
-                                                                            {counts.not_going > 0 && <span className="text-red-400 font-bold">{counts.not_going} out</span>}
-                                                                            {counts.vacation > 0 && <span className="text-sky-400 font-bold">{counts.vacation} vacation</span>}
-                                                                            <span className="text-gray-600">· tap for details</span>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                        {/* RSVP buttons — Going / Out / Vacation, matches the
-                                                            rest of the app. "Maybe" was retired with the
-                                                            vacation-period rewrite; legacy maybe rsvps in the
-                                                            DB just won't highlight any button. */}
-                                                        <div className="flex gap-2">
-                                                            {[
-                                                                { status: 'going',     label: 'Going',    activeCls: 'bg-green-500 text-white',  idleCls: 'bg-green-500/20 text-green-400 hover:bg-green-500/40' },
-                                                                { status: 'not_going', label: 'Out',      activeCls: 'bg-red-500 text-white',    idleCls: 'bg-red-500/20 text-red-400 hover:bg-red-500/40' },
-                                                                { status: 'vacation',  label: 'Vacation', activeCls: 'bg-sky-500 text-white',    idleCls: 'bg-sky-500/20 text-sky-400 hover:bg-sky-500/40' },
-                                                            ].map(({ status, label, activeCls, idleCls }) => (
-                                                                <button
-                                                                    key={status}
-                                                                    onClick={() => handleRsvp(event.id, status, event)}
-                                                                    className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${currentRsvp === status ? activeCls : idleCls}`}
-                                                                >
-                                                                    {label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                            <button
-                                                onClick={() => setCurrentView('schedule')}
-                                                className="w-full text-xs text-gray-400 hover:text-white transition-colors mt-1"
-                                            >
-                                                View Full Schedule
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Recent Badges */}
-                                {playerBadges.length > 0 && (
-                                    <div className="glass-panel p-5">
-                                        <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                            <Trophy className="w-3.5 h-3.5 text-brand-gold" /> Recent Badges
-                                        </h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {playerBadges.map(pb => (
-                                                <div
-                                                    key={pb.id}
-                                                    className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-lg"
-                                                    title={pb.badges?.description}
-                                                >
-                                                    <span className="text-lg">{pb.badges?.icon}</span>
-                                                    <span className="text-xs text-white font-medium">{pb.badges?.name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Player Access Link */}
-                                <div className="glass-panel p-4 border-l-4 border-l-brand-gold">
-                                    <h4 className="text-brand-gold text-xs uppercase font-bold mb-2 flex items-center gap-1.5">
-                                        <Link2 className="w-3.5 h-3.5" /> Player Access Link
-                                    </h4>
-                                    <p className="text-gray-400 text-xs mb-3">
-                                        Share with {selectedChild?.first_name} to access their player dashboard.
-                                    </p>
-                                    {!playerAccessLink ? (
-                                        <button
-                                            onClick={generatePlayerLink}
-                                            disabled={generatingLink}
-                                            className="w-full py-2.5 bg-brand-gold/20 hover:bg-brand-gold/30 border border-brand-gold/50 rounded-lg text-brand-gold font-bold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                        >
-                                            {generatingLink ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Link2 className="w-3.5 h-3.5" /> Generate Access Link</>}
-                                        </button>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            <div className="bg-black/30 rounded-lg p-2 border border-white/10">
-                                                <p className="text-xs text-gray-400 font-mono break-all">{playerAccessLink}</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={copyLink}
-                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${linkCopied ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
-                                                >
-                                                    {linkCopied ? <><CheckCircle className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy Link</>}
-                                                </button>
-                                                <button onClick={generatePlayerLink} className="py-2 px-2.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all" title="Generate new link">
-                                                    <RefreshCw className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 );
             }

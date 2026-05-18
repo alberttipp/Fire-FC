@@ -6,6 +6,7 @@ import { LogOut, Flame, Zap, AlertTriangle, Dumbbell, ChevronRight } from 'lucid
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
+import TrainingStatsCard from '../components/player/TrainingStatsCard';
 import FireBall from '../game/FireBall';
 import BadgeCelebration from '../components/BadgeCelebration';
 import BadgeUnlockBanner from '../components/BadgeUnlockBanner';
@@ -39,6 +40,7 @@ const PlayerDashboard = () => {
     const [unseenBadges, setUnseenBadges] = useState([]);
     const [playerRecord, setPlayerRecord] = useState(null); // The player's record from players table
     const [streakDays, setStreakDays] = useState(0); // Training streak (days in a row with 20+ min training)
+    const [playerStatsFull, setPlayerStatsFull] = useState(null); // Full player_stats row for TrainingStatsCard
     const [playerError, setPlayerError] = useState(null); // Error if player not found
     const [playerLoading, setPlayerLoading] = useState(true); // Loading state for player lookup
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
@@ -175,6 +177,7 @@ const PlayerDashboard = () => {
             if (streakData) {
                 console.log('[PlayerDashboard] Found streak data:', streakData);
                 setStreakDays(streakData.streak_days || 0);
+                setPlayerStatsFull(streakData);
             }
 
             // 1c. Process any completed practices (auto-credit training from attended events)
@@ -669,6 +672,10 @@ const PlayerDashboard = () => {
                     </button>
 
                     <Leaderboard />
+
+                    {/* Training stats — same component the parent dashboard uses.
+                        Single source of truth from player_stats. */}
+                    <TrainingStatsCard stats={playerStatsFull} />
                 </div>
             </div>
 
