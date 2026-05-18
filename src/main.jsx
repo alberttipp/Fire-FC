@@ -63,6 +63,18 @@ if (sentryDsn) {
   });
 }
 
+// Register the push notification service worker on first load.
+// Idempotent — register() returns the existing registration if already
+// installed. SW lives at /sw.js so its scope is the whole site.
+// EnablePushButton handles permission prompt + subscription creation.
+if ('serviceWorker' in navigator && !import.meta.env.DEV) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .catch((err) => console.warn('[SW] registration failed:', err));
+  });
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>

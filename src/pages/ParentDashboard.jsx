@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import Leaderboard from '../components/player/Leaderboard';
@@ -28,6 +28,7 @@ const DrillLibraryModal = lazy(() => import('../components/dashboard/DrillLibrar
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
 const EventDetailModal = lazy(() => import('../components/dashboard/calendar/EventDetailModal'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
+const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
 
 const ViewLoader = () => (
     <div className="flex items-center justify-center py-20">
@@ -586,6 +587,8 @@ const ParentDashboard = () => {
                 return <GalleryView />;
             case 'rules':
                 return <RulesView />;
+            case 'notifications':
+                return <NotificationsView />;
             case 'vacation':
                 // Moved out of the overview flow per Albert 2026-05-18 — the
                 // overview was too busy. Accessed from the More menu (mobile)
@@ -1170,9 +1173,10 @@ const ParentDashboard = () => {
                     { id: 'messages', label: 'Messages', icon: MessageSquare },
                 ]}
                 moreItems={[
-                    { id: 'vacation', label: 'Vacation', icon: Plane },
-                    { id: 'gallery',  label: 'Gallery',  icon: Camera },
-                    { id: 'rules',    label: 'Rules',    icon: FileText },
+                    { id: 'notifications', label: 'Alerts', icon: Bell },
+                    { id: 'vacation',      label: 'Vacation', icon: Plane },
+                    { id: 'gallery',       label: 'Gallery',  icon: Camera },
+                    { id: 'rules',         label: 'Rules',    icon: FileText },
                     // Action item — fires the FamilyInviteModal directly from
                     // the More sheet instead of switching views.
                     selectedChild?.id ? { id: 'invite-parent', label: 'Invite Parent', icon: Link2, action: () => setInviteOpen(true) } : null,

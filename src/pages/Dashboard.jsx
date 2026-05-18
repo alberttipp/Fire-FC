@@ -24,6 +24,7 @@ const GalleryView = lazy(() => import('../components/dashboard/GalleryView'));
 const LiveScoringView = lazy(() => import('../components/dashboard/LiveScoringView'));
 const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolVolunteerView'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
+const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
 const NotificationPanel = lazy(() => import('../components/dashboard/NotificationPanel'));
 const IDPHub = lazy(() => import('../components/dashboard/IDPHub'));
 
@@ -147,6 +148,7 @@ const Dashboard = () => {
             case 'live': return <LiveScoringView />;
             case 'carpool': return <CarpoolVolunteerView />;
             case 'rules': return <RulesView />;
+            case 'notifications': return <NotificationsView />;
             case 'financial': return <FinancialView />;
             case 'tryouts': return <TryoutHub />;
             default: return <ClubView />;
@@ -225,6 +227,13 @@ const Dashboard = () => {
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'gallery' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 <Camera className="w-3 h-3" /> Gallery
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('notifications')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'notifications' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                title="Push notifications + device management"
+                            >
+                                <Bell className="w-3 h-3" /> Alerts
                             </button>
                             {/* Live / Carpool still hidden until tested with real team. */}
 
@@ -335,10 +344,13 @@ const Dashboard = () => {
                 currentView={currentView}
                 onViewChange={setCurrentView}
                 onLogout={handleLogout}
-                extraItems={isManager ? [
-                    { id: 'tryouts', label: 'Tryouts', icon: ClipboardCheck },
-                    { id: 'financial', label: 'Money', icon: DollarSign },
-                ] : []}
+                extraItems={[
+                    { id: 'notifications', label: 'Alerts', icon: Bell },
+                    ...(isManager ? [
+                        { id: 'tryouts', label: 'Tryouts', icon: ClipboardCheck },
+                        { id: 'financial', label: 'Money', icon: DollarSign },
+                    ] : []),
+                ]}
             />
 
             {/* Notification Panel */}
