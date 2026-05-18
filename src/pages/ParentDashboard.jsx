@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import Leaderboard from '../components/player/Leaderboard';
@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import FamilyInviteModal from '../components/dashboard/FamilyInviteModal';
+import MobileBottomNav from '../components/MobileBottomNav';
 import VacationPeriodsManager from '../components/family/VacationPeriodsManager';
 import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 
@@ -24,6 +25,7 @@ const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolV
 const DrillLibraryModal = lazy(() => import('../components/dashboard/DrillLibraryModal'));
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
 const EventDetailModal = lazy(() => import('../components/dashboard/calendar/EventDetailModal'));
+const RulesView = lazy(() => import('../components/dashboard/RulesView'));
 
 const ViewLoader = () => (
     <div className="flex items-center justify-center py-20">
@@ -539,6 +541,8 @@ const ParentDashboard = () => {
                 return <ChatView />;
             case 'gallery':
                 return <GalleryView />;
+            case 'rules':
+                return <RulesView />;
             case 'live':
                 return <LiveScoringView />;
             case 'carpool':
@@ -1119,6 +1123,7 @@ const ParentDashboard = () => {
                                 { id: 'schedule', label: 'Schedule', icon: Calendar },
                                 { id: 'messages', label: 'Messages', icon: MessageSquare },
                                 { id: 'gallery',  label: 'Gallery',  icon: Camera },
+                                { id: 'rules',    label: 'Rules',    icon: FileText },
                                 // Live / Carpool / Billing still hidden until each is
                                 // tested with a real team. Components and routing
                                 // (case statements above) are intact so re-adding is
@@ -1137,23 +1142,10 @@ const ParentDashboard = () => {
                             ))}
                         </div>
 
-                        {/* Mobile nav */}
-                        <div className="md:hidden flex gap-2">
-                            {[
-                                { id: 'overview', icon: LayoutDashboard },
-                                { id: 'schedule', icon: Calendar },
-                                { id: 'messages', icon: MessageSquare },
-                                { id: 'gallery',  icon: Camera },
-                            ].map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setCurrentView(tab.id)}
-                                    className={`p-2 rounded-lg ${currentView === tab.id ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
-                                >
-                                    <tab.icon className="w-5 h-5" />
-                                </button>
-                            ))}
-                        </div>
+                        {/* On mobile, navigation lives in MobileBottomNav at the
+                            bottom of the screen (mounted further down). Only the
+                            logout button stays in the top bar so it's always
+                            reachable from anywhere. */}
 
                         <button onClick={handleLogout} className="flex items-center gap-1.5 text-gray-400 hover:text-red-400 transition-colors px-2 py-1.5 rounded hover:bg-red-500/10" title="Logout">
                             <LogOut className="w-4 h-4" />
@@ -1192,11 +1184,30 @@ const ParentDashboard = () => {
                 />
             )}
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
                 <Suspense fallback={<ViewLoader />}>
                     {renderView()}
                 </Suspense>
             </main>
+
+            {/* Mobile bottom nav — matches the manager dashboard pattern.
+                Parent-specific item set: Overview / Schedule / Messages as
+                quick-access; Gallery + Rules tucked under More; Logout as
+                a defensive entry in the More menu so it's always reachable. */}
+            <MobileBottomNav
+                currentView={currentView}
+                onViewChange={setCurrentView}
+                onLogout={handleLogout}
+                mainItems={[
+                    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+                    { id: 'schedule', label: 'Schedule', icon: Calendar },
+                    { id: 'messages', label: 'Messages', icon: MessageSquare },
+                ]}
+                moreItems={[
+                    { id: 'gallery', label: 'Gallery', icon: Camera },
+                    { id: 'rules',   label: 'Rules',   icon: FileText },
+                ]}
+            />
 
             {openEvent && (
                 <Suspense fallback={null}>

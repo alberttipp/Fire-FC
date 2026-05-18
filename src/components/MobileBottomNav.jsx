@@ -1,26 +1,39 @@
 import React, { useState } from 'react';
 import { LayoutDashboard, Users, Dumbbell, Calendar, MoreHorizontal, X, MessageSquare, Camera, Tv, Car, Briefcase, Settings, FileText, LogOut, Target } from 'lucide-react';
 
-const MobileBottomNav = ({ currentView, onViewChange, extraItems = [], onLogout = null }) => {
+const MobileBottomNav = ({
+    currentView,
+    onViewChange,
+    extraItems = [],
+    onLogout = null,
+    // Optional overrides — when provided, replace the staff-default
+    // mainItems / moreItems sets. Parent dashboard passes its own so the
+    // bottom nav matches its tabs (Overview/Schedule/Messages + Gallery/Rules
+    // in More) instead of staff tabs (Club/Team/Practice).
+    mainItems: mainItemsOverride,
+    moreItems: moreItemsOverride,
+}) => {
     const [showMore, setShowMore] = useState(false);
 
-    const mainItems = [
+    const mainItems = mainItemsOverride || [
         { id: 'club', label: 'Club', icon: LayoutDashboard },
         { id: 'team', label: 'Team', icon: Users },
         { id: 'practice', label: 'Practice', icon: Dumbbell },
         { id: 'calendar', label: 'Schedule', icon: Calendar },
     ];
 
-    const moreItems = [
-        { id: 'idp', label: 'IDP', icon: Target },
-        { id: 'private', label: 'Private Training', icon: Briefcase },
-        { id: 'chat', label: 'Messages', icon: MessageSquare },
-        { id: 'rules', label: 'Rules', icon: FileText },
-        // Gallery / Live Scoring / Carpool intentionally hidden until those
-        // features are tested with a real team. Re-add the entries here when
-        // ready — components and routes are still wired up in Dashboard.jsx.
-        ...extraItems,
-    ];
+    const moreItems = moreItemsOverride
+        ? [...moreItemsOverride, ...extraItems]
+        : [
+            { id: 'idp', label: 'IDP', icon: Target },
+            { id: 'private', label: 'Private Training', icon: Briefcase },
+            { id: 'chat', label: 'Messages', icon: MessageSquare },
+            { id: 'rules', label: 'Rules', icon: FileText },
+            // Gallery / Live Scoring / Carpool intentionally hidden until those
+            // features are tested with a real team. Re-add the entries here when
+            // ready — components and routes are still wired up in Dashboard.jsx.
+            ...extraItems,
+        ];
 
     const handleSelect = (id) => {
         onViewChange(id);
