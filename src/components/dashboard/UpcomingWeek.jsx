@@ -34,7 +34,12 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     const [weekOffset, setWeekOffset] = useState(0);
     const [showCreateModal, setShowCreateModal] = useState(false);
 
-    const isCoachOrManager = profile?.role === 'coach' || profile?.role === 'manager';
+    // Staff (coach, manager, head_coach, assistant_coach, team_manager, admin) don't
+    // get personal RSVP buttons — they're not on the roster. Both the "can create
+    // event" capability and the "hide personal RSVP" gating use this same set.
+    const STAFF_ROLES = ['coach', 'manager', 'head_coach', 'assistant_coach', 'team_manager', 'admin'];
+    const isStaff = STAFF_ROLES.includes(profile?.role);
+    const isCoachOrManager = isStaff;
 
     // Get date range for display
     const getDateRange = () => {
@@ -409,7 +414,8 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                                             </p>
                                         )}
 
-                                        {/* RSVP Buttons */}
+                                        {/* RSVP Buttons — hidden for staff (they manage from RsvpSummary instead) */}
+                                        {!isStaff && (
                                         <div className="flex gap-2 pt-2">
                                             {RSVP_OPTIONS.map((option) => {
                                                 const RsvpIcon = option.icon;
@@ -422,8 +428,8 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                                                             handleRsvp(event.id, option.status);
                                                         }}
                                                         className={`flex-1 flex items-center justify-center gap-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
-                                                            isSelected 
-                                                                ? option.color + ' border-current scale-105' 
+                                                            isSelected
+                                                                ? option.color + ' border-current scale-105'
                                                                 : 'border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
                                                         }`}
                                                     >
@@ -433,6 +439,7 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                                                 );
                                             })}
                                         </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
