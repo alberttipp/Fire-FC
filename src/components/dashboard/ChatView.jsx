@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import ReactionBar from '../ReactionBar';
 import useLongPress from '../../hooks/useLongPress';
+import { isStaff } from '../../constants/roles';
+import NewConversationModal from './NewConversationModal';
 
 const ChatView = () => {
     const { user, profile } = useAuth();
@@ -16,6 +18,10 @@ const ChatView = () => {
     // When set, that message id shows the reaction picker. Cleared on
     // any selection (auto-close) or on background tap.
     const [reactionPickerFor, setReactionPickerFor] = useState(null);
+    // { conversation_id: unread_count } — driven by the
+    // get_conversation_unread_counts RPC and refreshed on every new
+    // message via realtime + when the user opens a channel.
+    const [unreadByConv, setUnreadByConv] = useState({});
 
     // Close the picker when the user taps anywhere outside it. The
     // ReactionBar component stops propagation on its own clicks so this
@@ -53,7 +59,26 @@ const ChatView = () => {
     }, [messages]);
 
     useEffect(() => {
-        if (user?.id) fetchChannels();
+        if (user?.id) {
+            fetchChannels();
+            fetchUnreadCounts();
+        }
+    }, [user?.id]);
+
+    // Refresh unread counts on focus + every 60s while ChatView is open.
+    // (Phase 2 will swap this for push-driven realtime — for now polling is
+    // cheap and avoids the Supabase realtime privacy-payload concern.)
+    useEffect(() => {
+        if (!user?.id) return;
+        const tick = () => fetchUnreadCounts();
+        window.addEventListener('focus', tick);
+        document.addEventListener('visibilitychange', tick);
+        const interval = setInterval(tick, 60_000);
+        return () => {
+            window.removeEventListener('focus', tick);
+            document.removeEventListener('visibilitychange', tick);
+            clearInterval(interval);
+        };
     }, [user?.id]);
 
     useEffect(() => {
@@ -61,6 +86,7 @@ const ChatView = () => {
             fetchMessages(activeChannel.id);
             fetchMemberCount(activeChannel.id);
             subscribeToMessages(activeChannel.id);
+            markConversationRead(activeChannel.id);
             setSidebarOpen(false);
         }
 
@@ -143,6 +169,34 @@ const ChatView = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Pull per-conversation unread counts via the server-side RPC.
+    // Cheap single round-trip; refresh on mount, after fetchChannels,
+    // when the user opens a conversation (so its badge clears), and on
+    // every realtime new-message event for any of the user's convos.
+    const fetchUnreadCounts = async () => {
+        const { data, error } = await supabase.rpc('get_conversation_unread_counts');
+        if (error) {
+            console.warn('get_conversation_unread_counts failed:', error);
+            return;
+        }
+        const map = {};
+        (data || []).forEach(r => { map[r.conversation_id] = r.unread_count; });
+        setUnreadByConv(map);
+    };
+
+    // When the user opens a conversation, mark it read by stamping
+    // their last_read_at on conversation_members. Optimistically zero
+    // the local badge so the UI updates instantly.
+    const markConversationRead = async (conversationId) => {
+        if (!user?.id || !conversationId) return;
+        setUnreadByConv(prev => ({ ...prev, [conversationId]: 0 }));
+        await supabase
+            .from('conversation_members')
+            .update({ last_read_at: new Date().toISOString() })
+            .eq('conversation_id', conversationId)
+            .eq('user_id', user.id);
     };
 
     const fetchMessages = async (conversationId) => {
@@ -390,11 +444,11 @@ const ChatView = () => {
             `}>
                 <div className="flex items-center justify-between mb-4 px-2">
                     <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Channels</h3>
-                    {['manager', 'coach'].includes(currentUserRole) && (
+                    {isStaff(currentUserRole) && (
                         <button
-                            onClick={() => { setShowNewDM(true); fetchTeamMembers(); }}
+                            onClick={() => setShowNewDM(true)}
                             className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-brand-green"
-                            title="New DM"
+                            title="New conversation"
                         >
                             <Plus className="w-4 h-4" />
                         </button>
@@ -426,49 +480,42 @@ const ChatView = () => {
                             <p className="text-gray-600 text-xs mt-1">If you just joined the team, refresh this page in a few seconds — your team chat is auto-created when you're added to the roster.</p>
                         </div>
                     ) : (
-                        channels.map(channel => (
-                            <button
-                                key={channel.id}
-                                onClick={() => setActiveChannel(channel)}
-                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeChannel?.id === channel.id ? 'bg-white/10 text-brand-golden border border-white/5' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
-                            >
-                                {getChannelIcon(channel.type)}
-                                <span className="truncate">{channel.name}</span>
-                            </button>
-                        ))
+                        channels.map(channel => {
+                            const unread = unreadByConv[channel.id] || 0;
+                            const isActive = activeChannel?.id === channel.id;
+                            return (
+                                <button
+                                    key={channel.id}
+                                    onClick={() => setActiveChannel(channel)}
+                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive ? 'bg-white/10 text-brand-golden border border-white/5' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                                >
+                                    {getChannelIcon(channel.type)}
+                                    <span className={`truncate flex-1 text-left ${unread > 0 && !isActive ? 'font-bold text-white' : ''}`}>{channel.name}</span>
+                                    {unread > 0 && !isActive && (
+                                        <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-brand-green text-brand-dark text-[10px] font-bold">
+                                            {unread > 99 ? '99+' : unread}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })
                     )}
                 </div>
 
-                {/* New DM Modal */}
+                {/* New Conversation Modal — DM or Group. Uses the
+                    create_conversation RPC (atomic) and the
+                    get_messageable_users RPC for the picker. */}
                 {showNewDM && (
-                    <div className="absolute inset-0 bg-black/80 z-40 flex flex-col p-4 rounded-2xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <h4 className="text-white font-bold text-sm uppercase">New DM</h4>
-                            <button onClick={() => setShowNewDM(false)} className="text-gray-400 hover:text-white">
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto space-y-1">
-                            {teamMembers.map(m => (
-                                <button
-                                    key={m.user_id}
-                                    onClick={() => createStaffDM(m.user_id, m.name)}
-                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
-                                >
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${getAvatarStyle(m.role)}`}>
-                                        {m.name?.charAt(0)?.toUpperCase() || '?'}
-                                    </div>
-                                    <div className="text-left">
-                                        <div className="font-medium">{m.name}</div>
-                                        <div className="text-xs text-gray-500 capitalize">{m.role}</div>
-                                    </div>
-                                </button>
-                            ))}
-                            {teamMembers.length === 0 && (
-                                <p className="text-gray-500 text-xs text-center py-4">No team members found.</p>
-                            )}
-                        </div>
-                    </div>
+                    <NewConversationModal
+                        onClose={() => setShowNewDM(false)}
+                        onCreated={async (newConvoId) => {
+                            await fetchChannels();
+                            // Best-effort: select the freshly created convo so the
+                            // user lands in it. fetchChannels above repopulates.
+                            const fresh = channels.find(c => c.id === newConvoId);
+                            if (fresh) setActiveChannel(fresh);
+                        }}
+                    />
                 )}
 
                 {/* Online Status */}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from './Toast';
 
 // =====================================================================
 // ReactionBar — emoji reactions on a "target" (chat message or gallery
@@ -36,6 +37,7 @@ const ReactionBar = ({
     onClosePicker,
 }) => {
     const { user } = useAuth();
+    const toast = useToast();
     const [rows, setRows] = useState([]);
     const [busy, setBusy] = useState(false);
 
@@ -82,27 +84,43 @@ const ReactionBar = ({
         const snapshot = rows;
         try {
             if (mine) {
-                setRows(prev => prev.filter(r => r.id !== mine));
-                const { error } = await supabase.from(tableName).delete().eq('id', mine);
+                // Delete by composite key, not id — the optimistic row from
+                // a fresh add wouldn't have a real DB id yet. UNIQUE
+                // (target, user, emoji) guarantees exactly one row matches.
+                setRows(prev => prev.filter(r => !(r.user_id === user.id && r.emoji === emoji)));
+                const { error } = await supabase
+                    .from(tableName)
+                    .delete()
+                    .eq(columnName, targetId)
+                    .eq('user_id', user.id)
+                    .eq('emoji', emoji);
                 if (error) throw error;
             } else {
-                const optimistic = { id: `tmp-${Date.now()}`, emoji, user_id: user.id };
+                // Optimistic insert. Keep the tmp row in state; do NOT call
+                // .insert().select().single() — if the returning SELECT is
+                // filtered by RLS (which the message_reactions SELECT policy
+                // proxies through messages), data comes back null and the
+                // map below would replace the optimistic row with undefined
+                // → emoji silently disappears. Bug Albert hit 2026-05-18.
+                // Keep the optimistic row; a real id will replace it on the
+                // next mount/refetch (cheap and accurate enough).
+                const optimisticId = `tmp-${Date.now()}-${emoji}`;
+                const optimistic = { id: optimisticId, emoji, user_id: user.id };
                 setRows(prev => [...prev, optimistic]);
                 const insert = { [columnName]: targetId, user_id: user.id, emoji };
-                const { data, error } = await supabase
-                    .from(tableName)
-                    .insert(insert)
-                    .select('id, emoji, user_id')
-                    .single();
+                const { error } = await supabase.from(tableName).insert(insert);
                 if (error) throw error;
-                setRows(prev => prev.map(r => r.id === optimistic.id ? data : r));
+                // No need to swap the id — we don't reference it server-side
+                // until the next page-load refetch, and toggle() identifies
+                // "mine" by user_id+emoji presence, not by id matching.
             }
-            // After any tap from the picker, close it. (Caller controls
-            // visibility; calling onClosePicker here is just a hint.)
+            // After any tap from the picker, close it.
             if (pickerOpen && onClosePicker) onClosePicker();
         } catch (err) {
             console.warn('[ReactionBar] toggle failed:', err);
             setRows(snapshot);
+            const msg = err?.message || String(err);
+            toast?.error?.(`Couldn't save reaction: ${msg}`);
         } finally {
             setBusy(false);
         }
