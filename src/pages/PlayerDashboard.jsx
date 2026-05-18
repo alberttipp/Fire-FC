@@ -529,14 +529,26 @@ const PlayerDashboard = () => {
             <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-12 gap-8">
                 {/* Left Column: Player Card (Sticky on Desktop) */}
                 <div className="md:col-span-5 lg:col-span-4 flex flex-col items-center">
-                    <div className="sticky top-24 group">
-                        <div className="absolute -top-6 text-brand-green text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity animate-pulse">
-                            Click for Details
-                        </div>
-                        <PlayerCard
-                            player={playerProfile}
+                    <div className="sticky top-24">
+                        {/* Wrapper matches ParentDashboard so the player card
+                            sits in the same max-w-xl container (visually
+                            wider, not squeezed by the narrow column) AND a
+                            single tap opens the report-card modal — was
+                            tap-to-flip + tap-to-open before, which made
+                            getting to the back take two clicks. Same UX
+                            albert sees in his parent login now. */}
+                        <div
+                            className="group cursor-pointer relative max-w-xl mx-auto"
                             onClick={() => setShowDetails(true)}
-                        />
+                        >
+                            <div className="absolute -top-5 left-0 w-full text-center text-brand-green text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                Tap for Report Card
+                            </div>
+                            <PlayerCard
+                                player={playerProfile}
+                                onClick={() => setShowDetails(true)}
+                            />
+                        </div>
 
                         {/* Training Streak Widget */}
                         <div className="mt-8 w-full glass-panel p-4 border border-orange-500/20 bg-gradient-to-r from-orange-500/5 to-transparent">
