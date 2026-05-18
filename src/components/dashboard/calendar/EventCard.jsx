@@ -4,17 +4,17 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { useAuth } from '../../../context/AuthContext';
 import { getEventConfig } from './constants';
 import RsvpButtons from './RsvpButtons';
+import { isStaff as roleIsStaff } from '../../../constants/roles';
 
 // Staff don't get a personal RSVP — they're not on the roster. They manage
 // attendance from inside EventDetailModal (RsvpSummary's coach-override
 // controls). Personal RSVP for staff was also silently broken anyway:
 // event_rsvps.player_id has an FK to players, and a coach's user.id isn't
 // a player_id, so every upsert failed FK validation.
-const STAFF_ROLES = new Set(['coach', 'manager', 'head_coach', 'assistant_coach', 'team_manager', 'admin']);
 
 const EventCard = ({ event, rsvpStatus, rsvpCounts, onRsvp, onClick, compact = false }) => {
     const { profile } = useAuth();
-    const isStaff = STAFF_ROLES.has(profile?.role);
+    const isStaff = roleIsStaff(profile?.role);
     const config = getEventConfig(event.type);
     const eventDate = new Date(event.start_time);
     const isGame = event.type === 'game';

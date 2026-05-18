@@ -10,6 +10,7 @@ import AgendaList from './calendar/AgendaList';
 import EventDetailModal from './calendar/EventDetailModal';
 import SessionRunner from './calendar/SessionRunner';
 import RosterPlan from './calendar/RosterPlan';
+import { isStaff } from '../../constants/roles';
 
 const CalendarHub = () => {
     const { user, profile } = useAuth();
@@ -42,7 +43,7 @@ const CalendarHub = () => {
         dateRange,
     });
 
-    const isCoach = profile?.role === 'coach' || profile?.role === 'manager';
+    const isCoach = isStaff(profile?.role);
 
     const navLabel = viewMode === 'week'
         ? 'This Week'

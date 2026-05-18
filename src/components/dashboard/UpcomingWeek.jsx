@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
+import { STAFF_ROLES, WRITE_RELATIONSHIPS } from '../../constants/roles';
 import CreateEventModal from './CreateEventModal';
 
 // Event type icons and colors
@@ -26,6 +28,7 @@ const RSVP_OPTIONS = [
 
 const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) => {
     const { user, profile } = useAuth();
+    const toast = useToast();
     const [events, setEvents] = useState([]);
     const [rsvps, setRsvps] = useState({});
     const [loading, setLoading] = useState(true);
@@ -34,11 +37,10 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     const [weekOffset, setWeekOffset] = useState(0);
     const [showCreateModal, setShowCreateModal] = useState(false);
 
-    // Staff (coach, manager, head_coach, assistant_coach, team_manager, admin) don't
-    // get personal RSVP buttons — they're not on the roster. Both the "can create
-    // event" capability and the "hide personal RSVP" gating use this same set.
-    const STAFF_ROLES = ['coach', 'manager', 'head_coach', 'assistant_coach', 'team_manager', 'admin'];
-    const isStaff = STAFF_ROLES.includes(profile?.role);
+    // Staff don't get personal RSVP buttons — they're not on the roster.
+    // STAFF_ROLES is imported from constants/roles so this stays in sync with
+    // every other surface that gates by staff role.
+    const isStaff = STAFF_ROLES.has(profile?.role);
     const isCoachOrManager = isStaff;
 
     // Get date range for display
@@ -114,15 +116,16 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     }, [teamId, showAllTeams, user?.id, weekOffset]);
 
     // Handle RSVP. Must resolve to a real players.id — parents come from
-    // family_members, players come from players.user_id. user.id alone fails
-    // the FK and was Martin's silent-failure bug 2026-05-18.
+    // family_members (guardian/parent only — 'fan' is read-only), players
+    // come from players.user_id. user.id alone fails the FK and was
+    // Martin's silent-failure bug 2026-05-18.
     const handleRsvp = async (eventId, status) => {
         if (!user?.id) return;
         let resolvedPid = null;
         if (profile?.role === 'parent') {
             const { data } = await supabase
                 .from('family_members').select('player_id')
-                .eq('user_id', user.id).in('relationship', ['guardian', 'fan']).limit(1);
+                .eq('user_id', user.id).in('relationship', WRITE_RELATIONSHIPS).limit(1);
             resolvedPid = data?.[0]?.player_id || null;
         } else if (profile?.role === 'player') {
             const { data } = await supabase
@@ -130,7 +133,7 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
             resolvedPid = data?.id || null;
         }
         if (!resolvedPid) {
-            console.error('RSVP skipped: no player resolved (parents need a family_members link).');
+            toast.warning("Can't RSVP — your account isn't linked to a player yet. Enter your guardian code.");
             return;
         }
 
@@ -149,8 +152,11 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
             if (error) throw error;
 
             setRsvps(prev => ({ ...prev, [eventId]: status }));
+            const label = status === 'going' ? 'Going' : status === 'not_going' ? 'Out' : 'Vacation';
+            toast.success(`Marked ${label}.`);
         } catch (err) {
             console.error('Error updating RSVP:', err);
+            toast.error(`Couldn't save RSVP: ${err.message || err}`);
         }
     };
 

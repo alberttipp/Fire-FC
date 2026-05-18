@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Users, CheckCircle, XCircle, Plane, RotateCcw } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
+import { useToast } from '../../Toast';
+import { isStaff } from '../../../constants/roles';
 
 // Attendance panel — Byga-style. Always shows the full active roster so
 // parents can see at a glance who's coming, who's out, who's on vacation,
@@ -13,9 +15,8 @@ import { useAuth } from '../../../context/AuthContext';
 // event_rsvps RLS policy installed 2026-05-18).
 const RsvpSummary = ({ eventId, teamId }) => {
     const { profile } = useAuth();
-    const isStaff = profile?.role === 'coach' || profile?.role === 'manager' ||
-                    profile?.role === 'head_coach' || profile?.role === 'assistant_coach' ||
-                    profile?.role === 'team_manager';
+    const toast = useToast();
+    const isStaffUser = isStaff(profile?.role);
 
     const [roster, setRoster] = useState([]); // [{ id, first_name, last_name, jersey_number, status }]
     const [loading, setLoading] = useState(true);
@@ -56,19 +57,26 @@ const RsvpSummary = ({ eventId, teamId }) => {
         // Optimistic update
         setRoster(prev => prev.map(p => p.id === playerId ? { ...p, status: newStatus } : p));
         if (newStatus === 'no_response') {
-            // Clear the RSVP entirely
             const { error } = await supabase
                 .from('event_rsvps')
                 .delete()
                 .eq('event_id', eventId)
                 .eq('player_id', playerId);
-            if (error) { console.error('Clear RSVP failed:', error); await load(); }
+            if (error) {
+                console.error('Clear RSVP failed:', error);
+                toast.error(`Couldn't clear that RSVP: ${error.message}`);
+                await load();
+            }
         } else {
             const { error } = await supabase
                 .from('event_rsvps')
                 .upsert({ event_id: eventId, player_id: playerId, status: newStatus },
                         { onConflict: 'event_id,player_id' });
-            if (error) { console.error('Set RSVP failed:', error); await load(); }
+            if (error) {
+                console.error('Set RSVP failed:', error);
+                toast.error(`Couldn't save that RSVP: ${error.message}`);
+                await load();
+            }
         }
         setPendingId(null);
     };
@@ -126,7 +134,7 @@ const RsvpSummary = ({ eventId, teamId }) => {
                                     items.map(p => (
                                         <div key={p.id} className="text-xs text-gray-300">
                                             <div className="truncate">{displayName(p)}</div>
-                                            {isStaff && (
+                                            {isStaffUser && (
                                                 <StaffControls
                                                     current={p.status}
                                                     disabled={pendingId === p.id}
@@ -141,7 +149,7 @@ const RsvpSummary = ({ eventId, teamId }) => {
                     );
                 })}
             </div>
-            {isStaff && (
+            {isStaffUser && (
                 <p className="text-[10px] text-gray-500 mt-2">
                     Tip: as {profile?.role}, you can tap the icons under any player to override their RSVP.
                 </p>

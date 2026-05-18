@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../Toast';
 import { getEventConfig } from './constants';
 import RsvpSummary from './RsvpSummary';
+import { isStaff } from '../../../constants/roles';
 
 const getYouTubeEmbedUrl = (url) => {
     if (!url) return null;
@@ -26,7 +27,7 @@ const EventDetailModal = ({ event, onClose, onStartSession }) => {
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const config = getEventConfig(event.type);
-    const isCoach = profile?.role === 'coach' || profile?.role === 'manager';
+    const isCoach = isStaff(profile?.role);
 
     useEffect(() => {
         const fetch = async () => {

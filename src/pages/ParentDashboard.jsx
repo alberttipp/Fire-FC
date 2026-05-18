@@ -405,13 +405,15 @@ const ParentDashboard = () => {
 
     // Handle RSVP for events
     const handleRsvp = async (eventId, status) => {
-        if (!selectedChild?.id) return;
+        if (!selectedChild?.id) {
+            toast.warning("Select a child first — couldn't tell who this RSVP is for.");
+            return;
+        }
 
         // Optimistic update
         setEventRsvps(prev => ({ ...prev, [eventId]: status }));
 
         try {
-            // Upsert RSVP
             const { error } = await supabase
                 .from('event_rsvps')
                 .upsert({
@@ -425,15 +427,20 @@ const ParentDashboard = () => {
 
             if (error) {
                 console.error('Error saving RSVP:', error);
-                // Revert on error
+                toast.error(`Couldn't save RSVP for ${selectedChild.first_name}: ${error.message}`);
+                // Revert
                 setEventRsvps(prev => {
                     const copy = { ...prev };
                     delete copy[eventId];
                     return copy;
                 });
+            } else {
+                const label = status === 'going' ? 'Going' : status === 'not_going' ? 'Out' : 'Vacation';
+                toast.success(`${selectedChild.first_name} marked ${label}.`);
             }
         } catch (err) {
             console.error('RSVP Error:', err);
+            toast.error(`RSVP failed: ${err.message || err}`);
         }
     };
 

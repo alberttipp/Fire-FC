@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { useToast } from '../components/Toast';
+import { WRITE_RELATIONSHIPS } from '../constants/roles';
 
 const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
+    const toast = useToast();
     const [events, setEvents] = useState([]);
     const [rsvps, setRsvps] = useState({});
     const [rsvpCounts, setRsvpCounts] = useState({});
@@ -24,11 +27,13 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
             if (!user?.id || !profile?.role) { if (!cancelled) setResolvedPlayerId(null); return; }
 
             if (profile.role === 'parent') {
+                // Only guardian/parent relationships can WRITE RSVPs. 'fan'
+                // links are read-only by design (grandparent watching games).
                 const { data } = await supabase
                     .from('family_members')
                     .select('player_id')
                     .eq('user_id', user.id)
-                    .in('relationship', ['guardian', 'fan'])
+                    .in('relationship', WRITE_RELATIONSHIPS)
                     .limit(1);
                 if (!cancelled) setResolvedPlayerId(data?.[0]?.player_id || null);
             } else if (profile.role === 'player') {
@@ -182,7 +187,11 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
 
     const handleRsvp = async (eventId, status) => {
         if (!playerId) {
-            console.error('RSVP skipped: no player resolved for this user. Parents must be linked to a kid via family_members; coaches/managers can use the attendance panel.');
+            if (profile?.role === 'parent') {
+                toast?.warning("Can't RSVP — your account isn't linked to a player yet. Enter your guardian code.");
+            } else {
+                toast?.info("Tap the event to manage attendance for the whole team.");
+            }
             return;
         }
         // Optimistic update
@@ -209,8 +218,11 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
                 }, { onConflict: 'event_id, player_id' });
 
             if (error) throw error;
+            const label = status === 'going' ? 'Going' : status === 'not_going' ? 'Out' : status === 'vacation' ? 'Vacation' : status;
+            toast?.success(`Marked ${label}.`);
         } catch (err) {
             console.error('RSVP failed:', err);
+            toast?.error(`Couldn't save RSVP: ${err.message || err}`);
             fetchEvents(); // Revert on failure
         }
     };
