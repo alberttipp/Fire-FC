@@ -127,8 +127,8 @@ const EventDetailModal = ({ event, onClose, onStartSession }) => {
                         </div>
                     )}
 
-                    {/* RSVP Summary (coach view) */}
-                    {isCoach && <RsvpSummary eventId={event.id} />}
+                    {/* Attendance — visible to everyone (Byga-style). */}
+                    <RsvpSummary eventId={event.id} teamId={event.team_id} />
 
                     {/* Practice Sessions */}
                     <div className="border-t border-white/10 pt-4">
