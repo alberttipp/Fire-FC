@@ -23,6 +23,7 @@ const LiveScoringView = lazy(() => import('../components/dashboard/LiveScoringVi
 const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolVolunteerView'));
 const DrillLibraryModal = lazy(() => import('../components/dashboard/DrillLibraryModal'));
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
+const EventDetailModal = lazy(() => import('../components/dashboard/calendar/EventDetailModal'));
 
 const ViewLoader = () => (
     <div className="flex items-center justify-center py-20">
@@ -45,6 +46,9 @@ const ParentDashboard = () => {
     const [showDetails, setShowDetails] = useState(false);
     const [loading, setLoading] = useState(true);
     const [inviteOpen, setInviteOpen] = useState(false);
+    // When set, EventDetailModal opens with this event so the parent can see
+    // who's going / out / no-response on the team. Same modal as the coach view.
+    const [openEvent, setOpenEvent] = useState(null);
 
     // Wire voice navigation: lets the user say "go to schedule" / "messages"
     // / "overview" and have the parent dashboard switch tabs.
@@ -944,7 +948,11 @@ const ParentDashboard = () => {
                                                 const currentRsvp = eventRsvps[event.id];
                                                 return (
                                                     <div key={event.id} className="p-3 bg-white/5 rounded-lg space-y-2">
-                                                        <div className="flex items-center gap-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setOpenEvent(event)}
+                                                            className="w-full flex items-center gap-3 text-left hover:bg-white/5 -m-1 p-1 rounded transition-colors"
+                                                        >
                                                             <div className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center ${
                                                                 event.type === 'game' ? 'bg-red-500/20 text-red-400' :
                                                                 event.type === 'practice' ? 'bg-brand-green/20 text-brand-green' :
@@ -954,12 +962,16 @@ const ParentDashboard = () => {
                                                                 <span className="text-sm font-bold leading-none">{date.getDate()}</span>
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="text-sm text-white font-medium truncate">{event.title}</div>
+                                                                <div className="text-sm text-white font-medium truncate flex items-center gap-1">
+                                                                    {event.title}
+                                                                    <ChevronRight className="w-3 h-3 text-gray-500" />
+                                                                </div>
                                                                 <div className="text-xs text-gray-500">
                                                                     {date.toLocaleDateString('en-US', { weekday: 'short' })} at {date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                                                    <span className="text-gray-600"> · tap for attendance</span>
                                                                 </div>
                                                             </div>
-                                                        </div>
+                                                        </button>
                                                         {/* RSVP buttons — Going / Out / Vacation, matches the
                                                             rest of the app. "Maybe" was retired with the
                                                             vacation-period rewrite; legacy maybe rsvps in the
@@ -1185,6 +1197,12 @@ const ParentDashboard = () => {
                     {renderView()}
                 </Suspense>
             </main>
+
+            {openEvent && (
+                <Suspense fallback={null}>
+                    <EventDetailModal event={openEvent} onClose={() => setOpenEvent(null)} />
+                </Suspense>
+            )}
         </div>
     );
 };
