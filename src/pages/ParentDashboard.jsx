@@ -12,6 +12,7 @@ import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import FamilyInviteModal from '../components/dashboard/FamilyInviteModal';
 import MobileBottomNav from '../components/MobileBottomNav';
+import { upsertRsvpForMany, namesList, statusLabel } from '../utils/rsvp';
 import VacationPeriodsManager from '../components/family/VacationPeriodsManager';
 import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 
@@ -403,44 +404,40 @@ const ParentDashboard = () => {
         }
     };
 
-    // Handle RSVP for events
-    const handleRsvp = async (eventId, status) => {
-        if (!selectedChild?.id) {
-            toast.warning("Select a child first — couldn't tell who this RSVP is for.");
+    // Handle RSVP for events. Applies to EVERY linked kid that's on the
+    // event's team — covers multi-kid families like the Schroms (Declan +
+    // Oliver on Summer Squad). Single-kid families behave the same as
+    // before (just one upsert). Per-kid override is available in the
+    // EventDetailModal's attendance panel via the same row.
+    const handleRsvp = async (eventId, status, event) => {
+        const teamId = event?.team_id;
+        // Filter to kids on this event's team. If team_id wasn't passed in
+        // (back-compat with old callers), fall back to all linked kids.
+        const targets = teamId
+            ? children.filter(c => c.team_id === teamId)
+            : (selectedChild ? [selectedChild] : children);
+
+        if (targets.length === 0) {
+            toast.warning("No kid on this team to RSVP for.");
             return;
         }
 
         // Optimistic update
         setEventRsvps(prev => ({ ...prev, [eventId]: status }));
 
-        try {
-            const { error } = await supabase
-                .from('event_rsvps')
-                .upsert({
-                    event_id: eventId,
-                    player_id: selectedChild.id,
-                    status: status,
-                    updated_at: new Date().toISOString()
-                }, {
-                    onConflict: 'event_id,player_id'
-                });
-
-            if (error) {
-                console.error('Error saving RSVP:', error);
-                toast.error(`Couldn't save RSVP for ${selectedChild.first_name}: ${error.message}`);
-                // Revert
-                setEventRsvps(prev => {
-                    const copy = { ...prev };
-                    delete copy[eventId];
-                    return copy;
-                });
-            } else {
-                const label = status === 'going' ? 'Going' : status === 'not_going' ? 'Out' : 'Vacation';
-                toast.success(`${selectedChild.first_name} marked ${label}.`);
-            }
-        } catch (err) {
-            console.error('RSVP Error:', err);
-            toast.error(`RSVP failed: ${err.message || err}`);
+        const playerIds = targets.map(t => t.id);
+        const { ok, errors } = await upsertRsvpForMany(eventId, playerIds, status);
+        if (!ok) {
+            const msg = errors[0]?.error?.message || 'unknown error';
+            console.error('Error saving RSVP:', errors);
+            toast.error(`Couldn't save RSVP: ${msg}`);
+            setEventRsvps(prev => {
+                const copy = { ...prev };
+                delete copy[eventId];
+                return copy;
+            });
+        } else {
+            toast.success(`${namesList(targets)} marked ${statusLabel(status)}.`);
         }
     };
 
@@ -995,7 +992,7 @@ const ParentDashboard = () => {
                                                             ].map(({ status, label, activeCls, idleCls }) => (
                                                                 <button
                                                                     key={status}
-                                                                    onClick={() => handleRsvp(event.id, status)}
+                                                                    onClick={() => handleRsvp(event.id, status, event)}
                                                                     className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${currentRsvp === status ? activeCls : idleCls}`}
                                                                 >
                                                                     {label}

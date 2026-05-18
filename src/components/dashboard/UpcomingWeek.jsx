@@ -7,7 +7,8 @@ import {
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
-import { STAFF_ROLES, WRITE_RELATIONSHIPS } from '../../constants/roles';
+import { STAFF_ROLES } from '../../constants/roles';
+import { resolveWritablePlayers, upsertRsvpForMany, namesList, statusLabel } from '../../utils/rsvp';
 import CreateEventModal from './CreateEventModal';
 
 // Event type icons and colors
@@ -115,48 +116,25 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
         fetchEvents();
     }, [teamId, showAllTeams, user?.id, weekOffset]);
 
-    // Handle RSVP. Must resolve to a real players.id — parents come from
-    // family_members (guardian/parent only — 'fan' is read-only), players
-    // come from players.user_id. user.id alone fails the FK and was
-    // Martin's silent-failure bug 2026-05-18.
+    // Handle RSVP. Applies to EVERY linked kid the user can write for —
+    // multi-kid families RSVP everyone in one tap. RLS blocks writes for
+    // kids not on the event's team, so a worst-case stray upsert no-ops.
     const handleRsvp = async (eventId, status) => {
         if (!user?.id) return;
-        let resolvedPid = null;
-        if (profile?.role === 'parent') {
-            const { data } = await supabase
-                .from('family_members').select('player_id')
-                .eq('user_id', user.id).in('relationship', WRITE_RELATIONSHIPS).limit(1);
-            resolvedPid = data?.[0]?.player_id || null;
-        } else if (profile?.role === 'player') {
-            const { data } = await supabase
-                .from('players').select('id').eq('user_id', user.id).maybeSingle();
-            resolvedPid = data?.id || null;
-        }
-        if (!resolvedPid) {
+        const targets = await resolveWritablePlayers(user.id, profile?.role);
+        if (targets.length === 0) {
             toast.warning("Can't RSVP — your account isn't linked to a player yet. Enter your guardian code.");
             return;
         }
 
-        try {
-            const { error } = await supabase
-                .from('event_rsvps')
-                .upsert({
-                    event_id: eventId,
-                    player_id: resolvedPid,
-                    status: status,
-                    updated_at: new Date().toISOString()
-                }, {
-                    onConflict: 'event_id,player_id'
-                });
-
-            if (error) throw error;
-
+        const { ok, errors } = await upsertRsvpForMany(eventId, targets.map(t => t.id), status);
+        if (!ok) {
+            const msg = errors[0]?.error?.message || 'unknown error';
+            console.error('Error updating RSVP:', errors);
+            toast.error(`Couldn't save RSVP: ${msg}`);
+        } else {
             setRsvps(prev => ({ ...prev, [eventId]: status }));
-            const label = status === 'going' ? 'Going' : status === 'not_going' ? 'Out' : 'Vacation';
-            toast.success(`Marked ${label}.`);
-        } catch (err) {
-            console.error('Error updating RSVP:', err);
-            toast.error(`Couldn't save RSVP: ${err.message || err}`);
+            toast.success(`${namesList(targets)} marked ${statusLabel(status)}.`);
         }
     };
 

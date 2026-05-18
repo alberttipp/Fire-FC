@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { useToast } from '../components/Toast';
 import { WRITE_RELATIONSHIPS } from '../constants/roles';
+import { resolveWritablePlayers, upsertRsvpForMany, namesList, statusLabel } from '../utils/rsvp';
 
 const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     const toast = useToast();
@@ -10,6 +11,7 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     const [rsvpCounts, setRsvpCounts] = useState({});
     const [loading, setLoading] = useState(true);
     const [resolvedPlayerId, setResolvedPlayerId] = useState(null);
+    const [linkedPlayers, setLinkedPlayers] = useState([]); // all kids parent can RSVP for
 
     // Resolve which player_id this user RSVPs as.
     //   parent → first kid linked via family_members
@@ -23,29 +25,17 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     useEffect(() => {
         let cancelled = false;
         const resolve = async () => {
-            if (rsvpPlayerId) { if (!cancelled) setResolvedPlayerId(rsvpPlayerId); return; }
-            if (!user?.id || !profile?.role) { if (!cancelled) setResolvedPlayerId(null); return; }
-
-            if (profile.role === 'parent') {
-                // Only guardian/parent relationships can WRITE RSVPs. 'fan'
-                // links are read-only by design (grandparent watching games).
-                const { data } = await supabase
-                    .from('family_members')
-                    .select('player_id')
-                    .eq('user_id', user.id)
-                    .in('relationship', WRITE_RELATIONSHIPS)
-                    .limit(1);
-                if (!cancelled) setResolvedPlayerId(data?.[0]?.player_id || null);
-            } else if (profile.role === 'player') {
-                const { data } = await supabase
-                    .from('players')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .maybeSingle();
-                if (!cancelled) setResolvedPlayerId(data?.id || null);
-            } else {
-                if (!cancelled) setResolvedPlayerId(null);
+            if (rsvpPlayerId) {
+                if (!cancelled) { setResolvedPlayerId(rsvpPlayerId); setLinkedPlayers([{ id: rsvpPlayerId }]); }
+                return;
             }
+            const players = await resolveWritablePlayers(user?.id, profile?.role);
+            if (cancelled) return;
+            setLinkedPlayers(players);
+            // resolvedPlayerId stays as the "first kid" for backward-compat with the
+            // personal-RSVP fetch below. handleRsvp uses linkedPlayers (all kids)
+            // instead so multi-kid families RSVP everyone in one tap.
+            setResolvedPlayerId(players[0]?.id || null);
         };
         resolve();
         return () => { cancelled = true; };
@@ -186,7 +176,12 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     }, [fetchEvents]);
 
     const handleRsvp = async (eventId, status) => {
-        if (!playerId) {
+        // Targets: every kid this user can write for who is on the event's team.
+        // Without an event object handy here we use all linkedPlayers — RLS
+        // blocks writes for kids not on the team anyway, so worst case is one
+        // upsert silently no-ops (and the toast still reports the rest).
+        const targets = linkedPlayers;
+        if (targets.length === 0) {
             if (profile?.role === 'parent') {
                 toast?.warning("Can't RSVP — your account isn't linked to a player yet. Enter your guardian code.");
             } else {
@@ -194,36 +189,20 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
             }
             return;
         }
-        // Optimistic update
+
+        // Optimistic update (per-event status — for multi-kid this becomes
+        // "any kid's status" which is fine for the highlight; the
+        // EventDetailModal shows the real per-kid breakdown).
         setRsvps(prev => ({ ...prev, [eventId]: status }));
-        setRsvpCounts(prev => {
-            const updated = { ...prev };
-            if (!updated[eventId]) updated[eventId] = { going: 0, maybe: 0, not_going: 0 };
-            // Decrement old status
-            const oldStatus = rsvps[eventId];
-            if (oldStatus && updated[eventId][oldStatus] > 0) updated[eventId][oldStatus]--;
-            // Increment new status
-            updated[eventId][status]++;
-            return updated;
-        });
 
-        try {
-            const { error } = await supabase
-                .from('event_rsvps')
-                .upsert({
-                    event_id: eventId,
-                    player_id: playerId,
-                    status,
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'event_id, player_id' });
-
-            if (error) throw error;
-            const label = status === 'going' ? 'Going' : status === 'not_going' ? 'Out' : status === 'vacation' ? 'Vacation' : status;
-            toast?.success(`Marked ${label}.`);
-        } catch (err) {
-            console.error('RSVP failed:', err);
-            toast?.error(`Couldn't save RSVP: ${err.message || err}`);
+        const { ok, errors } = await upsertRsvpForMany(eventId, targets.map(t => t.id), status);
+        if (!ok) {
+            const msg = errors[0]?.error?.message || 'unknown error';
+            console.error('RSVP failed:', errors);
+            toast?.error(`Couldn't save RSVP: ${msg}`);
             fetchEvents(); // Revert on failure
+        } else {
+            toast?.success(`${namesList(targets)} marked ${statusLabel(status)}.`);
         }
     };
 
