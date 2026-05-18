@@ -6,8 +6,47 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     const [rsvps, setRsvps] = useState({});
     const [rsvpCounts, setRsvpCounts] = useState({});
     const [loading, setLoading] = useState(true);
+    const [resolvedPlayerId, setResolvedPlayerId] = useState(null);
 
-    const playerId = rsvpPlayerId || user?.id;
+    // Resolve which player_id this user RSVPs as.
+    //   parent → first kid linked via family_members
+    //   player → players row keyed by user_id
+    //   coach/manager/etc → null (they manage attendance from RsvpSummary,
+    //                       they don't personally RSVP since they aren't on the roster)
+    // Bug history: this hook used to fall back to `user?.id` if no
+    // rsvpPlayerId was passed. For parents that's their auth UUID, NOT a
+    // players.id, so every upsert failed event_rsvps_player_id_fkey and
+    // the click was silently lost. Martin reported this 2026-05-18.
+    useEffect(() => {
+        let cancelled = false;
+        const resolve = async () => {
+            if (rsvpPlayerId) { if (!cancelled) setResolvedPlayerId(rsvpPlayerId); return; }
+            if (!user?.id || !profile?.role) { if (!cancelled) setResolvedPlayerId(null); return; }
+
+            if (profile.role === 'parent') {
+                const { data } = await supabase
+                    .from('family_members')
+                    .select('player_id')
+                    .eq('user_id', user.id)
+                    .in('relationship', ['guardian', 'fan'])
+                    .limit(1);
+                if (!cancelled) setResolvedPlayerId(data?.[0]?.player_id || null);
+            } else if (profile.role === 'player') {
+                const { data } = await supabase
+                    .from('players')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                if (!cancelled) setResolvedPlayerId(data?.id || null);
+            } else {
+                if (!cancelled) setResolvedPlayerId(null);
+            }
+        };
+        resolve();
+        return () => { cancelled = true; };
+    }, [user?.id, profile?.role, rsvpPlayerId]);
+
+    const playerId = resolvedPlayerId;
 
     const fetchEvents = useCallback(async () => {
         if (!user) return;
@@ -142,6 +181,10 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     }, [fetchEvents]);
 
     const handleRsvp = async (eventId, status) => {
+        if (!playerId) {
+            console.error('RSVP skipped: no player resolved for this user. Parents must be linked to a kid via family_members; coaches/managers can use the attendance panel.');
+            return;
+        }
         // Optimistic update
         setRsvps(prev => ({ ...prev, [eventId]: status }));
         setRsvpCounts(prev => {

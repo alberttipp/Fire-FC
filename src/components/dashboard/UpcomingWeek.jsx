@@ -113,16 +113,33 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
         fetchEvents();
     }, [teamId, showAllTeams, user?.id, weekOffset]);
 
-    // Handle RSVP
+    // Handle RSVP. Must resolve to a real players.id — parents come from
+    // family_members, players come from players.user_id. user.id alone fails
+    // the FK and was Martin's silent-failure bug 2026-05-18.
     const handleRsvp = async (eventId, status) => {
         if (!user?.id) return;
+        let resolvedPid = null;
+        if (profile?.role === 'parent') {
+            const { data } = await supabase
+                .from('family_members').select('player_id')
+                .eq('user_id', user.id).in('relationship', ['guardian', 'fan']).limit(1);
+            resolvedPid = data?.[0]?.player_id || null;
+        } else if (profile?.role === 'player') {
+            const { data } = await supabase
+                .from('players').select('id').eq('user_id', user.id).maybeSingle();
+            resolvedPid = data?.id || null;
+        }
+        if (!resolvedPid) {
+            console.error('RSVP skipped: no player resolved (parents need a family_members link).');
+            return;
+        }
 
         try {
             const { error } = await supabase
                 .from('event_rsvps')
                 .upsert({
                     event_id: eventId,
-                    player_id: user.id,
+                    player_id: resolvedPid,
                     status: status,
                     updated_at: new Date().toISOString()
                 }, {
