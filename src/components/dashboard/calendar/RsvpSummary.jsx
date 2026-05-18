@@ -52,6 +52,23 @@ const RsvpSummary = ({ eventId, teamId }) => {
 
     useEffect(() => { load(); }, [load]);
 
+    // Realtime: refetch whenever any RSVP row on this event changes (insert /
+    // update / delete) so coach and parent views stay in sync without a
+    // manual refresh. Required for "lock down and rely on it" per Albert's
+    // 2026-05-18 ask.
+    useEffect(() => {
+        if (!eventId) return;
+        const channel = supabase
+            .channel(`event-rsvps-${eventId}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'event_rsvps', filter: `event_id=eq.${eventId}` },
+                () => { load(); }
+            )
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [eventId, load]);
+
     const setStatusFor = async (playerId, newStatus) => {
         setPendingId(playerId);
         // Optimistic update
