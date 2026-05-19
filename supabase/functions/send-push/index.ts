@@ -49,6 +49,19 @@ const VAPID_PUBLIC = normalizeUrlSafeB64(Deno.env.get('VAPID_PUBLIC_KEY') ?? '')
 const VAPID_PRIVATE = normalizeUrlSafeB64(Deno.env.get('VAPID_PRIVATE_KEY') ?? '');
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:notifications@firefcapp.com';
 
+// Diagnostic: describe key shape (length + bad chars) without revealing
+// the key itself. URL-safe P-256 public keys are 87 chars; private keys
+// are 43 chars. The "(without =)" error message from web-push is
+// misleading — it actually fires on ANY non-URL-safe character.
+function describeKey(label: string, k: string): string {
+    if (!k) return `${label}: MISSING`;
+    const bad = [...new Set(k.match(/[^A-Za-z0-9_-]/g) || [])]
+        .map(c => c === ' ' ? '<space>' : c === '\n' ? '<LF>' : c === '\r' ? '<CR>' : c === '\t' ? '<TAB>' : JSON.stringify(c));
+    return `${label}: len=${k.length} bad=[${bad.join(',') || 'none'}]`;
+}
+console.log('[send-push]', describeKey('public', VAPID_PUBLIC));
+console.log('[send-push]', describeKey('private', VAPID_PRIVATE));
+
 // Initialize VAPID at module load. If keys are malformed, swallow the
 // throw and report on every request — we'd rather respond 500 with a
 // clean message than crash the worker on every cold start.
@@ -56,12 +69,15 @@ let vapidInitError: string | null = null;
 try {
     if (VAPID_PUBLIC && VAPID_PRIVATE) {
         webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+        console.log('[send-push] VAPID init OK');
     } else {
         vapidInitError = 'vapid_not_configured: VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY missing in secrets';
     }
 } catch (e: any) {
-    vapidInitError = `vapid_init_error: ${e?.message ?? String(e)}`;
+    vapidInitError = `vapid_init_error: ${e?.message ?? String(e)} | ${describeKey('pub', VAPID_PUBLIC)} | ${describeKey('priv', VAPID_PRIVATE)}`;
     console.error('[send-push] VAPID init failed:', e);
+    console.error('[send-push]', describeKey('public', VAPID_PUBLIC));
+    console.error('[send-push]', describeKey('private', VAPID_PRIVATE));
 }
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
