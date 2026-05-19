@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { X, MapPin, Shirt, ClipboardList, Play, Video, ImageIcon, Pencil, Trash2 } from 'lucide-react';
+import { X, MapPin, Shirt, ClipboardList, Play, Video, ImageIcon, Pencil, Trash2, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '../../../supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
@@ -9,6 +9,7 @@ import RsvpSummary from './RsvpSummary';
 import { isStaff } from '../../../constants/roles';
 const EventCoverDesigner = lazy(() => import('../../event-cover/EventCoverDesigner'));
 const CreateEventModal   = lazy(() => import('../CreateEventModal'));
+const LineupBuilder      = lazy(() => import('../../coach-hq/lineup/LineupBuilder'));
 
 const getYouTubeEmbedUrl = (url) => {
     if (!url) return null;
@@ -31,7 +32,9 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
     const [loading, setLoading] = useState(true);
     const [editingCover, setEditingCover] = useState(false);
     const [editingEvent, setEditingEvent] = useState(false);
+    const [showLineup, setShowLineup] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const isGame = event?.type === 'game';
     const config = getEventConfig(event.type);
     const isCoach = isStaff(profile?.role);
 
@@ -117,9 +120,17 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                         )}
                     </div>
                 )}
-                {/* Staff action bar (Edit / Delete / Add cover) — top of modal regardless of whether a cover exists. */}
+                {/* Staff action bar (Edit / Delete / Add cover / Lineup) — top of modal regardless of whether a cover exists. */}
                 {isCoach && (
                     <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5">
+                        {isGame && (
+                            <button
+                                onClick={() => setShowLineup(true)}
+                                className="text-xs text-brand-green hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-brand-green/10"
+                            >
+                                <Users className="w-3.5 h-3.5" /> Lineup
+                            </button>
+                        )}
                         {!event.cover_image_url && (
                             <button
                                 onClick={() => setEditingCover(true)}
@@ -140,6 +151,17 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                             className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-red-500/10 disabled:opacity-50"
                         >
                             <Trash2 className="w-3.5 h-3.5" /> {deleting ? 'Deleting…' : 'Delete'}
+                        </button>
+                    </div>
+                )}
+                {/* Parent-facing lineup button — game events only, non-staff */}
+                {!isCoach && isGame && (
+                    <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5">
+                        <button
+                            onClick={() => setShowLineup(true)}
+                            className="text-xs text-brand-green hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-brand-green/10"
+                        >
+                            <Users className="w-3.5 h-3.5" /> View Lineup
                         </button>
                     </div>
                 )}
@@ -296,6 +318,13 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                             onEventChanged?.(updated);
                         }}
                     />
+                </Suspense>
+            )}
+
+            {/* Lineup builder — game events only. Staff can edit; everyone else views. */}
+            {showLineup && (
+                <Suspense fallback={null}>
+                    <LineupBuilder event={event} onClose={() => setShowLineup(false)} />
                 </Suspense>
             )}
         </div>
