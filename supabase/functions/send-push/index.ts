@@ -39,8 +39,14 @@ import webpush from 'https://esm.sh/web-push@3.6.7?target=denonext';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
-const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
+// Normalize VAPID keys to URL-safe base64 (no padding, '-' and '_'
+// instead of '+' and '/'). web-push is strict and throws
+// "Vapid public key must be a URL safe Base 64 (without =)" if the
+// secret was set with trailing '=' from a normal base64 encode.
+const normalizeUrlSafeB64 = (s: string) =>
+    (s ?? '').trim().replace(/=+$/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+const VAPID_PUBLIC = normalizeUrlSafeB64(Deno.env.get('VAPID_PUBLIC_KEY') ?? '');
+const VAPID_PRIVATE = normalizeUrlSafeB64(Deno.env.get('VAPID_PRIVATE_KEY') ?? '');
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:notifications@firefcapp.com';
 
 // Initialize VAPID at module load. If keys are malformed, swallow the
