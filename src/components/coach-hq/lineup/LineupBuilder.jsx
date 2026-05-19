@@ -12,18 +12,18 @@ import FormationPicker from './FormationPicker';
 
 // Full-screen lineup builder modal.
 //
-// Props:
-//   event       — { id, title, team_id, start_time, type, ... }
-//   onClose()
+// Layout on mobile:
+//   [Header — title + close]
+//   [Toolbar — formation pills + 2/11 + Save (one row)]
+//   [Pitch — fills remaining vertical space]
+//   [Bench — sticky 2-row horizontal-scroll strip at the bottom]
 //
-// Data model: jsonb 'lineup' on event_lineups is an array of
-//   { slot: 'GK', player_id: uuid, backups: [uuid] }
-// objects. We keep it as a position->player map in component state for
-// O(1) updates, and serialize back to array on save.
+// The bench is a flex-sibling of the pitch (NOT an overlay) so the field
+// is never covered. The pitch uses a ResizeObserver to reflow into the
+// space left after the bench is laid out.
 //
-// Drag IDs:
-//   draggables -> "player:{playerId}"
-//   droppables -> "slot:{slotId}"
+// Body scroll is locked while the modal is open so a touch-drag on the
+// bench can't be hijacked by page scrolling.
 const LineupBuilder = ({ event, onClose }) => {
     const { user, profile } = useAuth();
     const toast = useToast();
@@ -38,6 +38,16 @@ const LineupBuilder = ({ event, onClose }) => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
+
+    // Lock body scroll while the modal is open. Without this, a touch
+    // that starts on a bench chip can scroll the underlying page before
+    // dnd-kit's TouchSensor activates — the user sees the page move
+    // instead of the chip lifting, and the drag never starts.
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, []);
 
     // delay: 250ms means a quick swipe through the bench scrolls the list
     // (drag won't activate until they hold for 1/4 sec). tolerance: 8px
@@ -187,14 +197,24 @@ const LineupBuilder = ({ event, onClose }) => {
 
     const slots = FORMATIONS[formation]?.slots || [];
     const filledCount = slots.filter(s => assignments[s.id]).length;
+    const allOnField = filledCount === slots.length;
 
-    // position:fixed already escapes the EventDetailModal inner container
-    // (we're rendered as its sibling, not its child). No portal needed.
+    // Inline `height: 100dvh` (dynamic viewport height) so Chrome's URL
+    // bar collapse on scroll doesn't leave a gap at the bottom. `inset-0`
+    // + Tailwind `h-full` resolves against the containing block; dvh is
+    // always viewport-relative regardless of ancestor positioning.
     return (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-stretch justify-stretch md:items-center md:justify-center md:p-3" onClick={handleClose}>
-            <div className="bg-brand-dark md:rounded-2xl border border-white/10 w-full h-full md:w-[96vw] md:h-[96vh] md:max-w-[1600px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+        <div
+            className="fixed inset-0 z-[100] bg-black/90 flex items-stretch justify-stretch md:items-center md:justify-center md:p-3"
+            style={{ height: '100dvh' }}
+            onClick={handleClose}
+        >
+            <div
+                className="bg-brand-dark md:rounded-2xl border border-white/10 w-full h-full md:w-[96vw] md:h-[96vh] md:max-w-[1600px] flex flex-col overflow-hidden"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header — title + close */}
+                <div className="px-3 py-1.5 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
                     <div className="min-w-0">
                         <div className="text-[9px] uppercase tracking-widest text-brand-gold font-bold flex items-center gap-1">
                             {readOnly ? <><Eye className="w-3 h-3" /> Lineup</> : 'Lineup Builder'}
@@ -206,38 +226,38 @@ const LineupBuilder = ({ event, onClose }) => {
                     </button>
                 </div>
 
-                {/* Toolbar */}
-                <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between gap-2 flex-wrap shrink-0">
+                {/* Compact toolbar — formation pills + count + save in one row */}
+                <div className="px-2 py-1.5 border-b border-white/10 flex items-center gap-2 shrink-0">
                     <FormationPicker value={formation} onChange={handleFormationChange} readOnly={readOnly} />
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-400">{filledCount}/{slots.length} on field</span>
-                        {!readOnly && (
-                            <button
-                                type="button"
-                                onClick={handleSave}
-                                disabled={saving || !dirty}
-                                className={`px-4 py-1.5 rounded-md font-display font-bold uppercase tracking-wider text-sm flex items-center gap-1.5 transition-all
-                                    ${dirty && !saving ? 'bg-brand-green text-brand-dark hover:brightness-110' : 'bg-white/5 text-gray-500 cursor-not-allowed'}`}
-                            >
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                {saving ? 'Saving' : dirty ? 'Save' : 'Saved'}
-                            </button>
-                        )}
-                    </div>
+                    <span className={`text-[11px] font-bold shrink-0 tabular-nums px-1.5 py-0.5 rounded
+                        ${allOnField ? 'bg-brand-green/20 text-brand-green' : 'text-gray-300'}`}>
+                        {filledCount}/{slots.length}
+                    </span>
+                    {!readOnly && (
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving || !dirty}
+                            className={`shrink-0 px-3 py-1 rounded-md font-display font-bold uppercase tracking-wider text-xs flex items-center gap-1 transition-all
+                                ${dirty && !saving ? 'bg-brand-green text-brand-dark hover:brightness-110' : 'bg-white/5 text-gray-500 cursor-not-allowed'}`}
+                        >
+                            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                            <span className="hidden xs:inline">{saving ? 'Saving' : dirty ? 'Save' : 'Saved'}</span>
+                        </button>
+                    )}
                 </div>
 
-                {/* Body — the pitch ALWAYS takes the full body space (same
-                    as the parent view, which already looked right). For staff
-                    the bench is layered ON TOP as a floating overlay over the
-                    opposition half (no slots there) so it never shrinks the
-                    pitch. Mobile: full-width strip at top. Desktop: floating
-                    panel pinned to the right edge. */}
-                <div className="flex-1 min-h-0 p-2 md:p-3 overflow-hidden relative">
+                {/* Body — pitch on top, bench strip on bottom (flex column).
+                    Pitch fills remaining space; SoccerPitch ResizeObserver
+                    handles the 2:3 aspect within whatever it gets. */}
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                     {loading ? (
-                        <div className="flex-1 flex justify-center items-center"><Loader2 className="w-8 h-8 animate-spin text-brand-green" /></div>
+                        <div className="flex-1 flex justify-center items-center">
+                            <Loader2 className="w-8 h-8 animate-spin text-brand-green" />
+                        </div>
                     ) : (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <div className="w-full h-full flex items-center justify-center">
+                            <div className="flex-1 min-h-0 p-2 md:p-3 flex items-center justify-center">
                                 <SoccerPitch
                                     formation={formation}
                                     assignments={assignments}
@@ -246,11 +266,7 @@ const LineupBuilder = ({ event, onClose }) => {
                                     readOnly={readOnly}
                                 />
                             </div>
-                            {!readOnly && (
-                                <div className="absolute top-3 left-3 right-3 md:left-auto md:w-80 md:top-3 md:bottom-3 z-20">
-                                    <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
-                                </div>
-                            )}
+                            <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
                         </DndContext>
                     )}
                 </div>

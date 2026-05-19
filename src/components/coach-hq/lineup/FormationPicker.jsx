@@ -6,16 +6,16 @@ import { FORMATION_IDS } from './formations';
 // players whose slot disappears go back to the bench automatically
 // (LineupBuilder reconciles).
 const FormationPicker = ({ value, onChange, readOnly }) => (
-    <div className="flex items-center gap-1.5">
-        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mr-1">Formation</span>
-        <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
+    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold shrink-0 hidden sm:inline">Formation</span>
+        <div className="flex bg-white/5 rounded-lg p-1 border border-white/10 overflow-x-auto no-scrollbar">
             {FORMATION_IDS.map(id => (
                 <button
                     key={id}
                     type="button"
                     onClick={() => !readOnly && onChange(id)}
                     disabled={readOnly}
-                    className={`px-2.5 py-1 rounded-md text-xs font-display font-bold tracking-wider transition-all
+                    className={`shrink-0 px-2 py-1 rounded-md text-[11px] sm:text-xs font-display font-bold tracking-wider transition-all
                         ${value === id ? 'bg-brand-green text-brand-dark shadow' : 'text-gray-400 hover:text-white'}
                         ${readOnly ? 'cursor-default opacity-60' : ''}`}
                 >
