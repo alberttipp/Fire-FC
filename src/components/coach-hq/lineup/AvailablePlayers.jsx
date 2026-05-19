@@ -9,13 +9,13 @@ const DraggablePlayer = ({ player }) => {
             ref={setNodeRef}
             {...listeners}
             {...attributes}
-            className={`flex items-center gap-2 px-2 py-1.5 rounded bg-white/5 border border-white/10 hover:bg-white/10 cursor-grab active:cursor-grabbing select-none touch-none
+            className={`flex items-center gap-2 px-2.5 py-2 rounded bg-white/5 border border-white/10 hover:bg-white/10 cursor-grab active:cursor-grabbing select-none touch-none
                 ${isDragging ? 'opacity-30' : ''}`}
         >
-            <span className="w-6 h-6 rounded-full bg-brand-green/20 text-brand-green text-[10px] font-bold flex items-center justify-center shrink-0">
+            <span className="w-7 h-7 rounded-full bg-brand-green/20 text-brand-green text-xs font-bold flex items-center justify-center shrink-0">
                 {player.jersey_number ?? '—'}
             </span>
-            <span className="text-white text-xs truncate">{player.first_name} {player.last_name?.charAt(0)}.</span>
+            <span className="text-white text-sm truncate">{player.first_name} {player.last_name?.charAt(0)}.</span>
         </div>
     );
 };
@@ -29,15 +29,15 @@ const AvailablePlayers = ({ players, assignments, readOnly }) => {
     if (readOnly) return null;
 
     return (
-        <div className="glass-panel p-3">
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Bench</span>
+        <div className="glass-panel p-3 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-2 shrink-0">
+                <span className="text-xs uppercase tracking-widest text-gray-300 font-bold">Bench</span>
                 <span className="text-[10px] text-gray-500">{available.length} available</span>
             </div>
             {available.length === 0 ? (
                 <p className="text-gray-500 text-xs text-center py-3">Everyone's on the field.</p>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 md:grid-cols-1 gap-1.5 flex-1 overflow-y-auto pr-1">
                     {available.map(p => <DraggablePlayer key={p.id} player={p} />)}
                 </div>
             )}

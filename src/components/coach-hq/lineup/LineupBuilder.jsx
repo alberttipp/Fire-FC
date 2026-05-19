@@ -186,8 +186,8 @@ const LineupBuilder = ({ event, onClose }) => {
     const filledCount = slots.filter(s => assignments[s.id]).length;
 
     return (
-        <div className="fixed inset-0 z-[60] bg-black/85 flex items-stretch justify-stretch md:items-center md:justify-center md:p-4" onClick={handleClose}>
-            <div className="bg-brand-dark md:rounded-2xl border border-white/10 w-full md:max-w-4xl md:max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] bg-black/85 flex items-stretch justify-stretch md:items-center md:justify-center md:p-3" onClick={handleClose}>
+            <div className="bg-brand-dark md:rounded-2xl border border-white/10 w-full h-full md:w-[96vw] md:h-[96vh] md:max-w-[1600px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
                     <div className="min-w-0">
@@ -221,21 +221,25 @@ const LineupBuilder = ({ event, onClose }) => {
                     </div>
                 </div>
 
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto p-4">
+                {/* Body — pitch fills vertical space, bench sits to the side */}
+                <div className="flex-1 min-h-0 overflow-hidden p-3 md:p-4">
                     {loading ? (
                         <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-brand-green" /></div>
                     ) : (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
-                                <SoccerPitch
-                                    formation={formation}
-                                    assignments={assignments}
-                                    players={players}
-                                    onUnassign={handleUnassign}
-                                    readOnly={readOnly}
-                                />
-                                <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
+                            <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-4 h-full">
+                                <div className="flex items-center justify-center min-h-0 min-w-0 overflow-auto">
+                                    <SoccerPitch
+                                        formation={formation}
+                                        assignments={assignments}
+                                        players={players}
+                                        onUnassign={handleUnassign}
+                                        readOnly={readOnly}
+                                    />
+                                </div>
+                                <div className="min-h-0 overflow-hidden">
+                                    <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
+                                </div>
                             </div>
                         </DndContext>
                     )}
