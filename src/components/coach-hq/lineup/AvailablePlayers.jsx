@@ -29,13 +29,15 @@ const AvailablePlayers = ({ players, assignments, readOnly }) => {
     if (readOnly) return null;
 
     return (
-        <div className="glass-panel p-2 md:p-3 h-full flex flex-col">
-            <div className="flex items-center justify-between mb-1.5 md:mb-2 shrink-0">
-                <span className="text-xs uppercase tracking-widest text-gray-300 font-bold">Bench · drag to field</span>
-                <span className="text-[10px] text-gray-500">{available.length}</span>
+        // Floating overlay: blurred dark backdrop so the pitch stays visible
+        // through it, max-height so it never grows past its allotted strip.
+        <div className="bg-black/55 backdrop-blur border border-white/15 rounded-xl shadow-2xl p-2 md:p-2.5 flex flex-col max-h-[28vh] md:max-h-full md:h-full">
+            <div className="flex items-center justify-between mb-1.5 shrink-0">
+                <span className="text-[10px] md:text-xs uppercase tracking-widest text-white font-bold">Bench · drag to field</span>
+                <span className="text-[10px] text-gray-300">{available.length}</span>
             </div>
             {available.length === 0 ? (
-                <p className="text-gray-500 text-xs text-center py-3">Everyone's on the field.</p>
+                <p className="text-gray-300 text-xs text-center py-2">Everyone's on the field.</p>
             ) : (
                 // Mobile: horizontal scrolling strip. Desktop: vertical list.
                 <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-hidden md:overflow-y-auto flex-1 pr-1">

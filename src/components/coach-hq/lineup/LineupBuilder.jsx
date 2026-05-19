@@ -223,15 +223,18 @@ const LineupBuilder = ({ event, onClose }) => {
                     </div>
                 </div>
 
-                {/* Body — flex layout: pitch grows to fill, bench is fixed-size
-                    and always visible (bottom on mobile, right on desktop). */}
-                <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-2 md:gap-3 p-2 md:p-3 overflow-hidden">
+                {/* Body — the pitch ALWAYS takes the full body space (same
+                    as the parent view, which already looked right). For staff
+                    the bench is layered ON TOP as a floating overlay over the
+                    opposition half (no slots there) so it never shrinks the
+                    pitch. Mobile: full-width strip at top. Desktop: floating
+                    panel pinned to the right edge. */}
+                <div className="flex-1 min-h-0 p-2 md:p-3 overflow-hidden relative">
                     {loading ? (
                         <div className="flex-1 flex justify-center items-center"><Loader2 className="w-8 h-8 animate-spin text-brand-green" /></div>
                     ) : (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            {/* Pitch — grows to fill remaining space */}
-                            <div className="flex-1 min-h-0 min-w-0 flex items-center justify-center">
+                            <div className="w-full h-full flex items-center justify-center">
                                 <SoccerPitch
                                     formation={formation}
                                     assignments={assignments}
@@ -240,10 +243,8 @@ const LineupBuilder = ({ event, onClose }) => {
                                     readOnly={readOnly}
                                 />
                             </div>
-                            {/* Bench — always visible. Mobile: bottom strip (h-24, horizontal scroll).
-                                Desktop: right column (w-64, vertical scroll). */}
                             {!readOnly && (
-                                <div className="shrink-0 h-24 md:h-auto md:w-64">
+                                <div className="absolute top-3 left-3 right-3 md:left-auto md:w-72 md:top-3 md:bottom-3 z-20">
                                     <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
                                 </div>
                             )}
