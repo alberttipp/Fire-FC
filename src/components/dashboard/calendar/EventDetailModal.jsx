@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { X, MapPin, Shirt, ClipboardList, Play, Video, ImageIcon } from 'lucide-react';
+import { X, MapPin, Shirt, ClipboardList, Play, Video, ImageIcon, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '../../../supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
@@ -8,6 +8,7 @@ import { getEventConfig } from './constants';
 import RsvpSummary from './RsvpSummary';
 import { isStaff } from '../../../constants/roles';
 const EventCoverDesigner = lazy(() => import('../../event-cover/EventCoverDesigner'));
+const CreateEventModal   = lazy(() => import('../CreateEventModal'));
 
 const getYouTubeEmbedUrl = (url) => {
     if (!url) return null;
@@ -22,13 +23,15 @@ const getYouTubeEmbedUrl = (url) => {
     return url;
 };
 
-const EventDetailModal = ({ event: initialEvent, onClose, onStartSession }) => {
+const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEventChanged }) => {
     const { profile } = useAuth();
     const toast = useToast();
     const [event, setEvent] = useState(initialEvent);
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingCover, setEditingCover] = useState(false);
+    const [editingEvent, setEditingEvent] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const config = getEventConfig(event.type);
     const isCoach = isStaff(profile?.role);
 
@@ -73,17 +76,36 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession }) => {
             toast.error(`Cover saved but couldn't update event: ${error.message}`);
             return;
         }
-        setEvent(e => ({ ...e, cover_image_url: publicUrl, cover_template: choice }));
+        const updated = { ...event, cover_image_url: publicUrl, cover_template: choice };
+        setEvent(updated);
         setEditingCover(false);
+        onEventChanged?.(updated);
+    };
+
+    const handleDelete = async () => {
+        if (!isCoach) return;
+        const confirmed = window.confirm(`Delete "${event.title}"? This removes the event for everyone on the team and can't be undone.`);
+        if (!confirmed) return;
+        setDeleting(true);
+        const { error } = await supabase.from('events').delete().eq('id', event.id);
+        setDeleting(false);
+        if (error) {
+            toast.error(`Couldn't delete: ${error.message}`);
+            return;
+        }
+        toast.success('Event deleted.');
+        onEventChanged?.(null); // signal removal
+        onClose();
     };
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center md:p-4 z-50" onClick={onClose}>
             <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-xl w-full md:max-w-2xl h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
-                {/* Cover hero — only when set */}
+                {/* Cover hero — only when set. object-contain so the FULL image
+                    is visible (no cropping); container hugs the 1200:630 ratio. */}
                 {event.cover_image_url && (
-                    <div className="relative aspect-[1200/630] bg-black overflow-hidden">
-                        <img src={event.cover_image_url} alt="" className="w-full h-full object-cover" />
+                    <div className="relative bg-black overflow-hidden">
+                        <img src={event.cover_image_url} alt="" className="w-full h-auto block" />
                         {isCoach && (
                             <button
                                 onClick={() => setEditingCover(true)}
@@ -95,14 +117,29 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession }) => {
                         )}
                     </div>
                 )}
-                {/* When no cover and the user is staff, show a small "Add cover" affordance in the header. */}
-                {!event.cover_image_url && isCoach && (
-                    <div className="bg-black/20 px-4 py-2 flex items-center justify-end border-b border-white/5">
+                {/* Staff action bar (Edit / Delete / Add cover) — top of modal regardless of whether a cover exists. */}
+                {isCoach && (
+                    <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5">
+                        {!event.cover_image_url && (
+                            <button
+                                onClick={() => setEditingCover(true)}
+                                className="text-xs text-brand-gold hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-brand-gold/10"
+                            >
+                                <ImageIcon className="w-3.5 h-3.5" /> Add cover
+                            </button>
+                        )}
                         <button
-                            onClick={() => setEditingCover(true)}
-                            className="text-xs text-brand-gold hover:text-white flex items-center gap-1.5"
+                            onClick={() => setEditingEvent(true)}
+                            className="text-xs text-gray-300 hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5"
                         >
-                            <ImageIcon className="w-3.5 h-3.5" /> Add cover image
+                            <Pencil className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-red-500/10 disabled:opacity-50"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" /> {deleting ? 'Deleting…' : 'Delete'}
                         </button>
                     </div>
                 )}
@@ -243,6 +280,21 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession }) => {
                         initial={event.cover_template || undefined}
                         onSaved={handleCoverSaved}
                         onCancel={() => setEditingCover(false)}
+                    />
+                </Suspense>
+            )}
+
+            {/* Edit-event modal (staff only) — reuses CreateEventModal in edit mode */}
+            {editingEvent && (
+                <Suspense fallback={null}>
+                    <CreateEventModal
+                        existingEvent={event}
+                        onClose={() => setEditingEvent(false)}
+                        onEventCreated={(updated) => {
+                            setEvent(updated);
+                            setEditingEvent(false);
+                            onEventChanged?.(updated);
+                        }}
                     />
                 </Suspense>
             )}

@@ -44,14 +44,68 @@ const JerseySwatch = ({ color = '#ef4444', stroke = '#0a0a0a', size = 36 }) => (
 );
 
 const KIT_OPTIONS = [
-    { value: 'red',   label: 'Red',   color: '#dc2626', stroke: '#7f1d1d' },
-    { value: 'white', label: 'White', color: '#f8fafc', stroke: '#475569' },
+    { value: 'red',    label: 'Red',    color: '#dc2626', stroke: '#7f1d1d' },
+    { value: 'white',  label: 'White',  color: '#f8fafc', stroke: '#475569' },
+    { value: 'custom', label: 'Custom', color: 'transparent', stroke: '#9ca3af' }, // opens 3-piece picker
 ];
 
+// 3-piece custom kit color sets (Albert's specs 2026-05-19).
+const SHIRT_COLORS = [
+    { value: 'navy',    color: '#1e3a8a' },
+    { value: 'orange',  color: '#f97316' },
+    { value: 'crimson', color: '#991b1b' },
+];
+const SHORTS_COLORS = [
+    { value: 'black', color: '#0a0a0a' },
+    { value: 'navy',  color: '#1e3a8a' },
+    { value: 'grey',  color: '#6b7280' },
+];
+const SOCKS_COLORS = [
+    { value: 'grey',  color: '#6b7280' },
+    { value: 'black', color: '#0a0a0a' },
+    { value: 'navy',  color: '#1e3a8a' },
+];
+
+// Resolve a stored kit value to a CSS color for preview swatches.
+function kitColorToCss(name) {
+    const all = [...SHIRT_COLORS, ...SHORTS_COLORS, ...SOCKS_COLORS];
+    const found = all.find(c => c.value === name);
+    if (found) return found.color;
+    // Back-compat: red/white were stored as the literal name in old events.
+    if (name === 'red') return '#dc2626';
+    if (name === 'white') return '#f8fafc';
+    return name; // assume it's already a CSS color
+}
+
 const LOCATION_PRESETS = [
+    { value: 'Field 101',    label: 'Field 101' },
+    { value: 'Field 102',    label: 'Field 102' },
     { value: 'Sportscore 1', label: 'Sportscore 1' },
     { value: 'OTHER',        label: 'Other (type your own)…' },
 ];
+
+// Small color-picker row used inside the custom kit panel.
+function KitColorRow({ label, options, value, onChange }) {
+    return (
+        <div className="flex items-center gap-3">
+            <span className="text-[11px] uppercase tracking-wider text-gray-400 font-bold w-14 shrink-0">{label}</span>
+            <div className="flex gap-2 flex-wrap">
+                {options.map(o => (
+                    <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => onChange(o.value)}
+                        className={`w-9 h-9 rounded-full border-2 transition-all ${value === o.value ? 'border-brand-gold scale-110 ring-2 ring-brand-gold/40' : 'border-white/20 hover:border-white/40'}`}
+                        style={{ background: o.color }}
+                        title={o.value}
+                        aria-label={o.value}
+                    />
+                ))}
+            </div>
+            <span className="text-[11px] text-gray-500 capitalize">{value || '—'}</span>
+        </div>
+    );
+}
 
 // Tiny CSS-string parser for the background swatches in the picker.
 function parseInlineCss(cssString) {
@@ -66,28 +120,49 @@ function parseInlineCss(cssString) {
     return out;
 }
 
-const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', defaultDate = null }) => {
+// existingEvent: when present, modal acts in EDIT mode (pre-fills fields,
+// UPDATEs instead of INSERTs, skips chat auto-post). When null, normal
+// CREATE flow.
+const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', defaultDate = null, existingEvent = null }) => {
     const { user, profile } = useAuth();
-    const [eventType, setEventType] = useState(defaultType); // 'practice', 'game', 'social'
-    const [coverChoice, setCoverChoice] = useState(() => defaultTemplateForEvent(defaultType));
-    const [coverEnabled, setCoverEnabled] = useState(true);
+    const isEditMode = !!existingEvent;
+    const [eventType, setEventType] = useState(existingEvent?.type || defaultType);
+    const [coverChoice, setCoverChoice] = useState(() => existingEvent?.cover_template || defaultTemplateForEvent(existingEvent?.type || defaultType));
+    const [customBgImage, setCustomBgImage] = useState(null); // data URL when user uploads
+    const [coverEnabled, setCoverEnabled] = useState(!isEditMode); // edit mode: cover stays as-is unless user explicitly re-creates
     const coverRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Pre-fill locationChoice from an existing event by matching against
+    // presets; falls back to OTHER + populating locationOther.
+    const initialLocationChoice = (() => {
+        if (!existingEvent?.location_name) return 'Field 101';
+        const match = LOCATION_PRESETS.find(p => p.value === existingEvent.location_name && p.value !== 'OTHER');
+        return match ? match.value : 'OTHER';
+    })();
+
+    // Detect if an existing event was using a custom (3-piece) kit:
+    // either it has a shorts/socks color set, or its shirt is one of
+    // the custom-only shirt colors (navy/orange/crimson).
+    const existingIsCustomKit = !!(existingEvent?.kit_shorts_color || existingEvent?.kit_socks_color ||
+        ['navy', 'orange', 'crimson'].includes(existingEvent?.kit_color));
+
     const [formData, setFormData] = useState({
-        title: defaultType === 'practice' ? 'Team Practice' : defaultType === 'social' ? 'Team Dinner' : '',
-        date: formatDateInput(defaultDate),
-        startTime: '',
-        endTime: '',
-        notes: '',
-        opponentName: '',
-        videoUrl: '',
-        kitColor: '',
-        // Location: locationChoice is the dropdown value ('Sportscore 1', 'OTHER',
-        // or ''); locationOther is the text the user types when 'OTHER' is picked.
-        locationChoice: 'Sportscore 1',
-        locationOther: '',
+        title: existingEvent?.title || (defaultType === 'practice' ? 'Team Practice' : defaultType === 'social' ? 'Team Dinner' : ''),
+        date: existingEvent?.start_time ? formatDateInput(new Date(existingEvent.start_time)) : formatDateInput(defaultDate),
+        startTime: existingEvent?.start_time ? new Date(existingEvent.start_time).toTimeString().slice(0, 5) : '',
+        endTime: existingEvent?.end_time ? new Date(existingEvent.end_time).toTimeString().slice(0, 5) : '',
+        notes: existingEvent?.notes || '',
+        opponentName: existingEvent?.opponent_name || '',
+        videoUrl: existingEvent?.video_url || '',
+        kitColor: existingEvent?.kit_color || '',
+        // 3-piece custom kit (used when useCustomKit === true)
+        kitShortsColor: existingEvent?.kit_shorts_color || '',
+        kitSocksColor:  existingEvent?.kit_socks_color  || '',
+        useCustomKit: existingIsCustomKit,
+        locationChoice: initialLocationChoice,
+        locationOther: initialLocationChoice === 'OTHER' ? (existingEvent?.location_name || '') : '',
     });
 
     // Title presets per type. Games are special — the title is auto-built
@@ -131,8 +206,24 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
             : formData.locationChoice,
         opponent_name: formData.opponentName,
         kit_color: formData.kitColor,
+        kit_shorts_color: formData.kitShortsColor,
+        kit_socks_color: formData.kitSocksColor,
         team_name: 'ROCKFORD FIRE',
     }), [formData, eventType]);
+
+    // Apply custom uploaded bg into the cover choice object so CoverPreview
+    // picks it up. coverChoice.bg='custom' + coverChoice.bgImage=dataURL.
+    const effectiveCoverChoice = useMemo(() => (
+        customBgImage ? { ...coverChoice, bg: 'custom', bgImage: customBgImage } : coverChoice
+    ), [coverChoice, customBgImage]);
+
+    const handleBgUpload = (file) => {
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { setError('Background image must be under 5 MB.'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => setCustomBgImage(e.target.result);
+        reader.readAsDataURL(file);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -140,8 +231,8 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
         setError(null);
 
         try {
-            // Resolve team_id from profile or memberships fallback
-            let teamId = profile?.team_id;
+            // Resolve team_id — for edit mode, take from existingEvent.
+            let teamId = existingEvent?.team_id || profile?.team_id;
             if (!teamId) {
                 const { data: memberships } = await supabase
                     .from('team_memberships')
@@ -157,8 +248,6 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                 ? new Date(`${formData.date}T${formData.endTime}:00`)
                 : new Date(startDateTime.getTime() + 90 * 60000);
 
-            // Resolve title. Games: always "Fire Vs <opponent>", even if the
-            // user leaves opponent blank we still get a recognizable label.
             const opponent = (formData.opponentName || '').trim();
             const resolvedTitle = eventType === 'game'
                 ? `Fire Vs ${opponent || 'TBD'}`
@@ -166,23 +255,41 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
 
             if (!resolvedLocation) throw new Error('Pick a location.');
 
-            const { data, error } = await supabase
-                .from('events')
-                .insert({
-                    team_id: teamId,
-                    title: resolvedTitle,
-                    type: eventType,
-                    start_time: startDateTime.toISOString(),
-                    end_time: endDateTime.toISOString(),
-                    location_name: resolvedLocation,
-                    notes: formData.notes,
-                    created_by: user.id,
-                    opponent_name: eventType === 'game' ? (opponent || null) : null,
-                    video_url: eventType === 'game' ? (formData.videoUrl || null) : null,
-                    kit_color: eventType === 'game' ? (formData.kitColor || null) : null,
-                })
-                .select()
-                .single();
+            // Build row. Kit fields: when useCustomKit, write shorts+socks.
+            // Otherwise clear them (Red / White have no shorts/socks).
+            const customKit = formData.useCustomKit;
+            const eventRow = {
+                team_id: teamId,
+                title: resolvedTitle,
+                type: eventType,
+                start_time: startDateTime.toISOString(),
+                end_time: endDateTime.toISOString(),
+                location_name: resolvedLocation,
+                notes: formData.notes,
+                opponent_name: eventType === 'game' ? (opponent || null) : null,
+                video_url: eventType === 'game' ? (formData.videoUrl || null) : null,
+                kit_color: eventType === 'game' ? (formData.kitColor || null) : null,
+                kit_shorts_color: eventType === 'game' && customKit ? (formData.kitShortsColor || null) : null,
+                kit_socks_color:  eventType === 'game' && customKit ? (formData.kitSocksColor  || null) : null,
+            };
+
+            let data, error;
+            if (isEditMode) {
+                const res = await supabase
+                    .from('events')
+                    .update(eventRow)
+                    .eq('id', existingEvent.id)
+                    .select()
+                    .single();
+                data = res.data; error = res.error;
+            } else {
+                const res = await supabase
+                    .from('events')
+                    .insert({ ...eventRow, created_by: user.id })
+                    .select()
+                    .single();
+                data = res.data; error = res.error;
+            }
 
             if (error) throw error;
 
@@ -190,6 +297,9 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
             // storage, UPDATE the just-created event row with the URL,
             // then auto-post into the team chat. All best-effort — a
             // cover failure shouldn't roll back the event itself.
+            // Edit mode: only re-render the cover if user toggled it on
+            // (coverEnabled is false by default in edit mode). Also skip
+            // chat auto-post on edits to avoid noise.
             if (coverEnabled && coverRef.current) {
                 try {
                     const blob = await toBlob(coverRef.current, {
@@ -209,26 +319,28 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                             data.cover_image_url = publicUrl;
                             data.cover_template = coverChoice;
 
-                            // Auto-post into the team chat so the cover
-                            // shows up GroupMe-style. Find the team's
-                            // conversation, drop a message with the URL.
-                            const { data: convo } = await supabase
-                                .from('conversations')
-                                .select('id, org_id')
-                                .eq('team_id', teamId)
-                                .eq('type', 'team')
-                                .limit(1)
-                                .maybeSingle();
-                            if (convo?.id) {
-                                await supabase.from('messages').insert({
-                                    conversation_id: convo.id,
-                                    sender_id: user.id,
-                                    content: publicUrl,
-                                    message_type: 'image',
-                                    sender_name: profile?.full_name || 'Coach',
-                                    sender_role: profile?.role || 'coach',
-                                    org_id: convo.org_id,
-                                });
+                            // Auto-post into the team chat — only on
+                            // create. On edit we don't want to spam the
+                            // chat every time someone tweaks the time.
+                            if (!isEditMode) {
+                                const { data: convo } = await supabase
+                                    .from('conversations')
+                                    .select('id, org_id')
+                                    .eq('team_id', teamId)
+                                    .eq('type', 'team')
+                                    .limit(1)
+                                    .maybeSingle();
+                                if (convo?.id) {
+                                    await supabase.from('messages').insert({
+                                        conversation_id: convo.id,
+                                        sender_id: user.id,
+                                        content: publicUrl,
+                                        message_type: 'image',
+                                        sender_name: profile?.full_name || 'Coach',
+                                        sender_role: profile?.role || 'coach',
+                                        org_id: convo.org_id,
+                                    });
+                                }
                             }
                         } else {
                             console.warn('[CreateEventModal] cover upload failed:', upErr);
@@ -256,7 +368,7 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                 {/* Header */}
                 <div className="bg-gray-900/50 p-6 border-b border-white/10 flex justify-between items-center shrink-0">
                     <h2 className="text-xl text-white font-display uppercase font-bold tracking-wider">
-                        Add <span className="text-brand-green">Event</span>
+                        {isEditMode ? <>Edit <span className="text-brand-gold">Event</span></> : <>Add <span className="text-brand-green">Event</span></>}
                     </h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
                         <X className="w-6 h-6" />
@@ -394,26 +506,51 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                 )}
                             </div>
 
-                            {/* Game-specific: Kit picker */}
+                            {/* Game-specific: Kit picker (Red / White / Custom 3-piece) */}
                             {eventType === 'game' && (
                                 <div>
                                     <label className="block text-gray-500 text-xs uppercase font-bold mb-2">Kit</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {KIT_OPTIONS.map(kit => {
-                                            const selected = formData.kitColor === kit.value;
-                                            return (
-                                                <button
-                                                    key={kit.value}
-                                                    type="button"
-                                                    onClick={() => setFormData({ ...formData, kitColor: kit.value })}
-                                                    className={`p-3 rounded-lg border flex items-center gap-3 transition-all ${selected ? 'bg-brand-gold/10 border-brand-gold shadow-lg' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
-                                                >
-                                                    <JerseySwatch color={kit.color} stroke={kit.stroke} size={40} />
-                                                    <span className={`uppercase font-display text-xs tracking-wider font-bold ${selected ? 'text-brand-gold' : 'text-gray-300'}`}>{kit.label}</span>
-                                                </button>
-                                            );
-                                        })}
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {/* Red */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(f => ({ ...f, useCustomKit: false, kitColor: 'red', kitShortsColor: '', kitSocksColor: '' }))}
+                                            className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${!formData.useCustomKit && formData.kitColor === 'red' ? 'bg-brand-gold/10 border-brand-gold' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                        >
+                                            <JerseySwatch color="#dc2626" stroke="#7f1d1d" size={36} />
+                                            <span className="uppercase text-[10px] tracking-wider font-bold text-gray-300">Red</span>
+                                        </button>
+                                        {/* White */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(f => ({ ...f, useCustomKit: false, kitColor: 'white', kitShortsColor: '', kitSocksColor: '' }))}
+                                            className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${!formData.useCustomKit && formData.kitColor === 'white' ? 'bg-brand-gold/10 border-brand-gold' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                        >
+                                            <JerseySwatch color="#f8fafc" stroke="#475569" size={36} />
+                                            <span className="uppercase text-[10px] tracking-wider font-bold text-gray-300">White</span>
+                                        </button>
+                                        {/* Custom */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(f => ({ ...f, useCustomKit: true, kitColor: f.kitColor && !['red','white'].includes(f.kitColor) ? f.kitColor : 'navy' }))}
+                                            className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${formData.useCustomKit ? 'bg-brand-gold/10 border-brand-gold' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                        >
+                                            <div className="w-9 h-9 rounded border-2 border-dashed border-gray-500 flex items-center justify-center text-[10px] text-gray-400 font-bold">3pc</div>
+                                            <span className="uppercase text-[10px] tracking-wider font-bold text-gray-300">Custom</span>
+                                        </button>
                                     </div>
+
+                                    {/* 3-piece custom kit pickers */}
+                                    {formData.useCustomKit && (
+                                        <div className="mt-3 space-y-3 p-3 bg-black/30 rounded-lg border border-white/10">
+                                            <KitColorRow label="Shirt"  options={SHIRT_COLORS}  value={formData.kitColor}
+                                                onChange={(v) => setFormData(f => ({ ...f, kitColor: v }))} />
+                                            <KitColorRow label="Shorts" options={SHORTS_COLORS} value={formData.kitShortsColor}
+                                                onChange={(v) => setFormData(f => ({ ...f, kitShortsColor: v }))} />
+                                            <KitColorRow label="Socks"  options={SOCKS_COLORS}  value={formData.kitSocksColor}
+                                                onChange={(v) => setFormData(f => ({ ...f, kitSocksColor: v }))} />
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -450,7 +587,7 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                         <div className="flex justify-center bg-black/40 p-2 rounded-lg">
                                             <div style={{ width: 600, height: 315, overflow: 'hidden' }}>
                                                 <div style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}>
-                                                    <CoverPreview ref={coverRef} event={previewEvent} choice={coverChoice} />
+                                                    <CoverPreview ref={coverRef} event={previewEvent} choice={effectiveCoverChoice} />
                                                 </div>
                                             </div>
                                         </div>
@@ -472,23 +609,38 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                             </div>
                                         </div>
 
-                                        {/* Background buttons */}
+                                        {/* Background buttons + upload */}
                                         <div>
                                             <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1.5">Background</div>
-                                            <div className="grid grid-cols-3 gap-2">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                                 {BACKGROUNDS.map(b => (
                                                     <button
                                                         key={b.id}
                                                         type="button"
-                                                        onClick={() => setCoverChoice(c => ({ ...c, bg: b.id }))}
-                                                        className={`relative p-2 rounded text-left text-[11px] border h-14 overflow-hidden ${coverChoice.bg === b.id ? 'border-brand-gold ring-2 ring-brand-gold/40' : 'border-white/10 hover:border-white/30'}`}
+                                                        onClick={() => { setCustomBgImage(null); setCoverChoice(c => ({ ...c, bg: b.id })); }}
+                                                        className={`relative p-2 rounded text-left text-[11px] border h-14 overflow-hidden ${(coverChoice.bg === b.id && !customBgImage) ? 'border-brand-gold ring-2 ring-brand-gold/40' : 'border-white/10 hover:border-white/30'}`}
                                                         style={parseInlineCss(b.css)}
                                                     >
                                                         <div className="absolute inset-0 bg-black/30" />
                                                         <div className="relative text-white font-bold uppercase tracking-wider">{b.label}</div>
                                                     </button>
                                                 ))}
+                                                {/* Upload custom bg */}
+                                                <label className={`relative p-2 rounded text-left text-[11px] border h-14 overflow-hidden bg-white/5 cursor-pointer flex items-center justify-center gap-1 ${customBgImage ? 'border-brand-gold ring-2 ring-brand-gold/40' : 'border-white/10 hover:border-white/30'}`}
+                                                    style={customBgImage ? { backgroundImage: `url(${customBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                                                >
+                                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleBgUpload(e.target.files?.[0])} />
+                                                    <div className="absolute inset-0 bg-black/40" />
+                                                    <div className="relative text-white font-bold uppercase tracking-wider text-center">
+                                                        {customBgImage ? '✓ Custom' : '⬆ Upload'}
+                                                    </div>
+                                                </label>
                                             </div>
+                                            {customBgImage && (
+                                                <button type="button" onClick={() => setCustomBgImage(null)} className="text-[10px] text-gray-500 hover:text-white mt-2">
+                                                    Clear custom background
+                                                </button>
+                                            )}
                                         </div>
                                     </>
                                 )}
@@ -522,7 +674,7 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                 disabled={loading}
                                 className="px-6 py-2 rounded bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider hover:bg-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)] disabled:opacity-50"
                             >
-                                {loading ? 'Saving...' : 'Create Event'}
+                                {loading ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Event')}
                             </button>
                         </div>
                     </form>

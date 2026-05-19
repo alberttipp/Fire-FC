@@ -19,7 +19,15 @@ const CoverPreview = React.forwardRef(({ event, choice, crestUrl = '/branding/lo
     const location = event?.location_name || 'TBD';
     const opponent = event?.opponent_name || 'TBA';
     const kit = event?.kit_color || '';
+    const kitShorts = event?.kit_shorts_color || '';
+    const kitSocks  = event?.kit_socks_color  || '';
     const teamName = event?.team_name || 'ROCKFORD FIRE';
+
+    // Custom uploaded bg overrides the gradient with a cover-fit image.
+    const isCustomBg = choice?.bg === 'custom' && choice?.bgImage;
+    const bgStyle = isCustomBg
+        ? { background: `url(${choice.bgImage}) center/cover no-repeat` }
+        : parseCss(bg.css);
 
     return (
         <div
@@ -31,16 +39,20 @@ const CoverPreview = React.forwardRef(({ event, choice, crestUrl = '/branding/lo
                 overflow: 'hidden',
                 borderRadius: 16,
                 fontFamily: "'Inter', system-ui, sans-serif",
-                ...parseCss(bg.css),
+                ...bgStyle,
             }}
         >
+            {/* Darken overlay when bg is a user-uploaded photo so the text stays readable. */}
+            {isCustomBg && (
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.55) 100%)' }} />
+            )}
             {tpl === 'match_day' && (
                 <MatchDay teamName={teamName} opponent={opponent}
-                    dateStr={dateStr} timeStr={timeStr} location={location} kit={kit} crestUrl={crestUrl} />
+                    dateStr={dateStr} timeStr={timeStr} location={location} kit={kit} kitShorts={kitShorts} kitSocks={kitSocks} crestUrl={crestUrl} />
             )}
             {tpl === 'practice' && (
                 <Practice teamName={teamName}
-                    dateStr={dateStr} timeStr={timeStr} location={location} kit={kit} crestUrl={crestUrl} />
+                    dateStr={dateStr} timeStr={timeStr} location={location} kit={kit} kitShorts={kitShorts} kitSocks={kitSocks} crestUrl={crestUrl} />
             )}
             {tpl === 'social' && (
                 <Social title={event?.title || 'TEAM HANGOUT'}
@@ -51,6 +63,43 @@ const CoverPreview = React.forwardRef(({ event, choice, crestUrl = '/branding/lo
 });
 
 CoverPreview.displayName = 'CoverPreview';
+
+// Resolve a kit color name (red/white/navy/orange/crimson/black/grey)
+// to a CSS color string. Mirrors the table in CreateEventModal.
+const KIT_COLOR_MAP = {
+    red: '#dc2626', white: '#f8fafc',
+    navy: '#1e3a8a', orange: '#f97316', crimson: '#991b1b',
+    black: '#0a0a0a', grey: '#6b7280', gray: '#6b7280',
+};
+function resolveKitCss(name) {
+    if (!name) return null;
+    return KIT_COLOR_MAP[name.toLowerCase()] || name; // assume CSS color if not in map
+}
+
+// Renders either a single shirt swatch OR a 3-piece (shirt/shorts/socks)
+// strip depending on whether shorts/socks colors are present.
+function KitSwatches({ kit, kitShorts, kitSocks }) {
+    const shirt = resolveKitCss(kit);
+    const shorts = resolveKitCss(kitShorts);
+    const socks = resolveKitCss(kitSocks);
+    if (!shirt) return null;
+    const pieces = [shirt, shorts || shirt, socks || shirt].filter(Boolean);
+    const sameAll = pieces.every(p => p === shirt);
+    return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            👕
+            {sameAll ? (
+                <span style={{ display: 'inline-block', width: 18, height: 18, background: shirt, borderRadius: 4, border: '2px solid rgba(255,255,255,0.4)' }} />
+            ) : (
+                <span style={{ display: 'inline-flex', gap: 4 }}>
+                    {pieces.map((c, i) => (
+                        <span key={i} style={{ display: 'inline-block', width: 18, height: 18, background: c, borderRadius: 4, border: '2px solid rgba(255,255,255,0.4)' }} />
+                    ))}
+                </span>
+            )}
+        </span>
+    );
+}
 
 function parseCss(cssString) {
     const result = {};
@@ -67,7 +116,7 @@ function parseCss(cssString) {
     return result;
 }
 
-function MatchDay({ teamName, opponent, dateStr, timeStr, location, kit, crestUrl }) {
+function MatchDay({ teamName, opponent, dateStr, timeStr, location, kit, kitShorts, kitSocks, crestUrl }) {
     return (
         <div style={{ position: 'absolute', inset: 0, padding: 50, color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div style={{ textAlign: 'center' }}>
@@ -90,13 +139,13 @@ function MatchDay({ teamName, opponent, dateStr, timeStr, location, kit, crestUr
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid rgba(255,255,255,0.25)', paddingTop: 18, fontSize: 22, fontWeight: 700, letterSpacing: 1 }}>
                 <span>📅 {dateStr} · {timeStr}</span>
                 <span>📍 {location}</span>
-                {kit && <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>👕 <span style={{ display: 'inline-block', width: 18, height: 18, background: kit, borderRadius: 4, border: '2px solid rgba(255,255,255,0.4)' }} /></span>}
+                <KitSwatches kit={kit} kitShorts={kitShorts} kitSocks={kitSocks} />
             </div>
         </div>
     );
 }
 
-function Practice({ teamName, dateStr, timeStr, location, kit, crestUrl }) {
+function Practice({ teamName, dateStr, timeStr, location, kit, kitShorts, kitSocks, crestUrl }) {
     return (
         <div style={{ position: 'absolute', inset: 0, padding: 60, color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
@@ -112,7 +161,7 @@ function Practice({ teamName, dateStr, timeStr, location, kit, crestUrl }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid rgba(255,255,255,0.25)', paddingTop: 18, fontSize: 24, fontWeight: 700, letterSpacing: 1 }}>
                 <span>📅 {dateStr} · {timeStr}</span>
                 <span>📍 {location}</span>
-                {kit && <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>👕 <span style={{ display: 'inline-block', width: 18, height: 18, background: kit, borderRadius: 4, border: '2px solid rgba(255,255,255,0.4)' }} /></span>}
+                <KitSwatches kit={kit} kitShorts={kitShorts} kitSocks={kitSocks} />
             </div>
         </div>
     );
