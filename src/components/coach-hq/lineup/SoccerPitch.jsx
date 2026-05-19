@@ -15,11 +15,11 @@ import { FORMATIONS } from './formations';
 const SoccerPitch = ({ formation = '4-4-2', assignments = {}, players = [], onUnassign, readOnly = false }) => {
     const def = FORMATIONS[formation] || FORMATIONS['4-4-2'];
     return (
-        // Two sizing modes so the pitch behaves on both phone and desktop:
-        //   - Mobile (no h-full from parent): width-driven, capped at 32rem
-        //   - Desktop: height-driven via h-full; width derives from aspect-[2/3]
-        // We use w-auto h-full on md+ and the parent grid centers it.
-        <div className="relative aspect-[2/3] w-full max-w-[32rem] md:w-auto md:h-full md:max-w-none bg-gradient-to-b from-emerald-700 to-emerald-800 rounded-lg overflow-hidden border-2 border-white/20 shadow-xl">
+        // Fit the pitch inside whatever the parent gives us, keeping the 2:3
+        // ratio. h-full nudges it to fill height first; max-w-full + max-h-full
+        // shrink it down when either dimension is the binding constraint.
+        // Browsers preserve aspect-ratio when max-* clamps the larger axis.
+        <div className="relative aspect-[2/3] h-full max-h-full max-w-full bg-gradient-to-b from-emerald-700 to-emerald-800 rounded-lg overflow-hidden border-2 border-white/20 shadow-xl">
             {/* Pitch lines */}
             <svg viewBox="0 0 100 150" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                 {/* outer */}

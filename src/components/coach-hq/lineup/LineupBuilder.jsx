@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader2, Save, Eye } from 'lucide-react';
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { supabase } from '../../../supabaseClient';
@@ -185,9 +186,11 @@ const LineupBuilder = ({ event, onClose }) => {
     const slots = FORMATIONS[formation]?.slots || [];
     const filledCount = slots.filter(s => assignments[s.id]).length;
 
-    return (
-        <div className="fixed inset-0 z-[60] bg-black/85 flex items-stretch justify-stretch md:items-center md:justify-center md:p-3" onClick={handleClose}>
-            <div className="bg-brand-dark md:rounded-2xl border border-white/10 w-full h-full md:w-[96vw] md:h-[96vh] md:max-w-[1600px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+    // Portaled to <body> so no ancestor (transform, overflow:hidden,
+    // backdrop-blur, stacking context) can constrain or trap it.
+    return createPortal(
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-stretch justify-stretch md:items-center md:justify-center md:p-3" onClick={handleClose}>
+            <div className="bg-brand-dark md:rounded-2xl border border-white/10 w-screen h-[100dvh] md:w-[96vw] md:h-[96vh] md:max-w-[1600px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
                     <div className="min-w-0">
@@ -221,26 +224,30 @@ const LineupBuilder = ({ event, onClose }) => {
                     </div>
                 </div>
 
-                {/* Body — pitch fills vertical space, bench sits to the side */}
-                <div className="flex-1 min-h-0 overflow-hidden p-3 md:p-4">
+                {/* Body — flex layout: pitch grows to fill, bench is fixed-size
+                    and always visible (bottom on mobile, right on desktop). */}
+                <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-2 md:gap-3 p-2 md:p-3 overflow-hidden">
                     {loading ? (
-                        <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-brand-green" /></div>
+                        <div className="flex-1 flex justify-center items-center"><Loader2 className="w-8 h-8 animate-spin text-brand-green" /></div>
                     ) : (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-4 h-full">
-                                <div className="flex items-center justify-center min-h-0 min-w-0 overflow-auto">
-                                    <SoccerPitch
-                                        formation={formation}
-                                        assignments={assignments}
-                                        players={players}
-                                        onUnassign={handleUnassign}
-                                        readOnly={readOnly}
-                                    />
-                                </div>
-                                <div className="min-h-0 overflow-hidden">
+                            {/* Pitch — grows to fill remaining space */}
+                            <div className="flex-1 min-h-0 min-w-0 flex items-center justify-center">
+                                <SoccerPitch
+                                    formation={formation}
+                                    assignments={assignments}
+                                    players={players}
+                                    onUnassign={handleUnassign}
+                                    readOnly={readOnly}
+                                />
+                            </div>
+                            {/* Bench — always visible. Mobile: bottom strip (h-32, horizontal scroll).
+                                Desktop: right column (w-72, vertical scroll). */}
+                            {!readOnly && (
+                                <div className="shrink-0 h-32 md:h-auto md:w-72">
                                     <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
                                 </div>
-                            </div>
+                            )}
                         </DndContext>
                     )}
                 </div>
