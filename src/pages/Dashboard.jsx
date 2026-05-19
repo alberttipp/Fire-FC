@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
+import { isStaff as isStaffRole } from '../constants/roles';
 
 const PreviewPickerModal = lazy(() => import('../components/dashboard/PreviewPickerModal'));
 
@@ -27,6 +28,7 @@ const RulesView = lazy(() => import('../components/dashboard/RulesView'));
 const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
 const NotificationPanel = lazy(() => import('../components/dashboard/NotificationPanel'));
 const IDPHub = lazy(() => import('../components/dashboard/IDPHub'));
+const CoachHQView = lazy(() => import('../components/coach-hq/CoachHQView'));
 
 const ViewLoader = () => (
     <div className="flex items-center justify-center py-20">
@@ -38,10 +40,15 @@ const Dashboard = () => {
     const { user, profile, signOut } = useAuth(); // Added profile
     const navigate = useNavigate();
     const [currentView, setCurrentView] = useState('club');
+    const [hasPickedView, setHasPickedView] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showPreviewPicker, setShowPreviewPicker] = useState(false);
+
+    // Track a wrapper so a button click prevents the staff default from
+    // overriding the user's pick after profile loads late.
+    const pickView = (v) => { setHasPickedView(true); setCurrentView(v); };
 
     // Voice command integration
     const voiceCommand = useVoiceCommand();
@@ -151,12 +158,24 @@ const Dashboard = () => {
             case 'notifications': return <NotificationsView />;
             case 'financial': return <FinancialView />;
             case 'tryouts': return <TryoutHub />;
+            case 'coach_hq': return <CoachHQView onJumpToChat={() => pickView('chat')} />;
             default: return <ClubView />;
         }
     }
 
     // Check profile.role (Real User) or user.role (Demo User)
     const isManager = profile?.role === 'manager' || user?.role === 'manager';
+    const effectiveRole = profile?.role || user?.role;
+    const isStaff = isStaffRole(effectiveRole);
+
+    // Staff land on Coach HQ instead of Club by default. Wait until profile
+    // is resolved so we don't flicker. Set hasPickedView once applied so
+    // the effect never re-fires and a later click on 'Club' isn't reverted.
+    useEffect(() => {
+        if (!effectiveRole || hasPickedView) return;
+        if (isStaff) setCurrentView('coach_hq');
+        setHasPickedView(true);
+    }, [effectiveRole, isStaff, hasPickedView]);
     return (
         <div className="min-h-screen bg-brand-dark pb-20 overflow-x-hidden">
             {/* Top Navigation Bar */}
@@ -174,8 +193,16 @@ const Dashboard = () => {
                     <div className="flex items-center gap-1.5 sm:gap-6 shrink-0">
                         {/* View Switcher Dropdown (Styled as buttons for now for simplicity/touch) */}
                         <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10">
+                            {isStaff && (
+                                <button
+                                    onClick={() => pickView('coach_hq')}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'coach_hq' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    <LayoutDashboard className="w-3 h-3" /> Coach HQ
+                                </button>
+                            )}
                             <button
-                                onClick={() => setCurrentView('club')}
+                                onClick={() => pickView('club')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'club' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Club
@@ -279,6 +306,7 @@ const Dashboard = () => {
                                     <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)} />
                                     <div className="absolute right-0 top-full mt-2 w-36 bg-gray-900 border border-white/10 rounded shadow-xl z-50 max-h-[70vh] overflow-y-auto">
                                         {[
+                                            ...(isStaff ? [{ id: 'coach_hq', label: 'Coach HQ' }] : []),
                                             { id: 'club', label: 'Club' },
                                             { id: 'team', label: 'Team' },
                                             { id: 'practice', label: 'Practice' },
@@ -342,9 +370,10 @@ const Dashboard = () => {
             {/* Mobile Bottom Nav */}
             <MobileBottomNav
                 currentView={currentView}
-                onViewChange={setCurrentView}
+                onViewChange={pickView}
                 onLogout={handleLogout}
                 extraItems={[
+                    ...(isStaff ? [{ id: 'coach_hq', label: 'Coach HQ', icon: LayoutDashboard }] : []),
                     { id: 'notifications', label: 'Alerts', icon: Bell },
                     ...(isManager ? [
                         { id: 'tryouts', label: 'Tryouts', icon: ClipboardCheck },
