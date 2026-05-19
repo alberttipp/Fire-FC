@@ -65,20 +65,36 @@ Deno.serve(async (req) => {
         let success = true;
         const errors: string[] = [];
 
-        // 1. In-app notification
-        const { error: inAppErr } = await supabase.from('notifications').insert({
-            user_id: row.user_id,
-            type: row.category,
-            title: row.title,
-            message: row.body ?? '',
-            read: false,
-            action_type: 'open_url',
-            action_data: { url: row.url ?? '/' },
-            org_id: row.org_id ?? null,
-        });
-        if (inAppErr) { success = false; errors.push(`inapp: ${inAppErr.message}`); }
+        // Check per-channel preferences / snooze / quiet hours.
+        // should_notify() is the single source of truth for delivery gating.
+        const [{ data: inAppAllowed }, { data: pushAllowed }] = await Promise.all([
+            supabase.rpc('should_notify', { p_user_id: row.user_id, p_category: row.category, p_channel: 'in_app' }),
+            supabase.rpc('should_notify', { p_user_id: row.user_id, p_category: row.category, p_channel: 'push' }),
+        ]);
 
-        // 2. Push notification (only if at least one subscription exists for the user).
+        // 1. In-app notification (skip only if explicitly disabled — never
+        //    skip for snooze/quiet hours, since the bell badge is the
+        //    "catch up on what you missed" surface).
+        if (inAppAllowed !== false) {
+            const { error: inAppErr } = await supabase.from('notifications').insert({
+                user_id: row.user_id,
+                type: row.category,
+                title: row.title,
+                message: row.body ?? '',
+                read: false,
+                action_type: 'open_url',
+                action_data: { url: row.url ?? '/' },
+                org_id: row.org_id ?? null,
+            });
+            if (inAppErr) { success = false; errors.push(`inapp: ${inAppErr.message}`); }
+        }
+
+        // 2. Push notification — only if should_notify returned true AND
+        //    the user has at least one registered subscription.
+        if (pushAllowed === false) {
+            // Quietly skipped — not a failure
+            console.log(`[drain] push gated off for user=${row.user_id} cat=${row.category}`);
+        } else {
         // send-push is deployed with --no-verify-jwt so it accepts unauthenticated
         // calls. We deliberately do NOT send an Authorization header — Supabase's
         // function gateway still validates JWT *format* on Authorization even
@@ -109,6 +125,7 @@ Deno.serve(async (req) => {
             success = false;
             errors.push(`push: ${e?.message ?? e}`);
         }
+        }  // close pushAllowed else block
 
         if (success) {
             await supabase
