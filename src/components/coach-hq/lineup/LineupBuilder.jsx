@@ -191,12 +191,12 @@ const LineupBuilder = ({ event, onClose }) => {
         <div className="fixed inset-0 z-[100] bg-black/90 flex items-stretch justify-stretch md:items-center md:justify-center md:p-3" onClick={handleClose}>
             <div className="bg-brand-dark md:rounded-2xl border border-white/10 w-full h-full md:w-[96vw] md:h-[96vh] md:max-w-[1600px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+                <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
                     <div className="min-w-0">
-                        <div className="text-[10px] uppercase tracking-widest text-brand-gold font-bold flex items-center gap-1.5">
+                        <div className="text-[9px] uppercase tracking-widest text-brand-gold font-bold flex items-center gap-1">
                             {readOnly ? <><Eye className="w-3 h-3" /> Lineup</> : 'Lineup Builder'}
                         </div>
-                        <h2 className="text-white font-bold truncate">{event?.title || 'Game'}</h2>
+                        <h2 className="text-white text-sm md:text-base font-bold truncate">{event?.title || 'Game'}</h2>
                     </div>
                     <button onClick={handleClose} className="p-1.5 text-gray-400 hover:text-white shrink-0">
                         <X className="w-5 h-5" />
@@ -204,7 +204,7 @@ const LineupBuilder = ({ event, onClose }) => {
                 </div>
 
                 {/* Toolbar */}
-                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3 flex-wrap shrink-0">
+                <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between gap-2 flex-wrap shrink-0">
                     <FormationPicker value={formation} onChange={handleFormationChange} readOnly={readOnly} />
                     <div className="flex items-center gap-3">
                         <span className="text-xs text-gray-400">{filledCount}/{slots.length} on field</span>
@@ -240,10 +240,10 @@ const LineupBuilder = ({ event, onClose }) => {
                                     readOnly={readOnly}
                                 />
                             </div>
-                            {/* Bench — always visible. Mobile: bottom strip (h-32, horizontal scroll).
-                                Desktop: right column (w-72, vertical scroll). */}
+                            {/* Bench — always visible. Mobile: bottom strip (h-24, horizontal scroll).
+                                Desktop: right column (w-64, vertical scroll). */}
                             {!readOnly && (
-                                <div className="shrink-0 h-32 md:h-auto md:w-72">
+                                <div className="shrink-0 h-24 md:h-auto md:w-64">
                                     <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
                                 </div>
                             )}
