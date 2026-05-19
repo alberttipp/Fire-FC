@@ -78,13 +78,19 @@ Deno.serve(async (req) => {
         });
         if (inAppErr) { success = false; errors.push(`inapp: ${inAppErr.message}`); }
 
-        // 2. Push notification (only if at least one subscription exists for the user)
+        // 2. Push notification (only if at least one subscription exists for the user).
+        // send-push is deployed with --no-verify-jwt so it accepts unauthenticated
+        // calls. We deliberately do NOT send an Authorization header — Supabase's
+        // function gateway still validates JWT *format* on Authorization even
+        // when verify_jwt is off, and this project uses the new sb_secret_*
+        // API key format (not a JWT) for SUPABASE_SERVICE_ROLE_KEY. Sending
+        // it as Bearer triggers INVALID_JWT_FORMAT before our code runs.
+        // No auth header = clean unauthenticated call = no format check.
         try {
             const res = await fetch(`${FUNCTIONS_URL}/send-push`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SERVICE_ROLE}`,
                 },
                 body: JSON.stringify({
                     user_id: row.user_id,
