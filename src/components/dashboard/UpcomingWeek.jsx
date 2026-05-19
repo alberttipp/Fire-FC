@@ -11,6 +11,7 @@ import { STAFF_ROLES } from '../../constants/roles';
 import { resolveWritablePlayers, upsertRsvpForMany, namesList, statusLabel } from '../../utils/rsvp';
 import CreateEventModal from './CreateEventModal';
 const EventDetailModal = lazy(() => import('./calendar/EventDetailModal'));
+const LineupBuilder    = lazy(() => import('../coach-hq/lineup/LineupBuilder'));
 
 // Event type icons and colors
 const EVENT_STYLES = {
@@ -36,6 +37,9 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     const [rsvpCounts, setRsvpCounts] = useState({}); // { eventId: { going, not_going, vacation, total } }
     const [loading, setLoading] = useState(true);
     const [openEventDetail, setOpenEventDetail] = useState(null);
+    // Lineup is its OWN top-level surface — we close the event detail
+    // before opening it so nothing else competes for the viewport.
+    const [openLineupEvent, setOpenLineupEvent] = useState(null);
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [weekOffset, setWeekOffset] = useState(0);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -439,7 +443,19 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                 inside this modal. */}
             {openEventDetail && (
                 <Suspense fallback={null}>
-                    <EventDetailModal event={openEventDetail} onClose={() => { setOpenEventDetail(null); fetchEvents(); }} />
+                    <EventDetailModal
+                        event={openEventDetail}
+                        onClose={() => { setOpenEventDetail(null); fetchEvents(); }}
+                        onOpenLineup={(e) => { setOpenEventDetail(null); setOpenLineupEvent(e); }}
+                    />
+                </Suspense>
+            )}
+
+            {/* Lineup builder — rendered at UpcomingWeek level so it gets
+                the whole viewport, not nested inside EventDetailModal. */}
+            {openLineupEvent && (
+                <Suspense fallback={null}>
+                    <LineupBuilder event={openLineupEvent} onClose={() => setOpenLineupEvent(null)} />
                 </Suspense>
             )}
         </div>

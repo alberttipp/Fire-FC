@@ -27,6 +27,7 @@ const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolV
 const DrillLibraryModal = lazy(() => import('../components/dashboard/DrillLibraryModal'));
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
 const EventDetailModal = lazy(() => import('../components/dashboard/calendar/EventDetailModal'));
+const LineupBuilder    = lazy(() => import('../components/coach-hq/lineup/LineupBuilder'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
 const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
 
@@ -54,6 +55,7 @@ const ParentDashboard = () => {
     // When set, EventDetailModal opens with this event so the parent can see
     // who's going / out / no-response on the team. Same modal as the coach view.
     const [openEvent, setOpenEvent] = useState(null);
+    const [openLineupEvent, setOpenLineupEvent] = useState(null);
 
     // Wire voice navigation: lets the user say "go to schedule" / "messages"
     // / "overview" and have the parent dashboard switch tabs.
@@ -1186,7 +1188,17 @@ const ParentDashboard = () => {
 
             {openEvent && (
                 <Suspense fallback={null}>
-                    <EventDetailModal event={openEvent} onClose={() => setOpenEvent(null)} />
+                    <EventDetailModal
+                        event={openEvent}
+                        onClose={() => setOpenEvent(null)}
+                        onOpenLineup={(e) => { setOpenEvent(null); setOpenLineupEvent(e); }}
+                    />
+                </Suspense>
+            )}
+
+            {openLineupEvent && (
+                <Suspense fallback={null}>
+                    <LineupBuilder event={openLineupEvent} onClose={() => setOpenLineupEvent(null)} />
                 </Suspense>
             )}
         </div>

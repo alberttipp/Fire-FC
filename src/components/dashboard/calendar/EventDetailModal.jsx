@@ -9,7 +9,6 @@ import RsvpSummary from './RsvpSummary';
 import { isStaff } from '../../../constants/roles';
 const EventCoverDesigner = lazy(() => import('../../event-cover/EventCoverDesigner'));
 const CreateEventModal   = lazy(() => import('../CreateEventModal'));
-const LineupBuilder      = lazy(() => import('../../coach-hq/lineup/LineupBuilder'));
 
 const getYouTubeEmbedUrl = (url) => {
     if (!url) return null;
@@ -24,7 +23,7 @@ const getYouTubeEmbedUrl = (url) => {
     return url;
 };
 
-const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEventChanged }) => {
+const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEventChanged, onOpenLineup }) => {
     const { profile } = useAuth();
     const toast = useToast();
     const [event, setEvent] = useState(initialEvent);
@@ -32,7 +31,6 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
     const [loading, setLoading] = useState(true);
     const [editingCover, setEditingCover] = useState(false);
     const [editingEvent, setEditingEvent] = useState(false);
-    const [showLineup, setShowLineup] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const isGame = event?.type === 'game';
     const config = getEventConfig(event.type);
@@ -125,7 +123,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                     <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5">
                         {isGame && (
                             <button
-                                onClick={() => setShowLineup(true)}
+                                onClick={() => onOpenLineup?.(event)}
                                 className="text-xs text-brand-green hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-brand-green/10"
                             >
                                 <Users className="w-3.5 h-3.5" /> Lineup
@@ -158,7 +156,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                 {!isCoach && isGame && (
                     <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5">
                         <button
-                            onClick={() => setShowLineup(true)}
+                            onClick={() => onOpenLineup?.(event)}
                             className="text-xs text-brand-green hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-brand-green/10"
                         >
                             <Users className="w-3.5 h-3.5" /> View Lineup
@@ -321,12 +319,6 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                 </Suspense>
             )}
 
-            {/* Lineup builder — game events only. Staff can edit; everyone else views. */}
-            {showLineup && (
-                <Suspense fallback={null}>
-                    <LineupBuilder event={event} onClose={() => setShowLineup(false)} />
-                </Suspense>
-            )}
         </div>
     );
 };

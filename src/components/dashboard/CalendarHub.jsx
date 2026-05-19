@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Grid3X3, List, CalendarDays, ClipboardList } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,7 @@ import UpcomingWeek from './UpcomingWeek';
 import MonthGrid from './calendar/MonthGrid';
 import AgendaList from './calendar/AgendaList';
 import EventDetailModal from './calendar/EventDetailModal';
+const LineupBuilder = lazy(() => import('../coach-hq/lineup/LineupBuilder'));
 import SessionRunner from './calendar/SessionRunner';
 import RosterPlan from './calendar/RosterPlan';
 import { isStaff } from '../../constants/roles';
@@ -19,6 +20,7 @@ const CalendarHub = () => {
     const [showCreateModal, setShowCreateModal] = useState(null);
     const [createDefaultDate, setCreateDefaultDate] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
+    const [openLineupEvent, setOpenLineupEvent] = useState(null);
     const [runningSession, setRunningSession] = useState(null);
 
     const openCreateModalForDate = (date) => {
@@ -182,7 +184,14 @@ const CalendarHub = () => {
                     event={selectedEvent}
                     onClose={() => setSelectedEvent(null)}
                     onStartSession={handleStartSession}
+                    onOpenLineup={(e) => { setSelectedEvent(null); setOpenLineupEvent(e); }}
                 />
+            )}
+
+            {openLineupEvent && (
+                <Suspense fallback={null}>
+                    <LineupBuilder event={openLineupEvent} onClose={() => setOpenLineupEvent(null)} />
+                </Suspense>
             )}
 
             {runningSession && (
