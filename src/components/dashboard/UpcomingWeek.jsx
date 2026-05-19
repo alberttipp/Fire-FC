@@ -232,6 +232,7 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     }
 
     return (
+        <>
         <div className="glass-panel p-4 sm:p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
@@ -451,14 +452,18 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                 </Suspense>
             )}
 
-            {/* Lineup builder — rendered at UpcomingWeek level so it gets
-                the whole viewport, not nested inside EventDetailModal. */}
-            {openLineupEvent && (
-                <Suspense fallback={null}>
-                    <LineupBuilder event={openLineupEvent} onClose={() => setOpenLineupEvent(null)} />
-                </Suspense>
-            )}
         </div>
+        {/* Lineup builder — rendered as a sibling of (not inside) the glass-panel
+            wrapper so its `fixed inset-0` resolves against the viewport. The
+            glass-panel uses `backdrop-filter: blur(...)`, which per the CSS spec
+            becomes the containing block for any fixed descendants — that was
+            squashing the modal into the panel's box and hiding the pitch. */}
+        {openLineupEvent && (
+            <Suspense fallback={null}>
+                <LineupBuilder event={openLineupEvent} onClose={() => setOpenLineupEvent(null)} />
+            </Suspense>
+        )}
+        </>
     );
 };
 
