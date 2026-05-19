@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { X, Loader2, Save, Eye } from 'lucide-react';
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { supabase } from '../../../supabaseClient';
@@ -186,11 +185,11 @@ const LineupBuilder = ({ event, onClose }) => {
     const slots = FORMATIONS[formation]?.slots || [];
     const filledCount = slots.filter(s => assignments[s.id]).length;
 
-    // Portaled to <body> so no ancestor (transform, overflow:hidden,
-    // backdrop-blur, stacking context) can constrain or trap it.
-    return createPortal(
+    // position:fixed already escapes the EventDetailModal inner container
+    // (we're rendered as its sibling, not its child). No portal needed.
+    return (
         <div className="fixed inset-0 z-[100] bg-black/90 flex items-stretch justify-stretch md:items-center md:justify-center md:p-3" onClick={handleClose}>
-            <div className="bg-brand-dark md:rounded-2xl border border-white/10 w-screen h-[100dvh] md:w-[96vw] md:h-[96vh] md:max-w-[1600px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-brand-dark md:rounded-2xl border border-white/10 w-full h-full md:w-[96vw] md:h-[96vh] md:max-w-[1600px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
                     <div className="min-w-0">
