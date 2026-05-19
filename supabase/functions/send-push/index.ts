@@ -30,7 +30,12 @@
 // etc.) so the table stays clean.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import webpush from 'npm:web-push@3.6.7';
+
+// Switched from `npm:web-push@3.6.7` to esm.sh — `npm:` was producing
+// WORKER_ERROR on the Supabase edge runtime (cold-start import crash,
+// no error body returned). esm.sh transpiles + polyfills for Deno
+// reliably. The bundled URL is pinned to the same library version.
+import webpush from 'https://esm.sh/web-push@3.6.7?target=denonext';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -38,8 +43,19 @@ const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
 const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:notifications@firefcapp.com';
 
-if (VAPID_PUBLIC && VAPID_PRIVATE) {
-    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+// Initialize VAPID at module load. If keys are malformed, swallow the
+// throw and report on every request — we'd rather respond 500 with a
+// clean message than crash the worker on every cold start.
+let vapidInitError: string | null = null;
+try {
+    if (VAPID_PUBLIC && VAPID_PRIVATE) {
+        webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+    } else {
+        vapidInitError = 'vapid_not_configured: VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY missing in secrets';
+    }
+} catch (e: any) {
+    vapidInitError = `vapid_init_error: ${e?.message ?? String(e)}`;
+    console.error('[send-push] VAPID init failed:', e);
 }
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
@@ -56,8 +72,9 @@ Deno.serve(async (req) => {
     if (req.method !== 'POST') {
         return new Response('method not allowed', { status: 405, headers: corsHeaders });
     }
-    if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
-        return new Response(JSON.stringify({ error: 'vapid_not_configured' }), {
+    if (vapidInitError) {
+        console.error('[send-push] returning early:', vapidInitError);
+        return new Response(JSON.stringify({ error: vapidInitError }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -88,6 +105,7 @@ Deno.serve(async (req) => {
     }
 
     let sent = 0, pruned = 0, failed = 0;
+    const errors: string[] = [];
     const notificationPayload = JSON.stringify({
         title,
         body: body || '',
@@ -95,6 +113,8 @@ Deno.serve(async (req) => {
         tag,
         category,
     });
+
+    console.log(`[send-push] delivering to ${subs?.length ?? 0} subscription(s) for user ${user_id}`);
 
     for (const sub of subs ?? []) {
         const subscription = {
@@ -104,7 +124,6 @@ Deno.serve(async (req) => {
         try {
             await webpush.sendNotification(subscription, notificationPayload, { TTL: 3600 });
             sent++;
-            // Update last_seen_at so we can prune long-dead subs separately later
             await supabase
                 .from('user_push_subscriptions')
                 .update({ last_seen_at: new Date().toISOString() })
@@ -112,17 +131,18 @@ Deno.serve(async (req) => {
         } catch (err: any) {
             const status = err?.statusCode ?? err?.status ?? 0;
             if (status === 404 || status === 410) {
-                // Subscription is dead — clean up.
                 await supabase.from('user_push_subscriptions').delete().eq('id', sub.id);
                 pruned++;
             } else {
-                console.error('[send-push] delivery failed:', status, err?.message ?? err);
+                const msg = `status=${status} message=${err?.message ?? String(err)}`;
+                console.error('[send-push] delivery failed:', msg);
+                errors.push(msg);
                 failed++;
             }
         }
     }
 
-    return new Response(JSON.stringify({ sent, pruned, failed }), {
+    return new Response(JSON.stringify({ sent, pruned, failed, errors }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
