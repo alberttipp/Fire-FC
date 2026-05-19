@@ -46,6 +46,24 @@ const Dashboard = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showPreviewPicker, setShowPreviewPicker] = useState(false);
 
+    // Lock the body's scroll while a top-level overlay is open so the
+    // dashboard behind it doesn't drift when the user interacts with it.
+    useEffect(() => {
+        const anyOpen = showNotifications || showPreviewPicker;
+        if (!anyOpen) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, [showNotifications, showPreviewPicker]);
+
+    // Close any open top-level overlay when the user switches tabs, so
+    // the overlay doesn't stay mounted on top of the new view.
+    useEffect(() => {
+        setShowNotifications(false);
+        setShowPreviewPicker(false);
+        setMobileMenuOpen(false);
+    }, [currentView]);
+
     // Track a wrapper so a button click prevents the staff default from
     // overriding the user's pick after profile loads late.
     const pickView = (v) => { setHasPickedView(true); setCurrentView(v); };
