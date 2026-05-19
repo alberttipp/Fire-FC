@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { X, Calendar, Clock, MapPin, Trophy, Users, Coffee } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { X, Calendar, Clock, MapPin, Trophy, Users, Coffee, Sparkles } from 'lucide-react';
+import { toBlob } from 'html-to-image';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import CoverPreview from '../event-cover/CoverPreview';
+import { TEMPLATES, BACKGROUNDS, defaultTemplateForEvent } from '../event-cover/templates';
 
 const formatDateInput = (d) => {
     if (!d) return '';
@@ -50,9 +53,25 @@ const LOCATION_PRESETS = [
     { value: 'OTHER',        label: 'Other (type your own)…' },
 ];
 
+// Tiny CSS-string parser for the background swatches in the picker.
+function parseInlineCss(cssString) {
+    const out = {};
+    cssString.trim().split(';').forEach(part => {
+        const i = part.indexOf(':');
+        if (i < 0) return;
+        const k = part.slice(0, i).trim();
+        const v = part.slice(i + 1).trim();
+        if (k && v) out[k.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = v;
+    });
+    return out;
+}
+
 const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', defaultDate = null }) => {
     const { user, profile } = useAuth();
     const [eventType, setEventType] = useState(defaultType); // 'practice', 'game', 'social'
+    const [coverChoice, setCoverChoice] = useState(() => defaultTemplateForEvent(defaultType));
+    const [coverEnabled, setCoverEnabled] = useState(true);
+    const coverRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -84,6 +103,36 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
     const resolvedLocation = formData.locationChoice === 'OTHER'
         ? (formData.locationOther || '').trim()
         : formData.locationChoice;
+
+    // Keep the cover-template default in sync with event-type changes —
+    // user shouldn't get a "match day" cover on a practice event by
+    // accident. They can still pick a different template manually.
+    React.useEffect(() => {
+        setCoverChoice(c => {
+            const def = defaultTemplateForEvent(eventType);
+            // Only auto-switch if user is still on the previous type's default.
+            if (TEMPLATES.find(t => t.id === c.template)?.eventTypes?.includes(eventType)) return c;
+            return def;
+        });
+    }, [eventType]);
+
+    // Synthetic event for the live preview — uses whatever the user has
+    // typed in the form so far.
+    const previewEvent = useMemo(() => ({
+        type: eventType,
+        title: eventType === 'game'
+            ? `Fire Vs ${(formData.opponentName || 'TBD').trim()}`
+            : (formData.title || 'TEAM EVENT'),
+        start_time: formData.date && formData.startTime
+            ? new Date(`${formData.date}T${formData.startTime}:00`).toISOString()
+            : null,
+        location_name: formData.locationChoice === 'OTHER'
+            ? (formData.locationOther || '').trim()
+            : formData.locationChoice,
+        opponent_name: formData.opponentName,
+        kit_color: formData.kitColor,
+        team_name: 'ROCKFORD FIRE',
+    }), [formData, eventType]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -136,6 +185,59 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                 .single();
 
             if (error) throw error;
+
+            // Cover image: render the picked template to PNG, upload to
+            // storage, UPDATE the just-created event row with the URL,
+            // then auto-post into the team chat. All best-effort — a
+            // cover failure shouldn't roll back the event itself.
+            if (coverEnabled && coverRef.current) {
+                try {
+                    const blob = await toBlob(coverRef.current, {
+                        width: 1200, height: 630, pixelRatio: 1, cacheBust: true, backgroundColor: '#000',
+                    });
+                    if (blob) {
+                        const path = `event-covers/${teamId}/${data.id}-${Date.now()}.png`;
+                        const { error: upErr } = await supabase.storage
+                            .from('media')
+                            .upload(path, blob, { contentType: 'image/png', upsert: true });
+                        if (!upErr) {
+                            const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
+                            await supabase
+                                .from('events')
+                                .update({ cover_image_url: publicUrl, cover_template: coverChoice })
+                                .eq('id', data.id);
+                            data.cover_image_url = publicUrl;
+                            data.cover_template = coverChoice;
+
+                            // Auto-post into the team chat so the cover
+                            // shows up GroupMe-style. Find the team's
+                            // conversation, drop a message with the URL.
+                            const { data: convo } = await supabase
+                                .from('conversations')
+                                .select('id, org_id')
+                                .eq('team_id', teamId)
+                                .eq('type', 'team')
+                                .limit(1)
+                                .maybeSingle();
+                            if (convo?.id) {
+                                await supabase.from('messages').insert({
+                                    conversation_id: convo.id,
+                                    sender_id: user.id,
+                                    content: publicUrl,
+                                    message_type: 'image',
+                                    sender_name: profile?.full_name || 'Coach',
+                                    sender_role: profile?.role || 'coach',
+                                    org_id: convo.org_id,
+                                });
+                            }
+                        } else {
+                            console.warn('[CreateEventModal] cover upload failed:', upErr);
+                        }
+                    }
+                } catch (coverErr) {
+                    console.warn('[CreateEventModal] cover render/upload failed:', coverErr);
+                }
+            }
 
             onEventCreated(data);
             onClose();
@@ -324,6 +426,72 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                     className="w-full bg-black/30 border border-white/10 rounded px-4 py-2 text-white text-sm focus:border-brand-green outline-none resize-none"
                                 />
+                            </div>
+
+                            {/* Cover image — template + bg picker with live preview.
+                                Auto-renders on submit + posts to team chat. */}
+                            <div className="border-t border-white/10 pt-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-gray-300 text-xs uppercase font-bold flex items-center gap-1.5">
+                                        <Sparkles className="w-3.5 h-3.5 text-brand-gold" /> Cover image
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCoverEnabled(v => !v)}
+                                        className={`px-2 py-1 text-[10px] uppercase tracking-wider rounded ${coverEnabled ? 'bg-brand-green text-brand-dark font-bold' : 'bg-white/10 text-gray-400'}`}
+                                    >
+                                        {coverEnabled ? 'On' : 'Off'}
+                                    </button>
+                                </div>
+
+                                {coverEnabled && (
+                                    <>
+                                        {/* Live preview at half scale */}
+                                        <div className="flex justify-center bg-black/40 p-2 rounded-lg">
+                                            <div style={{ width: 600, height: 315, overflow: 'hidden' }}>
+                                                <div style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}>
+                                                    <CoverPreview ref={coverRef} event={previewEvent} choice={coverChoice} />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Template buttons */}
+                                        <div>
+                                            <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1.5">Template</div>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {TEMPLATES.map(t => (
+                                                    <button
+                                                        key={t.id}
+                                                        type="button"
+                                                        onClick={() => setCoverChoice(c => ({ ...c, template: t.id }))}
+                                                        className={`p-2 rounded text-left text-xs border transition-colors ${coverChoice.template === t.id ? 'bg-brand-gold/15 border-brand-gold/50 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                                                    >
+                                                        <div className="font-bold">{t.label}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Background buttons */}
+                                        <div>
+                                            <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1.5">Background</div>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {BACKGROUNDS.map(b => (
+                                                    <button
+                                                        key={b.id}
+                                                        type="button"
+                                                        onClick={() => setCoverChoice(c => ({ ...c, bg: b.id }))}
+                                                        className={`relative p-2 rounded text-left text-[11px] border h-14 overflow-hidden ${coverChoice.bg === b.id ? 'border-brand-gold ring-2 ring-brand-gold/40' : 'border-white/10 hover:border-white/30'}`}
+                                                        style={parseInlineCss(b.css)}
+                                                    >
+                                                        <div className="absolute inset-0 bg-black/30" />
+                                                        <div className="relative text-white font-bold uppercase tracking-wider">{b.label}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Game-specific: YouTube stream */}

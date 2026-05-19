@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, MapPin, Shirt, ClipboardList, Play, Video } from 'lucide-react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { X, MapPin, Shirt, ClipboardList, Play, Video, ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '../../../supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
@@ -7,6 +7,7 @@ import { useToast } from '../../Toast';
 import { getEventConfig } from './constants';
 import RsvpSummary from './RsvpSummary';
 import { isStaff } from '../../../constants/roles';
+const EventCoverDesigner = lazy(() => import('../../event-cover/EventCoverDesigner'));
 
 const getYouTubeEmbedUrl = (url) => {
     if (!url) return null;
@@ -21,11 +22,13 @@ const getYouTubeEmbedUrl = (url) => {
     return url;
 };
 
-const EventDetailModal = ({ event, onClose, onStartSession }) => {
+const EventDetailModal = ({ event: initialEvent, onClose, onStartSession }) => {
     const { profile } = useAuth();
     const toast = useToast();
+    const [event, setEvent] = useState(initialEvent);
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [editingCover, setEditingCover] = useState(false);
     const config = getEventConfig(event.type);
     const isCoach = isStaff(profile?.role);
 
@@ -61,9 +64,49 @@ const EventDetailModal = ({ event, onClose, onStartSession }) => {
         onStartSession({ ...session, drills });
     };
 
+    const handleCoverSaved = async (publicUrl, choice) => {
+        const { error } = await supabase
+            .from('events')
+            .update({ cover_image_url: publicUrl, cover_template: choice })
+            .eq('id', event.id);
+        if (error) {
+            toast.error(`Cover saved but couldn't update event: ${error.message}`);
+            return;
+        }
+        setEvent(e => ({ ...e, cover_image_url: publicUrl, cover_template: choice }));
+        setEditingCover(false);
+    };
+
     return (
         <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center md:p-4 z-50" onClick={onClose}>
             <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-xl w-full md:max-w-2xl h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                {/* Cover hero — only when set */}
+                {event.cover_image_url && (
+                    <div className="relative aspect-[1200/630] bg-black overflow-hidden">
+                        <img src={event.cover_image_url} alt="" className="w-full h-full object-cover" />
+                        {isCoach && (
+                            <button
+                                onClick={() => setEditingCover(true)}
+                                className="absolute top-2 right-2 px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur text-white text-[10px] font-bold uppercase tracking-wider hover:bg-black/80 flex items-center gap-1.5"
+                                title="Edit cover image"
+                            >
+                                <ImageIcon className="w-3 h-3" /> Edit cover
+                            </button>
+                        )}
+                    </div>
+                )}
+                {/* When no cover and the user is staff, show a small "Add cover" affordance in the header. */}
+                {!event.cover_image_url && isCoach && (
+                    <div className="bg-black/20 px-4 py-2 flex items-center justify-end border-b border-white/5">
+                        <button
+                            onClick={() => setEditingCover(true)}
+                            className="text-xs text-brand-gold hover:text-white flex items-center gap-1.5"
+                        >
+                            <ImageIcon className="w-3.5 h-3.5" /> Add cover image
+                        </button>
+                    </div>
+                )}
+
                 {/* Header */}
                 <div className={`p-4 border-b border-white/10 flex items-center justify-between ${config.bg}`}>
                     <div>
@@ -180,6 +223,29 @@ const EventDetailModal = ({ event, onClose, onStartSession }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Edit-cover modal (staff only) */}
+            {editingCover && (
+                <Suspense fallback={null}>
+                    <EventCoverDesigner
+                        modal
+                        event={{
+                            id: event.id,
+                            team_id: event.team_id,
+                            type: event.type,
+                            title: event.title,
+                            start_time: event.start_time,
+                            location_name: event.location_name,
+                            opponent_name: event.opponent_name,
+                            kit_color: event.kit_color,
+                            team_name: 'ROCKFORD FIRE',
+                        }}
+                        initial={event.cover_template || undefined}
+                        onSaved={handleCoverSaved}
+                        onCancel={() => setEditingCover(false)}
+                    />
+                </Suspense>
+            )}
         </div>
     );
 };

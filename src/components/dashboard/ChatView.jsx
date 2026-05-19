@@ -714,7 +714,16 @@ const MessageRow = ({
                             <Megaphone className="w-3 h-3" /> Announcement
                         </div>
                     )}
-                    {msg.content}
+                    {msg.message_type === 'image' && msg.content?.startsWith('http')
+                        ? (
+                            <img
+                                src={msg.content}
+                                alt="event cover"
+                                className="rounded-lg max-w-full h-auto"
+                                loading="lazy"
+                            />
+                        )
+                        : msg.content}
                 </div>
                 {/* Reactions — chips when collapsed (only emojis with count>0
                     render), full picker when pickerOpen. Mirrors bubble side. */}
