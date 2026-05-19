@@ -89,6 +89,28 @@ const ParentDashboard = () => {
     const [generatingLink, setGeneratingLink] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
 
+    // Lock the body's scroll while any modal is open so the dashboard
+    // behind the modal doesn't shift when the user scrolls / drags
+    // inside it. Restored on close.
+    useEffect(() => {
+        const anyOpen = showDetails || inviteOpen || !!openEvent || !!openLineupEvent || showDrillLibrary;
+        if (!anyOpen) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, [showDetails, inviteOpen, openEvent, openLineupEvent, showDrillLibrary]);
+
+    // When the user picks a different top-nav tab, close any open modal
+    // first — otherwise the modal stays mounted on top of the new view.
+    useEffect(() => {
+        setShowDetails(false);
+        setInviteOpen(false);
+        setOpenEvent(null);
+        setOpenLineupEvent(null);
+        setShowDrillLibrary(false);
+        setPlayerAccessLink(null);
+    }, [currentView]);
+
     // Fetch children linked to parent
     useEffect(() => {
         if (user?.id) {
