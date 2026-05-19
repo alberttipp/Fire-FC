@@ -1076,12 +1076,13 @@ const ParentDashboard = () => {
                     <div className="flex items-center gap-6">
                         <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10">
                             {[
-                                { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-                                { id: 'schedule', label: 'Schedule', icon: Calendar },
-                                { id: 'messages', label: 'Messages', icon: MessageSquare },
-                                { id: 'vacation', label: 'Vacation', icon: Plane },
-                                { id: 'gallery',  label: 'Gallery',  icon: Camera },
-                                { id: 'rules',    label: 'Rules',    icon: FileText },
+                                { id: 'overview',      label: 'Overview', icon: LayoutDashboard },
+                                { id: 'schedule',      label: 'Schedule', icon: Calendar },
+                                { id: 'messages',      label: 'Messages', icon: MessageSquare },
+                                { id: 'notifications', label: 'Alerts',   icon: Bell },
+                                { id: 'vacation',      label: 'Vacation', icon: Plane },
+                                { id: 'gallery',       label: 'Gallery',  icon: Camera },
+                                { id: 'rules',         label: 'Rules',    icon: FileText },
                                 // Live / Carpool / Billing still hidden until each is
                                 // tested with a real team. Components and routing
                                 // (case statements above) are intact so re-adding is
