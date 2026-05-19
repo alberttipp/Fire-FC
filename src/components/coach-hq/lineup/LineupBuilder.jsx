@@ -39,9 +39,12 @@ const LineupBuilder = ({ event, onClose }) => {
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
 
+    // delay: 250ms means a quick swipe through the bench scrolls the list
+    // (drag won't activate until they hold for 1/4 sec). tolerance: 8px
+    // allows tiny finger jitter during the hold without cancelling.
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-        useSensor(TouchSensor,   { activationConstraint: { delay: 120, tolerance: 6 } }),
+        useSensor(TouchSensor,   { activationConstraint: { delay: 250, tolerance: 8 } }),
     );
 
     // Lookup helper: player id → display object
@@ -244,7 +247,7 @@ const LineupBuilder = ({ event, onClose }) => {
                                 />
                             </div>
                             {!readOnly && (
-                                <div className="absolute top-3 left-3 right-3 md:left-auto md:w-72 md:top-3 md:bottom-3 z-20">
+                                <div className="absolute top-3 left-3 right-3 md:left-auto md:w-80 md:top-3 md:bottom-3 z-20">
                                     <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
                                 </div>
                             )}
