@@ -67,6 +67,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     // Badge Data State
     const [allBadges, setAllBadges] = useState([]);
     const [awardedBadges, setAwardedBadges] = useState({}); // { badgeId: count }
+    // Awards tab default view: earned-only. The coach taps "Award a badge"
+    // to reveal the full catalog so they can grant one; the catalog
+    // collapses back to earned-only after an award via toggleBadge.
+    const [showCatalog, setShowCatalog] = useState(false);
 
     // Training Stats State
     const [trainingStats, setTrainingStats] = useState({
@@ -697,46 +701,71 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                             </div>
                         ) : activeTab === 'awards' ? (
                             <div className="space-y-8 animate-fade-in">
-                                {['Performance', 'Technical', 'Leadership & Character'].map(cat => {
-                                    // Map legacy categories if name matches, or just use filtered list
-                                    const categoryBadges = allBadges.filter(b => b.category === cat || (cat === 'Technical' && b.category === 'Technical & Growth'));
+                                {(() => {
+                                    // Default view: earned-only. The coach taps "Award a badge"
+                                    // to flip showCatalog and reveal the full catalog.
+                                    const categories = ['Performance', 'Technical', 'Leadership & Character'];
+                                    const earnedCount = Object.values(awardedBadges).filter(c => c > 0).length;
+                                    const renderedSections = categories.map(cat => {
+                                        const inCategory = allBadges.filter(b => b.category === cat || (cat === 'Technical' && b.category === 'Technical & Growth'));
+                                        const visible = showCatalog ? inCategory : inCategory.filter(b => (awardedBadges[b.id] || 0) > 0);
+                                        if (visible.length === 0) return null;
+                                        return (
+                                            <div key={cat}>
+                                                <h4 className="text-brand-gold text-xs font-bold uppercase tracking-widest mb-3 border-l-2 border-brand-gold pl-3">{cat} Badges</h4>
+                                                <div className="grid grid-cols-4 gap-3">
+                                                    {visible.map(badge => {
+                                                        const count = awardedBadges[badge.id] || 0;
+                                                        return (
+                                                            <div
+                                                                key={badge.id}
+                                                                onClick={() => toggleBadge(badge.id)}
+                                                                className={`aspect-square rounded-lg border flex flex-col items-center justify-center gap-1 cursor-pointer transition-all relative overflow-hidden group ${count > 0 ? 'bg-brand-green/10 border-brand-green' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                                            >
+                                                                <span className="text-2xl transform group-hover:scale-110 transition-transform">{badge.icon}</span>
+                                                                <span className="text-xs text-gray-400 text-center leading-tight px-1 font-bold">{badge.name}</span>
 
-                                    if (categoryBadges.length === 0) return null;
+                                                                {count > 0 && (
+                                                                    <div className="absolute top-1 right-1 w-4 h-4 bg-brand-green rounded-full flex items-center justify-center text-xs font-bold text-black border border-black/20">
+                                                                        {count}
+                                                                    </div>
+                                                                )}
+                                                                {count > 0 && <div className="absolute inset-0 bg-brand-green/5 animate-pulse rounded-lg pointer-events-none"></div>}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    });
+                                    const hasAnyRendered = renderedSections.some(Boolean);
 
                                     return (
-                                        <div key={cat}>
-                                            <h4 className="text-brand-gold text-xs font-bold uppercase tracking-widest mb-3 border-l-2 border-brand-gold pl-3">{cat} Badges</h4>
-                                            <div className="grid grid-cols-4 gap-3">
-                                                {categoryBadges.map(badge => {
-                                                    const count = awardedBadges[badge.id] || 0;
-                                                    return (
-                                                        <div
-                                                            key={badge.id}
-                                                            onClick={() => toggleBadge(badge.id)}
-                                                            className={`aspect-square rounded-lg border flex flex-col items-center justify-center gap-1 cursor-pointer transition-all relative overflow-hidden group ${count > 0 ? 'bg-brand-green/10 border-brand-green' : 'bg-white/5 border-white/5 hover:bg-white/10'
-                                                                }`}
-                                                        >
-                                                            <span className="text-2xl transform group-hover:scale-110 transition-transform">{badge.icon}</span>
-                                                            <span className="text-xs text-gray-400 text-center leading-tight px-1 font-bold">{badge.name}</span>
-
-                                                            {count > 0 && (
-                                                                <div className="absolute top-1 right-1 w-4 h-4 bg-brand-green rounded-full flex items-center justify-center text-xs font-bold text-black border border-black/20">
-                                                                    {count}
-                                                                </div>
-                                                            )}
-                                                            {count > 0 && <div className="absolute inset-0 bg-brand-green/5 animate-pulse rounded-lg pointer-events-none"></div>}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                                {readOnly && (
-                                    <div className="text-center text-gray-400 text-xs italic mt-8 p-4 border border-dashed border-white/10 rounded">
-                                        Badges are waiting to be earned in the next session!
-                                    </div>
-                                )}
+                                        <>
+                                            {hasAnyRendered ? renderedSections : (
+                                                <div className="text-center text-gray-400 text-xs italic p-6 border border-dashed border-white/10 rounded">
+                                                    No badges earned yet.
+                                                </div>
+                                            )}
+                                            {!readOnly && (
+                                                <div className="flex justify-center pt-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowCatalog(s => !s)}
+                                                        className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md border border-brand-gold/40 text-brand-gold hover:bg-brand-gold/10 transition-colors"
+                                                    >
+                                                        {showCatalog ? 'Done — show earned only' : `+ Award a badge${earnedCount > 0 ? ' from catalog' : ''}`}
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {readOnly && !hasAnyRendered && (
+                                                <div className="text-center text-gray-400 text-xs italic mt-2">
+                                                    Badges are waiting to be earned in the next session!
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         ) : activeTab === 'notes' ? (
                             <CoachNotesPanel player={player} readOnly={readOnly} />
