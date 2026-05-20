@@ -18,7 +18,15 @@ const Login = () => {
     // Standard Auth State
     const [isSignUp, setIsSignUp] = useState(false);
     const [fullName, setFullName] = useState('');
-    const [email, setEmail] = useState('');
+    // Remember-me: lazily read the saved email on first render so it pre-fills.
+    // We only persist the email (never the password). Default checked since
+    // most users come back on the same device and want one-tap login.
+    const REMEMBERED_EMAIL_KEY = 'firefc-remembered-email';
+    const [email, setEmail] = useState(() => {
+        if (typeof window === 'undefined') return '';
+        try { return localStorage.getItem(REMEMBERED_EMAIL_KEY) || ''; } catch (_) { return ''; }
+    });
+    const [rememberMe, setRememberMe] = useState(true);
     const [password, setPassword] = useState('');
     const [joinCode, setJoinCode] = useState('');
 
@@ -128,6 +136,13 @@ const Login = () => {
             } else {
                 const { data, error } = await signIn(email, password);
                 if (error) throw error;
+
+                // Persist or clear the remembered email based on the checkbox.
+                // Only the email is ever saved — never the password.
+                try {
+                    if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+                    else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+                } catch (_) { /* localStorage blocked — non-fatal */ }
 
                 toast.success("Welcome back!");
 
@@ -351,6 +366,21 @@ const Login = () => {
                                 <p className="text-red-400 text-xs mt-1 ml-1">{errors.password}</p>
                             )}
                         </div>
+
+                        {/* Remember-me — login only (not signup). Saves the email
+                            for one-tap return logins. Unchecking it clears the
+                            previously-saved email on next successful login. */}
+                        {!isSignUp && (
+                            <label className="flex items-center gap-2 cursor-pointer select-none -mt-2">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="w-4 h-4 rounded border-brand-green/40 bg-black/50 text-brand-green focus:ring-brand-green/40 focus:ring-2 focus:ring-offset-0"
+                                />
+                                <span className="text-xs text-gray-400 uppercase tracking-wider">Remember me on this device</span>
+                            </label>
+                        )}
 
                         {isSignUp && (
                             <div>
