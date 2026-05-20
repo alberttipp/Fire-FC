@@ -136,7 +136,14 @@ const ReactionBar = ({
         return (
             <div
                 className={`flex flex-wrap ${alignCls} ${gapCls} p-1.5 rounded-2xl bg-brand-dark border border-white/15 shadow-lg`}
+                // Stop BOTH click AND touchstart from bubbling to the document
+                // outside-tap closer in ChatView. Without onTouchStart, the
+                // native touchstart on an emoji button reaches the document
+                // listener and closes the picker before the synthesized
+                // click ever fires on the button — the emoji "just
+                // disappears" with no reaction recorded.
                 onClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
             >
                 {DEFAULT_EMOJIS.map(e => {
                     const { mineId } = summary[e] || { mineId: null };
@@ -146,6 +153,12 @@ const ReactionBar = ({
                             key={e}
                             type="button"
                             onClick={() => toggle(e)}
+                            // Belt-and-suspenders: also stop the touchstart at
+                            // the button itself so the outside-tap closer
+                            // can't preempt the click on any browser that
+                            // dispatches touch events before bubbling reaches
+                            // the picker container.
+                            onTouchStart={(e) => e.stopPropagation()}
                             disabled={busy}
                             aria-label={`React with ${e}`}
                             className={`inline-flex items-center justify-center rounded-full transition-all leading-none ${pickerBtn} ${reacted
@@ -164,7 +177,11 @@ const ReactionBar = ({
     if (orderedReacted.length === 0) return null;
 
     return (
-        <div className={`flex flex-wrap ${alignCls} ${gapCls}`} onClick={(e) => e.stopPropagation()}>
+        <div
+            className={`flex flex-wrap ${alignCls} ${gapCls}`}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+        >
             {orderedReacted.map(e => {
                 const { count, mineId } = summary[e];
                 const reacted = !!mineId;
