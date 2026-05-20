@@ -78,10 +78,49 @@ const EnablePushButton = () => {
                 return;
             }
             const reg = await navigator.serviceWorker.ready;
-            const sub = await reg.pushManager.subscribe({
+
+            // Defensive cleanup: a stale subscription from a previous deploy
+            // (different VAPID key, expired upstream registration, or a
+            // half-finished prior subscribe) causes the next subscribe() to
+            // throw "AbortError: signal is aborted without reason". Strip
+            // any existing sub before re-subscribing so the push service
+            // gets a clean slate. Best-effort row delete in the DB too so
+            // we don't leave an orphan referencing an endpoint we just
+            // killed in the browser.
+            try {
+                const existing = await reg.pushManager.getSubscription();
+                if (existing) {
+                    const staleEndpoint = existing.endpoint;
+                    await existing.unsubscribe();
+                    await supabase.from('user_push_subscriptions')
+                        .delete().eq('endpoint', staleEndpoint);
+                }
+            } catch (cleanupErr) {
+                // Don't block the retry on cleanup failure — the subscribe
+                // below will either succeed or surface the real error.
+                console.warn('[EnablePushButton] stale-sub cleanup failed:', cleanupErr);
+            }
+
+            const subscribeOnce = () => reg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
             });
+
+            let sub;
+            try {
+                sub = await subscribeOnce();
+            } catch (e) {
+                // Single retry on AbortError — pushService occasionally aborts
+                // the first attempt on a flaky network or right after the
+                // cleanup above evicts the old subscription.
+                if (e?.name === 'AbortError') {
+                    console.warn('[EnablePushButton] subscribe AbortError — retrying once');
+                    sub = await subscribeOnce();
+                } else {
+                    throw e;
+                }
+            }
+
             const json = sub.toJSON();
             const { error } = await supabase
                 .from('user_push_subscriptions')
@@ -98,7 +137,10 @@ const EnablePushButton = () => {
             toast.success("Push notifications enabled on this device.");
         } catch (e) {
             console.error('[EnablePushButton] enable failed:', e);
-            toast.error(`Couldn't enable push: ${e?.message || e}`);
+            const friendly = e?.name === 'AbortError'
+                ? "Couldn't enable push — try a hard refresh and tap Enable again. If it keeps failing, your browser may have blocked push for this site in settings."
+                : `Couldn't enable push: ${e?.message || e}`;
+            toast.error(friendly);
         } finally {
             setBusy(false);
         }
