@@ -120,6 +120,22 @@ export const FORMATIONS = {
             { id: 'ST',  x: 50, y: 14 },
         ],
     },
+    '3-1-4-2': {
+        label: '3-1-4-2',
+        slots: [
+            { id: 'GK',  x: 50, y: 92 },
+            { id: 'LCB', x: 25, y: 76 },
+            { id: 'CB',  x: 50, y: 78 },
+            { id: 'RCB', x: 75, y: 76 },
+            { id: 'CDM', x: 50, y: 64 },
+            { id: 'LM',  x: 15, y: 46 },
+            { id: 'LCM', x: 38, y: 48 },
+            { id: 'RCM', x: 62, y: 48 },
+            { id: 'RM',  x: 85, y: 46 },
+            { id: 'ST',  x: 38, y: 18 },
+            { id: 'ST2', x: 62, y: 18 },
+        ],
+    },
 };
 
 export const FORMATION_IDS = Object.keys(FORMATIONS);
