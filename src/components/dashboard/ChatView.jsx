@@ -49,6 +49,11 @@ const ChatView = () => {
     const [chatError, setChatError] = useState(null);
     const messagesEndRef = useRef(null);
     const channelSubscription = useRef(null);
+    // Tracks the conversation whose state is currently live in this component.
+    // Used by fetchMessages + realtime handler so a late response or a stale
+    // INSERT event can't overwrite the messages of the channel the user has
+    // since switched to.
+    const activeChannelIdRef = useRef(null);
 
     const currentUserName = profile?.full_name || user?.display_name || user?.email?.split('@')[0] || 'User';
     const currentUserRole = profile?.role || user?.role || 'coach';
@@ -82,6 +87,7 @@ const ChatView = () => {
     }, [user?.id]);
 
     useEffect(() => {
+        activeChannelIdRef.current = activeChannel?.id || null;
         if (activeChannel) {
             fetchMessages(activeChannel.id);
             fetchMemberCount(activeChannel.id);
@@ -95,7 +101,10 @@ const ChatView = () => {
                 supabase.removeChannel(channelSubscription.current);
             }
         };
-    }, [activeChannel]);
+        // Depend on the id, not the object — fetchChannels re-runs hand back
+        // a new array of channel objects, and we don't want a same-id
+        // re-render to tear down + rebuild the subscription and refetch.
+    }, [activeChannel?.id]);
 
     const fetchChannels = async () => {
         setLoading(true);
@@ -212,9 +221,28 @@ const ChatView = () => {
                 console.error('Error fetching messages:', error);
                 throw error;
             }
-            setMessages(data || []);
+            // Drop stale responses: if the user has switched channels (or
+            // closed chat) before this resolved, don't overwrite the new
+            // channel's state. This was the source of the "only my message"
+            // flash — realtime would prepend the just-sent row, then a
+            // late fetch of the previous channel would wipe it.
+            if (activeChannelIdRef.current !== conversationId) return;
+            // Merge with any rows already present (e.g. an optimistic
+            // append from handleSend or a realtime INSERT that landed
+            // first) so we don't clobber the just-sent message.
+            const incoming = data || [];
+            setMessages(prev => {
+                if (prev.length === 0) return incoming;
+                const seen = new Set(incoming.map(m => m.id));
+                const extras = prev.filter(m => !seen.has(m.id));
+                if (extras.length === 0) return incoming;
+                return [...incoming, ...extras].sort((a, b) =>
+                    new Date(a.created_at) - new Date(b.created_at)
+                );
+            });
         } catch (err) {
             console.error('Error fetching messages:', err);
+            if (activeChannelIdRef.current !== conversationId) return;
             setMessages([]);
         }
     };
@@ -250,7 +278,12 @@ const ChatView = () => {
                     filter: `conversation_id=eq.${conversationId}`
                 },
                 (payload) => {
-                    setMessages(prev => [...prev, payload.new]);
+                    // Ignore events for a channel the user has already left.
+                    if (activeChannelIdRef.current !== conversationId) return;
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === payload.new.id)) return prev;
+                        return [...prev, payload.new];
+                    });
                 }
             )
             .subscribe();
@@ -279,13 +312,29 @@ const ChatView = () => {
         };
 
         try {
-            const { error } = await supabase
+            // Use .select() so we get the canonical row back and can append
+            // it locally without waiting on the realtime subscription. On
+            // Android Chrome the WebSocket can be slow to connect after a
+            // tab resume or token refresh, and previously the user's own
+            // message would only appear when realtime caught up — making
+            // the chat look like it had been wiped. The realtime handler
+            // dedupes by id so this isn't double-counted.
+            const { data: inserted, error } = await supabase
                 .from('messages')
-                .insert([messageData]);
+                .insert([messageData])
+                .select()
+                .single();
 
             if (error) {
                 console.error('Send error:', error);
                 throw error;
+            }
+
+            if (inserted && activeChannelIdRef.current === activeChannel.id) {
+                setMessages(prev => {
+                    if (prev.some(m => m.id === inserted.id)) return prev;
+                    return [...prev, inserted];
+                });
             }
 
             setNewMessage('');
@@ -413,16 +462,11 @@ const ChatView = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="h-[calc(100vh-140px)] flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-brand-green mx-auto mb-2" />
-                    <p className="text-gray-400">Loading chat...</p>
-                </div>
-            </div>
-        );
-    }
+    // No full-screen takeover during initial load — the sidebar already
+    // shows its own inline "Loading conversations…" state, and the main
+    // panel shows "Select a channel" until activeChannel is populated.
+    // Returning a full-screen loader here caused the chat to blank the
+    // entire UI every time the tab was opened.
 
     return (
         <div className="h-[calc(100vh-140px)] flex gap-0 md:gap-6 animate-fade-in-up relative">
@@ -551,7 +595,12 @@ const ChatView = () => {
 
                 {/* Messages Feed */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
-                    {!activeChannel ? (
+                    {loading && !activeChannel ? (
+                        <div className="text-center text-gray-500 mt-20">
+                            <Loader2 className="w-8 h-8 animate-spin text-brand-green mx-auto mb-2" />
+                            <p className="text-xs">Loading chat…</p>
+                        </div>
+                    ) : !activeChannel ? (
                         <div className="text-center text-gray-500 mt-20">
                             <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-20" />
                             <p>No channel selected.</p>
