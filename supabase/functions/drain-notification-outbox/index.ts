@@ -1,21 +1,26 @@
 // drain-notification-outbox — cron-driven.
 //
-// Every 30s (via pg_cron), pulls pending notification_outbox rows and
-// for each one:
+// Every minute (via pg_cron jobid 4), pulls pending notification_outbox
+// rows and for each one:
 //   1. INSERTs into public.notifications (in-app bell badge)
-//   2. POSTs to send-push function (phone banner)
+//   2. POSTs to send-push function (phone banner)  — WITH 5s TIMEOUT
 //   3. Marks the outbox row 'sent' on success, increments attempts on
 //      failure. After 5 attempts the row is marked 'failed'.
 //
-// Designed to be idempotent — picking the same row twice in a race
-// (two cron ticks overlapping) just means duplicate in-app rows and
-// duplicate banners. The cron is single-instance per Supabase project,
-// but the drainer also serializes via FOR UPDATE SKIP LOCKED to be
-// safe.
+// Idempotency: picking the same row twice in a race just duplicates
+// the notification. claim_pending_outbox_rows uses FOR UPDATE SKIP
+// LOCKED so only one drainer wins each row.
 //
-// Phase 3 will add a should_notify() check between pulling a row and
-// delivering it (gates by preferences + snooze + quiet hours). For
-// now every queued row delivers to both channels.
+// 2026-05-21 incident hardening:
+//   - The send-push fetch now has AbortSignal.timeout(5000). Previously
+//     it had no timeout, and when web-push hung talking to FCM/APNS the
+//     dispatcher hung too — successive cron firings piled up, the DB
+//     connection pool exhausted, and Disk IO Budget depleted.
+//   - BATCH_SIZE dropped from 50 → 10 so a worst-case batch (all rows
+//     time out at 5s each) completes in ~50s, well under the next cron
+//     firing at 60s.
+//   - On AbortError we mark the row 'pending' with attempts++ so the
+//     next cron retries; only after MAX_ATTEMPTS=5 do we mark 'failed'.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -27,7 +32,8 @@ const FUNCTIONS_URL = Deno.env.get('SUPABASE_FUNCTIONS_URL')
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
 const MAX_ATTEMPTS = 5;
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 10;
+const PUSH_FETCH_TIMEOUT_MS = 5000;
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -39,9 +45,6 @@ Deno.serve(async (req) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    // Atomically claim a batch of pending rows by bumping their
-    // attempts. The RETURNING gives us the rows we claimed; anyone
-    // else who runs at the same time gets a different set.
     const { data: claimed, error: claimErr } = await supabase.rpc(
         'claim_pending_outbox_rows',
         { p_limit: BATCH_SIZE }
@@ -65,16 +68,11 @@ Deno.serve(async (req) => {
         let success = true;
         const errors: string[] = [];
 
-        // Check per-channel preferences / snooze / quiet hours.
-        // should_notify() is the single source of truth for delivery gating.
         const [{ data: inAppAllowed }, { data: pushAllowed }] = await Promise.all([
             supabase.rpc('should_notify', { p_user_id: row.user_id, p_category: row.category, p_channel: 'in_app' }),
             supabase.rpc('should_notify', { p_user_id: row.user_id, p_category: row.category, p_channel: 'push' }),
         ]);
 
-        // 1. In-app notification (skip only if explicitly disabled — never
-        //    skip for snooze/quiet hours, since the bell badge is the
-        //    "catch up on what you missed" surface).
         if (inAppAllowed !== false) {
             const { error: inAppErr } = await supabase.from('notifications').insert({
                 user_id: row.user_id,
@@ -89,43 +87,33 @@ Deno.serve(async (req) => {
             if (inAppErr) { success = false; errors.push(`inapp: ${inAppErr.message}`); }
         }
 
-        // 2. Push notification — only if should_notify returned true AND
-        //    the user has at least one registered subscription.
         if (pushAllowed === false) {
-            // Quietly skipped — not a failure
             console.log(`[drain] push gated off for user=${row.user_id} cat=${row.category}`);
         } else {
-        // send-push is deployed with --no-verify-jwt so it accepts unauthenticated
-        // calls. We deliberately do NOT send an Authorization header — Supabase's
-        // function gateway still validates JWT *format* on Authorization even
-        // when verify_jwt is off, and this project uses the new sb_secret_*
-        // API key format (not a JWT) for SUPABASE_SERVICE_ROLE_KEY. Sending
-        // it as Bearer triggers INVALID_JWT_FORMAT before our code runs.
-        // No auth header = clean unauthenticated call = no format check.
-        try {
-            const res = await fetch(`${FUNCTIONS_URL}/send-push`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: row.user_id,
-                    title: row.title,
-                    body: row.body,
-                    url: row.url,
-                    tag: row.tag,
-                    category: row.category,
-                }),
-            });
-            if (!res.ok) {
+            try {
+                const res = await fetch(`${FUNCTIONS_URL}/send-push`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: row.user_id,
+                        title: row.title,
+                        body: row.body,
+                        url: row.url,
+                        tag: row.tag,
+                        category: row.category,
+                    }),
+                    signal: AbortSignal.timeout(PUSH_FETCH_TIMEOUT_MS),
+                });
+                if (!res.ok) {
+                    success = false;
+                    errors.push(`push http ${res.status}: ${await res.text()}`);
+                }
+            } catch (e: any) {
                 success = false;
-                errors.push(`push http ${res.status}: ${await res.text()}`);
+                const isAbort = e?.name === 'TimeoutError' || e?.name === 'AbortError';
+                errors.push(`push: ${isAbort ? `timeout after ${PUSH_FETCH_TIMEOUT_MS}ms` : (e?.message ?? e)}`);
             }
-        } catch (e: any) {
-            success = false;
-            errors.push(`push: ${e?.message ?? e}`);
         }
-        }  // close pushAllowed else block
 
         if (success) {
             await supabase
