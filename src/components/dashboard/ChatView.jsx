@@ -301,7 +301,19 @@ const ChatView = () => {
 
         setSending(true);
 
+        // Client-generated id so we can synthesize the local row without
+        // an .insert().select() round trip. The previous .select() forced
+        // PostgREST to re-evaluate the messages SELECT policy on the new
+        // row, which for parent users walks family_members. With the DB
+        // pool hot, that came back as a spurious "may not have permission"
+        // on the first send. Providing the id ourselves lets the realtime
+        // INSERT echo dedupe by id when it arrives.
+        const clientMessageId =
+            (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const messageData = {
+            id: clientMessageId,
             conversation_id: activeChannel.id,
             sender_id: user?.id || null,
             sender_name: currentUserName,
@@ -311,35 +323,34 @@ const ChatView = () => {
             is_urgent: isUrgent
         };
 
+        const optimisticRow = {
+            ...messageData,
+            created_at: new Date().toISOString(),
+        };
+        if (activeChannelIdRef.current === activeChannel.id) {
+            setMessages(prev => {
+                if (prev.some(m => m.id === optimisticRow.id)) return prev;
+                return [...prev, optimisticRow];
+            });
+        }
+        // Clear the input immediately so the user can keep typing while
+        // the server round-trip is in flight.
+        setNewMessage('');
+        setIsUrgent(false);
+
         try {
-            // Use .select() so we get the canonical row back and can append
-            // it locally without waiting on the realtime subscription. On
-            // Android Chrome the WebSocket can be slow to connect after a
-            // tab resume or token refresh, and previously the user's own
-            // message would only appear when realtime caught up — making
-            // the chat look like it had been wiped. The realtime handler
-            // dedupes by id so this isn't double-counted.
-            const { data: inserted, error } = await supabase
+            const { error } = await supabase
                 .from('messages')
-                .insert([messageData])
-                .select()
-                .single();
+                .insert([messageData]);
 
             if (error) {
                 console.error('Send error:', error);
                 throw error;
             }
-
-            if (inserted && activeChannelIdRef.current === activeChannel.id) {
-                setMessages(prev => {
-                    if (prev.some(m => m.id === inserted.id)) return prev;
-                    return [...prev, inserted];
-                });
-            }
-
-            setNewMessage('');
-            setIsUrgent(false);
         } catch (err) {
+            // Roll the optimistic row back so it doesn't sit there as a
+            // ghost message after a real send failure.
+            setMessages(prev => prev.filter(m => m.id !== clientMessageId));
             console.error('Error sending message:', err);
             setChatError('Failed to send message. You may not have permission to post here.');
             setTimeout(() => setChatError(null), 4000);
