@@ -47,6 +47,10 @@ const ChatView = () => {
     const [showNewDM, setShowNewDM] = useState(false);
     const [teamMembers, setTeamMembers] = useState([]);
     const [chatError, setChatError] = useState(null);
+    // Reflects the realtime channel state: 'idle' | 'connecting' |
+    // 'live' | 'reconnecting' | 'offline'. Used by the small header
+    // badge so families know whether what they're seeing is current.
+    const [connectionStatus, setConnectionStatus] = useState('idle');
     const messagesEndRef = useRef(null);
     const channelSubscription = useRef(null);
     // Tracks the conversation whose state is currently live in this component.
@@ -267,6 +271,7 @@ const ChatView = () => {
             supabase.removeChannel(channelSubscription.current);
         }
 
+        setConnectionStatus('connecting');
         channelSubscription.current = supabase
             .channel(`messages:${conversationId}`)
             .on(
@@ -286,7 +291,13 @@ const ChatView = () => {
                     });
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                if (activeChannelIdRef.current !== conversationId) return;
+                if (status === 'SUBSCRIBED')          setConnectionStatus('live');
+                else if (status === 'CHANNEL_ERROR')   setConnectionStatus('reconnecting');
+                else if (status === 'TIMED_OUT')       setConnectionStatus('reconnecting');
+                else if (status === 'CLOSED')          setConnectionStatus('offline');
+            });
     };
 
     const handleSend = async () => {
@@ -597,9 +608,38 @@ const ChatView = () => {
                         {activeChannel?.name || 'Select a channel'}
                     </div>
                     {activeChannel && (
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                            <Users className="w-3 h-3" />
-                            {memberCount} member{memberCount !== 1 ? 's' : ''}
+                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                            {/* Connection status — gives families a clear
+                                signal whether what they're seeing is live or
+                                stale, instead of guessing. */}
+                            <span
+                                className={`flex items-center gap-1.5 font-medium ${
+                                    connectionStatus === 'live'         ? 'text-brand-green' :
+                                    connectionStatus === 'connecting'   ? 'text-gray-400'    :
+                                    connectionStatus === 'reconnecting' ? 'text-yellow-400'  :
+                                    connectionStatus === 'offline'      ? 'text-red-400'     : 'text-gray-500'
+                                }`}
+                                title={`Realtime ${connectionStatus}`}
+                            >
+                                <span
+                                    className={`inline-block w-2 h-2 rounded-full ${
+                                        connectionStatus === 'live'         ? 'bg-brand-green animate-pulse' :
+                                        connectionStatus === 'connecting'   ? 'bg-gray-400 animate-pulse'    :
+                                        connectionStatus === 'reconnecting' ? 'bg-yellow-400 animate-pulse'  :
+                                        connectionStatus === 'offline'      ? 'bg-red-400'                   : 'bg-gray-600'
+                                    }`}
+                                />
+                                <span className="hidden sm:inline">
+                                    {connectionStatus === 'live'         ? 'Live' :
+                                     connectionStatus === 'connecting'   ? 'Connecting…' :
+                                     connectionStatus === 'reconnecting' ? 'Reconnecting…' :
+                                     connectionStatus === 'offline'      ? 'Offline' : ''}
+                                </span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {memberCount} member{memberCount !== 1 ? 's' : ''}
+                            </span>
                         </div>
                     )}
                 </div>

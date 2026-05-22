@@ -2,12 +2,18 @@
 // registered devices.
 //
 // Auth model (2026-05-22 hardening):
-//   This function is deployed with verify_jwt: false because the cron
-//   pipeline calls it from drain-notification-outbox with a non-JWT
-//   shared secret in X-Internal-Dispatch-Secret. The function fetches
-//   the same secret from vault via the get_internal_dispatch_secret
-//   RPC (service-role-only) at cold start and rejects any request
-//   without a matching header. Anonymous internet POSTs return 401.
+//   verify_jwt: false. The cron-driven dispatcher passes a non-JWT
+//   shared secret in X-Internal-Dispatch-Secret. We load the same
+//   value from vault at cold start and reject any request without
+//   a matching header.
+//
+// Per-send timeout (2026-05-22 hardening, second pass):
+//   Each webpush.sendNotification call is wrapped in Promise.race
+//   with a 3s timer. A hung FCM/APNS endpoint can no longer hold
+//   this function past the dispatcher's 5s outer fetch timeout.
+//   Stale endpoints time out, get logged as failed, and the worker
+//   moves on. Sends fan out via Promise.allSettled so one stuck
+//   subscription doesn't delay the others.
 //
 // Secrets required (set via `supabase secrets set`):
 //   VAPID_PUBLIC_KEY  (URL-safe base64)
@@ -27,6 +33,8 @@ const normalizeUrlSafeB64 = (s: string) =>
 const VAPID_PUBLIC = normalizeUrlSafeB64(Deno.env.get('VAPID_PUBLIC_KEY') ?? '');
 const VAPID_PRIVATE = normalizeUrlSafeB64(Deno.env.get('VAPID_PRIVATE_KEY') ?? '');
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:notifications@firefcapp.com';
+
+const PER_SUBSCRIPTION_TIMEOUT_MS = 3000;
 
 let vapidInitError: string | null = null;
 try {
@@ -58,6 +66,20 @@ const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-dispatch-secret',
 };
+
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => {
+            const e: any = new Error(`${label}_timeout_${ms}ms`);
+            e.code = 'TIMEOUT';
+            reject(e);
+        }, ms);
+        p.then(
+            (v) => { clearTimeout(timer); resolve(v); },
+            (err) => { clearTimeout(timer); reject(err); },
+        );
+    });
+}
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -103,32 +125,51 @@ Deno.serve(async (req) => {
         });
     }
 
-    let sent = 0, pruned = 0, failed = 0;
+    let sent = 0, pruned = 0, failed = 0, timedOut = 0;
     const errors: string[] = [];
     const notificationPayload = JSON.stringify({ title, body: body || '', url: url || '/', tag, category });
 
-    for (const sub of subs ?? []) {
-        const subscription = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
-        try {
-            await webpush.sendNotification(subscription, notificationPayload, { TTL: 3600 });
-            sent++;
-            await supabase
-                .from('user_push_subscriptions')
-                .update({ last_seen_at: new Date().toISOString() })
-                .eq('id', sub.id);
-        } catch (err: any) {
-            const status = err?.statusCode ?? err?.status ?? 0;
-            if (status === 404 || status === 410) {
-                await supabase.from('user_push_subscriptions').delete().eq('id', sub.id);
-                pruned++;
-            } else {
-                errors.push(`status=${status} message=${err?.message ?? String(err)}`);
-                failed++;
+    const results = await Promise.allSettled(
+        (subs ?? []).map(async (sub) => {
+            const subscription = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
+            try {
+                await withTimeout(
+                    webpush.sendNotification(subscription, notificationPayload, { TTL: 3600 }),
+                    PER_SUBSCRIPTION_TIMEOUT_MS,
+                    'webpush'
+                );
+                await supabase
+                    .from('user_push_subscriptions')
+                    .update({ last_seen_at: new Date().toISOString() })
+                    .eq('id', sub.id);
+                return { kind: 'sent' as const };
+            } catch (err: any) {
+                const status = err?.statusCode ?? err?.status ?? 0;
+                if (status === 404 || status === 410) {
+                    await supabase.from('user_push_subscriptions').delete().eq('id', sub.id);
+                    return { kind: 'pruned' as const };
+                }
+                if (err?.code === 'TIMEOUT') {
+                    return { kind: 'timeout' as const, message: err.message };
+                }
+                return { kind: 'failed' as const, message: `status=${status} ${err?.message ?? String(err)}` };
             }
+        })
+    );
+
+    for (const r of results) {
+        if (r.status === 'fulfilled') {
+            if (r.value.kind === 'sent')      sent++;
+            else if (r.value.kind === 'pruned')  pruned++;
+            else if (r.value.kind === 'timeout') { timedOut++; errors.push(r.value.message); }
+            else                                  { failed++;  errors.push(r.value.message); }
+        } else {
+            failed++;
+            errors.push(String(r.reason));
         }
     }
 
-    return new Response(JSON.stringify({ sent, pruned, failed, errors }), {
+    return new Response(JSON.stringify({ sent, pruned, failed, timedOut, errors }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

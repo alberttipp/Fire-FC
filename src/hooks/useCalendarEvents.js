@@ -136,25 +136,33 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
             const fetchedEvents = eventData || [];
             setEvents(fetchedEvents);
 
-            // Fetch personal RSVPs
-            if (playerId && fetchedEvents.length > 0) {
+            // RSVP fetch fans out into two queries:
+            //   - personal RSVPs (only for users with a resolved playerId,
+            //     i.e. parents and players — staff don't have one)
+            //   - all-RSVP counts for every visible event (everyone needs
+            //     these, including coaches looking at the month view)
+            // Previously both were gated on `playerId`, so coaches saw
+            // empty RSVP counts. Fixed 2026-05-22.
+            if (fetchedEvents.length > 0) {
                 const eventIds = fetchedEvents.map(e => e.id);
-                const { data: rsvpData } = await supabase
-                    .from('event_rsvps')
-                    .select('event_id, status')
-                    .eq('player_id', playerId)
-                    .in('event_id', eventIds);
 
-                const myRsvps = {};
-                (rsvpData || []).forEach(r => { myRsvps[r.event_id] = r.status; });
-                setRsvps(myRsvps);
+                if (playerId) {
+                    const { data: rsvpData } = await supabase
+                        .from('event_rsvps')
+                        .select('event_id, status')
+                        .eq('player_id', playerId)
+                        .in('event_id', eventIds);
+                    const myRsvps = {};
+                    (rsvpData || []).forEach(r => { myRsvps[r.event_id] = r.status; });
+                    setRsvps(myRsvps);
+                } else {
+                    setRsvps({});
+                }
 
-                // Fetch RSVP counts (all RSVPs for visible events)
                 const { data: allRsvps } = await supabase
                     .from('event_rsvps')
                     .select('event_id, status')
                     .in('event_id', eventIds);
-
                 const counts = {};
                 (allRsvps || []).forEach(r => {
                     if (!counts[r.event_id]) counts[r.event_id] = { going: 0, maybe: 0, not_going: 0 };
@@ -163,6 +171,9 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
                     }
                 });
                 setRsvpCounts(counts);
+            } else {
+                setRsvps({});
+                setRsvpCounts({});
             }
         } catch (err) {
             console.error('Error loading calendar events:', err);
@@ -174,6 +185,29 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     useEffect(() => {
         fetchEvents();
     }, [fetchEvents]);
+
+    // Live updates: when anyone RSVPs (or an event itself changes), refresh
+    // the view. event_rsvps + events were added to the supabase_realtime
+    // publication 2026-05-22 — without this subscription the calendar
+    // looked stale until a manual refresh. We dedupe within 500ms so a
+    // burst of RSVPs from one tap doesn't fan out into N refetches.
+    useEffect(() => {
+        if (!user?.id) return;
+        let timer = null;
+        const scheduleRefetch = () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => { fetchEvents(); }, 500);
+        };
+        const channel = supabase
+            .channel(`calendar:${user.id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'event_rsvps' }, scheduleRefetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'events' },      scheduleRefetch)
+            .subscribe();
+        return () => {
+            if (timer) clearTimeout(timer);
+            supabase.removeChannel(channel);
+        };
+    }, [user?.id, fetchEvents]);
 
     const handleRsvp = async (eventId, status) => {
         // Targets: every kid this user can write for who is on the event's team.

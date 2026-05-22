@@ -39,7 +39,7 @@ const CalendarHub = () => {
         };
     }, [viewDate, viewMode]);
 
-    const { events, rsvps, rsvpCounts, loading, handleRsvp } = useCalendarEvents({
+    const { events, rsvps, rsvpCounts, loading, handleRsvp, refetch } = useCalendarEvents({
         user,
         profile,
         dateRange,
@@ -175,14 +175,22 @@ const CalendarHub = () => {
                     defaultType={showCreateModal}
                     defaultDate={createDefaultDate}
                     onClose={() => { setShowCreateModal(null); setCreateDefaultDate(null); }}
-                    onEventCreated={() => { setShowCreateModal(null); setCreateDefaultDate(null); }}
+                    onEventCreated={() => {
+                        // Refetch immediately so the new event appears
+                        // without waiting on the realtime echo. The
+                        // realtime subscription will also fire and the
+                        // 500ms dedupe in the hook collapses both.
+                        setShowCreateModal(null);
+                        setCreateDefaultDate(null);
+                        refetch?.();
+                    }}
                 />
             )}
 
             {selectedEvent && (
                 <EventDetailModal
                     event={selectedEvent}
-                    onClose={() => setSelectedEvent(null)}
+                    onClose={() => { setSelectedEvent(null); refetch?.(); }}
                     onStartSession={handleStartSession}
                     onOpenLineup={(e) => { setSelectedEvent(null); setOpenLineupEvent(e); }}
                 />
