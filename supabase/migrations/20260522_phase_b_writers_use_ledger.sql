@@ -39,7 +39,10 @@ DECLARE
     v_streak_increased BOOLEAN := FALSE;
     v_already_hit_20   BOOLEAN;
     v_source_id        uuid := COALESCE(p_source_id, gen_random_uuid());
-    v_inserted         BOOLEAN := FALSE;
+    -- INTEGER (not boolean) because GET DIAGNOSTICS ROW_COUNT returns
+    -- an integer; declaring this boolean broke the assignment-trigger
+    -- path with "operator does not exist: boolean = integer".
+    v_inserted         INTEGER := 0;
     v_org_id           uuid;
 BEGIN
     INSERT INTO public.player_stats (player_id, streak_days, today_training_minutes, last_training_date)
