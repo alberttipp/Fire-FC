@@ -31,18 +31,48 @@ const VersionDriftWatcher = () => {
 // Rendered when React Router can't match the current path (typical when a
 // cached bundle is older than the current deploy and doesn't yet know
 // about a newly-added route). Force a cache-busting reload so the browser
-// pulls the current HTML + bundle, which will have the route. Renders a
-// neutral background during the brief reload so the user isn't staring
-// at a blank screen.
+// pulls the current HTML + bundle, which will have the route.
+//
+// 2026-05-22 loop guard: if the URL already carries our reload marker
+// (__r=...), we've already tried the cache-bust once and the route is
+// still unknown — reloading again would just blank the screen forever
+// (this was the 2026-05-22 black-screen-on-logout bug). Land the user on
+// a visible fallback with a way back to /login instead.
 const UnknownRouteReload = () => {
+  const alreadyReloaded = (() => {
+    try { return new URLSearchParams(window.location.search).has('__r'); }
+    catch { return false; }
+  })();
+
   useEffect(() => {
-    const ts = Date.now();
+    if (alreadyReloaded) return;
     const sep = window.location.search ? '&' : '?';
     window.location.replace(
-      window.location.pathname + window.location.search + sep + '__r=' + ts + window.location.hash
+      window.location.pathname + window.location.search + sep + '__r=' + Date.now() + window.location.hash
     );
-  }, []);
-  return <div className="min-h-screen bg-brand-dark" />;
+  }, [alreadyReloaded]);
+
+  if (!alreadyReloaded) {
+    return <div className="min-h-screen bg-brand-dark" />;
+  }
+  return (
+    <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4">
+      <div className="glass-panel p-8 max-w-md w-full text-center">
+        <h2 className="text-xl font-display font-bold text-white uppercase tracking-wider mb-2">
+          Page Not Found
+        </h2>
+        <p className="text-gray-400 text-sm mb-6">
+          We refreshed the app but still couldn't find this page. Head back to login to start over.
+        </p>
+        <button
+          onClick={() => { window.location.href = '/login'; }}
+          className="btn-primary px-6 py-2"
+        >
+          Go to Login
+        </button>
+      </div>
+    </div>
+  );
 };
 
 // Wrapper to conditionally show AI Assistant and Voice Commands

@@ -127,8 +127,17 @@ const Login = () => {
                 }
 
                 toast.success("Account created! Welcome to Fire FC!");
-                if (data?.session) navigate('/dashboard');
-                else {
+                if (data?.session) {
+                    // New signups without a join code default to role=parent
+                    // (see signUp() metadata above). Land them on the parent
+                    // surface so they're prompted for the guardian code,
+                    // not the coach dashboard that's empty for them.
+                    if (joinCode) {
+                        navigate('/dashboard');
+                    } else {
+                        navigate('/parent-dashboard');
+                    }
+                } else {
                     toast.info("Please check your email to confirm your account.");
                     setIsSignUp(false);
                 }

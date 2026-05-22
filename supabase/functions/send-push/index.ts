@@ -1,90 +1,62 @@
 // send-push — deliver a Web Push notification to all of a user's
-// registered devices. Used by drain-notification-outbox (Phase 2.3) and
-// callable directly for ops/testing.
+// registered devices.
 //
-// Request body (JSON):
-//   {
-//     user_id: uuid,
-//     title:   string,
-//     body:    string,
-//     url?:    string (target on notification click, default '/')
-//     tag?:    string (so a follow-up replaces a previous notification)
-//     category?: string (forwarded in payload for future preferences gating)
-//   }
-//
-// Response:
-//   { sent: number, pruned: number, failed: number }
-//
-// Auth: requires the SUPABASE_SERVICE_ROLE_KEY in the Authorization
-// header. The function is deployed with verify_jwt=true (default) but
-// the service-role JWT bypasses RLS so we can read every subscription
-// for the target user.
+// Auth model (2026-05-22 hardening):
+//   This function is deployed with verify_jwt: false because the cron
+//   pipeline calls it from drain-notification-outbox with a non-JWT
+//   shared secret in X-Internal-Dispatch-Secret. The function fetches
+//   the same secret from vault via the get_internal_dispatch_secret
+//   RPC (service-role-only) at cold start and rejects any request
+//   without a matching header. Anonymous internet POSTs return 401.
 //
 // Secrets required (set via `supabase secrets set`):
 //   VAPID_PUBLIC_KEY  (URL-safe base64)
 //   VAPID_PRIVATE_KEY (URL-safe base64)
 //   VAPID_SUBJECT     (e.g. mailto:alberttipp@gmail.com)
 //
-// On 404/410 from the push service, the subscription is auto-deleted
-// (its endpoint is dead — browser permission revoked, app uninstalled,
-// etc.) so the table stays clean.
+// On 404/410 from the push service, the subscription is auto-deleted.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-
-// Switched from `npm:web-push@3.6.7` to esm.sh — `npm:` was producing
-// WORKER_ERROR on the Supabase edge runtime (cold-start import crash,
-// no error body returned). esm.sh transpiles + polyfills for Deno
-// reliably. The bundled URL is pinned to the same library version.
 import webpush from 'https://esm.sh/web-push@3.6.7?target=denonext';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-// Normalize VAPID keys to URL-safe base64 (no padding, '-' and '_'
-// instead of '+' and '/'). web-push is strict and throws
-// "Vapid public key must be a URL safe Base 64 (without =)" if the
-// secret was set with trailing '=' from a normal base64 encode.
+
 const normalizeUrlSafeB64 = (s: string) =>
     (s ?? '').trim().replace(/=+$/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 const VAPID_PUBLIC = normalizeUrlSafeB64(Deno.env.get('VAPID_PUBLIC_KEY') ?? '');
 const VAPID_PRIVATE = normalizeUrlSafeB64(Deno.env.get('VAPID_PRIVATE_KEY') ?? '');
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:notifications@firefcapp.com';
 
-// Diagnostic: describe key shape (length + bad chars) without revealing
-// the key itself. URL-safe P-256 public keys are 87 chars; private keys
-// are 43 chars. The "(without =)" error message from web-push is
-// misleading — it actually fires on ANY non-URL-safe character.
-function describeKey(label: string, k: string): string {
-    if (!k) return `${label}: MISSING`;
-    const bad = [...new Set(k.match(/[^A-Za-z0-9_-]/g) || [])]
-        .map(c => c === ' ' ? '<space>' : c === '\n' ? '<LF>' : c === '\r' ? '<CR>' : c === '\t' ? '<TAB>' : JSON.stringify(c));
-    return `${label}: len=${k.length} bad=[${bad.join(',') || 'none'}]`;
-}
-console.log('[send-push]', describeKey('public', VAPID_PUBLIC));
-console.log('[send-push]', describeKey('private', VAPID_PRIVATE));
-
-// Initialize VAPID at module load. If keys are malformed, swallow the
-// throw and report on every request — we'd rather respond 500 with a
-// clean message than crash the worker on every cold start.
 let vapidInitError: string | null = null;
 try {
     if (VAPID_PUBLIC && VAPID_PRIVATE) {
         webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
-        console.log('[send-push] VAPID init OK');
     } else {
-        vapidInitError = 'vapid_not_configured: VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY missing in secrets';
+        vapidInitError = 'vapid_not_configured';
     }
 } catch (e: any) {
-    vapidInitError = `vapid_init_error: ${e?.message ?? String(e)} | ${describeKey('pub', VAPID_PUBLIC)} | ${describeKey('priv', VAPID_PRIVATE)}`;
+    vapidInitError = `vapid_init_error: ${e?.message ?? String(e)}`;
     console.error('[send-push] VAPID init failed:', e);
-    console.error('[send-push]', describeKey('public', VAPID_PUBLIC));
-    console.error('[send-push]', describeKey('private', VAPID_PRIVATE));
 }
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+let cachedSecret: string | null = null;
+async function getDispatchSecret(): Promise<string | null> {
+    if (cachedSecret) return cachedSecret;
+    const { data, error } = await supabase.rpc('get_internal_dispatch_secret');
+    if (error || !data) {
+        console.error('[send-push] failed to load dispatch secret:', error);
+        return null;
+    }
+    cachedSecret = data as string;
+    return cachedSecret;
+}
+
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-dispatch-secret',
 };
 
 Deno.serve(async (req) => {
@@ -94,8 +66,17 @@ Deno.serve(async (req) => {
     if (req.method !== 'POST') {
         return new Response('method not allowed', { status: 405, headers: corsHeaders });
     }
+
+    const expected = await getDispatchSecret();
+    const got = req.headers.get('X-Internal-Dispatch-Secret') ?? req.headers.get('x-internal-dispatch-secret');
+    if (!expected || !got || got !== expected) {
+        return new Response(JSON.stringify({ error: 'unauthorized' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+    }
+
     if (vapidInitError) {
-        console.error('[send-push] returning early:', vapidInitError);
         return new Response(JSON.stringify({ error: vapidInitError }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -103,11 +84,8 @@ Deno.serve(async (req) => {
     }
 
     let payload: any;
-    try {
-        payload = await req.json();
-    } catch {
-        return new Response('bad json', { status: 400, headers: corsHeaders });
-    }
+    try { payload = await req.json(); }
+    catch { return new Response('bad json', { status: 400, headers: corsHeaders }); }
 
     const { user_id, title, body, url, tag, category } = payload;
     if (!user_id || !title) {
@@ -118,7 +96,6 @@ Deno.serve(async (req) => {
         .from('user_push_subscriptions')
         .select('id, endpoint, p256dh, auth')
         .eq('user_id', user_id);
-
     if (subsErr) {
         return new Response(JSON.stringify({ error: subsErr.message }), {
             status: 500,
@@ -128,21 +105,10 @@ Deno.serve(async (req) => {
 
     let sent = 0, pruned = 0, failed = 0;
     const errors: string[] = [];
-    const notificationPayload = JSON.stringify({
-        title,
-        body: body || '',
-        url: url || '/',
-        tag,
-        category,
-    });
-
-    console.log(`[send-push] delivering to ${subs?.length ?? 0} subscription(s) for user ${user_id}`);
+    const notificationPayload = JSON.stringify({ title, body: body || '', url: url || '/', tag, category });
 
     for (const sub of subs ?? []) {
-        const subscription = {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-        };
+        const subscription = { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } };
         try {
             await webpush.sendNotification(subscription, notificationPayload, { TTL: 3600 });
             sent++;
@@ -156,9 +122,7 @@ Deno.serve(async (req) => {
                 await supabase.from('user_push_subscriptions').delete().eq('id', sub.id);
                 pruned++;
             } else {
-                const msg = `status=${status} message=${err?.message ?? String(err)}`;
-                console.error('[send-push] delivery failed:', msg);
-                errors.push(msg);
+                errors.push(`status=${status} message=${err?.message ?? String(err)}`);
                 failed++;
             }
         }

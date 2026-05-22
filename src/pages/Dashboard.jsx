@@ -73,8 +73,16 @@ const Dashboard = () => {
 
     // Fetch unread notification count
     useEffect(() => {
+        // Guard against teardown / signed-out states. Without this, the
+        // channel below subscribes with filter `user_id=eq.undefined` on
+        // signout and leaves a dangling subscription with no clean way
+        // to remove it — contributed to the 2026-05-22 logout regression.
+        if (!user?.id) {
+            setUnreadCount(0);
+            return;
+        }
+
         const fetchUnreadCount = async () => {
-            if (!user?.id) return;
             const { count, error } = await supabase
                 .from('notifications')
                 .select('*', { count: 'exact', head: true })
@@ -88,14 +96,13 @@ const Dashboard = () => {
 
         fetchUnreadCount();
 
-        // Subscribe to new notifications
         const channel = supabase
-            .channel('notifications')
+            .channel(`notifications:${user.id}`)
             .on('postgres_changes', {
                 event: '*',
                 schema: 'public',
                 table: 'notifications',
-                filter: `user_id=eq.${user?.id}`
+                filter: `user_id=eq.${user.id}`
             }, () => {
                 fetchUnreadCount();
             })
@@ -104,7 +111,7 @@ const Dashboard = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user]);
+    }, [user?.id]);
 
     // Handle auto-generate from notification
     const handleAutoGenerate = (actionData) => {

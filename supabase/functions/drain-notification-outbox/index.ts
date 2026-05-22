@@ -1,24 +1,20 @@
-// drain-notification-outbox — v9, parallel row processing with bounded
-// execution time.
+// drain-notification-outbox — v10.
 //
-// Architecture (post-2026-05-21 incident):
-//   - claim_pending_outbox_rows(batch) atomically grabs a batch.
-//   - All rows in the batch are processed in parallel via Promise.all,
-//     so a worst-case batch finishes in ~5s (the single-fetch timeout)
-//     instead of N*5s. v7's sequential loop hit the cron's 60s tick
-//     under load.
-//   - Each row: should_notify x 2 (in_app, push), insert notifications,
-//     fetch send-push with AbortSignal.timeout(5000), update outbox.
-//   - On TimeoutError/AbortError the row stays 'pending' for retry
-//     until MAX_ATTEMPTS.
+// Auth model (2026-05-22 hardening):
+//   verify_jwt is intentionally false because pg_cron calls this
+//   function with a non-JWT shared secret (X-Internal-Dispatch-Secret).
+//   The function fetches the same value from vault via the
+//   get_internal_dispatch_secret RPC at cold start and rejects every
+//   request that doesn't match. Anonymous internet POSTs return 401.
 //
-// Notes:
-//   - BATCH_SIZE = 10 keeps parallel DB call fan-out bounded.
-//   - We awaited Promise.allSettled rather than Promise.all so one row
-//     throwing doesn't drop the rest of the batch.
-//   - The cron job's pg_net.http_post has timeout_milliseconds=1000,
-//     so it doesn't wait for us to finish — it fires and forgets.
-//     Our work continues server-side regardless.
+// Idempotency (2026-05-22):
+//   notifications has UNIQUE(outbox_id, user_id). We pass outbox_id
+//   on the in-app insert, so a retry after a push timeout can no
+//   longer double-insert the bell-badge row.
+//
+// Bounded execution:
+//   Promise.allSettled over a batch of 10, send-push fetch capped at
+//   5s via AbortSignal.timeout. Worst case ~5s per cron tick.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -35,10 +31,22 @@ const PUSH_FETCH_TIMEOUT_MS = 5000;
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-dispatch-secret',
 };
 
-async function processRow(row: any): Promise<{ ok: boolean }> {
+let cachedSecret: string | null = null;
+async function getDispatchSecret(): Promise<string | null> {
+    if (cachedSecret) return cachedSecret;
+    const { data, error } = await supabase.rpc('get_internal_dispatch_secret');
+    if (error || !data) {
+        console.error('[drain] failed to load dispatch secret:', error);
+        return null;
+    }
+    cachedSecret = data as string;
+    return cachedSecret;
+}
+
+async function processRow(row: any, dispatchSecret: string): Promise<{ ok: boolean }> {
     let success = true;
     const errors: string[] = [];
 
@@ -48,7 +56,10 @@ async function processRow(row: any): Promise<{ ok: boolean }> {
     ]);
 
     if (inAppAllowed !== false) {
+        // Idempotent insert: notifications has UNIQUE(outbox_id, user_id).
+        // Retries collide on the constraint instead of duplicating.
         const { error: inAppErr } = await supabase.from('notifications').insert({
+            outbox_id: row.id,
             user_id: row.user_id,
             type: row.category,
             title: row.title,
@@ -58,14 +69,26 @@ async function processRow(row: any): Promise<{ ok: boolean }> {
             action_data: { url: row.url ?? '/' },
             org_id: row.org_id ?? null,
         });
-        if (inAppErr) { success = false; errors.push(`inapp: ${inAppErr.message}`); }
+        if (inAppErr) {
+            // 23505 = unique_violation; that means we already inserted
+            // this in-app row on a prior attempt. Treat as success for
+            // the in-app leg so the row can advance to 'sent' as soon
+            // as push succeeds.
+            if ((inAppErr as any).code !== '23505') {
+                success = false;
+                errors.push(`inapp: ${inAppErr.message}`);
+            }
+        }
     }
 
     if (pushAllowed !== false) {
         try {
             const res = await fetch(`${FUNCTIONS_URL}/send-push`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Internal-Dispatch-Secret': dispatchSecret,
+                },
                 body: JSON.stringify({
                     user_id: row.user_id,
                     title: row.title,
@@ -107,6 +130,15 @@ Deno.serve(async (req) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
+    const expected = await getDispatchSecret();
+    const got = req.headers.get('X-Internal-Dispatch-Secret') ?? req.headers.get('x-internal-dispatch-secret');
+    if (!expected || !got || got !== expected) {
+        return new Response(JSON.stringify({ error: 'unauthorized' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+    }
+
     const { data: claimed, error: claimErr } = await supabase.rpc(
         'claim_pending_outbox_rows',
         { p_limit: BATCH_SIZE }
@@ -125,7 +157,7 @@ Deno.serve(async (req) => {
         });
     }
 
-    const results = await Promise.allSettled(claimed.map(processRow));
+    const results = await Promise.allSettled(claimed.map((r: any) => processRow(r, expected)));
     const sent = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
     const failed = results.length - sent;
 
