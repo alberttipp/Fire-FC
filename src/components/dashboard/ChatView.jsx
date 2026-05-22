@@ -119,32 +119,34 @@ const ChatView = () => {
             let firstFetchError = null;
 
             if (!isPlayer) {
-                // Staff: fetch team conversations (RLS filters by team_memberships)
-                const { data: teamConvos, error: teamErr } = await supabase
-                    .from('conversations')
-                    .select('id, team_id, type, name, created_at')
-                    .eq('type', 'team')
-                    .order('created_at', { ascending: true });
+                // Staff: fan out team-channel fetch + staff_dm fetch in
+                // parallel. They're independent queries; doing them
+                // sequentially was adding ~150-300ms to chat open.
+                const [teamRes, staffRes] = await Promise.all([
+                    supabase
+                        .from('conversations')
+                        .select('id, team_id, type, name, created_at')
+                        .eq('type', 'team')
+                        .order('created_at', { ascending: true }),
+                    supabase
+                        .from('conversations')
+                        .select('id, team_id, type, name, created_at, conversation_members!inner(user_id)')
+                        .eq('conversation_members.user_id', user.id)
+                        .eq('type', 'staff_dm')
+                        .order('created_at', { ascending: true }),
+                ]);
 
-                if (teamErr) {
-                    console.error('Team convos error:', teamErr);
-                    firstFetchError = firstFetchError || teamErr;
+                if (teamRes.error) {
+                    console.error('Team convos error:', teamRes.error);
+                    firstFetchError = firstFetchError || teamRes.error;
                 }
-                if (teamConvos) allChannels.push(...teamConvos);
+                if (teamRes.data) allChannels.push(...teamRes.data);
 
-                // Staff: fetch staff_dm conversations via conversation_members
-                const { data: staffDMs, error: staffErr } = await supabase
-                    .from('conversations')
-                    .select('id, team_id, type, name, created_at, conversation_members!inner(user_id)')
-                    .eq('conversation_members.user_id', user.id)
-                    .eq('type', 'staff_dm')
-                    .order('created_at', { ascending: true });
-
-                if (staffErr) {
-                    console.error('Staff DMs error:', staffErr);
-                    firstFetchError = firstFetchError || staffErr;
+                if (staffRes.error) {
+                    console.error('Staff DMs error:', staffRes.error);
+                    firstFetchError = firstFetchError || staffRes.error;
                 }
-                if (staffDMs) allChannels.push(...staffDMs);
+                if (staffRes.data) allChannels.push(...staffRes.data);
             } else {
                 // Players: only player_dm via conversation_members
                 const { data: playerDMs, error: playerErr } = await supabase
@@ -334,11 +336,18 @@ const ChatView = () => {
             is_urgent: isUrgent
         };
 
+        // _pending is a client-only marker so MessageRow can style the
+        // bubble as in-flight until the server confirms. The realtime
+        // INSERT echo arrives with the same id (we provide it) but
+        // without _pending, so the dedupe-by-id replaces the optimistic
+        // row with the canonical row automatically.
         const optimisticRow = {
             ...messageData,
             created_at: new Date().toISOString(),
+            _pending: true,
         };
-        if (activeChannelIdRef.current === activeChannel.id) {
+        const sendChannelId = activeChannel.id;
+        if (activeChannelIdRef.current === sendChannelId) {
             setMessages(prev => {
                 if (prev.some(m => m.id === optimisticRow.id)) return prev;
                 return [...prev, optimisticRow];
@@ -358,10 +367,26 @@ const ChatView = () => {
                 console.error('Send error:', error);
                 throw error;
             }
+            // On success, clear the _pending flag on the optimistic
+            // row if the realtime echo hasn't replaced it yet. Only
+            // applies if the user hasn't switched channels.
+            if (activeChannelIdRef.current === sendChannelId) {
+                setMessages(prev => prev.map(m =>
+                    m.id === clientMessageId && m._pending
+                        ? { ...m, _pending: false }
+                        : m
+                ));
+            }
         } catch (err) {
-            // Roll the optimistic row back so it doesn't sit there as a
-            // ghost message after a real send failure.
-            setMessages(prev => prev.filter(m => m.id !== clientMessageId));
+            // Roll the optimistic row back only if we're still on the
+            // channel we sent from. Codex flagged a sloppy edge case
+            // here: if the user switched channels mid-send and the
+            // insert failed, the previous rollback ran against the
+            // wrong channel's state. UUID collision is unlikely but
+            // the guard is correct.
+            if (activeChannelIdRef.current === sendChannelId) {
+                setMessages(prev => prev.filter(m => m.id !== clientMessageId));
+            }
             console.error('Error sending message:', err);
             setChatError('Failed to send message. You may not have permission to post here.');
             setTimeout(() => setChatError(null), 4000);
@@ -775,14 +800,20 @@ const MessageRow = ({
 }) => {
     const longPress = useLongPress(() => onOpenPicker());
 
+    const pending = !!msg._pending;
     return (
-        <div className={`flex gap-3 md:gap-4 ${own ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex gap-3 md:gap-4 ${own ? 'flex-row-reverse' : ''} ${pending ? 'opacity-70' : ''}`}>
             <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs md:text-sm ${getAvatarStyle(msg.sender_role)}`}>
                 {msg.sender_name?.charAt(0)?.toUpperCase() || '?'}
             </div>
             <div className={`max-w-[85%] md:max-w-[70%] ${own ? 'items-end' : 'items-start'} flex flex-col`}>
                 <div className={`flex items-center gap-2 mb-1 ${own ? 'flex-row-reverse' : ''}`}>
                     <span className="text-sm font-bold text-white">{msg.sender_name || 'Unknown'}</span>
+                    {pending && (
+                        <span className="text-[10px] uppercase tracking-wider text-gray-500" title="Waiting for server confirmation">
+                            sending…
+                        </span>
+                    )}
                     {msg.sender_role && (
                         <span className={`text-xs px-1.5 py-0.5 rounded uppercase font-bold ${getRoleBadgeStyle(msg.sender_role)}`}>
                             {msg.sender_role}
