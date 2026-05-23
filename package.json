@@ -8,6 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:launch": "playwright test tests/launch-readiness.spec.js",
+    "test:launch:prod": "cross-env TEST_URL=https://firefcapp.com playwright test tests/launch-readiness.spec.js",
     "seed:permanent": "node scripts/seed_permanent.js",
     "seed:staging": "node scripts/seed_staging.js",
     "seed:help": "echo '\n📚 Seed Commands:\n\n  npm run seed:permanent  - Seed drills & badges (idempotent)\n  npm run seed:staging    - Seed test data (destructive)\n\nSee supabase/seed/SEED_POLICY.md for details.\n'"
