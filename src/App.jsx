@@ -18,6 +18,7 @@ import { VoiceCommandProvider } from './context/VoiceCommandContext';
 import AIAssistant from './components/AIAssistant';
 import VoiceCommandOverlay from './components/VoiceCommandOverlay';
 import BuildStamp from './components/BuildStamp';
+import IOSInstallPrompt from './components/IOSInstallPrompt';
 import { logBuildInfo } from './utils/buildInfo';
 
 // Watches for a new deploy while the user has the app open. Lives inside
@@ -165,6 +166,11 @@ function App() {
 
               {/* AI Assistant & Voice Commands - appears on all logged-in pages */}
               <AIAssistantWrapper />
+
+              {/* iOS install prompt — only renders on iPhone/iPad Safari
+                  that isn't installed to Home Screen yet. Auto-hides on
+                  Android, on desktop, and after dismissal. */}
+              <IOSInstallPrompt />
 
               {/* Build Stamp - visible indicator of deployed version */}
               <BuildStamp />

@@ -1053,6 +1053,43 @@ const ParentDashboard = () => {
         }
     };
 
+    // Full-page guardian-code gate. Parents who signed up but haven't
+    // linked a kid see the welcome + code entry instead of an empty
+    // dashboard with nav tabs that all return empty states. Preview
+    // mode (coach/manager viewing as parent) bypasses since the player
+    // is already injected via ?preview=. Loading state also passes
+    // through so we don't flash the gate before children are fetched.
+    if (!loading && !isPreview && children.length === 0) {
+        return (
+            <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4">
+                <div className="max-w-md w-full">
+                    <div className="text-center mb-6">
+                        <div className="w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                            <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
+                        </div>
+                        <h1 className="text-2xl text-white font-display uppercase font-bold tracking-wider">
+                            Welcome to <span className="text-blue-500">Fire FC</span>
+                        </h1>
+                        <p className="text-gray-400 text-sm mt-2">
+                            Enter your guardian code to link your player and unlock the family dashboard.
+                        </p>
+                    </div>
+                    <GuardianCodeEntry
+                        onSuccess={() => fetchChildrenData()}
+                    />
+                    <div className="text-center mt-6">
+                        <button
+                            onClick={async () => { await signOut(); navigate('/login'); }}
+                            className="text-xs text-gray-500 hover:text-gray-300 underline"
+                        >
+                            Sign out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         // overflow-x-hidden defends against any decorative element (messi
         // badge pokes 32px past the card's right edge, player image pokes
