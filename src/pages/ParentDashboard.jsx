@@ -334,7 +334,7 @@ const ParentDashboard = () => {
             // Fetch coach assignments (read-only for parent)
             const { data: coachAssigns } = await supabase
                 .from('assignments')
-                .select('*, drills:drill_id (name, title, skill, category, duration_minutes, duration)')
+                .select('*, drills:drill_id (name, category, duration)')
                 .eq('player_id', playerId)
                 .eq('source', 'coach')
                 .order('created_at', { ascending: false })
@@ -348,7 +348,7 @@ const ParentDashboard = () => {
             // as a status-of-solo-work section.
             const { data: parentAssigns } = await supabase
                 .from('assignments')
-                .select('*, drills:drill_id (name, title, skill, category, duration_minutes, duration)')
+                .select('*, drills:drill_id (name, category, duration)')
                 .eq('player_id', playerId)
                 .in('source', ['parent', 'player'])
                 .order('created_at', { ascending: false })
@@ -357,7 +357,7 @@ const ParentDashboard = () => {
             setParentAssignments(parentAssigns || []);
 
             // Calculate attendance from real RSVP data
-            if (teamId) {
+            if (kidTeamIds.length > 0) {
                 const { data: rsvpData } = await supabase
                     .from('event_rsvps')
                     .select('status')
@@ -378,7 +378,7 @@ const ParentDashboard = () => {
             }
 
             // Calculate team practice minutes from attended practice events
-            if (teamId) {
+            if (kidTeamIds.length > 0) {
                 const { data: attendedEvents } = await supabase
                     .from('event_rsvps')
                     .select('event_id')

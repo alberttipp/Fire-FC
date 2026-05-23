@@ -51,6 +51,12 @@ const ChatView = () => {
     // 'live' | 'reconnecting' | 'offline'. Used by the small header
     // badge so families know whether what they're seeing is current.
     const [connectionStatus, setConnectionStatus] = useState('idle');
+    // Map of message_id -> array of reaction rows. Fetched in one
+    // batched query when messages load so ReactionBar doesn't have
+    // to fire N parallel GETs per chat open (that pattern saturated
+    // PostgREST on 2026-05-23 — every visible message triggered an
+    // RLS check, all timed out together, the chat looked dead).
+    const [reactionsByMsg, setReactionsByMsg] = useState({});
     const messagesEndRef = useRef(null);
     const channelSubscription = useRef(null);
     // Tracks the conversation whose state is currently live in this component.
@@ -227,6 +233,28 @@ const ChatView = () => {
             .eq('user_id', user.id);
     };
 
+    const fetchReactionsForMessages = async (conversationId, messageIds) => {
+        if (!messageIds || messageIds.length === 0) {
+            setReactionsByMsg({});
+            return;
+        }
+        const { data, error } = await supabase
+            .from('message_reactions')
+            .select('id, emoji, user_id, message_id')
+            .in('message_id', messageIds);
+        if (activeChannelIdRef.current !== conversationId) return;
+        if (error) {
+            console.warn('[ChatView] batch reactions fetch failed:', error);
+            return;
+        }
+        const grouped = {};
+        (data || []).forEach(r => {
+            if (!grouped[r.message_id]) grouped[r.message_id] = [];
+            grouped[r.message_id].push({ id: r.id, emoji: r.emoji, user_id: r.user_id });
+        });
+        setReactionsByMsg(grouped);
+    };
+
     const fetchMessages = async (conversationId) => {
         try {
             const { data, error } = await supabase
@@ -246,6 +274,10 @@ const ChatView = () => {
             // flash — realtime would prepend the just-sent row, then a
             // late fetch of the previous channel would wipe it.
             if (activeChannelIdRef.current !== conversationId) return;
+            // Batch-fetch reactions for all visible messages in one
+            // query. Fires in parallel with the merge below; doesn't
+            // block message render.
+            fetchReactionsForMessages(conversationId, (data || []).map(m => m.id));
             // Merge with any rows already present (e.g. an optimistic
             // append from handleSend or a realtime INSERT that landed
             // first) so we don't clobber the just-sent message.
@@ -713,6 +745,7 @@ const ChatView = () => {
                                 pickerOpen={reactionPickerFor === msg.id}
                                 onOpenPicker={() => setReactionPickerFor(msg.id)}
                                 onClosePicker={() => setReactionPickerFor(null)}
+                                reactionRows={reactionsByMsg[msg.id] || []}
                             />
                         ))
                     )}
@@ -810,6 +843,7 @@ const MessageRow = ({
     pickerOpen,
     onOpenPicker,
     onClosePicker,
+    reactionRows,
 }) => {
     const longPress = useLongPress(() => onOpenPicker());
 
@@ -880,6 +914,7 @@ const MessageRow = ({
                         align={own ? 'right' : 'left'}
                         pickerOpen={pickerOpen}
                         onClosePicker={onClosePicker}
+                        initialRows={reactionRows}
                     />
                 </div>
             </div>

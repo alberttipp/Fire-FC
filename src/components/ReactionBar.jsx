@@ -35,14 +35,31 @@ const ReactionBar = ({
     compact = false,
     pickerOpen = false,
     onClosePicker,
+    // When the parent already has all reactions for this target (e.g.
+    // ChatView batch-fetches all visible messages' reactions in one
+    // query), it passes them in via initialRows so this component
+    // skips its own fetch. Without this prop ChatView would fire one
+    // GET /message_reactions per visible message — the N+1 that
+    // saturated PostgREST 2026-05-23. When undefined (e.g. gallery
+    // media reactions where bars are rendered one at a time) we fall
+    // back to the eager fetch.
+    initialRows,
 }) => {
     const { user } = useAuth();
     const toast = useToast();
-    const [rows, setRows] = useState([]);
+    const [rows, setRows] = useState(initialRows || []);
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
         if (!targetId) return;
+        // If the parent owns the data, mirror it into local state and
+        // skip the fetch. Mirroring (not a controlled component) lets
+        // toggle() do optimistic updates locally without a parent
+        // round-trip on every tap.
+        if (initialRows !== undefined) {
+            setRows(initialRows);
+            return;
+        }
         let cancelled = false;
         (async () => {
             const { data, error } = await supabase
@@ -58,7 +75,7 @@ const ReactionBar = ({
             }
         })();
         return () => { cancelled = true; };
-    }, [tableName, columnName, targetId]);
+    }, [tableName, columnName, targetId, initialRows]);
 
     // {emoji: {count, mineId}} — order preserves first-seen for chips
     const { summary, orderedReacted } = useMemo(() => {
