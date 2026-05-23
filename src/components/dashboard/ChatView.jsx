@@ -93,6 +93,10 @@ const ChatView = () => {
     useEffect(() => {
         activeChannelIdRef.current = activeChannel?.id || null;
         if (activeChannel) {
+            // Remember the last opened channel so the next visit lands
+            // here instead of resetting to the first channel.
+            try { localStorage.setItem('firefc-last-chat-channel', activeChannel.id); }
+            catch (_) { /* localStorage blocked — non-fatal */ }
             fetchMessages(activeChannel.id);
             fetchMemberCount(activeChannel.id);
             subscribeToMessages(activeChannel.id);
@@ -175,7 +179,16 @@ const ChatView = () => {
 
             const unique = [...new Map(allChannels.map(c => [c.id, c])).values()];
             setChannels(unique);
-            setActiveChannel(unique.length > 0 ? unique[0] : null);
+            // Prefer the channel the user had open last time so a return
+            // visit lands back in context instead of bouncing them to
+            // the first channel in the list. Falls back to the first
+            // channel if the cached id is no longer accessible.
+            let preferred = null;
+            try {
+                const cachedId = localStorage.getItem('firefc-last-chat-channel');
+                if (cachedId) preferred = unique.find(c => c.id === cachedId) || null;
+            } catch (_) { /* localStorage blocked — non-fatal */ }
+            setActiveChannel(preferred || (unique.length > 0 ? unique[0] : null));
         } catch (err) {
             console.error('Error fetching conversations:', err);
             setChatError(err.message || "Couldn't load conversations.");

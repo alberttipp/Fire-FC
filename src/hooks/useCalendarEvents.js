@@ -191,6 +191,12 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     // publication 2026-05-22 — without this subscription the calendar
     // looked stale until a manual refresh. We dedupe within 500ms so a
     // burst of RSVPs from one tap doesn't fan out into N refetches.
+    //
+    // Safety poll: every 60s we also re-fetch unconditionally. If the
+    // realtime WebSocket dropped silently (slept tab, mobile network
+    // bounce, edge function eviction) the user still gets fresh data
+    // within a minute. When realtime is healthy this fetch is a cheap
+    // confirming no-op.
     useEffect(() => {
         if (!user?.id) return;
         let timer = null;
@@ -203,8 +209,10 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'event_rsvps' }, scheduleRefetch)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'events' },      scheduleRefetch)
             .subscribe();
+        const pollId = setInterval(() => { fetchEvents(); }, 60_000);
         return () => {
             if (timer) clearTimeout(timer);
+            clearInterval(pollId);
             supabase.removeChannel(channel);
         };
     }, [user?.id, fetchEvents]);
