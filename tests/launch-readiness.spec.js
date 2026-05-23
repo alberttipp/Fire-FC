@@ -1,6 +1,25 @@
 import { test, expect } from '@playwright/test';
 import { loginAs } from './helpers.js';
 
+// Helper: click the first VISIBLE button matching a name. The Fire FC
+// dashboards have both a desktop nav and a mobile bottom nav, both of
+// which carry tabs like "Chat" / "Schedule". On a Chromium desktop
+// viewport one is visible and the other is display:none. getByRole
+// alone returns both; .first() can pick the hidden one and the click
+// silently never fires.
+async function clickVisibleButton(page, name) {
+    const candidates = page.getByRole('button', { name });
+    const count = await candidates.count();
+    for (let i = 0; i < count; i++) {
+        const btn = candidates.nth(i);
+        if (await btn.isVisible()) {
+            await btn.click();
+            return true;
+        }
+    }
+    return false;
+}
+
 // Launch-readiness regression tests covering the scenarios surfaced by
 // the 2026-05-22 Codex audit. These run in Chromium (desktop) — phone-
 // install + push-delivery paths still need real-device verification
@@ -61,13 +80,10 @@ test.describe('Launch readiness', () => {
     // instead of looping.
     test('UnknownRouteReload shows visible fallback on second hit', async ({ page }) => {
         await page.goto('/some-route-that-does-not-exist?__r=' + Date.now());
-        // The fallback card has the heading "Page Not Found" and a
-        // "Go to Login" button. Either one being visible is the success
-        // signal — what we are checking is that we did NOT stay on a
-        // pure bg-brand-dark screen with no content.
-        await expect(
-            page.locator('text=Page Not Found, button:has-text("Go to Login")').first()
-        ).toBeVisible({ timeout: 8000 });
+        // The fallback card renders an h2 "Page Not Found" + a
+        // "Go to Login" button. Direct h2:has-text selector is more
+        // reliable than .or() chaining.
+        await expect(page.locator('h2:has-text("Page Not Found")')).toBeVisible({ timeout: 8000 });
     });
 
     // ----- iOS INSTALL PROMPT HIDES ON CHROMIUM ---------------------
@@ -88,48 +104,38 @@ test.describe('Launch readiness', () => {
     // up correctly.
     test('chat tab shows realtime connection-status badge', async ({ page }) => {
         await loginAs(page, 'coach');
-        // Open the Chat tab. Selector covers the desktop nav button.
-        const chatTab = page
-            .locator('button:has-text("Chat"), button:has-text("Messages"), a:has-text("Chat")')
-            .first();
-        if (await chatTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await chatTab.click();
-        }
-        // Wait for the realtime channel to attempt a subscription.
-        // We accept any of the four states — what matters is that
-        // the badge mounted, not which state it ended up in.
-        const badge = page.locator(
-            'span[title*="Realtime"], text=/Live|Connecting|Reconnecting|Offline/i'
-        ).first();
-        await expect(badge).toBeVisible({ timeout: 15000 });
+        await page.getByRole('button', { name: /^Chat$/ }).first()
+            .waitFor({ state: 'attached', timeout: 10000 });
+        const clicked = await clickVisibleButton(page, /^Chat$/);
+        expect(clicked, 'Should have clicked a visible Chat button').toBe(true);
+        // Wait for the lazy-loaded ChatView chunk + realtime connect.
+        // The badge has a title attribute beginning with "Realtime "
+        // regardless of final state (Live/Connecting/Reconnecting/Offline).
+        await expect(page.locator('span[title^="Realtime "]').first())
+            .toBeVisible({ timeout: 20000 });
     });
 
     // ----- CALENDAR LOADS AS COACH -----------------------------------
     test('calendar tab loads for coach without errors', async ({ page }) => {
         await loginAs(page, 'coach');
-        const scheduleTab = page
-            .locator('button:has-text("Schedule"), button:has-text("Calendar"), a:has-text("Schedule")')
-            .first();
-        if (await scheduleTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await scheduleTab.click();
-        }
-        // The CalendarHub renders a "Calendar" heading and view-mode
-        // toggle (Month / Week / List). One of those should appear.
+        // Wait for the Schedule button to be settled in the DOM before
+        // attempting to click. Without this Playwright can click a
+        // stale button during Suspense fallback swaps.
+        await page.getByRole('button', { name: /^Schedule$/ }).first()
+            .waitFor({ state: 'attached', timeout: 10000 });
+        const clicked = await clickVisibleButton(page, /^Schedule$/);
+        expect(clicked, 'Should have clicked a visible Schedule button').toBe(true);
+        // CalendarHub is lazy-loaded — give the chunk time to mount.
         await expect(
-            page.locator('text=Calendar, button:has-text("Month"), button:has-text("Week")').first()
-        ).toBeVisible({ timeout: 10000 });
+            page.locator('h2:has-text("Calendar"), button:has-text("Month"), button:has-text("Week")').first()
+        ).toBeVisible({ timeout: 15000 });
     });
 
     test('calendar tab loads for parent without errors', async ({ page }) => {
         await loginAs(page, 'parent');
-        const scheduleTab = page
-            .locator('button:has-text("Schedule"), button:has-text("Calendar"), a:has-text("Schedule")')
-            .first();
-        if (await scheduleTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await scheduleTab.click();
-        }
+        await clickVisibleButton(page, /^Schedule$/);
         await expect(
-            page.locator('text=Calendar, button:has-text("Month"), button:has-text("Week"), text=Upcoming Events').first()
+            page.locator('h2:has-text("Calendar"), button:has-text("Month"), button:has-text("Week")').first()
         ).toBeVisible({ timeout: 10000 });
     });
 

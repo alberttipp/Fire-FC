@@ -233,55 +233,55 @@ const Dashboard = () => {
                                 Club
                             </button>
                             <button
-                                onClick={() => setCurrentView('team')}
+                                onClick={() => pickView('team')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'team' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Team
                             </button>
                             <button
-                                onClick={() => setCurrentView('practice')}
+                                onClick={() => pickView('practice')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'practice' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 <Dumbbell className="w-3 h-3" /> Practice
                             </button>
                             <button
-                                onClick={() => setCurrentView('idp')}
+                                onClick={() => pickView('idp')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'idp' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold/80 hover:text-brand-gold'}`}
                             >
                                 <Target className="w-3 h-3" /> IDP
                             </button>
                             <button
-                                onClick={() => setCurrentView('private')}
+                                onClick={() => pickView('private')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'private' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold/70 hover:text-brand-gold'}`}
                             >
                                 <Briefcase className="w-3 h-3" /> Private
                             </button>
                             <button
-                                onClick={() => setCurrentView('chat')}
+                                onClick={() => pickView('chat')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'chat' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Chat
                             </button>
                             <button
-                                onClick={() => setCurrentView('calendar')}
+                                onClick={() => pickView('calendar')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'calendar' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Schedule
                             </button>
                             <button
-                                onClick={() => setCurrentView('rules')}
+                                onClick={() => pickView('rules')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'rules' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 <FileText className="w-3 h-3" /> Rules
                             </button>
                             <button
-                                onClick={() => setCurrentView('gallery')}
+                                onClick={() => pickView('gallery')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'gallery' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 <Camera className="w-3 h-3" /> Gallery
                             </button>
                             <button
-                                onClick={() => setCurrentView('notifications')}
+                                onClick={() => pickView('notifications')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'notifications' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                                 title="Push notifications + device management"
                             >
@@ -293,13 +293,13 @@ const Dashboard = () => {
                             {isManager && (
                                 <>
                                     <button
-                                        onClick={() => setCurrentView('tryouts')}
+                                        onClick={() => pickView('tryouts')}
                                         className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'tryouts' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold hover:text-white'}`}
                                     >
                                         <ClipboardCheck className="w-3 h-3" /> Tryouts
                                     </button>
                                     <button
-                                        onClick={() => setCurrentView('financial')}
+                                        onClick={() => pickView('financial')}
                                         className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'financial' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold hover:text-white'}`}
                                     >
                                         <DollarSign className="w-3 h-3" /> Money
@@ -345,7 +345,7 @@ const Dashboard = () => {
                                         ].map(tab => (
                                             <button
                                                 key={tab.id}
-                                                onClick={() => { setCurrentView(tab.id); setMobileMenuOpen(false); }}
+                                                onClick={() => { pickView(tab.id); setMobileMenuOpen(false); }}
                                                 className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === tab.id ? 'text-brand-green bg-brand-green/10 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
                                             >
                                                 {tab.label}
@@ -353,8 +353,8 @@ const Dashboard = () => {
                                         ))}
                                         {isManager && (
                                             <>
-                                                <button onClick={() => { setCurrentView('tryouts'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'tryouts' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Tryouts</button>
-                                                <button onClick={() => { setCurrentView('financial'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'financial' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Money</button>
+                                                <button onClick={() => { pickView('tryouts'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'tryouts' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Tryouts</button>
+                                                <button onClick={() => { pickView('financial'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'financial' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Money</button>
                                             </>
                                         )}
                                     </div>
