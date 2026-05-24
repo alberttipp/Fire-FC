@@ -25,7 +25,7 @@ const BadgeCelebration = ({ badge, onClose }) => {
             setPhase('reveal');
         }, 2500);
 
-        // Phase 3: Badge revealed (after 3.5s)
+        // Phase 3: Passport stamp revealed (after 3.5s)
         const timer3 = setTimeout(() => {
             setPhase('collect');
         }, 6000);
@@ -121,14 +121,14 @@ const BadgeCelebration = ({ badge, onClose }) => {
                         phase === 'envelope' ? 'opacity-100' : 'opacity-0'
                     }`}>
                         <p className="text-brand-gold text-lg font-bold uppercase tracking-widest animate-pulse">
-                            You received a badge!
+                            You earned a passport stamp!
                         </p>
                         <p className="text-gray-400 text-sm mt-1">Tap to open</p>
                     </div>
                 </div>
             )}
 
-            {/* Badge Reveal */}
+            {/* Passport stamp reveal */}
             {phase === 'reveal' && (
                 <div className="absolute inset-0 flex items-center justify-center z-20">
                     <div className="text-center animate-badge-reveal">
@@ -137,13 +137,13 @@ const BadgeCelebration = ({ badge, onClose }) => {
                             <div className="w-96 h-96 bg-brand-gold/30 rounded-full blur-[100px] animate-pulse" />
                         </div>
 
-                        {/* Badge icon */}
+                        {/* Stamp icon */}
                         <div className="relative">
                             <div className="text-[180px] filter drop-shadow-[0_0_60px_rgba(255,215,0,0.9)] animate-badge-bounce">
                                 {badge?.icon || '🏆'}
                             </div>
 
-                            {/* Sparkles around badge */}
+                            {/* Sparkles around stamp */}
                             <div className="absolute -top-8 -left-8 text-4xl animate-spin-slow">✨</div>
                             <div className="absolute -top-4 -right-4 text-3xl animate-ping">⭐</div>
                             <div className="absolute -bottom-4 left-2 text-4xl animate-bounce">🔥</div>
@@ -152,19 +152,19 @@ const BadgeCelebration = ({ badge, onClose }) => {
 
                         {/* Text */}
                         <h1 className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-brand-gold via-yellow-400 to-orange-500 mt-6">
-                            NEW BADGE!
+                            NEW STAMP!
                         </h1>
                         <h2 className="text-3xl md:text-4xl font-bold text-white mt-3 font-display uppercase">
                             {badge?.name || 'Achievement Unlocked'}
                         </h2>
                         <p className="text-gray-300 mt-3 text-lg max-w-md mx-auto">
-                            {badge?.description || 'You earned a new badge!'}
+                            {badge?.description || 'You earned a new passport stamp!'}
                         </p>
                     </div>
                 </div>
             )}
 
-            {/* Badge flying to trophy case */}
+            {/* Stamp flying into the passport */}
             {phase === 'collect' && (
                 <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-8xl animate-collect-badge">

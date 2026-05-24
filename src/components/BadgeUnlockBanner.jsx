@@ -2,8 +2,8 @@ import React from 'react';
 import { Sparkles } from 'lucide-react';
 
 // Persistent alert that sits on top of the player dashboard when the kid
-// has one or more unseen badges. Tapping it triggers the BadgeCelebration
-// for the first unseen badge. Designed so a parent watching the screen
+// has one or more unseen passport stamps. Tapping it triggers the
+// BadgeCelebration for the first unseen stamp. Designed so a parent watching the screen
 // can't accidentally consume the kid's celebration moment — the worst
 // case is the parent taps it, which still triggers the celebration; the
 // kid just gets to see the playful alert disappear and the celebration
@@ -12,8 +12,8 @@ const BadgeUnlockBanner = ({ count, badge, onClaim }) => {
     if (!count || count < 1) return null;
 
     const label = count === 1
-        ? 'NEW BADGE EARNED!'
-        : `${count} NEW BADGES EARNED!`;
+        ? 'NEW PASSPORT STAMP!'
+        : `${count} NEW PASSPORT STAMPS!`;
 
     return (
         <button
