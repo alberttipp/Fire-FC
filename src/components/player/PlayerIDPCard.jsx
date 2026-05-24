@@ -5,7 +5,7 @@ import { SKILL_BY_SLUG } from '../../data/idpSkills';
 
 const PlayerIDPView = lazy(() => import('./PlayerIDPView'));
 
-// "Bo's IDP — Click to lock in!" card.
+// "Bo's Personal Plan" card.
 //
 // Slots into the player dashboard right below the "Train like a champion
 // today" banner. Also mirrored read-only on the parent dashboard. The
@@ -83,8 +83,8 @@ const PlayerIDPCard = ({ playerId, playerName = 'Player', teamId = null, onStart
                     <Target className="w-5 h-5 text-brand-gold" />
                 </div>
                 <div className="min-w-0">
-                    <p className="text-white font-bold">{firstName}'s IDP</p>
-                    <p className="text-xs text-gray-400 mt-1">No plan yet — ask your coach to start your 90-day development plan.</p>
+                    <p className="text-white font-bold">{firstName}'s Personal Plan</p>
+                    <p className="text-xs text-gray-400 mt-1">No plan yet. Your coach can add a 90-day individual development plan when it is time.</p>
                 </div>
             </div>
         );
@@ -110,7 +110,7 @@ const PlayerIDPCard = ({ playerId, playerName = 'Player', teamId = null, onStart
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-white font-display font-bold text-lg uppercase tracking-wider">
-                                {firstName}'s IDP
+                                {firstName}'s Personal Plan
                             </p>
                             {isComplete && (
                                 <span className="text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded bg-brand-green/20 text-brand-green">
@@ -120,7 +120,7 @@ const PlayerIDPCard = ({ playerId, playerName = 'Player', teamId = null, onStart
                         </div>
                         <p className="text-xs text-brand-gold/80 uppercase tracking-wider mt-1">
                             {isComplete
-                                ? '90-Day plan completed'
+                                ? '90-day plan completed'
                                 : `Block ${currentBlock} of 3 · mastering ${total || 0} ${total === 1 ? 'move' : 'moves'}`}
                         </p>
                     </div>

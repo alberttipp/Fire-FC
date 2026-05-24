@@ -233,8 +233,8 @@ const About = () => {
                     />
                     <Feature
                         icon={Target}
-                        title="90-Day IDP"
-                        body="Each player gets an Individual Development Plan with 20 named skill moves. Mastered moves unlock badges. Structured growth, not random drills."
+                        title="Personal Development Plans"
+                        body="Players can get focused 90-day plans with named skill moves when they need individual attention. The team experience stays centered on weekly challenges and the development passport."
                     />
                     <Feature
                         icon={Trophy}
@@ -302,7 +302,7 @@ const About = () => {
                                 <Step
                                     n="3"
                                     title="Coach Dashboard opens"
-                                    body="Roster, practices, IDPs, evaluations — everything"
+                                    body="Roster, practices, player plans, evaluations — everything"
                                 />
                             </div>
                         </div>

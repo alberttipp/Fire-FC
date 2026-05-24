@@ -7,9 +7,9 @@ import { SKILL_BY_SLUG } from '../../data/idpSkills';
 
 const IDPBuilderModal = lazy(() => import('./IDPBuilderModal'));
 
-// Coach-side IDP hub. One tile per player on the user's team(s); shows
+// Coach-side player-plan hub. One tile per player on the user's team(s); shows
 // current block, days remaining, and mastered/total in that block.
-// Tap a tile → IDPBuilderModal for that player.
+// Tap a tile -> IDPBuilderModal for that player.
 
 const IDPHub = () => {
     const { user } = useAuth();
@@ -79,7 +79,7 @@ const IDPHub = () => {
                     return fetchData({ attempt: attempt + 1 });
                 }
                 setFetchState('error');
-                setFetchError(err.message || "Couldn't load IDPs.");
+                setFetchError(err.message || "Couldn't load player plans.");
                 return false;
             }
         })();
@@ -118,7 +118,7 @@ const IDPHub = () => {
                     <h2 className="text-xl font-display font-bold text-white uppercase tracking-wider leading-none">
                         Player Development Plans
                     </h2>
-                    <p className="text-xs text-gray-400 mt-1">Build, track, and graduate each kid through a 90-day arc.</p>
+                    <p className="text-xs text-gray-400 mt-1">Create focused 90-day plans for kids who need extra individual attention.</p>
                 </div>
             </div>
 
@@ -145,7 +145,7 @@ const IDPHub = () => {
                 <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
                     <div className="flex-1">
-                        <p className="text-red-300 text-sm mb-2">Couldn't load IDPs.</p>
+                        <p className="text-red-300 text-sm mb-2">Couldn't load player plans.</p>
                         <button
                             onClick={() => fetchData()}
                             className="px-3 py-1.5 bg-red-500/20 border border-red-500/40 rounded text-xs text-red-200 hover:bg-red-500/30"
@@ -214,7 +214,7 @@ const IDPTile = ({ player, idpBundle, onOpen }) => {
                 </div>
                 <div className="py-6 flex flex-col items-center justify-center gap-2 text-center text-gray-400 group-hover:text-brand-green transition-colors">
                     <Plus className="w-6 h-6" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Start IDP</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">Start Plan</span>
                 </div>
             </button>
         );

@@ -3,14 +3,14 @@ import { Target, CheckCircle, Circle, Award, ChevronRight, Loader2 } from 'lucid
 import { supabase } from '../../supabaseClient';
 import { SKILL_BY_SLUG } from '../../data/idpSkills';
 
-// Legacy IDPBuilder — now a read-only summary mounted inside the IDP tab
+// Legacy IDPBuilder — now a read-only summary mounted inside the player-plan tab
 // of PlayerEvaluationModal. The full build/edit experience lives in the
 // new IDP Hub (Coach Dashboard → IDP tab → tap a player).
 //
 // Reads the active IDP for this player + skill progress, renders a
 // condensed status block: current block, progress bar, mastered skills.
-// Has a single CTA "Open in IDP Hub →" that closes the eval modal and
-// switches the dashboard to the IDP tab.
+// Has a single CTA that closes the eval modal and switches the dashboard to
+// the player-plan tab.
 
 const IDPBuilder = ({ player, readOnly = false, onJumpToHub = null }) => {
     const [idp, setIdp] = useState(null);
@@ -73,16 +73,16 @@ const IDPBuilder = ({ player, readOnly = false, onJumpToHub = null }) => {
                 <div className="w-12 h-12 rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center mx-auto">
                     <Target className="w-6 h-6 text-brand-gold" />
                 </div>
-                <p className="text-white font-bold">No active IDP yet</p>
+                <p className="text-white font-bold">No active player plan yet</p>
                 <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                    Start a 90-day Individual Development Plan for this player from the IDP tab on the coach dashboard.
+                    Start a 90-day individual development plan for this player from Player Plans.
                 </p>
                 {onJumpToHub && (
                     <button
                         onClick={onJumpToHub}
                         className="mt-3 px-4 py-2 bg-brand-gold/20 border border-brand-gold/40 hover:bg-brand-gold/30 rounded text-brand-gold text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5"
                     >
-                        Open IDP Hub <ChevronRight className="w-3.5 h-3.5" />
+                        Open Player Plans <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                 )}
             </div>
@@ -158,7 +158,7 @@ const IDPBuilder = ({ player, readOnly = false, onJumpToHub = null }) => {
                     onClick={onJumpToHub}
                     className="w-full py-3 bg-brand-gold/15 hover:bg-brand-gold/25 border border-brand-gold/30 hover:border-brand-gold/50 rounded-xl text-brand-gold text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
                 >
-                    Manage in IDP Hub <ChevronRight className="w-4 h-4" />
+                    Manage in Player Plans <ChevronRight className="w-4 h-4" />
                 </button>
             )}
         </div>

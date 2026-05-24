@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { SKILL_BY_SLUG } from '../../data/idpSkills';
 
-// Player-side read-only full view of the IDP.
+// Player-side read-only full view of the personal development plan.
 //
 // Three blocks stacked, current block highlighted, future blocks locked,
 // past blocks marked Done. The current block's drills are multi-select
@@ -148,10 +148,10 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                     </div>
                     <div className="flex-1 min-w-0">
                         <h3 className="text-white font-display font-bold uppercase tracking-wider text-base truncate leading-snug">
-                            {playerName}'s IDP
+                            {playerName}'s Personal Plan
                         </h3>
                         <p className="text-xs text-gray-400 mt-0.5">
-                            {idp.status === 'completed' ? '90-day plan completed 🏆' : `Block ${currentBlock} of 3`}
+                            {idp.status === 'completed' ? '90-day plan completed' : `Block ${currentBlock} of 3`}
                         </p>
                     </div>
                     <button onClick={onClose} className="p-1 -m-1 text-gray-500 hover:text-white shrink-0">
@@ -251,7 +251,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                                 {isCurrent && (
                                     <div className="mt-4 pt-4 border-t border-white/10">
                                         <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 flex items-center gap-1.5">
-                                            <Dumbbell className="w-3 h-3 text-brand-green" /> Drills for this block — tap to select
+                                            <Dumbbell className="w-3 h-3 text-brand-green" /> Drills for this block - tap to select
                                         </p>
                                         {loadingDrills ? (
                                             <div className="flex items-center justify-center py-4">
