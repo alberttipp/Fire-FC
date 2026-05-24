@@ -12,6 +12,7 @@ import BadgeCelebration from '../components/BadgeCelebration';
 import BadgeUnlockBanner from '../components/BadgeUnlockBanner';
 import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
+import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 
 // Heavy modals — only loaded when the user opens them.
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
@@ -623,48 +624,11 @@ const PlayerDashboard = () => {
                         />
                     )}
 
-                    {/* Trophy Case / Badges */}
-                    <div className="glass-panel p-6 relative overflow-hidden">
-                        <div className="relative z-10">
-                            <h3 className="text-xl text-white font-display uppercase font-bold mb-4 flex items-center gap-2">
-                                <span className="text-2xl">🏆</span> Trophy Case
-                            </h3>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                                {Object.values(earnedBadges.reduce((acc, row) => {
-                                    const b = row.badges;
-                                    if (!b) return acc;
-                                    if (!acc[b.id]) {
-                                        acc[b.id] = { ...b, count: 0 };
-                                    }
-                                    acc[b.id].count += 1;
-                                    return acc;
-                                }, {})).map((badge) => (
-                                    <div key={badge.id} className="aspect-square bg-white/5 border border-white/10 rounded-xl flex flex-col items-center justify-center relative group hover:bg-white/10 transition-colors cursor-help">
-                                        <span className="text-3xl mb-1 filter drop-shadow hover:scale-110 transition-transform">{badge.icon}</span>
-                                        <span className="text-xs text-gray-400 text-center font-bold px-1">{badge.name}</span>
-                                        {badge.count > 1 && (
-                                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-brand-gold text-brand-dark font-black text-xs rounded-full flex items-center justify-center border-2 border-[#1a1a1a] shadow-lg z-10">
-                                                x{badge.count}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-
-                                {earnedBadges.length === 0 && (
-                                    <div className="col-span-full text-center text-gray-500 text-sm italic py-4">
-                                        No trophies yet. Keep training!
-                                    </div>
-                                )}
-
-                                {/* Empty Slots Filler */}
-                                {[...Array(Math.max(0, 5 - earnedBadges.length))].map((_, i) => (
-                                    <div key={`empty-${i}`} className="aspect-square bg-black/20 border border-dashed border-white/5 rounded-xl flex items-center justify-center opacity-50">
-                                        <div className="w-8 h-8 rounded-full bg-white/5"></div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                    <DevelopmentPassportCard
+                        badges={earnedBadges}
+                        stats={playerStatsFull}
+                        playerName={`${playerRecord?.first_name || ''} ${playerRecord?.last_name || ''}`.trim()}
+                    />
 
                     <HomeworkHub assignments={assignments} onComplete={handleDrillComplete} />
 

@@ -2,11 +2,10 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Trophy, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import Leaderboard from '../components/player/Leaderboard';
-import TrainingStatsCard from '../components/player/TrainingStatsCard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
@@ -16,6 +15,7 @@ import MobileBottomNav from '../components/MobileBottomNav';
 import { upsertRsvpForMany, namesList, statusLabel } from '../utils/rsvp';
 import VacationPeriodsManager from '../components/family/VacationPeriodsManager';
 import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
+import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -273,8 +273,7 @@ const ParentDashboard = () => {
                 .from('player_badges')
                 .select('*')
                 .eq('player_user_id', playerUserId)
-                .order('awarded_at', { ascending: false })
-                .limit(5);
+                .order('awarded_at', { ascending: false });
 
             if (badgeError) {
                 console.error('Error fetching player badges:', badgeError);
@@ -673,7 +672,7 @@ const ParentDashboard = () => {
                 //   8. Coach Challenge
                 //   9. Family Skill Work
                 //  10. Player Link
-                //  11. Recent Badges (tail)
+                //  11. Development Passport now carries badge/stamp history.
                 return (
                     <div className="space-y-6">
                         {/* 1. Child selector if multiple children */}
@@ -792,6 +791,16 @@ const ParentDashboard = () => {
                                 playerName={`${selectedChild.first_name || ''} ${selectedChild.last_name || ''}`.trim()}
                             />
                         )}
+
+                        <DevelopmentPassportCard
+                            badges={playerBadges}
+                            stats={{
+                                weekly_minutes: practiceMins.weekly,
+                                weekly_touches: practiceMins.weeklyTouches,
+                                career_touches: practiceMins.careerTouches,
+                            }}
+                            playerName={`${selectedChild?.first_name || ''} ${selectedChild?.last_name || ''}`.trim()}
+                        />
 
                         {/* 5. Private Training badge stays here when applicable.
                              Vacation moved to the More menu / its own view to
@@ -1025,27 +1034,6 @@ const ParentDashboard = () => {
                                 </div>
                             )}
                         </div>
-
-                        {/* 11. Recent Badges — tail position, only renders when present. */}
-                        {playerBadges.length > 0 && (
-                            <div className="glass-panel p-5">
-                                <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                    <Trophy className="w-3.5 h-3.5 text-brand-gold" /> Recent Badges
-                                </h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {playerBadges.map(pb => (
-                                        <div
-                                            key={pb.id}
-                                            className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-lg"
-                                            title={pb.badges?.description}
-                                        >
-                                            <span className="text-lg">{pb.badges?.icon}</span>
-                                            <span className="text-xs text-white font-medium">{pb.badges?.name}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
 
                     </div>
                 );
