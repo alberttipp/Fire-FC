@@ -344,7 +344,7 @@ const ParentDashboard = () => {
 
             // Fetch all non-coach assignments for this player (parent OR
             // player-built). Parents should see anything their kid built
-            // themselves too — that's the whole point of "Parent Solo Practice"
+            // themselves too — that's the whole point of "Family Skill Work"
             // as a status-of-solo-work section.
             const { data: parentAssigns } = await supabase
                 .from('assignments')
@@ -509,10 +509,10 @@ const ParentDashboard = () => {
     const handleCompleteParentDrill = async (assignmentId) => {
         if (!selectedChild?.id) return;
 
-        // Check if coach homework is done first
+        // Check if the coach challenge is done first
         const pendingCoach = coachAssignments.filter(a => a.status !== 'completed');
         if (pendingCoach.length > 0) {
-            toast.warning('Finish coach homework first — that comes before parent practice drills.');
+            toast.warning('Finish the coach challenge first — that comes before family skill work.');
             return;
         }
 
@@ -651,8 +651,8 @@ const ParentDashboard = () => {
             default: {
                 const completedCoach = coachAssignments.filter(a => a.status === 'completed').length;
                 const totalCoach = coachAssignments.length;
-                const homeworkPercent = totalCoach > 0 ? Math.round((completedCoach / totalCoach) * 100) : 0;
-                const coachHomeworkDone = totalCoach === 0 || completedCoach === totalCoach;
+                const challengePercent = totalCoach > 0 ? Math.round((completedCoach / totalCoach) * 100) : 0;
+                const coachChallengeDone = totalCoach === 0 || completedCoach === totalCoach;
                 const completedParent = parentAssignments.filter(a => a.status === 'completed').length;
                 const totalParent = parentAssignments.length;
                 const totalMins = practiceMins.team + practiceMins.solo;
@@ -668,10 +668,10 @@ const ParentDashboard = () => {
                 //   4. IDP
                 //   5. Vacation + Private Training (small badges, kept
                 //      between IDP and tiles)
-                //   6. Tiles: Homework % | Attendance | Training Minutes
+                //   6. Tiles: Challenge % | Attendance | Training Minutes
                 //   7. Leaderboard (always shown — no toggle)
-                //   8. Coach Homework
-                //   9. Parent Solo Practice
+                //   8. Coach Challenge
+                //   9. Family Skill Work
                 //  10. Player Link
                 //  11. Recent Badges (tail)
                 return (
@@ -803,12 +803,12 @@ const ParentDashboard = () => {
                             />
                         )}
 
-                        {/* 6. Tiles: Homework % | Attendance | Training Minutes */}
+                        {/* 6. Tiles: Challenge % | Attendance | Training Minutes */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Homework Progress */}
+                            {/* Challenge Progress */}
                             <div className="glass-panel p-5 flex flex-col">
                                 <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
-                                    <Target className="w-3.5 h-3.5 text-brand-gold" /> Homework
+                                    <Target className="w-3.5 h-3.5 text-brand-gold" /> Coach Challenge
                                 </h4>
                                 <div className="flex items-center gap-4 flex-1">
                                     <div className="relative w-16 h-16 shrink-0">
@@ -820,13 +820,13 @@ const ParentDashboard = () => {
                                                 strokeWidth="6"
                                                 fill="transparent"
                                                 strokeDasharray="163.4"
-                                                strokeDashoffset={163.4 - (163.4 * homeworkPercent / 100)}
+                                                strokeDashoffset={163.4 - (163.4 * challengePercent / 100)}
                                                 strokeLinecap="round"
-                                                className={homeworkPercent === 100 ? 'text-brand-green' : 'text-brand-gold'}
+                                                className={challengePercent === 100 ? 'text-brand-green' : 'text-brand-gold'}
                                             />
                                         </svg>
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                            <span className="text-white font-bold text-sm">{homeworkPercent}%</span>
+                                            <span className="text-white font-bold text-sm">{challengePercent}%</span>
                                         </div>
                                     </div>
                                     <div>
@@ -834,7 +834,7 @@ const ParentDashboard = () => {
                                             {completedCoach}<span className="text-gray-500 text-lg">/{totalCoach}</span>
                                         </div>
                                         <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">
-                                            {coachHomeworkDone && totalCoach > 0 ? 'All Done!' : 'Coach Drills'}
+                                            {coachChallengeDone && totalCoach > 0 ? 'All Done!' : 'Coach Drills'}
                                         </div>
                                     </div>
                                 </div>
@@ -881,15 +881,15 @@ const ParentDashboard = () => {
                         {/* 7. Leaderboard — always shown, no toggle. */}
                         <Leaderboard />
 
-                        {/* 8. Coach Homework */}
+                        {/* 8. Coach Challenge */}
                         <div className="glass-panel p-5 border-l-4 border-l-blue-500">
                             <div className="flex items-center justify-between mb-4">
                                 <h4 className="text-blue-400 text-xs uppercase font-bold flex items-center gap-2">
-                                    <Target className="w-4 h-4" /> Coach Homework
+                                    <Target className="w-4 h-4" /> Coach Challenge
                                 </h4>
                                 {totalCoach > 0 && (
                                     <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
-                                        coachHomeworkDone ? 'bg-brand-green/20 text-brand-green' : 'bg-blue-500/20 text-blue-400'
+                                        coachChallengeDone ? 'bg-brand-green/20 text-brand-green' : 'bg-blue-500/20 text-blue-400'
                                     }`}>
                                         {completedCoach}/{totalCoach} Done
                                     </span>
@@ -898,7 +898,7 @@ const ParentDashboard = () => {
                             {coachAssignments.length === 0 ? (
                                 <div className="text-center py-4">
                                     <Target className="w-6 h-6 text-gray-700 mx-auto mb-1" />
-                                    <p className="text-gray-500 text-xs">No coach homework this week</p>
+                                    <p className="text-gray-500 text-xs">No coach challenge this week</p>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -929,11 +929,11 @@ const ParentDashboard = () => {
                             )}
                         </div>
 
-                        {/* 9. Parent Solo Practice */}
+                        {/* 9. Family Skill Work */}
                         <div className="glass-panel p-5 border-l-4 border-l-brand-gold">
                             <div className="flex items-center justify-between mb-4">
                                 <h4 className="text-brand-gold text-xs uppercase font-bold flex items-center gap-2">
-                                    <Zap className="w-4 h-4" /> Parent Solo Practice
+                                    <Zap className="w-4 h-4" /> Family Skill Work
                                 </h4>
                                 {totalParent > 0 && (
                                     <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
@@ -944,10 +944,10 @@ const ParentDashboard = () => {
                                 )}
                             </div>
 
-                            {!coachHomeworkDone && totalParent > 0 && (
+                            {!coachChallengeDone && totalParent > 0 && (
                                 <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3 flex items-start gap-2">
                                     <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-                                    <p className="text-xs text-yellow-400">Complete coach homework first to unlock parent practice credit!</p>
+                                    <p className="text-xs text-yellow-400">Complete the coach challenge first to unlock family skill-work credit.</p>
                                 </div>
                             )}
 
@@ -967,7 +967,7 @@ const ParentDashboard = () => {
                                                 <button
                                                     onClick={() => handleCompleteParentDrill(assign.id)}
                                                     className="w-5 h-5 rounded-full border-2 border-brand-gold/50 shrink-0 hover:bg-brand-gold/20 transition-colors cursor-pointer"
-                                                    title={coachHomeworkDone ? 'Mark as done' : 'Complete coach homework first'}
+                                                    title={coachChallengeDone ? 'Mark as done' : 'Complete the coach challenge first'}
                                                 />
                                             )}
                                             <div className="flex-1 min-w-0">

@@ -404,7 +404,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    // Save the built session as homework. All blocks (library AND custom) are
+    // Save the built session as a training challenge. All blocks (library AND custom) are
     // saved. Custom drills get persisted to the `drills` table first with
     // is_custom=true so they have a stable drill_id that the leaderboard /
     // training stats / future history can roll up against. All assignments in
@@ -866,7 +866,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                             disabled={blocks.length === 0 || saving}
                             className="px-6 py-2 bg-brand-green text-brand-dark rounded-lg font-bold hover:bg-brand-green/90 disabled:opacity-50 flex items-center gap-2"
                         >
-                            <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Assign as Homework'}
+                            <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Challenge'}
                         </button>
                     </div>
                 </div>

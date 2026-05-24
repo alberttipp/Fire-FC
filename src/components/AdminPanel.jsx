@@ -355,9 +355,9 @@ const AdminPanel = ({ onClose }) => {
             // If missing, run: npm run seed:permanent
 
             // ============================================================
-            // STEP 7: Seed Assignments (Homework for players)
+            // STEP 7: Seed Assignments (training challenges for players)
             // ============================================================
-            setResult({ status: 'progress', message: 'Step 7/12: Creating homework assignments...' });
+            setResult({ status: 'progress', message: 'Step 7/12: Creating training challenges...' });
 
             // Get players and drills for assignments
             const { data: allPlayersForAssign } = await supabase.from('players').select('id, team_id, first_name');

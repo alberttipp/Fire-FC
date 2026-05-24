@@ -9,7 +9,7 @@ const MobileBottomNav = ({
     // Optional overrides — when provided, replace the staff-default
     // mainItems / moreItems sets. Parent dashboard passes its own so the
     // bottom nav matches its tabs (Overview/Schedule/Messages + Gallery/Rules
-    // in More) instead of staff tabs (Club/Team/Practice).
+    // in More) instead of staff tabs (Club/Team/Development).
     mainItems: mainItemsOverride,
     moreItems: moreItemsOverride,
 }) => {
@@ -18,14 +18,14 @@ const MobileBottomNav = ({
     const mainItems = mainItemsOverride || [
         { id: 'club', label: 'Club', icon: LayoutDashboard },
         { id: 'team', label: 'Team', icon: Users },
-        { id: 'practice', label: 'Practice', icon: Dumbbell },
+        { id: 'practice', label: 'Development', icon: Dumbbell },
         { id: 'calendar', label: 'Schedule', icon: Calendar },
     ];
 
     const moreItems = moreItemsOverride
         ? [...moreItemsOverride, ...extraItems]
         : [
-            { id: 'idp', label: 'IDP', icon: Target },
+            { id: 'idp', label: 'Player Plans', icon: Target },
             { id: 'private', label: 'Private Training', icon: Briefcase },
             { id: 'chat', label: 'Messages', icon: MessageSquare },
             { id: 'rules', label: 'Rules', icon: FileText },

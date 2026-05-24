@@ -13,7 +13,7 @@ const COLLAPSED_LIMIT = 3;
 //   player = green  (drills the kid built themselves)
 const SOURCE_META = {
     coach: {
-        title: 'Coach Homework',
+        title: 'Coach Challenge',
         icon: Clipboard,
         accent: 'blue',
         ring: 'border-blue-500/40',
@@ -23,7 +23,7 @@ const SOURCE_META = {
         leftBar: 'border-l-blue-500',
     },
     parent: {
-        title: 'Parent Solo Practice',
+        title: 'Family Skill Work',
         icon: Star,
         accent: 'gold',
         ring: 'border-brand-gold/40',
@@ -140,11 +140,11 @@ const HomeworkHub = ({ assignments, onComplete }) => {
             <div className="animate-fade-in-up">
                 <h3 className="text-2xl text-white font-display uppercase font-bold mb-6 flex items-center gap-3">
                     <Clipboard className="text-brand-gold w-7 h-7" />
-                    This Week's Training
+                    This Week's Challenges
                 </h3>
                 <div className="glass-panel p-8 text-center">
                     <Dumbbell className="w-10 h-10 text-gray-700 mx-auto mb-2" />
-                    <p className="text-gray-500 text-sm">Nothing on your training board yet.</p>
+                    <p className="text-gray-500 text-sm">Nothing on your challenge board yet.</p>
                     <p className="text-gray-600 text-xs mt-1">Build your own session above to get started.</p>
                 </div>
             </div>
@@ -240,7 +240,7 @@ const HomeworkHub = ({ assignments, onComplete }) => {
         <div className="animate-fade-in-up space-y-6">
             <h3 className="text-2xl text-white font-display uppercase font-bold flex items-center gap-3">
                 <Clipboard className="text-brand-gold w-7 h-7" />
-                This Week's Training
+                This Week's Challenges
                 <span className="text-xs text-gray-500 font-normal normal-case ml-auto">
                     {totalSessions} session{totalSessions !== 1 ? 's' : ''}
                 </span>

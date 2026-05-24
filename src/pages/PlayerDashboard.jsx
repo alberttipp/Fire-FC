@@ -595,7 +595,7 @@ const PlayerDashboard = () => {
                     </div>
                 </div>
 
-                {/* Right Column: Homework, Game, & Badges */}
+                {/* Right Column: Challenges, Game, & Badges */}
                 <div className="md:col-span-7 lg:col-span-8 space-y-8">
                     {/* Welcome Message */}
                     <div className="glass-panel p-6 border-l-4 border-brand-green bg-gradient-to-r from-brand-green/10 to-transparent">

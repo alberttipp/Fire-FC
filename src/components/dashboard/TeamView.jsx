@@ -550,7 +550,7 @@ const TeamView = () => {
                             <div className="w-8 h-8 rounded-full bg-gray-800 border border-brand-dark flex items-center justify-center text-[10px] text-gray-500">?</div>
                             <div className="w-8 h-8 rounded-full bg-gray-800 border border-brand-dark flex items-center justify-center text-[10px] text-gray-500">?</div>
                         </div>
-                        <p className="text-xs text-gray-500 mb-3">2 players missing assignments.</p>
+                        <p className="text-xs text-gray-500 mb-3">2 players missing challenges.</p>
                         <button className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded uppercase text-[10px] font-bold tracking-wider text-white transition-colors">
                             Send Reminder
                         </button>

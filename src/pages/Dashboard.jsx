@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, DollarSign, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
 import { isStaff as isStaffRole } from '../constants/roles';
@@ -242,13 +242,13 @@ const Dashboard = () => {
                                 onClick={() => pickView('practice')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'practice' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
-                                <Dumbbell className="w-3 h-3" /> Practice
+                                <Dumbbell className="w-3 h-3" /> Development
                             </button>
                             <button
                                 onClick={() => pickView('idp')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'idp' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold/80 hover:text-brand-gold'}`}
                             >
-                                <Target className="w-3 h-3" /> IDP
+                                <Target className="w-3 h-3" /> Player Plans
                             </button>
                             <button
                                 onClick={() => pickView('private')}
@@ -298,12 +298,6 @@ const Dashboard = () => {
                                     >
                                         <ClipboardCheck className="w-3 h-3" /> Tryouts
                                     </button>
-                                    <button
-                                        onClick={() => pickView('financial')}
-                                        className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'financial' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold hover:text-white'}`}
-                                    >
-                                        <DollarSign className="w-3 h-3" /> Money
-                                    </button>
                                 </>
                             )}
                         </div>
@@ -334,8 +328,8 @@ const Dashboard = () => {
                                             ...(isStaff ? [{ id: 'coach_hq', label: 'Coach HQ' }] : []),
                                             { id: 'club', label: 'Club' },
                                             { id: 'team', label: 'Team' },
-                                            { id: 'practice', label: 'Practice' },
-                                            { id: 'idp', label: 'IDP' },
+                                            { id: 'practice', label: 'Development' },
+                                            { id: 'idp', label: 'Player Plans' },
                                             { id: 'private', label: 'Private Training' },
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
@@ -354,7 +348,6 @@ const Dashboard = () => {
                                         {isManager && (
                                             <>
                                                 <button onClick={() => { pickView('tryouts'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'tryouts' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Tryouts</button>
-                                                <button onClick={() => { pickView('financial'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'financial' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Money</button>
                                             </>
                                         )}
                                     </div>
@@ -402,7 +395,6 @@ const Dashboard = () => {
                     { id: 'notifications', label: 'Alerts', icon: Bell },
                     ...(isManager ? [
                         { id: 'tryouts', label: 'Tryouts', icon: ClipboardCheck },
-                        { id: 'financial', label: 'Money', icon: DollarSign },
                     ] : []),
                 ]}
             />

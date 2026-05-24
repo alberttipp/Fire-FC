@@ -24,7 +24,7 @@ const TrainingStatsCard = ({ stats, teamMins = null, showBreakdown = false }) =>
     const yearlyT = s.yearly_touches || 0;
     const careerT = s.career_touches || 0;
 
-    const soloMins = career; // training_minutes = lifetime solo+homework total
+    const soloMins = career; // training_minutes = lifetime solo challenge total
     const team = teamMins || 0;
     const totalMins = team + soloMins;
 

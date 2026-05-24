@@ -223,7 +223,7 @@ const About = () => {
                     <Feature
                         icon={BarChart3}
                         title="Training Tracking"
-                        body="Every drill, every minute, every estimated ball touch — logged automatically when a player completes homework or attends a practice. Weekly, season, and career stats follow them everywhere."
+                        body="Every drill, every minute, every estimated ball touch — logged automatically when a player completes a challenge or attends a practice. Weekly, season, and career stats follow them everywhere."
                     />
                     <Feature
                         icon={FlameIcon}
@@ -254,12 +254,12 @@ const About = () => {
                     <Feature
                         icon={Users}
                         title="Parent Dashboard"
-                        body="Parents see their kid's training streak, weekly touches, upcoming events, homework assignments, and the same evaluations the coach sees. One source of truth, always current."
+                        body="Parents see their kid's training streak, weekly touches, upcoming events, coach challenges, and the same evaluations the coach sees. One source of truth, always current."
                     />
                     <Feature
                         icon={Smartphone}
                         title="Kid-Friendly Locker Room"
-                        body="Players log in via a tap-to-open access link or a 4-digit PIN. No email or password needed. Their own dashboard shows their stats, badges, and homework for the week."
+                        body="Players log in via a tap-to-open access link or a 4-digit PIN. No email or password needed. Their own dashboard shows their stats, passport stamps, and weekly challenges."
                     />
                 </div>
             </section>

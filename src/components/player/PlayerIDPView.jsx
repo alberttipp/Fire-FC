@@ -13,7 +13,7 @@ import { SKILL_BY_SLUG } from '../../data/idpSkills';
 //
 //   • mode='player' (default): "Start with N drill(s)" → solo builder
 //     deep-link with all selected drills pre-loaded
-//   • mode='parent': "Assign as homework" → inserts assignment rows
+//   • mode='parent': "Add to Challenges" → inserts assignment rows
 //     tagged source='parent' for the player
 //
 // The mode is inferred from which dashboard rendered the card: if the
@@ -312,7 +312,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                                 {submitting ? (
                                     <><Loader2 className="w-4 h-4 animate-spin" /> Assigning…</>
                                 ) : (
-                                    <>Assign {selectedCount > 0 ? `${selectedCount} ` : ''}as Homework <ChevronRight className="w-4 h-4" /></>
+                                    <>Add {selectedCount > 0 ? `${selectedCount} ` : ''}to Challenges <ChevronRight className="w-4 h-4" /></>
                                 )}
                             </button>
                         ) : (
@@ -327,7 +327,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                         )}
                         <p className="text-[10px] text-gray-500 text-center mt-2">
                             {isParentMode
-                                ? 'Drills land in coach homework — kid sees them on their dashboard.'
+                                ? 'Drills land in the coach challenge list — kid sees them on their dashboard.'
                                 : 'Selected drills will load into your solo training session.'}
                         </p>
                     </div>

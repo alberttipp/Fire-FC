@@ -36,7 +36,7 @@ const TrainingView = () => {
     const [filterCategory, setFilterCategory] = useState('all');
     const [autoFilling, setAutoFilling] = useState(false);
 
-    // On-demand "fill this week's homework" — calls the same SECURITY DEFINER
+    // On-demand "build this week's challenge plan" — calls the same SECURITY DEFINER
     // RPC that Sunday's cron job uses, scoped to this coach's team. Skips
     // any (drill, player) pair that's already assigned for the week.
     const handleAutoFill = async () => {
@@ -52,13 +52,13 @@ const TrainingView = () => {
             const created = row?.created_count ?? 0;
             const mins = row?.total_minutes ?? 0;
             if (created === 0) {
-                toast.info("Your players already have homework for this week.");
+                toast.info("Your players already have challenges for this week.");
             } else {
-                toast.success(`Auto-filled ${created} drill assignment${created === 1 ? '' : 's'} (${mins} min of solo training) for your team.`);
+                toast.success(`Built ${created} challenge drill${created === 1 ? '' : 's'} (${mins} min of solo training) for your team.`);
             }
         } catch (err) {
             console.error('[TrainingView] auto-fill error', err);
-            toast.error("Couldn't auto-fill homework. Try again.");
+            toast.error("Couldn't build the weekly plan. Try again.");
         } finally {
             setAutoFilling(false);
         }
@@ -109,7 +109,7 @@ const TrainingView = () => {
     return (
         <div className="space-y-6 animate-fade-in-up">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl text-white font-display uppercase">Practice Center</h2>
+                <h2 className="text-2xl text-white font-display uppercase">Development Center</h2>
 
                 <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
                     <button
@@ -131,13 +131,13 @@ const TrainingView = () => {
                         title="Generate ~100 min of solo drills for every player on this team (skips any already assigned)"
                     >
                         {autoFilling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                        Auto-fill Week
+                        Build Weekly Plan
                     </button>
                     <button
                         onClick={() => setShowAssignModal(true)}
                         className="btn-primary flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm"
                     >
-                        <Plus className="w-4 h-4" /> Assign Homework
+                        <Plus className="w-4 h-4" /> Create Challenge
                     </button>
                 </div>
             </div>
