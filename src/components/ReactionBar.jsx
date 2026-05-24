@@ -49,26 +49,45 @@ const ReactionBar = ({
     const toast = useToast();
     const [rows, setRows] = useState(initialRows || []);
     const [busy, setBusy] = useState(false);
-    // Tracks the targetId whose initialRows we've already seeded into
-    // local state. Re-seeding on every parent re-render would wipe any
-    // optimistic update from toggle() (Codex review f5ac19f, 2026-05-24).
+    // Tracks parent-owned reaction rows without clobbering local optimistic
+    // edits. ChatView first renders messages with [] then batch-loads the
+    // real rows; we must accept that later parent update. After a local tap,
+    // we stop mirroring parent rows for the same target so an unrelated
+    // parent re-render cannot wipe the optimistic state.
     const seededTargetRef = useRef(null);
+    const lastParentRowsKeyRef = useRef(null);
+    const localDirtyRef = useRef(false);
+
+    const parentRowsKey = useMemo(() => {
+        if (initialRows === undefined) return null;
+        return (initialRows || [])
+            .map(r => `${r.id || ''}:${r.user_id || ''}:${r.emoji || ''}`)
+            .sort()
+            .join('|');
+    }, [initialRows]);
 
     useEffect(() => {
         if (!targetId) return;
-        // Parent-owned data path: seed local state ONCE per targetId.
-        // Subsequent re-renders with the same targetId leave local
-        // state alone so optimistic toggles aren't wiped. When the
-        // bar moves to a different target (e.g. modal swap) we re-seed.
+        // Parent-owned data path. Seed on target change, and also accept
+        // later parent rows while the user has not locally edited this bar.
+        // This matters because ChatView renders [] first, then fills rows
+        // after the batched message_reactions query resolves.
         if (initialRows !== undefined) {
             if (seededTargetRef.current !== targetId) {
                 setRows(initialRows);
                 seededTargetRef.current = targetId;
+                lastParentRowsKeyRef.current = parentRowsKey;
+                localDirtyRef.current = false;
+            } else if (!localDirtyRef.current && lastParentRowsKeyRef.current !== parentRowsKey) {
+                setRows(initialRows);
+                lastParentRowsKeyRef.current = parentRowsKey;
             }
             return;
         }
         // Self-fetch fallback (used by gallery media reactions etc).
         seededTargetRef.current = null;
+        lastParentRowsKeyRef.current = null;
+        localDirtyRef.current = false;
         let cancelled = false;
         (async () => {
             const { data, error } = await supabase
@@ -84,7 +103,7 @@ const ReactionBar = ({
             }
         })();
         return () => { cancelled = true; };
-    }, [tableName, columnName, targetId, initialRows]);
+    }, [tableName, columnName, targetId, initialRows, parentRowsKey]);
 
     // {emoji: {count, mineId}} — order preserves first-seen for chips
     const { summary, orderedReacted } = useMemo(() => {
@@ -109,6 +128,7 @@ const ReactionBar = ({
         setBusy(true);
         const snapshot = rows;
         try {
+            localDirtyRef.current = true;
             if (mine) {
                 // Delete by composite key, not id — the optimistic row from
                 // a fresh add wouldn't have a real DB id yet. UNIQUE
