@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from './Toast';
@@ -49,17 +49,26 @@ const ReactionBar = ({
     const toast = useToast();
     const [rows, setRows] = useState(initialRows || []);
     const [busy, setBusy] = useState(false);
+    // Tracks the targetId whose initialRows we've already seeded into
+    // local state. Re-seeding on every parent re-render would wipe any
+    // optimistic update from toggle() (Codex review f5ac19f, 2026-05-24).
+    const seededTargetRef = useRef(null);
 
     useEffect(() => {
         if (!targetId) return;
-        // If the parent owns the data, mirror it into local state and
-        // skip the fetch. Mirroring (not a controlled component) lets
-        // toggle() do optimistic updates locally without a parent
-        // round-trip on every tap.
+        // Parent-owned data path: seed local state ONCE per targetId.
+        // Subsequent re-renders with the same targetId leave local
+        // state alone so optimistic toggles aren't wiped. When the
+        // bar moves to a different target (e.g. modal swap) we re-seed.
         if (initialRows !== undefined) {
-            setRows(initialRows);
+            if (seededTargetRef.current !== targetId) {
+                setRows(initialRows);
+                seededTargetRef.current = targetId;
+            }
             return;
         }
+        // Self-fetch fallback (used by gallery media reactions etc).
+        seededTargetRef.current = null;
         let cancelled = false;
         (async () => {
             const { data, error } = await supabase

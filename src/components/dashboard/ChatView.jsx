@@ -244,7 +244,10 @@ const ChatView = () => {
             .in('message_id', messageIds);
         if (activeChannelIdRef.current !== conversationId) return;
         if (error) {
+            // Clear state on failure so stale chips don't linger from
+            // a previous successful fetch (Codex review f5ac19f).
             console.warn('[ChatView] batch reactions fetch failed:', error);
+            setReactionsByMsg({});
             return;
         }
         const grouped = {};
