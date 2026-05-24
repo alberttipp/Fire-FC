@@ -13,6 +13,7 @@ import BadgeUnlockBanner from '../components/BadgeUnlockBanner';
 import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
+import PersonalPlanCard from '../components/player/PersonalPlanCard';
 
 // Heavy modals — only loaded when the user opens them.
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
@@ -447,6 +448,9 @@ const PlayerDashboard = () => {
         setTimeout(() => setShowCelebration(false), 2000);
     }
 
+    const personalPlanAssignments = assignments.filter(a => a.source === 'coach' && !a.team_id);
+    const challengeAssignments = assignments.filter(a => !(a.source === 'coach' && !a.team_id));
+
     return (
         <div className="min-h-screen bg-brand-dark pb-24 relative overflow-hidden">
             <PreviewBanner
@@ -630,7 +634,9 @@ const PlayerDashboard = () => {
                         playerName={`${playerRecord?.first_name || ''} ${playerRecord?.last_name || ''}`.trim()}
                     />
 
-                    <HomeworkHub assignments={assignments} onComplete={handleDrillComplete} />
+                    <PersonalPlanCard assignments={personalPlanAssignments} onComplete={handleDrillComplete} />
+
+                    <HomeworkHub assignments={challengeAssignments} onComplete={handleDrillComplete} />
 
                     {/* Solo Training Builder — kids build their own practice */}
                     <button

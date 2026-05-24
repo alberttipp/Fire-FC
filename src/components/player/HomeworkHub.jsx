@@ -212,21 +212,39 @@ const HomeworkHub = ({ assignments, onComplete }) => {
                                 completed: a.status === 'completed',
                                 originalDrill: a.drills,
                             };
+                            const description = a.drills?.description || 'Follow your coach instructions for this drill.';
                             return (
                                 <div
                                     key={a.id}
-                                    onClick={() => !drillObj.completed && setSelectedDrill(drillObj)}
-                                    className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${drillObj.completed ? '' : 'hover:bg-white/5 cursor-pointer'}`}
+                                    className={`p-2 rounded-lg transition-colors ${drillObj.completed ? '' : 'hover:bg-white/5'}`}
                                 >
-                                    {drillObj.completed
-                                        ? <CheckCircle className="w-4 h-4 text-brand-green shrink-0" />
-                                        : <div className={`w-4 h-4 rounded-full border-2 ${meta.ring} shrink-0`} />}
-                                    <div className="flex-1 min-w-0">
-                                        <div className={`text-sm truncate ${drillObj.completed ? 'text-gray-400 line-through' : 'text-white'}`}>
-                                            {drillObj.title}
+                                    <div className="flex items-start gap-3">
+                                        {drillObj.completed
+                                            ? <CheckCircle className="w-4 h-4 text-brand-green shrink-0 mt-0.5" />
+                                            : <div className={`w-4 h-4 rounded-full border-2 ${meta.ring} shrink-0 mt-0.5`} />}
+                                        <div className="flex-1 min-w-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => !drillObj.completed && setSelectedDrill(drillObj)}
+                                                className={`block text-left text-sm ${drillObj.completed ? 'text-gray-400 line-through' : 'text-white hover:text-brand-gold'}`}
+                                            >
+                                                {drillObj.title}
+                                            </button>
+                                            <p className="mt-1 text-xs text-gray-500 leading-relaxed line-clamp-2">
+                                                {description}
+                                            </p>
                                         </div>
+                                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider shrink-0">{drillObj.duration}</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider shrink-0">{drillObj.duration}</span>
+                                    {!drillObj.completed && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onComplete(a.id)}
+                                            className="mt-2 w-full py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white font-display font-bold uppercase tracking-wider text-xs transition-colors"
+                                        >
+                                            Mark Done
+                                        </button>
+                                    )}
                                 </div>
                             );
                         })}

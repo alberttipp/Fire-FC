@@ -39,7 +39,7 @@ const AssignDrillModal = ({ onClose }) => {
         const fetchTeams = async () => {
             const { data, error } = await supabase
                 .from('teams')
-                .select('id, name, age_group')
+                .select('id, name, age_group, org_id')
                 .order('age_group', { ascending: true });
 
             if (error) {
@@ -68,7 +68,7 @@ const AssignDrillModal = ({ onClose }) => {
             setLoadingPlayers(true);
             const { data, error } = await supabase
                 .from('players')
-                .select('id, first_name, last_name, jersey_number')
+                .select('id, first_name, last_name, jersey_number, org_id')
                 .eq('team_id', selectedTeamId)
                 .order('last_name', { ascending: true });
 
@@ -211,14 +211,26 @@ const AssignDrillModal = ({ onClose }) => {
             // 2. Create Assignment Rows
             const dueDate = new Date(Date.now() + timeframe * 24 * 60 * 60 * 1000);
             const assignments = [];
+            const selectedTeam = teams.find(team => team.id === selectedTeamId);
+            const selectedTeamOrgId = selectedTeam?.org_id || null;
+
+            if (!selectedTeamOrgId && !profile?.org_id) {
+                toast.error("Couldn't identify the team's organization. Try refreshing and assigning again.");
+                return;
+            }
 
             targetPlayerIds.forEach(playerId => {
+                const player = teamPlayers.find(p => p.id === playerId);
                 selectedDrills.forEach(drillId => {
                     assignments.push({
                         drill_id: drillId,
                         player_id: playerId,
-                        team_id: selectedTeamId,
+                        team_id: assigneeType === 'team' ? selectedTeamId : null,
+                        assigned_by: user?.id || null,
+                        source: 'coach',
                         status: 'pending',
+                        custom_duration: customDurations[drillId] || null,
+                        org_id: selectedTeamOrgId || player?.org_id || profile?.org_id || null,
                         due_date: dueDate.toISOString()
                     });
                 });

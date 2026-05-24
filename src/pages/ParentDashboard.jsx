@@ -16,6 +16,7 @@ import { upsertRsvpForMany, namesList, statusLabel } from '../utils/rsvp';
 import VacationPeriodsManager from '../components/family/VacationPeriodsManager';
 import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
+import PersonalPlanCard from '../components/player/PersonalPlanCard';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -330,14 +331,21 @@ const ParentDashboard = () => {
                 }
             }
 
-            // Fetch coach assignments (read-only for parent)
+            const weekStart = new Date();
+            const dayOfWeek = weekStart.getDay();
+            const daysFromMonday = (dayOfWeek + 6) % 7;
+            weekStart.setDate(weekStart.getDate() - daysFromMonday);
+            weekStart.setHours(0, 0, 0, 0);
+            const weekStartIso = weekStart.toISOString();
+
+            // Fetch coach assignments, including individual Personal Plan rows.
             const { data: coachAssigns } = await supabase
                 .from('assignments')
-                .select('*, drills:drill_id (name, category, duration)')
+                .select('*, drills:drill_id (id, name, category, duration, description)')
                 .eq('player_id', playerId)
                 .eq('source', 'coach')
-                .order('created_at', { ascending: false })
-                .limit(10);
+                .or(`status.neq.completed,completed_at.gte.${weekStartIso}`)
+                .order('due_date', { ascending: true });
 
             setCoachAssignments(coachAssigns || []);
 
@@ -347,11 +355,11 @@ const ParentDashboard = () => {
             // as a status-of-solo-work section.
             const { data: parentAssigns } = await supabase
                 .from('assignments')
-                .select('*, drills:drill_id (name, category, duration)')
+                .select('*, drills:drill_id (id, name, category, duration, description)')
                 .eq('player_id', playerId)
                 .in('source', ['parent', 'player'])
-                .order('created_at', { ascending: false })
-                .limit(10);
+                .or(`status.neq.completed,completed_at.gte.${weekStartIso}`)
+                .order('due_date', { ascending: true });
 
             setParentAssignments(parentAssigns || []);
 
@@ -504,12 +512,46 @@ const ParentDashboard = () => {
         }
     };
 
+    const completeAssignmentForSelectedChild = async (assignmentId) => {
+        const { error } = await supabase
+            .rpc('complete_assignment', {
+                p_assignment_id: assignmentId,
+                p_player_id: selectedChild.id
+            });
+
+        if (error) {
+            console.error('Error completing assignment:', error);
+            await supabase
+                .from('assignments')
+                .update({ status: 'completed', completed_at: new Date().toISOString() })
+                .eq('id', assignmentId);
+        }
+    };
+
+    const handleCompleteCoachDrill = async (assignmentId) => {
+        if (!selectedChild?.id) return;
+
+        setCoachAssignments(prev => prev.map(a =>
+            a.id === assignmentId ? { ...a, status: 'completed', completed_at: new Date().toISOString() } : a
+        ));
+
+        try {
+            await completeAssignmentForSelectedChild(assignmentId);
+            window.dispatchEvent(new CustomEvent('drill-completed'));
+        } catch (err) {
+            console.error('Error:', err);
+            setCoachAssignments(prev => prev.map(a =>
+                a.id === assignmentId ? { ...a, status: 'pending', completed_at: null } : a
+            ));
+        }
+    };
+
     // Handle completing a parent-assigned drill
     const handleCompleteParentDrill = async (assignmentId) => {
         if (!selectedChild?.id) return;
 
         // Check if the coach challenge is done first
-        const pendingCoach = coachAssignments.filter(a => a.status !== 'completed');
+        const pendingCoach = coachAssignments.filter(a => a.team_id && a.status !== 'completed');
         if (pendingCoach.length > 0) {
             toast.warning('Finish the coach challenge first — that comes before family skill work.');
             return;
@@ -521,21 +563,7 @@ const ParentDashboard = () => {
         ));
 
         try {
-            const { data: result, error } = await supabase
-                .rpc('complete_assignment', {
-                    p_assignment_id: assignmentId,
-                    p_player_id: selectedChild.id
-                });
-
-            if (error) {
-                console.error('Error completing parent assignment:', error);
-                // Fallback direct update
-                await supabase
-                    .from('assignments')
-                    .update({ status: 'completed', completed_at: new Date().toISOString() })
-                    .eq('id', assignmentId);
-            }
-
+            await completeAssignmentForSelectedChild(assignmentId);
             // Dispatch event for Leaderboard refresh
             window.dispatchEvent(new CustomEvent('drill-completed'));
         } catch (err) {
@@ -648,8 +676,10 @@ const ParentDashboard = () => {
                 );
             case 'overview':
             default: {
-                const completedCoach = coachAssignments.filter(a => a.status === 'completed').length;
-                const totalCoach = coachAssignments.length;
+                const teamCoachAssignments = coachAssignments.filter(a => a.team_id);
+                const personalPlanAssignments = coachAssignments.filter(a => !a.team_id);
+                const completedCoach = teamCoachAssignments.filter(a => a.status === 'completed').length;
+                const totalCoach = teamCoachAssignments.length;
                 const challengePercent = totalCoach > 0 ? Math.round((completedCoach / totalCoach) * 100) : 0;
                 const coachChallengeDone = totalCoach === 0 || completedCoach === totalCoach;
                 const completedParent = parentAssignments.filter(a => a.status === 'completed').length;
@@ -904,14 +934,14 @@ const ParentDashboard = () => {
                                     </span>
                                 )}
                             </div>
-                            {coachAssignments.length === 0 ? (
+                            {teamCoachAssignments.length === 0 ? (
                                 <div className="text-center py-4">
                                     <Target className="w-6 h-6 text-gray-700 mx-auto mb-1" />
                                     <p className="text-gray-500 text-xs">No coach challenge this week</p>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    {coachAssignments.map(assign => (
+                                    {teamCoachAssignments.map(assign => (
                                         <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
                                             {assign.status === 'completed' ? (
                                                 <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
@@ -937,6 +967,11 @@ const ParentDashboard = () => {
                                 </div>
                             )}
                         </div>
+
+                        <PersonalPlanCard
+                            assignments={personalPlanAssignments}
+                            onComplete={handleCompleteCoachDrill}
+                        />
 
                         {/* 9. Family Skill Work */}
                         <div className="glass-panel p-5 border-l-4 border-l-brand-gold">
