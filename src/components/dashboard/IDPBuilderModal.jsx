@@ -311,11 +311,12 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
     };
 
     const handleSoloTrain = (drillId) => {
-        // Deep-link into ParentSessionBuilder via player dashboard
-        // (PlayerDashboard mounts ParentSessionBuilder when showSessionBuilder
-        // is set). Coach previewing isn't supposed to start solo training, so
-        // we just open the URL and let the player view handle it.
+        // Open the selected player's dashboard in preview mode so staff can
+        // see the drill in the real player context instead of hitting the
+        // auth-linked player login path.
         const params = new URLSearchParams({
+            preview: player.id,
+            previewRole: 'player',
             drillIds: drillId,
             from: 'idp',
         });
