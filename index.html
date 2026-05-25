@@ -104,18 +104,19 @@
           }
         }, true);
         // Layer 2: mount watchdog. If React hasn't put anything inside
-        // #root within 8s, the bundle either failed silently or threw
+        // #root within 20s, the bundle either failed silently or threw
         // during module-eval (no error event reaches us). Force a
         // cache-busting reload so the user isn't stuck on a black screen.
-        // Tuned for slow 3G: 8s is comfortably above typical first-paint
-        // for our ~178KB gzipped bundle, well below the user's patience.
+        // Tuned to give slower phones enough room for auth/session
+        // rehydration plus initial data work before we assume the app is
+        // broken.
         window.addEventListener('load', function () {
           setTimeout(function () {
             var root = document.getElementById('root');
             if (root && root.childElementCount === 0) {
               attemptRecovery();
             }
-          }, 8000);
+          }, 20000);
         });
         // Layer 3: stale-bundle check. PWA-installed iOS/Android Chrome
         // serve a cached HTML on app launch even with no-store headers —
