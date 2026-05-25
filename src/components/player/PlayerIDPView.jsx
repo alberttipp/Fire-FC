@@ -1,34 +1,25 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X, Target, Check, Lock, Dumbbell, Loader2, Award, Square, CheckSquare, ChevronRight } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../Toast';
 import { SKILL_BY_SLUG } from '../../data/idpSkills';
 
-// Player-side read-only full view of the personal development plan.
+// Player-side full view of the personal development plan.
 //
-// Three blocks stacked, current block highlighted, future blocks locked,
-// past blocks marked Done. The current block's drills are multi-select
-// with a single bottom CTA:
+// Player mode:
+// - current block drills are selectable
+// - selected drills deep-link into solo training
 //
-//   • mode='player' (default): "Start with N drill(s)" → solo builder
-//     deep-link with all selected drills pre-loaded
-//   • mode='parent': "Add to Challenges" → inserts assignment rows
-//     tagged source='parent' for the player
-//
-// The mode is inferred from which dashboard rendered the card: if the
-// component receives `onStartSoloDrill`, we're on the player dashboard
-// and use Start. Otherwise (parent dashboard), we use Assign.
+// Parent mode:
+// - read-only view only
+// - coaches assign homework from the coach dashboard
 
-const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, teamId = null, onClose, onStartSoloDrill }) => {
-    const { user } = useAuth();
-    const toast = useToast();
+const PlayerIDPView = ({ idp, skills = [], playerName = 'You', onClose, onStartSoloDrill }) => {
     const [drillsByBlock, setDrillsByBlock] = useState({});
     const [loadingDrills, setLoadingDrills] = useState(true);
     const [selectedDrills, setSelectedDrills] = useState(new Set());
-    const [submitting, setSubmitting] = useState(false);
 
-    const isParentMode = !onStartSoloDrill;
+    const canStartSolo = typeof onStartSoloDrill === 'function';
+    const isParentMode = !canStartSolo;
 
     const skillsByBlock = useMemo(() => {
         const out = { 1: [], 2: [], 3: [] };
@@ -40,32 +31,37 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
 
     const currentBlock = idp?.current_block || 1;
 
-    // Pre-fetch drills for each block that has skills
     useEffect(() => {
         let cancelled = false;
+
         (async () => {
             setLoadingDrills(true);
             const map = {};
+
             for (const n of [1, 2, 3]) {
                 const slugs = skillsByBlock[n].map((s) => s.skill_slug);
                 if (slugs.length === 0) {
                     map[n] = [];
                     continue;
                 }
+
                 const { data } = await supabase
                     .from('drills')
                     .select('id, name, category, duration')
                     .overlaps('tagged_skills', slugs)
                     .eq('is_custom', false)
                     .limit(8);
+
                 if (cancelled) return;
                 map[n] = data || [];
             }
+
             if (!cancelled) {
                 setDrillsByBlock(map);
                 setLoadingDrills(false);
             }
         })();
+
         return () => {
             cancelled = true;
         };
@@ -84,52 +80,10 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
     const currentDrills = drillsByBlock[currentBlock] || [];
 
     const handleStartSelected = () => {
-        if (selectedDrills.size === 0) return;
-        if (onStartSoloDrill) {
-            // Player mode: deep-link into solo builder with all selected ids
-            const ids = Array.from(selectedDrills).join(',');
-            onStartSoloDrill(ids);
-            onClose();
-            return;
-        }
-    };
-
-    const handleAssignAsHomework = async () => {
-        if (selectedDrills.size === 0) return;
-        if (!playerId || !user?.id) {
-            toast.error("Couldn't assign — missing player info.");
-            return;
-        }
-        setSubmitting(true);
-        try {
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + 7);
-            const sessionId = (typeof crypto !== 'undefined' && crypto.randomUUID)
-                ? crypto.randomUUID()
-                : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            const drillList = currentDrills.filter((d) => selectedDrills.has(d.id));
-            const rows = drillList.map((d) => ({
-                drill_id: d.id,
-                player_id: playerId,
-                team_id: teamId || null,
-                assigned_by: user.id,
-                source: 'parent',
-                status: 'pending',
-                custom_duration: d.duration || 15,
-                due_date: dueDate.toISOString(),
-                session_id: sessionId,
-            }));
-            const { error } = await supabase.from('assignments').insert(rows);
-            if (error) throw error;
-            toast.success(`Assigned ${rows.length} drill${rows.length === 1 ? '' : 's'} to ${playerName}.`);
-            setSelectedDrills(new Set());
-            onClose();
-        } catch (err) {
-            console.error('[PlayerIDPView] assign error', err);
-            toast.error("Couldn't assign those drills. Try again.");
-        } finally {
-            setSubmitting(false);
-        }
+        if (!canStartSolo || selectedDrills.size === 0) return;
+        const ids = Array.from(selectedDrills).join(',');
+        onStartSoloDrill(ids);
+        onClose();
     };
 
     return (
@@ -151,7 +105,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                             {playerName}'s Personal Plan
                         </h3>
                         <p className="text-xs text-gray-400 mt-0.5">
-                            {idp.status === 'completed' ? '90-day plan completed' : `Block ${currentBlock} of 3`}
+                            {idp?.status === 'completed' ? '90-day plan completed' : `Block ${currentBlock} of 3`}
                         </p>
                     </div>
                     <button onClick={onClose} className="p-1 -m-1 text-gray-500 hover:text-white shrink-0">
@@ -162,9 +116,9 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                 <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
                     {[1, 2, 3].map((n) => {
                         const rows = skillsByBlock[n];
-                        const isCurrent = n === currentBlock && idp.status !== 'completed';
-                        const isComplete = n < currentBlock || idp.status === 'completed';
-                        const isLocked = n > currentBlock && idp.status !== 'completed';
+                        const isCurrent = n === currentBlock && idp?.status !== 'completed';
+                        const isComplete = n < currentBlock || idp?.status === 'completed';
+                        const isLocked = n > currentBlock && idp?.status !== 'completed';
                         const mastered = rows.filter((r) => r.status === 'mastered').length;
                         const blockDrills = drillsByBlock[n] || [];
 
@@ -225,9 +179,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                                             <div
                                                 key={row.id}
                                                 className={`flex items-center gap-2 p-2 rounded-lg border ${
-                                                    isMastered
-                                                        ? 'bg-brand-green/10 border-brand-green/30'
-                                                        : 'bg-white/5 border-white/10'
+                                                    isMastered ? 'bg-brand-green/10 border-brand-green/30' : 'bg-white/5 border-white/10'
                                                 }`}
                                             >
                                                 <span className="text-lg">{meta.icon}</span>
@@ -247,8 +199,7 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                                     })}
                                 </div>
 
-                                {/* Current block drills (multi-select) */}
-                                {isCurrent && (
+                                {isCurrent && canStartSolo && (
                                     <div className="mt-4 pt-4 border-t border-white/10">
                                         <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2 flex items-center gap-1.5">
                                             <Dumbbell className="w-3 h-3 text-brand-green" /> Drills for this block - tap to select
@@ -279,7 +230,9 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                                                                 <Square className="w-4 h-4 text-gray-500 shrink-0" />
                                                             )}
                                                             <div className="flex-1 min-w-0">
-                                                                <p className={`text-sm truncate ${isSelected ? 'text-brand-green font-bold' : 'text-white'}`}>{d.name}</p>
+                                                                <p className={`text-sm truncate ${isSelected ? 'text-brand-green font-bold' : 'text-white'}`}>
+                                                                    {d.name}
+                                                                </p>
                                                                 <p className="text-[10px] text-gray-500 truncate">
                                                                     {d.category} · {d.duration || 10} min
                                                                 </p>
@@ -291,6 +244,14 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                                         )}
                                     </div>
                                 )}
+
+                                {isCurrent && isParentMode && (
+                                    <div className="mt-4 pt-4 border-t border-white/10">
+                                        <p className="text-xs text-gray-400">
+                                            Parent view is read-only. Coaches assign homework from the coach dashboard.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
@@ -300,22 +261,9 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                     </p>
                 </div>
 
-                {/* Sticky bottom CTA */}
                 {currentDrills.length > 0 && (
                     <div className="border-t border-white/10 p-4 shrink-0 bg-brand-dark">
-                        {isParentMode ? (
-                            <button
-                                onClick={handleAssignAsHomework}
-                                disabled={selectedCount === 0 || submitting}
-                                className="w-full py-3 rounded-xl font-display font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-blue-500/40"
-                            >
-                                {submitting ? (
-                                    <><Loader2 className="w-4 h-4 animate-spin" /> Assigning…</>
-                                ) : (
-                                    <>Add {selectedCount > 0 ? `${selectedCount} ` : ''}to Challenges <ChevronRight className="w-4 h-4" /></>
-                                )}
-                            </button>
-                        ) : (
+                        {canStartSolo ? (
                             <button
                                 onClick={handleStartSelected}
                                 disabled={selectedCount === 0}
@@ -324,11 +272,15 @@ const PlayerIDPView = ({ idp, skills = [], playerName = 'You', playerId = null, 
                                 Start {selectedCount > 0 ? `${selectedCount} ` : ''}Drill{selectedCount === 1 ? '' : 's'}
                                 <ChevronRight className="w-4 h-4" />
                             </button>
+                        ) : (
+                            <div className="w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-center text-xs text-gray-400">
+                                Parent view is read-only. Coaches assign homework from the coach dashboard.
+                            </div>
                         )}
                         <p className="text-[10px] text-gray-500 text-center mt-2">
-                            {isParentMode
-                                ? 'Drills land in the coach challenge list — kid sees them on their dashboard.'
-                                : 'Selected drills will load into your solo training session.'}
+                            {canStartSolo
+                                ? 'Selected drills will load into your solo training session.'
+                                : 'Review the plan here. Assignment happens on the coach side.'}
                         </p>
                     </div>
                 )}
