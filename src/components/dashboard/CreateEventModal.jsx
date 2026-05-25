@@ -351,6 +351,35 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                 }
             }
 
+            if (!isEditMode) {
+                const { data: convo } = await supabase
+                    .from('conversations')
+                    .select('id, org_id')
+                    .eq('team_id', teamId)
+                    .eq('type', 'team')
+                    .limit(1)
+                    .maybeSingle();
+                if (convo?.id) {
+                    const when = new Date(startDateTime).toLocaleString([], {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                    });
+                    const locationText = resolvedLocation ? ` at ${resolvedLocation}` : '';
+                    await supabase.from('messages').insert({
+                        conversation_id: convo.id,
+                        sender_id: user.id,
+                        content: `${resolvedTitle} on ${when}${locationText}`,
+                        message_type: 'announcement',
+                        sender_name: profile?.full_name || 'Coach',
+                        sender_role: profile?.role || 'coach',
+                        org_id: convo.org_id,
+                    });
+                }
+            }
+
             onEventCreated(data);
             onClose();
 

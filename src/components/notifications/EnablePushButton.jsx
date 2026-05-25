@@ -57,6 +57,27 @@ const EnablePushButton = () => {
                 const reg = await navigator.serviceWorker.ready;
                 const sub = await reg.pushManager.getSubscription();
                 if (!cancelled) {
+                    if (sub && user?.id) {
+                        const json = sub.toJSON();
+                        const endpoint = sub.endpoint;
+                        const { data: existingRow } = await supabase
+                            .from('user_push_subscriptions')
+                            .select('user_id, endpoint')
+                            .eq('endpoint', endpoint)
+                            .maybeSingle();
+
+                        if (!cancelled && (!existingRow || existingRow.user_id !== user.id)) {
+                            await supabase.from('user_push_subscriptions').upsert({
+                                user_id: user.id,
+                                endpoint,
+                                p256dh: json.keys?.p256dh,
+                                auth: json.keys?.auth,
+                                user_agent: navigator.userAgent,
+                                last_seen_at: new Date().toISOString(),
+                            }, { onConflict: 'endpoint' });
+                        }
+                    }
+
                     setSubscribed(!!sub);
                     setReady(true);
                 }

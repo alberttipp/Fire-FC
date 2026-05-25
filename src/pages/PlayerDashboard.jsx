@@ -308,6 +308,31 @@ const PlayerDashboard = () => {
         };
     }, [user]);
 
+    useEffect(() => {
+        const playerId = playerRecord?.id;
+        if (!playerId) return;
+
+        const assignmentsChannel = supabase
+            .channel(`player-assignments-${playerId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'assignments',
+                    filter: `player_id=eq.${playerId}`,
+                },
+                () => {
+                    refetchAssignments();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(assignmentsChannel);
+        };
+    }, [playerRecord?.id]);
+
     // Construct Profile Display Object (must be after hooks, before conditional returns)
     // Use playerRecord.id if available (this is the ID used in evaluations table)
     const playerProfile = {
@@ -448,8 +473,8 @@ const PlayerDashboard = () => {
         setTimeout(() => setShowCelebration(false), 2000);
     }
 
-    const personalPlanAssignments = assignments.filter(a => a.source === 'coach' && !a.team_id);
-    const challengeAssignments = assignments.filter(a => !(a.source === 'coach' && !a.team_id));
+    const personalPlanAssignments = assignments.filter(a => !a.team_id && a.source !== 'parent' && a.source !== 'player');
+    const challengeAssignments = assignments.filter(a => a.team_id || a.source === 'parent' || a.source === 'player');
 
     return (
         <div className="min-h-screen bg-brand-dark pb-24 relative overflow-hidden">
