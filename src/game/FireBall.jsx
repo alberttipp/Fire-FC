@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Volume2, VolumeX, ArrowLeft, Flame, RotateCcw, Loader2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
 // ============================================
 // GAME CONFIGURATION
@@ -86,7 +87,12 @@ const FireBall = ({ onClose }) => {
                         name: `${p.first_name} ${p.last_name}`,
                         firstName: p.first_name,
                         lastName: p.last_name,
-                        photo: p.avatar_url || null,
+                        photo: getPlayerAvatarPath({
+                            avatarUrl: p.avatar_url || null,
+                            firstName: p.first_name || '',
+                            lastName: p.last_name || '',
+                            displayName: `${p.first_name || ''} ${p.last_name || ''}`.trim()
+                        }),
                         number: p.jersey_number || 0,
                     }));
                     setRoster(players);

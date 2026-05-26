@@ -14,6 +14,7 @@ import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
+import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
 // Heavy modals — only loaded when the user opens them.
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
@@ -361,7 +362,12 @@ const PlayerDashboard = () => {
         defending: stats?.defending || 50,
         physical: stats?.physical || 50,
         messiMode: stats?.messi_mode_unlocked || false,
-        image: playerRecord?.avatar_url || profile?.avatar_url || user?.avatar_url || "/players/roster/bo_official.png"
+        image: getPlayerAvatarPath({
+            avatarUrl: playerRecord?.avatar_url || profile?.avatar_url || user?.avatar_url || null,
+            firstName: playerRecord?.first_name || profile?.full_name || '',
+            lastName: playerRecord?.last_name || '',
+            displayName: playerRecord ? `${playerRecord.first_name || ''} ${playerRecord.last_name || ''}`.trim() : (profile?.full_name || user?.display_name || '')
+        })
     };
 
     // Loading state - shown while user or player data loads

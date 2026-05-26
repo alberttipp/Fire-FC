@@ -17,6 +17,7 @@ import VacationPeriodsManager from '../components/family/VacationPeriodsManager'
 import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
+import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -614,7 +615,12 @@ const ParentDashboard = () => {
             defending: playerEvaluation?.defending || 50,
             physical: playerEvaluation?.physical || 50,
             messiMode: playerStats?.messi_mode_unlocked || false,
-            image: player.avatar_url || `/players/${player.first_name?.toLowerCase()}_official.png`
+            image: getPlayerAvatarPath({
+                avatarUrl: player.avatar_url || null,
+                firstName: player.first_name || '',
+                lastName: player.last_name || '',
+                displayName: `${player.first_name || ''} ${player.last_name || ''}`.trim()
+            })
         };
     };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { Loader2, CheckCircle, XCircle, Rocket } from 'lucide-react';
+import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
 const PlayerAccessPage = () => {
     const { token } = useParams();
@@ -113,7 +114,12 @@ const PlayerAccessPage = () => {
                         <div className="relative inline-block">
                             <div className="w-24 h-24 rounded-full bg-gray-800 overflow-hidden mx-auto border-4 border-brand-gold shadow-[0_0_30px_rgba(251,191,36,0.3)]">
                                 <img
-                                    src={player.avatar_url || '/branding/logo.png'}
+                                    src={getPlayerAvatarPath({
+                                        avatarUrl: player.avatar_url || null,
+                                        firstName: player.first_name || '',
+                                        lastName: player.last_name || '',
+                                        displayName: `${player.first_name || ''} ${player.last_name || ''}`.trim()
+                                    })}
                                     alt={player.first_name}
                                     className="w-full h-full object-cover"
                                 />
