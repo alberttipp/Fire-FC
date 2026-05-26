@@ -102,6 +102,11 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
     const timerRef = useRef(null);
 
     const totalDuration = blocks.reduce((sum, b) => sum + (b.duration || 0), 0);
+    const isPlayerMode = saveMode === 'player';
+    const builderTitle = isPlayerMode ? 'Solo Training Builder' : 'My Training Builder';
+    const builderSubtitle = isPlayerMode
+        ? `Build a practice session for ${playerName}`
+        : `Build training for ${playerName}`;
 
     // Fetch drills from database — pulled out of useEffect so we can call it
     // from the AI Generate handler too, e.g. to recover from a transient network
@@ -285,7 +290,9 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                 body: JSON.stringify({
                     transcript,
                     selectedEventId: null,
-                    eventContext: `Solo training for ${playerName}`,
+                    eventContext: isPlayerMode
+                        ? `Solo training for ${playerName}`
+                        : `My training for ${playerName}`,
                     candidates: topCandidates
                 })
             });
@@ -554,9 +561,9 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                     <div>
                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
                             <Dumbbell className="w-6 h-6 text-brand-gold" />
-                            Solo Training Builder
+                            {builderTitle}
                         </h2>
-                        <p className="text-gray-400 text-sm">Build a practice session for {playerName}</p>
+                        <p className="text-gray-400 text-sm">{builderSubtitle}</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
                         <X className="w-6 h-6 text-gray-400" />

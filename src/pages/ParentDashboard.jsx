@@ -26,6 +26,7 @@ const GalleryView = lazy(() => import('../components/dashboard/GalleryView'));
 const LiveScoringView = lazy(() => import('../components/dashboard/LiveScoringView'));
 const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolVolunteerView'));
 const DrillLibraryModal = lazy(() => import('../components/dashboard/DrillLibraryModal'));
+const ParentSessionBuilder = lazy(() => import('../components/dashboard/ParentSessionBuilder'));
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
 const EventDetailModal = lazy(() => import('../components/dashboard/calendar/EventDetailModal'));
 const LineupBuilder    = lazy(() => import('../components/coach-hq/lineup/LineupBuilder'));
@@ -57,6 +58,7 @@ const ParentDashboard = () => {
     // who's going / out / no-response on the team. Same modal as the coach view.
     const [openEvent, setOpenEvent] = useState(null);
     const [openLineupEvent, setOpenLineupEvent] = useState(null);
+    const [showFamilyBuilder, setShowFamilyBuilder] = useState(false);
 
     // Wire voice navigation: lets the user say "go to schedule" / "messages"
     // / "overview" and have the parent dashboard switch tabs.
@@ -94,12 +96,12 @@ const ParentDashboard = () => {
     // behind the modal doesn't shift when the user scrolls / drags
     // inside it. Restored on close.
     useEffect(() => {
-        const anyOpen = showDetails || inviteOpen || !!openEvent || !!openLineupEvent || showDrillLibrary;
+        const anyOpen = showDetails || inviteOpen || !!openEvent || !!openLineupEvent || showDrillLibrary || showFamilyBuilder;
         if (!anyOpen) return;
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = prev; };
-    }, [showDetails, inviteOpen, openEvent, openLineupEvent, showDrillLibrary]);
+    }, [showDetails, inviteOpen, openEvent, openLineupEvent, showDrillLibrary, showFamilyBuilder]);
 
     // When the user picks a different top-nav tab, close any open modal
     // first — otherwise the modal stays mounted on top of the new view.
@@ -109,6 +111,7 @@ const ParentDashboard = () => {
         setOpenEvent(null);
         setOpenLineupEvent(null);
         setShowDrillLibrary(false);
+        setShowFamilyBuilder(false);
         setPlayerAccessLink(null);
     }, [currentView]);
 
@@ -550,13 +553,6 @@ const ParentDashboard = () => {
     const handleCompleteParentDrill = async (assignmentId) => {
         if (!selectedChild?.id) return;
 
-        // Check if the coach challenge is done first
-        const pendingCoach = coachAssignments.filter(a => a.team_id && a.status !== 'completed');
-        if (pendingCoach.length > 0) {
-            toast.warning('Finish the coach challenge first — that comes before family skill work.');
-            return;
-        }
-
         // Optimistic update
         setParentAssignments(prev => prev.map(a =>
             a.id === assignmentId ? { ...a, status: 'completed', completed_at: new Date().toISOString() } : a
@@ -973,33 +969,34 @@ const ParentDashboard = () => {
                             onComplete={handleCompleteCoachDrill}
                         />
 
-                        {/* 9. Family Skill Work */}
+                        {/* 9. My Training */}
                         <div className="glass-panel p-5 border-l-4 border-l-brand-gold">
                             <div className="flex items-center justify-between mb-4">
                                 <h4 className="text-brand-gold text-xs uppercase font-bold flex items-center gap-2">
-                                    <Zap className="w-4 h-4" /> Family Skill Work
+                                    <Zap className="w-4 h-4" /> My Training
                                 </h4>
-                                {totalParent > 0 && (
-                                    <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
-                                        completedParent === totalParent ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-gold/20 text-brand-gold'
-                                    }`}>
+                                {selectedChild?.id && (
+                                    <button
+                                        onClick={() => setShowFamilyBuilder(true)}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-[11px] font-bold uppercase tracking-wider hover:bg-brand-gold/20 transition-colors"
+                                    >
+                                    <Dumbbell className="w-3.5 h-3.5" /> Add Training
+                                    </button>
+                                )}
+                            {totalParent > 0 && (
+                                <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
+                                    completedParent === totalParent ? 'bg-brand-green/20 text-brand-green' : 'bg-brand-gold/20 text-brand-gold'
+                                }`}>
                                         {completedParent}/{totalParent} Done
                                     </span>
                                 )}
                             </div>
 
-                            {!coachChallengeDone && totalParent > 0 && (
-                                <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-3 flex items-start gap-2">
-                                    <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-                                    <p className="text-xs text-yellow-400">Complete the coach challenge first to unlock family skill-work credit.</p>
-                                </div>
-                            )}
-
                             {parentAssignments.length === 0 ? (
                                 <div className="text-center py-4">
                                     <Dumbbell className="w-6 h-6 text-gray-700 mx-auto mb-1" />
-                                    <p className="text-gray-500 text-xs">No solo practice yet</p>
-                                    <p className="text-[10px] text-gray-600 mt-1">Your player can build their own from the kid app.</p>
+                                    <p className="text-gray-500 text-xs">No training yet</p>
+                                    <p className="text-[10px] text-gray-600 mt-1">Add a session here or let your player build one on their dashboard.</p>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -1018,7 +1015,12 @@ const ParentDashboard = () => {
                                                 <div className={`text-sm font-medium truncate ${assign.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>
                                                     {assign.drills?.name || assign.drills?.title || 'Drill'}
                                                 </div>
-                                                <div className="text-xs text-gray-500">
+                                                <div className="mt-1 flex items-center gap-2 flex-wrap text-[10px] uppercase tracking-wider">
+                                                    <span className={`px-1.5 py-0.5 rounded ${assign.source === 'player' ? 'bg-brand-green/15 text-brand-green' : 'bg-brand-gold/15 text-brand-gold'}`}>
+                                                        {assign.source === 'player' ? 'Solo' : 'Family'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-gray-500 mt-1">
                                                     {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
                                                 </div>
                                             </div>
@@ -1137,8 +1139,21 @@ const ParentDashboard = () => {
                 </Suspense>
             )}
 
-            {/* Solo Training Builder lives on the player dashboard now;
-                parent dashboard no longer mounts ParentSessionBuilder. */}
+            {showFamilyBuilder && selectedChild && (
+                <Suspense fallback={null}>
+                    <ParentSessionBuilder
+                        saveMode="parent"
+                        playerId={selectedChild.id}
+                        teamId={selectedChild.team_id}
+                        playerName={`${selectedChild.first_name || ''} ${selectedChild.last_name || ''}`.trim()}
+                        onClose={() => setShowFamilyBuilder(false)}
+                        onSave={() => {
+                            fetchChildDetails(selectedChild.id);
+                            window.dispatchEvent(new CustomEvent('drill-completed'));
+                        }}
+                    />
+                </Suspense>
+            )}
 
             {/* Navbar */}
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-6 py-4">
