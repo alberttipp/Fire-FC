@@ -10,6 +10,10 @@ const slugify = (value) => {
 const OVERRIDES = {
     declan: 'declan.png',
     isaac: 'isaac.png',
+    jameson: 'jameson_mccarthy.png',
+    jaemson: 'jameson_mccarthy.png',
+    jameson_mccarthy: 'jameson_mccarthy.png',
+    jaemson_mccarthy: 'jameson_mccarthy.png',
     novie: 'novie.png',
     tate: 'tate.png',
     luca: 'luca.png',
