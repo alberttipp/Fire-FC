@@ -25,6 +25,18 @@ export const getPlayerAvatarPath = ({ avatarUrl = null, firstName = '', lastName
     const last = slugify(lastName);
     const full = slugify(displayName);
 
+    const isJameson =
+        first === 'jameson' ||
+        first === 'jaemson' ||
+        full === 'jameson_mccarthy' ||
+        full === 'jaemson_mccarthy' ||
+        `${first}_${last}` === 'jameson_mccarthy' ||
+        `${first}_${last}` === 'jaemson_mccarthy';
+
+    if (isJameson) {
+        return '/players/jameson_mccarthy_cutout_v2.png';
+    }
+
     const overrideKeys = [full, first && last ? `${first}_${last}` : '', first].filter(Boolean);
     for (const key of overrideKeys) {
         if (OVERRIDES[key]) {
