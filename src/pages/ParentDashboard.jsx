@@ -155,6 +155,17 @@ const ParentDashboard = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedChild?.id]);
 
+    useEffect(() => {
+        const handleDrillCompleted = () => {
+            if (selectedChild?.id) {
+                fetchChildDetails(selectedChild.id);
+            }
+        };
+
+        window.addEventListener('drill-completed', handleDrillCompleted);
+        return () => window.removeEventListener('drill-completed', handleDrillCompleted);
+    }, [selectedChild?.id]);
+
     const fetchChildrenData = async () => {
         setLoading(true);
         try {
@@ -540,6 +551,9 @@ const ParentDashboard = () => {
 
         try {
             await completeAssignmentForSelectedChild(assignmentId);
+            if (selectedChild?.id) {
+                await fetchChildDetails(selectedChild.id);
+            }
             window.dispatchEvent(new CustomEvent('drill-completed'));
         } catch (err) {
             console.error('Error:', err);
@@ -560,6 +574,9 @@ const ParentDashboard = () => {
 
         try {
             await completeAssignmentForSelectedChild(assignmentId);
+            if (selectedChild?.id) {
+                await fetchChildDetails(selectedChild.id);
+            }
             // Dispatch event for Leaderboard refresh
             window.dispatchEvent(new CustomEvent('drill-completed'));
         } catch (err) {

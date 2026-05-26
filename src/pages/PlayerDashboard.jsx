@@ -64,6 +64,26 @@ const PlayerDashboard = () => {
         setAssignments(data || []);
     };
 
+    const refetchPlayerStats = async (playerId) => {
+        if (!playerId) return;
+
+        const { data: statsData, error } = await supabase
+            .from('player_stats')
+            .select('streak_days, training_minutes, weekly_minutes, season_minutes, yearly_minutes, weekly_touches, season_touches, yearly_touches, career_touches')
+            .eq('player_id', playerId)
+            .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error('[PlayerDashboard] refetchPlayerStats error:', error);
+            return;
+        }
+
+        if (statsData) {
+            setStreakDays(statsData.streak_days || 0);
+            setPlayerStatsFull(statsData);
+        }
+    };
+
     useEffect(() => {
         if (!user?.id) return;
 
@@ -166,21 +186,7 @@ const PlayerDashboard = () => {
             }
 
             // 1b. Fetch Training Streak from player_stats
-            const { data: streakData, error: streakError } = await supabase
-                .from('player_stats')
-                .select('streak_days, training_minutes, weekly_minutes, season_minutes, yearly_minutes, weekly_touches, season_touches, yearly_touches, career_touches')
-                .eq('player_id', playerId)
-                .maybeSingle();
-
-            if (streakError && streakError.code !== 'PGRST116') {
-                console.error('[PlayerDashboard] Streak fetch error:', streakError);
-            }
-
-            if (streakData) {
-                console.log('[PlayerDashboard] Found streak data:', streakData);
-                setStreakDays(streakData.streak_days || 0);
-                setPlayerStatsFull(streakData);
-            }
+            await refetchPlayerStats(playerId);
 
             // 1c. Process any completed practices (auto-credit training from attended events)
             const { data: creditedCount, error: practiceError } = await supabase
@@ -190,15 +196,9 @@ const PlayerDashboard = () => {
                 console.log('[PlayerDashboard] Practice processing not available yet:', practiceError.message);
             } else if (creditedCount > 0) {
                 console.log('[PlayerDashboard] Credited', creditedCount, 'completed practices');
-                // Refetch streak after crediting practices
-                const { data: updatedStreak } = await supabase
-                    .from('player_stats')
-                    .select('streak_days')
-                    .eq('player_id', playerId)
-                    .maybeSingle();
-                if (updatedStreak) {
-                    setStreakDays(updatedStreak.streak_days || 0);
-                }
+                // Refetch full stats after crediting practices so the
+                // minutes/touches cards update immediately.
+                await refetchPlayerStats(playerId);
             }
 
             // 2. Fetch ALL assignments for this player (coach + parent + self).
@@ -324,6 +324,7 @@ const PlayerDashboard = () => {
                 },
                 () => {
                     refetchAssignments();
+                    refetchPlayerStats(playerId);
                 }
             )
             .subscribe();
@@ -331,6 +332,18 @@ const PlayerDashboard = () => {
         return () => {
             supabase.removeChannel(assignmentsChannel);
         };
+    }, [playerRecord?.id]);
+
+    useEffect(() => {
+        const handleDrillCompleted = () => {
+            const playerId = playerRecord?.id;
+            if (!playerId) return;
+            refetchAssignments();
+            refetchPlayerStats(playerId);
+        };
+
+        window.addEventListener('drill-completed', handleDrillCompleted);
+        return () => window.removeEventListener('drill-completed', handleDrillCompleted);
     }, [playerRecord?.id]);
 
     // Construct Profile Display Object (must be after hooks, before conditional returns)
@@ -461,6 +474,7 @@ const PlayerDashboard = () => {
                         console.log('[Streak] Updated to:', result[0].new_streak, 'Today mins:', result[0].today_minutes);
                     }
                 }
+                await refetchPlayerStats(playerId);
                 // Dispatch event to notify Leaderboard to refresh
                 window.dispatchEvent(new CustomEvent('drill-completed'));
             } catch (err) {
