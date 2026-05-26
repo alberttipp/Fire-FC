@@ -11,6 +11,7 @@ import AddExistingPlayerModal from './AddExistingPlayerModal';
 import BulkInviteModal from './BulkInviteModal';
 import FamilyInviteModal from './FamilyInviteModal';
 import UpcomingWeek from './UpcomingWeek';
+import { getPlayerAvatarPath } from '../../utils/playerAvatar';
 
 const TeamView = () => {
     const { user, profile } = useAuth();
@@ -163,7 +164,12 @@ const TeamView = () => {
                         careerMinutes: careerMins,
                         touches: pStats?.career_touches || 0,
                         status: weeklyMins > 60 ? 'On Fire' : weeklyMins > 20 ? 'Steady' : 'Warming Up',
-                        avatar: p.avatar_url,
+                        avatar: getPlayerAvatarPath({
+                            avatarUrl: p.avatar_url || null,
+                            firstName: p.first_name || '',
+                            lastName: p.last_name || '',
+                            displayName: `${p.first_name || ''} ${p.last_name || ''}`.trim()
+                        }),
                         position: p.position
                     };
                 }).sort((a, b) => b.minutes - a.minutes);
@@ -230,7 +236,12 @@ const TeamView = () => {
                 careerMinutes: careerMins,
                 touches: pStats?.career_touches || 0,
                 status: weeklyMins > 60 ? 'On Fire' : weeklyMins > 20 ? 'Steady' : 'Warming Up',
-                avatar: p.avatar_url,
+                avatar: getPlayerAvatarPath({
+                    avatarUrl: p.avatar_url || null,
+                    firstName: p.first_name || '',
+                    lastName: p.last_name || '',
+                    displayName: `${p.first_name || ''} ${p.last_name || ''}`.trim()
+                }),
                 position: p.position
             };
         }).sort((a, b) => b.minutes - a.minutes);

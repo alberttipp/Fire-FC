@@ -9,6 +9,7 @@ import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import BulkInviteModal from './BulkInviteModal';
 import PrivateSessionsPanel from './PrivateSessionsPanel';
+import { getPlayerAvatarPath } from '../../utils/playerAvatar';
 
 // =====================================================================
 // Private Training — Phase A
@@ -465,11 +466,16 @@ const PrivateTrainingView = () => {
                                         <li key={p.id} className="flex items-center justify-between py-3">
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 border border-white/10 flex items-center justify-center shrink-0">
-                                                    {p.avatar_url ? (
-                                                        <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <span className="text-brand-gold font-display font-bold text-sm">{p.first_name?.charAt(0) || '?'}</span>
-                                                    )}
+                                                    <img
+                                                        src={getPlayerAvatarPath({
+                                                            avatarUrl: p.avatar_url || null,
+                                                            firstName: p.first_name || '',
+                                                            lastName: p.last_name || '',
+                                                            displayName: `${p.first_name || ''} ${p.last_name || ''}`.trim()
+                                                        })}
+                                                        alt=""
+                                                        className="w-full h-full object-cover"
+                                                    />
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="text-white text-sm font-bold truncate">{p.first_name} {p.last_name}</p>
@@ -797,6 +803,15 @@ const AddCurrentPlayerModal = ({ user, groupId, existingPlayerIds, onClose, onPi
                         <ul className="space-y-1">
                             {filtered.map(p => (
                                 <li key={p.id}>
+                                    {(() => {
+                                        const avatarSrc = getPlayerAvatarPath({
+                                            avatarUrl: p.avatar_url || null,
+                                            firstName: p.first_name || '',
+                                            lastName: p.last_name || '',
+                                            displayName: `${p.first_name || ''} ${p.last_name || ''}`.trim()
+                                        });
+
+                                        return (
                                     <button
                                         onClick={async () => {
                                             setPicking(p.id);
@@ -808,9 +823,7 @@ const AddCurrentPlayerModal = ({ user, groupId, existingPlayerIds, onClose, onPi
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-800 flex items-center justify-center border border-white/10">
-                                                {p.avatar_url
-                                                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-                                                    : <span className="text-brand-gold font-bold text-xs">{p.first_name?.charAt(0)}</span>}
+                                                <img src={avatarSrc} alt="" className="w-full h-full object-cover" />
                                             </div>
                                             <div>
                                                 <p className="text-white text-sm font-bold">{p.first_name} {p.last_name}</p>
@@ -824,6 +837,8 @@ const AddCurrentPlayerModal = ({ user, groupId, existingPlayerIds, onClose, onPi
                                             ? <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                                             : <Plus className="w-4 h-4 text-brand-gold" />}
                                     </button>
+                                        );
+                                    })()}
                                 </li>
                             ))}
                         </ul>

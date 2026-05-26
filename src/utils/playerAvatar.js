@@ -7,12 +7,29 @@ const slugify = (value) => {
         .replace(/^_+|_+$/g, '');
 };
 
-export const getPlayerAvatarPath = ({ avatarUrl = null, firstName = '', lastName = '', displayName = '' } = {}) => {
-    if (avatarUrl) return avatarUrl;
+const OVERRIDES = {
+    declan: 'declan.png',
+    isaac: 'isaac.png',
+    novie: 'novie.png',
+    tate: 'tate.png',
+    luca: 'luca.png',
+    santiago_a: 'santiago_a.png',
+};
 
+export const getPlayerAvatarPath = ({ avatarUrl = null, firstName = '', lastName = '', displayName = '' } = {}) => {
     const first = slugify(firstName);
     const last = slugify(lastName);
     const full = slugify(displayName);
+
+    const overrideKeys = [full, first && last ? `${first}_${last}` : '', first].filter(Boolean);
+    for (const key of overrideKeys) {
+        if (OVERRIDES[key]) {
+            return `/players/${OVERRIDES[key]}`;
+        }
+    }
+
+    if (avatarUrl) return avatarUrl;
+
     const candidates = [];
 
     if (first) {

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Search, UserPlus, X, Loader2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
+import { getPlayerAvatarPath } from '../../utils/playerAvatar';
 
 // Picker used when a player already exists in the club but isn't on this
 // team. Calls search_org_players() then add_player_to_team() — both
@@ -122,19 +123,21 @@ const AddExistingPlayerModal = ({ teamId, teamName, onClose, onAdded }) => {
                     <div className="space-y-2">
                         {results.map(p => {
                             const onOtherTeams = (p.current_teams || []).length > 0;
+                            const avatarSrc = getPlayerAvatarPath({
+                                avatarUrl: p.avatar_url || null,
+                                firstName: p.first_name || '',
+                                lastName: p.last_name || '',
+                                displayName: `${p.first_name || ''} ${p.last_name || ''}`.trim()
+                            });
                             return (
                                 <div
                                     key={p.id}
                                     className="flex flex-col gap-2 p-3 bg-white/[0.04] rounded-lg border border-white/5 hover:border-brand-gold/40 transition-colors"
                                 >
                                     <div className="flex items-center gap-3">
-                                        {p.avatar_url ? (
-                                            <img src={p.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
-                                        ) : (
-                                            <div className="w-10 h-10 rounded-full bg-brand-green/15 text-brand-green flex items-center justify-center font-bold">
-                                                {(p.first_name || '?')[0]}{(p.last_name || '')[0]}
-                                            </div>
-                                        )}
+                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800 border border-white/10">
+                                            <img src={avatarSrc} alt="" className="w-full h-full object-cover" />
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-white font-bold truncate">{p.first_name} {p.last_name}</div>
                                             <div className="text-[11px] text-gray-400 truncate">
