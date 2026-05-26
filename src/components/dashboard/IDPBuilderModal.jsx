@@ -310,18 +310,31 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
         }
     };
 
-    const handleSoloTrain = (drillId) => {
-        // Open the selected player's dashboard in preview mode so staff can
-        // see the drill in the real player context instead of hitting the
-        // auth-linked player login path.
-        const params = new URLSearchParams({
-            preview: player.id,
-            previewRole: 'player',
-            drillIds: drillId,
-            from: 'idp',
-        });
-        const url = `/player-dashboard?${params.toString()}`;
-        window.open(url, '_blank');
+    const assignDrillToPersonalPlan = async (drill) => {
+        if (!player?.id || !user?.id || !drill?.id) return;
+        setBusy(true);
+        try {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 7);
+            const { error } = await supabase.from('assignments').insert({
+                drill_id: drill.id,
+                player_id: player.id,
+                team_id: null,
+                assigned_by: user.id,
+                source: 'coach',
+                status: 'pending',
+                custom_duration: drill.duration || drill.duration_minutes || 15,
+                due_date: dueDate.toISOString(),
+            });
+            if (error) throw error;
+            setDidChange(true);
+            onToast?.('success', `Added ${drill.name || 'drill'} to ${playerName}'s Personal Plan.`);
+        } catch (err) {
+            console.error('[IDPBuilder] assign drill error', err);
+            onToast?.('error', "Couldn't add that drill to the Personal Plan.");
+        } finally {
+            setBusy(false);
+        }
     };
 
     return (
@@ -391,7 +404,7 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
                                     onMarkMastered={markMastered}
                                     onUnmark={unmarkMastered}
                                     drills={(idp.current_block || 1) === blockNumber ? currentDrills : []}
-                                    onSoloTrain={handleSoloTrain}
+                                    onAssignDrill={assignDrillToPersonalPlan}
                                     onOpenDrillPicker={() => setActiveDrillPicker(blockNumber)}
                                     busy={busy}
                                 />
@@ -494,11 +507,8 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
                 <DrillLibraryPicker
                     blockNumber={activeDrillPicker}
                     blockSlugs={blockSkillSlugs[activeDrillPicker]}
-                    onPick={(drillId) => {
-                        // For now we just open the solo training deep-link, which
-                        // matches the existing recommended-drills "Solo" button
-                        // behavior. Future v2 could link the drill to the IDP block.
-                        handleSoloTrain(drillId);
+                    onPick={(drill) => {
+                        assignDrillToPersonalPlan(drill);
                     }}
                     onClose={() => setActiveDrillPicker(null)}
                 />
@@ -507,7 +517,7 @@ const IDPBuilderModal = ({ player, existingIDP, existingSkills = [], onClose, on
     );
 };
 
-const BlockPanel = ({ blockNumber, isCurrent, isComplete, rows, onOpenPicker, onRemoveSkill, onMarkMastered, onUnmark, drills, onSoloTrain, onOpenDrillPicker, busy }) => {
+const BlockPanel = ({ blockNumber, isCurrent, isComplete, rows, onOpenPicker, onRemoveSkill, onMarkMastered, onUnmark, drills, onAssignDrill, onOpenDrillPicker, busy }) => {
     const mastered = rows.filter((r) => r.status === 'mastered').length;
     const total = rows.length;
     const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
@@ -652,10 +662,10 @@ const BlockPanel = ({ blockNumber, isCurrent, isComplete, rows, onOpenPicker, on
                                             <p className="text-[10px] text-gray-500 truncate">{d.category} · {d.duration || 10} min</p>
                                         </div>
                                         <button
-                                            onClick={() => onSoloTrain(d.id)}
-                                            className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-brand-green/15 border border-brand-green/30 text-brand-green hover:bg-brand-green/25"
+                                            onClick={() => onAssignDrill(d)}
+                                            className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-brand-gold/15 border border-brand-gold/30 text-brand-gold hover:bg-brand-gold/25"
                                         >
-                                            Solo
+                                            Assign
                                         </button>
                                     </div>
                                 ))}
@@ -852,7 +862,7 @@ const DrillLibraryPicker = ({ blockNumber, blockSlugs = [], onPick, onClose }) =
                         filtered.map((d) => (
                             <button
                                 key={d.id}
-                                onClick={() => onPick(d.id)}
+                                onClick={() => onPick(d)}
                                 className="w-full text-left flex items-center gap-2 p-2 rounded bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
                             >
                                 <div className="flex-1 min-w-0">

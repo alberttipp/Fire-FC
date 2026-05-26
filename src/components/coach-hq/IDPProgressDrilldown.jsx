@@ -62,13 +62,13 @@ const IDPProgressDrilldown = ({ teamId, onClose }) => {
 
     // Open IDPBuilderModal — fetch the player's IDP skills first so the
     // modal has the full picture (matches how IDPHub launches it).
-    const openEditor = async (row) => {
+        const openEditor = async (row) => {
         if (!row.idp || opening) return;
         setOpening(true);
         try {
             const { data: skills } = await supabase
-                .from('idp_skills')
-                .select('*')
+                .from('idp_skill_progress')
+                .select('id, idp_id, block_number, skill_slug, status, mastered_at, mastered_by')
                 .eq('idp_id', row.idp.id)
                 .order('block_number', { ascending: true });
             setEditing({ player: row.player, existingIDP: row.idp, existingSkills: skills || [] });

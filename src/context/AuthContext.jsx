@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../supabaseClient';
+import { isStaff } from '../constants/roles';
 
 const AuthContext = createContext({});
 
@@ -71,6 +72,37 @@ const profileFromVirtualUser = (vu) => ({
     avatar_url: vu.avatar_url || null,
 });
 
+const resolveMembershipContext = (memberships = [], profile = null) => {
+    const ordered = [...memberships].filter(Boolean).sort((a, b) => {
+        const aTime = a?.joined_at ? new Date(a.joined_at).getTime() : 0;
+        const bTime = b?.joined_at ? new Date(b.joined_at).getTime() : 0;
+        return bTime - aTime;
+    });
+
+    const staffMembership = ordered.find((m) => isStaff(m?.role));
+    if (staffMembership) {
+        return {
+            role: staffMembership.role,
+            team_id: staffMembership.team_id || profile?.team_id || null,
+        };
+    }
+
+    const explicitProfileRole = profile?.role;
+    if (explicitProfileRole && !isStaff(explicitProfileRole)) {
+        const profileTeamMembership = ordered.find((m) => m?.role === explicitProfileRole);
+        return {
+            role: explicitProfileRole,
+            team_id: profileTeamMembership?.team_id || profile?.team_id || ordered[0]?.team_id || null,
+        };
+    }
+
+    const fallbackMembership = ordered[0] || null;
+    return {
+        role: fallbackMembership?.role || profile?.role || null,
+        team_id: fallbackMembership?.team_id || profile?.team_id || null,
+    };
+};
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [session, setSession] = useState(null);
@@ -136,20 +168,21 @@ export const AuthProvider = ({ children }) => {
                 console.warn('Error fetching profile:', error);
             }
 
-            // Fetch user's role from team_memberships
-            const { data: membership, error: membershipError } = await supabase
+            // Fetch all memberships so we can prefer staff access over any
+            // newer parent/player link that might otherwise override it.
+            const { data: memberships, error: membershipError } = await supabase
                 .from('team_memberships')
                 .select('role, team_id')
                 .eq('user_id', userId)
-                .order('joined_at', { ascending: false })
-                .limit(1)
-                .single();
+                .order('joined_at', { ascending: false });
+
+            const membershipContext = resolveMembershipContext(memberships || [], data);
 
             // Merge role into profile
             const profileWithRole = {
                 ...data,
-                role: membership?.role || null,
-                team_id: membership?.team_id || null
+                role: membershipContext.role || data?.role || null,
+                team_id: membershipContext.team_id || data?.team_id || null
             };
 
             setProfile(profileWithRole);

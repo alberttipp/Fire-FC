@@ -3,17 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/branding/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#1a1a1a" />
+    <link rel="apple-touch-icon" href="/branding/logo.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f0f10" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Fire FC" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="description" content="Rockford Fire FC - Team management, player development, training tracking, and communication for youth soccer." />
 
     <!-- Open Graph -->
     <meta property="og:title" content="Rockford Fire FC" />
     <meta property="og:description" content="Team management, player development, and training tracking for youth soccer." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/branding/logo.png" />
+    <meta property="og:url" content="https://firefcapp.com/" />
+    <meta property="og:image" content="https://firefcapp.com/branding/logo.png" />
+    <link rel="canonical" href="https://firefcapp.com/" />
 
     <title>Rockford Fire FC</title>
 
@@ -24,8 +30,138 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-C1WgFwBX.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BC6DfWpM.css">
+
+    <!-- ============================================================
+         Boot guard: prevents the "white-screen-of-stale-cache" trap
+         that hits PWA-installed Android Chrome (and sometimes iOS
+         Safari). If the cached index.html references a /assets/*.js
+         bundle that no longer exists on the server (because a new
+         deploy renamed it), the module script load fails silently
+         and the user is stuck on a blank page. This catches that
+         error and force-reloads with a cache-busting query string.
+         ============================================================ -->
+    <script>
+      (function () {
+        var BOOT_MARK = 'firefc_boot_recovered_at';
+        // If we already tried to recover in the last 60s, don't loop —
+        // surface a visible error instead of reloading forever.
+        function recentlyRecovered() {
+          try {
+            var last = parseInt(sessionStorage.getItem(BOOT_MARK) || '0', 10);
+            return last && (Date.now() - last) < 60000;
+          } catch (_) { return false; }
+        }
+        function recover() {
+          try { sessionStorage.setItem(BOOT_MARK, String(Date.now())); } catch (_) {}
+          // Best-effort: nuke the Cache API and unregister any SW before
+          // reloading. iOS PWA standalone mode caches the app shell beyond
+          // what Cache-Control: no-store dictates; clearing the Cache API
+          // gives us a fighting chance the reload actually fetches fresh
+          // HTML. All wrapped in try/catch since older browsers / contexts
+          // may not have these APIs. We don't await — the location.replace
+          // below will tear everything down anyway.
+          try {
+            if (typeof caches !== 'undefined' && caches.keys) {
+              caches.keys().then(function (keys) {
+                keys.forEach(function (k) { try { caches.delete(k); } catch (_) {} });
+              });
+            }
+          } catch (_) {}
+          try {
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (reg) { try { reg.unregister(); } catch (_) {} });
+              });
+            }
+          } catch (_) {}
+          var url = location.pathname
+            + (location.search ? location.search + '&' : '?')
+            + '__r=' + Date.now()
+            + (location.hash || '');
+          location.replace(url);
+        }
+        function showFailureUI() {
+          document.body && (document.body.innerHTML =
+            '<div style="font-family:sans-serif;padding:24px;color:#fff;background:#0f0f10;min-height:100vh">' +
+            '<h2>Fire FC — couldn\'t load</h2>' +
+            '<p style="opacity:.8">The app failed to download its latest bundle and a clean reload didn\'t fix it. Likely a caching issue with the installed app.</p>' +
+            '<p style="opacity:.8"><b>Try:</b> uninstall the home-screen icon, open <code>firefcapp.com</code> in Chrome, re-install via the menu.</p>' +
+            '<button onclick="sessionStorage.removeItem(\'' + BOOT_MARK + '\');location.reload()" ' +
+            'style="margin-top:16px;padding:10px 16px;background:#3b82f6;color:#fff;border:0;border-radius:8px;font-weight:bold">Try again</button>' +
+            '</div>');
+        }
+        function attemptRecovery() {
+          if (recentlyRecovered()) { showFailureUI(); return; }
+          recover();
+        }
+        // Layer 1: explicit script/link load failures
+        window.addEventListener('error', function (e) {
+          var tgt = e && e.target;
+          var isScript = tgt && (tgt.tagName === 'SCRIPT' || tgt.tagName === 'LINK');
+          var src = tgt && (tgt.src || tgt.href) || '';
+          if (isScript && src && src.indexOf('/assets/') !== -1) {
+            attemptRecovery();
+          }
+        }, true);
+        // Layer 2: mount watchdog. If React hasn't put anything inside
+        // #root within 20s, the bundle either failed silently or threw
+        // during module-eval (no error event reaches us). Force a
+        // cache-busting reload so the user isn't stuck on a black screen.
+        // Tuned to give slower phones enough room for auth/session
+        // rehydration plus initial data work before we assume the app is
+        // broken.
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            var root = document.getElementById('root');
+            if (root && root.childElementCount === 0) {
+              attemptRecovery();
+            }
+          }, 20000);
+        });
+        // Layer 3: stale-bundle check. PWA-installed iOS/Android Chrome
+        // serve a cached HTML on app launch even with no-store headers —
+        // that cached HTML references an old /assets/index-XXX.js. If
+        // the bundle still exists on Vercel's CDN, the JS "loads" fine,
+        // no error fires, and the watchdog can't catch it (because the
+        // surrounding chrome renders into #root). But if a route was
+        // added since (e.g. /about), it's not in the cached bundle's
+        // router → blank page for that path.
+        //
+        // Fix: on boot, fetch the current server HTML and compare the
+        // bundle hash referenced there against the one we're about to
+        // execute. Mismatch = stale cache = force-reload before React
+        // mounts. Async/fire-and-forget so we don't block initial paint
+        // when bundles match.
+        try {
+          var currentScript = document.querySelector('script[type="module"][src*="/assets/index-"]');
+          var currentSrc = (currentScript && currentScript.src) || '';
+          var currentMatch = currentSrc.match(/\/assets\/(index-[^./?]+\.js)/);
+          if (currentMatch) {
+            var currentBundle = currentMatch[1];
+            fetch('/?__bundlecheck=' + Date.now(), {
+              cache: 'no-store',
+              credentials: 'omit',
+              headers: { 'Cache-Control': 'no-store' }
+            })
+              .then(function (res) { return res.ok ? res.text() : ''; })
+              .then(function (html) {
+                if (!html) return;
+                var freshMatch = html.match(/\/assets\/(index-[^."?]+\.js)/);
+                if (!freshMatch) return;
+                var freshBundle = freshMatch[1];
+                if (freshBundle !== currentBundle) {
+                  // Stale cached HTML pointing at an old bundle. Reload
+                  // with cache-bust before the user notices.
+                  attemptRecovery();
+                }
+              })
+              .catch(function () { /* network blip — let other layers cover */ });
+          }
+        } catch (_) { /* defensive — never block boot */ }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-QloTDKGu.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BKIyPVnC.css">
   </head>
   <body>
     <div id="root"></div>
