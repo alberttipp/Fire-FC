@@ -1101,8 +1101,8 @@ const ParentDashboard = () => {
         }
     };
 
-    // Full-page guardian-code gate. Parents who signed up but haven't
-    // linked a kid see the welcome + code entry instead of an empty
+    // Full-page family gate. Parents who signed up but haven't
+    // linked a kid see the welcome + setup flow instead of an empty
     // dashboard with nav tabs that all return empty states. Preview
     // mode (coach/manager viewing as parent) bypasses since the player
     // is already injected via ?preview=. Loading state also passes
@@ -1119,7 +1119,7 @@ const ParentDashboard = () => {
                             Welcome to <span className="text-blue-500">Fire FC</span>
                         </h1>
                         <p className="text-gray-400 text-sm mt-2">
-                            Enter your guardian code to link your player and unlock the family dashboard.
+                            Complete your family setup, then select the child you want to link.
                         </p>
                     </div>
                     <GuardianCodeEntry
