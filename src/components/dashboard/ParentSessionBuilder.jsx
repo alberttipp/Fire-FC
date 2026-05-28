@@ -57,11 +57,19 @@ const scoreDrillCandidate = (drill, transcript) => {
 };
 
 // Despite the name, this component is used by both the parent dashboard
-// (saveMode='parent') and the player dashboard (saveMode='player'). The
-// two paths only differ at save time:
-//   - parent: direct INSERT into assignments (auth.uid() lets RLS pass)
-//   - player: POST to the player-assign-homework edge function, which
-//     verifies the access token and writes via service role
+// (saveMode='parent') and the player dashboard / Solo Training Builder
+// (saveMode='player'). Both paths do a direct INSERT into assignments and
+// rely on RLS to authorize the write — players now sign in via
+// player-token-signin (magic link) so they have a real Supabase session
+// (players.user_id === auth.uid()):
+//   - parent: "Parents can create assignments for their children" policy
+//             (guardian via family_members, source='parent')
+//   - player: "Players can create their own solo assignments" policy
+//             (players.user_id = auth.uid(), source='player')
+// The `source` field below is what each policy keys off of, so it must
+// stay 'player' for the Solo Builder save to pass RLS.
+// (The legacy player-assign-homework edge function — service-role write for
+// the old virtual-user/no-session model — is no longer on this path.)
 // Note: an internal `mode` state already exists for build/run timer mode,
 // so this prop is named saveMode to avoid the collision.
 const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, saveMode = 'parent' }) => {
