@@ -391,22 +391,17 @@ const Login = () => {
                             </label>
                         )}
 
+                        {/* Coach invite code field removed from the create-account
+                            screen 2026-05-28 — it confused parents (99% of signups).
+                            Coaches/staff are added by the manager. The joinCode
+                            state + join_team_via_code path remain in handleAuth,
+                            dormant, so a dedicated coach-invite link can reuse them
+                            later without re-plumbing. */}
                         {isSignUp && (
-                            <div>
-                                <label className="block text-brand-gold text-xs font-bold uppercase tracking-widest mb-2 ml-1">
-                                    Coach invite code <span className="normal-case font-normal text-gray-500">(only if you're a coach)</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={joinCode}
-                                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                                    className="w-full bg-black/50 border border-brand-gold/30 rounded p-3 text-brand-gold placeholder-gray-600 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold transition-all outline-none font-mono tracking-wider"
-                                    placeholder="FC-XXXX"
-                                />
-                                <p className="text-[11px] text-gray-500 mt-1 ml-1">
-                                    Parents: leave blank. After signup we'll ask for your child's 6-character family code.
-                                </p>
-                            </div>
+                            <p className="text-[11px] text-gray-500 ml-1 -mt-1">
+                                After you create your account we'll ask for your child's
+                                6-character family code to link you to your player.
+                            </p>
                         )}
 
                         <button

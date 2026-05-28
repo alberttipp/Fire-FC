@@ -190,19 +190,44 @@ const About = () => {
                     <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
                         Everything our team needs in one place — schedule, RSVPs, training tracking, evaluations, and a real-time leaderboard so the kids can see exactly who's putting in the work. Built around our players, our coach, and our families.
                     </p>
-                    <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
+                    {/* New-parent setup steps shown ABOVE the button so families
+                        read the flow before tapping — otherwise they just click
+                        and get confused at the code step. */}
+                    <div className="mt-8 max-w-md mx-auto text-left bg-white/[0.03] border border-brand-gold/20 rounded-2xl p-5">
+                        <p className="text-brand-gold text-xs font-bold uppercase tracking-widest mb-3 text-center">
+                            New here? Set up your parent account
+                        </p>
+                        <ol className="space-y-2.5 text-sm text-gray-300">
+                            <li className="flex gap-3">
+                                <span className="shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs font-bold flex items-center justify-center">1</span>
+                                Tap <span className="text-white font-semibold">Set Up Parent Account</span> below and create your login (name, email, password).
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs font-bold flex items-center justify-center">2</span>
+                                Enter your child's <span className="text-white font-semibold">6-character family code</span> — your coach has it.
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs font-bold flex items-center justify-center">3</span>
+                                You're in — schedule, team chat, RSVPs, and your player's stats.
+                            </li>
+                        </ol>
+                        <p className="text-[11px] text-gray-500 mt-3 text-center">
+                            On iPhone: after setup, tap Share → Add to Home Screen so notifications work.
+                        </p>
+                    </div>
+                    <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
                         <Link
                             to="/login"
                             className="inline-flex items-center justify-center gap-2 bg-brand-gold text-black px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-sm hover:bg-brand-gold/90 transition-colors"
                         >
-                            Open the App <ArrowRight className="w-4 h-4" />
+                            Set Up Parent Account <ArrowRight className="w-4 h-4" />
                         </Link>
-                        <a
-                            href="#how-to-log-in"
+                        <Link
+                            to="/login"
                             className="inline-flex items-center justify-center gap-2 border border-white/15 text-white px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-sm hover:bg-white/5 transition-colors"
                         >
-                            How to Log In
-                        </a>
+                            Already have an account? Log In
+                        </Link>
                     </div>
                 </div>
             </header>

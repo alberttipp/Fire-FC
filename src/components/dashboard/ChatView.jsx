@@ -65,9 +65,41 @@ const ChatView = () => {
     // since switched to.
     const activeChannelIdRef = useRef(null);
 
-    const currentUserName = profile?.full_name || user?.display_name || user?.email?.split('@')[0] || 'User';
     const currentUserRole = profile?.role || user?.role || 'coach';
     const currentTeamId = profile?.team_id || null;
+
+    // For parents, the chat sender name is "{Kid}'s {Dad/Mom}" so it's
+    // obvious who's talking in a team thread (a name like "Juan Grajales"
+    // doesn't tell other families which kid he belongs to). Composed from
+    // family_members.relationship_label + the linked player's first name.
+    // Coaches/players keep their normal name. Computed once on mount.
+    const [parentChatName, setParentChatName] = useState(null);
+    useEffect(() => {
+        if (!user?.id || currentUserRole !== 'parent') { setParentChatName(null); return; }
+        let cancelled = false;
+        (async () => {
+            const { data } = await supabase
+                .from('family_members')
+                .select('relationship_label, players:player_id(first_name)')
+                .eq('user_id', user.id)
+                .in('relationship', ['guardian', 'fan'])
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+            if (cancelled) return;
+            const kid = data?.players?.first_name;
+            if (kid) {
+                const label = (data.relationship_label && data.relationship_label !== 'Parent')
+                    ? data.relationship_label
+                    : 'Parent';
+                setParentChatName(`${kid}'s ${label}`);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [user?.id, currentUserRole]);
+
+    const currentUserName = parentChatName
+        || profile?.full_name || user?.display_name || user?.email?.split('@')[0] || 'User';
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
