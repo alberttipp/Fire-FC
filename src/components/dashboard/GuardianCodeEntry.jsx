@@ -246,7 +246,7 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
                                     type="text"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
-                                    placeholder="Albert Tipp"
+                                    placeholder="e.g. Jane Smith"
                                     className="w-full bg-black/50 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green outline-none"
                                     autoComplete="name"
                                 />
