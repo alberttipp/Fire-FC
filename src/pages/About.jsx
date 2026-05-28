@@ -204,7 +204,7 @@ const About = () => {
                             </li>
                             <li className="flex gap-3">
                                 <span className="shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs font-bold flex items-center justify-center">2</span>
-                                Enter your child's <span className="text-white font-semibold">6-character family code</span> — your coach has it.
+                                Tell us if you're Mom/Dad/Guardian, then <span className="text-white font-semibold">pick your child from the team roster</span>. No codes to type.
                             </li>
                             <li className="flex gap-3">
                                 <span className="shrink-0 w-5 h-5 rounded-full bg-brand-gold/20 text-brand-gold text-xs font-bold flex items-center justify-center">3</span>

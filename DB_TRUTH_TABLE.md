@@ -32,10 +32,17 @@ Signup (Login.jsx)
   → auth.users (email/password + metadata.role='parent')
   → profiles (full_name, email)         [via trigger]
 
-Guardian-code entry (GuardianCodeEntry.jsx → join_player_family RPC)
-  → family_members (user_id→player_id, relationship='guardian',
-                    relationship_label='Dad'/'Mom'/…, full_name, phone)
-  → team_memberships (user_id→team_id, role='parent')
+Family setup (GuardianCodeEntry.jsx):
+  Parent flow (no code typing):
+    1. profile step — relationship (Mom/Dad/…), full_name, phone
+    2. children step — PICK your kid(s) from the team roster
+       (roster loaded via get_public_team_roster_invites; each row
+        carries the kid's guardian_code, used internally)
+    → for each picked kid: join_player_family RPC
+       → family_members (user_id→player_id, relationship='guardian',
+                         relationship_label='Dad'/'Mom'/…, full_name, phone)
+       → team_memberships (user_id→team_id, role='parent')
+  Manual-code path = fallback only (kid not on the public roster).
 
 player_guardians  → NOT written. Legacy.
 ```
