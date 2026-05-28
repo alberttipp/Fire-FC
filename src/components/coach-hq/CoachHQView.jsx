@@ -4,6 +4,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import CoachHQTile from './CoachHQTile';
 import UpcomingWeek from '../dashboard/UpcomingWeek';
+import SetupHealthPanel from './SetupHealthPanel';
 
 const AttendanceDrilldown   = lazy(() => import('./AttendanceDrilldown'));
 const RosterStatsDrilldown  = lazy(() => import('./RosterStatsDrilldown'));
@@ -76,6 +77,10 @@ const CoachHQView = ({ onJumpToChat }) => {
 
     return (
         <div className="space-y-5">
+            {/* Rollout setup-health tracker — onboarding progress + chase
+                list. Renders nothing for non-staff (RPC self-checks). */}
+            <SetupHealthPanel />
+
             {/* Unread chat banner — only when unread > 0 */}
             {unread > 0 && (
                 <button
