@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Shield, Loader2, CheckCircle, X, User, Phone, Heart, Users, ChevronRight, Check } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { getPendingInvite, clearPendingInvite } from '../../utils/pendingInvite';
 
 const PUBLIC_TEAM_ID = '57ea33d1-f8c8-4ed8-9749-37226e5780bb';
 
@@ -26,6 +27,11 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // If the parent arrived via a co-parent invite link (?join=CODE), this
+    // is set. We then auto-link them to that player right after the profile
+    // step — no roster hunt, no typing, no wrong-kid risk.
+    const [pendingInvite] = useState(() => getPendingInvite());
 
     const RELATIONSHIPS = ['Mom', 'Dad', 'Step-parent', 'Guardian', 'Grandparent', 'Other'];
 
@@ -60,7 +66,50 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
         }
 
         setError('');
+
+        // Arrived via an invite link — auto-link to that player and skip
+        // the roster picker entirely.
+        if (pendingInvite) {
+            await linkAndFinish(pendingInvite);
+            return;
+        }
+
         setStep('children');
+    };
+
+    // Link to a single player by code, then run the success/confetti path.
+    // Shared by the invite-link auto-link and the manual-code fallback.
+    const linkAndFinish = async (code) => {
+        setLoading(true);
+        setError('');
+        try {
+            const result = await linkChildByCode(code, {
+                fullName: fullName.trim(),
+                phone: phone.trim(),
+                relationship,
+            });
+            clearPendingInvite();
+            setLinkedNames([result.playerName || 'your child']);
+            setStep('done');
+            setTimeout(() => {
+                if (onSuccess) {
+                    onSuccess({
+                        player_id: result.playerId,
+                        player_name: result.playerName,
+                        relationship,
+                        linked_player_ids: result.playerId ? [result.playerId] : [],
+                    });
+                }
+            }, 1200);
+        } catch (err) {
+            console.error('[GuardianCodeEntry] invite link failed', err);
+            // Bad/expired invite — drop it and let them pick from the roster.
+            clearPendingInvite();
+            setError(err.message || "That invite link didn't match a player — pick your child below.");
+            setStep('children');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const toggleKid = (code) => {
@@ -213,6 +262,15 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
                             <p className="text-gray-400 text-sm truncate">This is the family setup step.</p>
                         </div>
                     </div>
+
+                    {pendingInvite && (
+                        <div className="mb-5 flex items-start gap-2 rounded-xl border border-brand-green/30 bg-brand-green/10 p-3">
+                            <CheckCircle className="w-4 h-4 text-brand-green mt-0.5 shrink-0" />
+                            <p className="text-sm text-brand-green">
+                                You're connecting via an invite link — just tell us about you and we'll link you to your player automatically.
+                            </p>
+                        </div>
+                    )}
 
                     <form onSubmit={submitProfile} className="space-y-4">
                         <div>

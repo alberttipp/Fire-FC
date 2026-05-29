@@ -5,6 +5,11 @@ import './index.css'
 import './buildInfo.js'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import { captureInviteFromUrl } from './utils/pendingInvite.js'
+
+// Capture a co-parent invite code (?join=CODE) before the router strips the
+// query string, so the second parent is auto-linked after they sign up.
+captureInviteFromUrl()
 
 // Initialize Sentry error tracking (production only)
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
