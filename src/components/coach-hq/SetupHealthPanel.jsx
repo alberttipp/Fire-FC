@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
-import { Users, UserCheck, Activity, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { Users, UserCheck, Activity, ChevronDown, ChevronUp, Copy, Check, MessageSquare, Link as LinkIcon } from 'lucide-react';
+import { buildInviteUrl } from '../../utils/pendingInvite';
 
 // Rollout-period "Setup Health" panel for the manager/coach landing.
 // Shows how many players have a parent connected, how many parents are
@@ -28,6 +29,7 @@ const SetupHealthPanel = () => {
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState(false);
     const [copiedCode, setCopiedCode] = useState(null);
+    const [copiedLink, setCopiedLink] = useState(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -54,6 +56,20 @@ const SetupHealthPanel = () => {
             setTimeout(() => setCopiedCode(null), 1500);
         } catch (_) { /* clipboard blocked — non-fatal */ }
     };
+
+    const copyLink = (code) => {
+        try {
+            navigator.clipboard?.writeText(buildInviteUrl(code));
+            setCopiedLink(code);
+            setTimeout(() => setCopiedLink(null), 1500);
+        } catch (_) { /* clipboard blocked — non-fatal */ }
+    };
+
+    // Pre-filled SMS body with the tap-to-join link (code as backup).
+    const inviteSmsHref = (p) =>
+        `sms:?&body=${encodeURIComponent(
+            `Join ${p.name} on the Fire FC app — tap to sign up and you're connected automatically:\n${buildInviteUrl(p.code)}\n\n(Backup: go to firefcapp.com and enter code ${p.code}.)`
+        )}`;
 
     return (
         <div className="glass-panel p-4 border-l-4 border-l-brand-green">
@@ -95,24 +111,43 @@ const SetupHealthPanel = () => {
                         {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
                     {expanded && (
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-2 space-y-1.5">
                             {unlinked.map((p) => (
-                                <div key={p.code} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/5">
-                                    <span className="flex-1 text-sm text-gray-300 truncate">
-                                        {p.name} {p.jersey ? <span className="text-gray-600">#{p.jersey}</span> : null}
-                                    </span>
-                                    <code className="text-xs font-mono text-brand-gold">{p.code}</code>
-                                    <button
-                                        onClick={() => copyCode(p.code)}
-                                        className="p-1 text-gray-500 hover:text-white"
-                                        title="Copy family code"
-                                    >
-                                        {copiedCode === p.code ? <Check className="w-3.5 h-3.5 text-brand-green" /> : <Copy className="w-3.5 h-3.5" />}
-                                    </button>
+                                <div key={p.code} className="px-3 py-2 rounded-lg bg-white/[0.02] border border-white/5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="flex-1 text-sm text-gray-300 truncate">
+                                            {p.name} {p.jersey ? <span className="text-gray-600">#{p.jersey}</span> : null}
+                                        </span>
+                                        <code className="text-xs font-mono text-brand-gold">{p.code}</code>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <a
+                                            href={inviteSmsHref(p)}
+                                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-brand-green/15 border border-brand-green/30 text-brand-green text-xs font-bold uppercase tracking-wider hover:bg-brand-green/25 transition-colors"
+                                        >
+                                            <MessageSquare className="w-3.5 h-3.5" /> Text invite
+                                        </a>
+                                        <button
+                                            onClick={() => copyLink(p.code)}
+                                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-gray-300 text-xs font-medium hover:bg-white/10 transition-colors"
+                                            title="Copy invite link"
+                                        >
+                                            {copiedLink === p.code
+                                                ? <><Check className="w-3.5 h-3.5 text-brand-green" /> Copied</>
+                                                : <><LinkIcon className="w-3.5 h-3.5" /> Copy link</>}
+                                        </button>
+                                        <button
+                                            onClick={() => copyCode(p.code)}
+                                            className="p-1.5 text-gray-500 hover:text-white"
+                                            title="Copy backup code"
+                                        >
+                                            {copiedCode === p.code ? <Check className="w-3.5 h-3.5 text-brand-green" /> : <Copy className="w-3.5 h-3.5" />}
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                             <p className="text-[10px] text-gray-600 px-1 pt-1">
-                                Family code is only needed if a player isn't on the public roster — parents normally just pick their kid from the list.
+                                "Text invite" sends a tap-to-join link — the parent signs up and is linked automatically. The code is just a backup.
                             </p>
                         </div>
                     )}

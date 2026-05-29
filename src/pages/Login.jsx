@@ -38,11 +38,16 @@ const Login = () => {
 
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    // Persistent auth error (not just a toast) so a failed signup/login stays
+    // visible with an actionable next step. kind 'exists' shows a "Log in
+    // instead" + reset-password nudge.
+    const [authError, setAuthError] = useState(null);
 
     // Clear errors when switching modes
     const switchAuthMode = (mode) => {
         setAuthMode(mode);
         setErrors({});
+        setAuthError(null);
     };
 
     // --- Validation ---
@@ -89,6 +94,7 @@ const Login = () => {
         if (!validateStandardForm()) return;
 
         setLoading(true);
+        setAuthError(null);
 
         try {
             if (isSignUp) {
@@ -166,7 +172,13 @@ const Login = () => {
             }
         } catch (error) {
             console.error('Auth error:', error);
-            toast.error(friendlyAuthError(error));
+            const friendly = friendlyAuthError(error);
+            const raw = `${error?.message || ''}`;
+            // "Already registered" during signup is the #1 silent drop-off —
+            // surface a clear path to log in / reset instead of a dead-end.
+            const kind = /already registered|already been registered/i.test(raw) ? 'exists' : 'generic';
+            setAuthError({ message: friendly, kind });
+            toast.error(friendly);
         } finally {
             setLoading(false);
         }
@@ -346,7 +358,7 @@ const Login = () => {
                                 <input
                                     type="email"
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(e) => { setEmail(e.target.value); if (authError) setAuthError(null); }}
                                     className={`${inputClass('email')} pl-10`}
                                     placeholder="coach@firefc.com"
                                     autoComplete="username"
@@ -404,6 +416,30 @@ const Login = () => {
                             </p>
                         )}
 
+                        {authError && (
+                            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                                <p className="text-red-300 text-sm">{authError.message}</p>
+                                {authError.kind === 'exists' && (
+                                    <div className="flex flex-wrap items-center gap-4 mt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setIsSignUp(false); setPassword(''); setAuthError(null); }}
+                                            className="text-brand-green text-xs font-bold uppercase tracking-wider underline underline-offset-4"
+                                        >
+                                            Log in instead
+                                        </button>
+                                        <Link
+                                            to="/reset-password"
+                                            onClick={() => setAuthError(null)}
+                                            className="text-gray-400 hover:text-brand-green text-xs uppercase tracking-wider"
+                                        >
+                                            Reset password
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <button
                             type="submit"
                             disabled={loading}
@@ -431,7 +467,7 @@ const Login = () => {
                         <div className="text-center pt-2">
                             <button
                                 type="button"
-                                onClick={() => { setIsSignUp(!isSignUp); setErrors({}); }}
+                                onClick={() => { setIsSignUp(!isSignUp); setErrors({}); setAuthError(null); }}
                                 className="text-gray-400 hover:text-brand-green text-sm uppercase tracking-wider underline decoration-brand-green/30 hover:decoration-brand-green underline-offset-4 transition-colors"
                             >
                                 {isSignUp ? 'Already have an account? Login' : 'Need an account? Sign Up'}
