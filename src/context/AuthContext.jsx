@@ -117,6 +117,12 @@ export const AuthProvider = ({ children }) => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             if (session?.user) {
+                // A real Supabase session always wins over any leftover
+                // kid-mode/demo virtual user. Clear that stale localStorage
+                // state so it can't shadow the real account on this load
+                // (root cause of the manager "sees no team info" bug after
+                // switching back from kid mode without a clean sign-out).
+                clearVirtualUser();
                 setUser(session.user);
                 fetchProfile(session.user.id);
             } else {
@@ -132,7 +138,11 @@ export const AuthProvider = ({ children }) => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             if (session?.user) {
-                // Real Supabase auth — replaces any virtual user
+                // Real Supabase auth — replaces any virtual user. Wipe the
+                // stale virtual user from localStorage too, otherwise a prior
+                // kid-mode/demo login can shadow this account on the next
+                // mount (manager "sees no team info" bug).
+                clearVirtualUser();
                 setUser(session.user);
                 fetchProfile(session.user.id);
             } else {
