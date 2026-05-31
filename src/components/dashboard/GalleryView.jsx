@@ -6,14 +6,54 @@ import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import ReactionBar from '../ReactionBar';
 import useLongPress from '../../hooks/useLongPress';
+import * as tus from 'tus-js-client';
 
-// Gallery accepts photos and short videos. We tell them apart by extension
+// Gallery accepts photos and videos. We tell them apart by extension
 // (media_gallery has no media_type column) so render code can pick <img>
 // vs <video>.
 const VIDEO_EXTS = ['mp4', 'mov', 'm4v', 'webm', 'ogv', 'ogg'];
 const MAX_IMAGE_MB = 10;
-const MAX_VIDEO_MB = 50;
+const MAX_VIDEO_MB = 500;
 const isVideoPath = (path = '') => VIDEO_EXTS.includes((path.split('.').pop() || '').toLowerCase());
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
+// Resumable (TUS) upload for large video files. A single-shot upload of a
+// few-hundred-MB video from a phone stalls/times out; TUS chunks it (6MB,
+// which Supabase requires), retries on flaky connections, and reports
+// progress. Resolves on success, rejects on error.
+const uploadResumable = ({ file, bucket, objectName, accessToken, onProgress }) =>
+    new Promise((resolve, reject) => {
+        const upload = new tus.Upload(file, {
+            endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
+            retryDelays: [0, 3000, 5000, 10000, 20000],
+            headers: {
+                authorization: `Bearer ${accessToken}`,
+                'x-upsert': 'true',
+            },
+            uploadDataDuringCreation: true,
+            removeFingerprintOnSuccess: true,
+            chunkSize: 6 * 1024 * 1024, // Supabase requires exactly 6MB chunks
+            metadata: {
+                bucketName: bucket,
+                objectName,
+                contentType: file.type || 'application/octet-stream',
+                cacheControl: '3600',
+            },
+            onError: reject,
+            onProgress: (uploaded, total) => {
+                if (onProgress && total) onProgress(Math.round((uploaded / total) * 100));
+            },
+            onSuccess: () => resolve(),
+        });
+        // Resume a prior interrupted upload of the same file if one exists.
+        upload.findPreviousUploads()
+            .then((prev) => {
+                if (prev.length) upload.resumeFromPreviousUpload(prev[0]);
+                upload.start();
+            })
+            .catch(() => upload.start());
+    });
 
 const GalleryView = () => {
     const { user, profile } = useAuth();
@@ -23,6 +63,7 @@ const GalleryView = () => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(null); // 0-100 during a video upload, else null
     const [showUpload, setShowUpload] = useState(false);
     const [lightbox, setLightbox] = useState(null);
     const [lightboxPickerOpen, setLightboxPickerOpen] = useState(false);
@@ -223,6 +264,7 @@ const GalleryView = () => {
 
         const wasVideo = pendingFile.type.startsWith('video/');
         setUploading(true);
+        setUploadProgress(wasVideo ? 0 : null);
 
         try {
             // Generate unique filename
@@ -230,15 +272,28 @@ const GalleryView = () => {
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
             const filePath = `team-${teamId}/${fileName}`;
 
-            // Upload to storage
-            const { error: uploadErr } = await supabase.storage
-                .from('media')
-                .upload(filePath, pendingFile, {
-                    contentType: pendingFile.type || undefined,
-                    cacheControl: '3600',
+            if (wasVideo) {
+                // Large videos go through a resumable (chunked) upload so they
+                // survive a flaky phone connection and can show progress.
+                const { data: { session } } = await supabase.auth.getSession();
+                const accessToken = session?.access_token;
+                if (!accessToken) throw new Error('Your session expired — refresh and sign in again.');
+                await uploadResumable({
+                    file: pendingFile,
+                    bucket: 'media',
+                    objectName: filePath,
+                    accessToken,
+                    onProgress: setUploadProgress,
                 });
-
-            if (uploadErr) throw uploadErr;
+            } else {
+                const { error: uploadErr } = await supabase.storage
+                    .from('media')
+                    .upload(filePath, pendingFile, {
+                        contentType: pendingFile.type || undefined,
+                        cacheControl: '3600',
+                    });
+                if (uploadErr) throw uploadErr;
+            }
 
             // Save metadata
             const { error: dbErr } = await supabase
@@ -262,16 +317,19 @@ const GalleryView = () => {
             toast.success(wasVideo ? 'Video uploaded.' : 'Photo uploaded.');
         } catch (err) {
             console.error('Upload error:', err);
-            const msg = err?.message || '';
-            if (msg.includes('policy') || msg.includes('permission') || /row.level security/i.test(msg)) {
+            const msg = `${err?.message || ''} ${err?.originalResponse?.getStatus?.() || ''}`;
+            if (/413|exceed|too large|maximum allowed/i.test(msg)) {
+                toast.error('That file is too large for the server. Ask the manager to raise the upload limit.');
+            } else if (msg.includes('policy') || msg.includes('permission') || /row.level security/i.test(msg)) {
                 toast.error("You don't have permission to upload to this gallery.");
             } else if (msg.toLowerCase().includes('network') || msg.toLowerCase().includes('fetch')) {
                 toast.error("Couldn't reach the server. Check your connection and try again.");
             } else {
-                toast.error(`Upload failed: ${msg || 'Unknown error'}.`);
+                toast.error(`Upload failed: ${err?.message || 'Unknown error'}.`);
             }
         } finally {
             setUploading(false);
+            setUploadProgress(null);
         }
     };
 
@@ -495,7 +553,7 @@ const GalleryView = () => {
                             >
                                 <ImageIcon className="w-10 h-10 text-gray-500 mx-auto mb-2" />
                                 <p className="text-gray-400 text-sm">Tap to select a photo or video</p>
-                                <p className="text-gray-600 text-xs mt-1">Photos up to 10MB · Videos up to 50MB</p>
+                                <p className="text-gray-600 text-xs mt-1">Photos up to 10MB · Videos up to 500MB (1 min high quality)</p>
                             </div>
                         )}
                         <input
@@ -529,6 +587,21 @@ const GalleryView = () => {
                             ))}
                         </select>
 
+                        {/* Upload progress (videos) */}
+                        {uploading && uploadProgress !== null && (
+                            <div className="pt-1">
+                                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                                    <span>Uploading video…</span>
+                                    <span className="font-mono text-brand-green">{uploadProgress}%</span>
+                                </div>
+                                <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                                    <div className="h-full bg-brand-green rounded-full transition-all duration-200"
+                                         style={{ width: `${uploadProgress}%` }} />
+                                </div>
+                                <p className="text-[10px] text-gray-600 mt-1">Keep this screen open until it finishes.</p>
+                            </div>
+                        )}
+
                         {/* Action buttons */}
                         <div className="flex gap-2 pt-2">
                             <button
@@ -546,7 +619,7 @@ const GalleryView = () => {
                                 className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand-green text-brand-dark text-sm font-bold uppercase tracking-wider hover:bg-brand-green/90 disabled:opacity-50"
                             >
                                 {uploading
-                                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
+                                    ? <><Loader2 className="w-4 h-4 animate-spin" /> {uploadProgress !== null ? `${uploadProgress}%` : 'Uploading…'}</>
                                     : <><Upload className="w-4 h-4" /> Upload</>}
                             </button>
                         </div>
