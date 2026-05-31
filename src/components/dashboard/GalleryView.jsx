@@ -27,9 +27,12 @@ const uploadResumable = ({ file, bucket, objectName, accessToken, onProgress }) 
         const upload = new tus.Upload(file, {
             endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
             retryDelays: [0, 3000, 5000, 10000, 20000],
+            // No x-upsert: filenames are always unique, so this is a pure
+            // INSERT. Upsert mode would require UPDATE/SELECT storage policies
+            // (which don't exist) and gets denied — images work precisely
+            // because the simple .upload() path doesn't upsert either.
             headers: {
                 authorization: `Bearer ${accessToken}`,
-                'x-upsert': 'true',
             },
             uploadDataDuringCreation: true,
             removeFingerprintOnSuccess: true,
