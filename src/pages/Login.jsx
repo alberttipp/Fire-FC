@@ -43,11 +43,19 @@ const Login = () => {
     // instead" + reset-password nudge.
     const [authError, setAuthError] = useState(null);
 
+    // Magic-link ("email me a login link") state. Works for new AND existing
+    // parents: clicking the link signs them in AND verifies their email, so
+    // we keep confirmation on (clean marketing list) while giving strugglers
+    // a one-tap path with no password.
+    const [magicSent, setMagicSent] = useState(false);
+    const [magicLoading, setMagicLoading] = useState(false);
+
     // Clear errors when switching modes
     const switchAuthMode = (mode) => {
         setAuthMode(mode);
         setErrors({});
         setAuthError(null);
+        setMagicSent(false);
     };
 
     // --- Validation ---
@@ -181,6 +189,46 @@ const Login = () => {
             toast.error(friendly);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // --- Magic-link ("email me a login link") ---
+    const handleMagicLink = async () => {
+        if (!email.trim()) {
+            setErrors({ email: 'Enter your email first' });
+            return;
+        }
+        if (!isValidEmail(email)) {
+            setErrors({ email: 'Please enter a valid email' });
+            return;
+        }
+
+        setMagicLoading(true);
+        setErrors({});
+        setAuthError(null);
+        try {
+            const { error } = await supabase.auth.signInWithOtp({
+                email: email.trim(),
+                options: {
+                    shouldCreateUser: true,
+                    emailRedirectTo: `${window.location.origin}/parent-dashboard`,
+                },
+            });
+            if (error) throw error;
+
+            // Remember the email so a resend / return is one tap.
+            try {
+                if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+            } catch (_) { /* localStorage blocked — non-fatal */ }
+
+            setMagicSent(true);
+        } catch (err) {
+            console.error('Magic link error:', err);
+            const friendly = friendlyAuthError(err);
+            setAuthError({ message: friendly, kind: 'generic' });
+            toast.error(friendly);
+        } finally {
+            setMagicLoading(false);
         }
     };
 
@@ -333,8 +381,42 @@ const Login = () => {
                     </div>
                 )}
 
+                {/* --- Magic-link "check your email" confirmation --- */}
+                {authMode === 'standard' && magicSent && (
+                    <div className="space-y-4 animate-fade-in text-center">
+                        <div className="w-16 h-16 mx-auto rounded-full bg-brand-green/15 border-2 border-brand-green/40 flex items-center justify-center">
+                            <Mail className="w-7 h-7 text-brand-green" />
+                        </div>
+                        <div>
+                            <h3 className="text-white font-bold text-lg">Check your email</h3>
+                            <p className="text-gray-400 text-sm mt-1">
+                                We sent a login link to <span className="text-brand-green font-bold break-all">{email}</span>.
+                                Open it on this device to sign in — no password needed.
+                            </p>
+                        </div>
+                        <p className="text-xs text-gray-500">Can't find it? Check your spam/junk folder.</p>
+                        <div className="flex flex-col gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={handleMagicLink}
+                                disabled={magicLoading}
+                                className="w-full py-2.5 rounded-lg bg-brand-green/10 border border-brand-green/30 text-brand-green text-sm font-bold hover:bg-brand-green/20 disabled:opacity-50 transition-colors"
+                            >
+                                {magicLoading ? 'Sending…' : 'Resend link'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMagicSent(false)}
+                                className="text-gray-400 hover:text-brand-green text-xs uppercase tracking-wider"
+                            >
+                                Use a different email
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* --- STANDARD Login Flow (Coach/Parent) --- */}
-                {authMode === 'standard' && (
+                {authMode === 'standard' && !magicSent && (
                     <form onSubmit={handleAuth} className="space-y-5 animate-fade-in">
                         {isSignUp && (
                             <div>
@@ -450,6 +532,24 @@ const Login = () => {
                                     {isSignUp ? 'Create Account' : 'Enter Club'} <Rocket className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                 </>
                             )}
+                        </button>
+
+                        {/* Passwordless alternative — email a one-tap login link.
+                            Works for new and existing parents; clicking the link
+                            also verifies their email, so we keep confirmation on. */}
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 h-px bg-white/10" />
+                            <span className="text-[10px] uppercase tracking-widest text-gray-600">or</span>
+                            <div className="flex-1 h-px bg-white/10" />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleMagicLink}
+                            disabled={magicLoading || loading}
+                            className="w-full py-2.5 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-sm font-bold hover:bg-white/10 hover:border-brand-green/40 flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
+                        >
+                            <Mail className="w-4 h-4" />
+                            {magicLoading ? 'Sending link…' : 'Email me a login link'}
                         </button>
 
                         {/* Forgot Password Link */}
