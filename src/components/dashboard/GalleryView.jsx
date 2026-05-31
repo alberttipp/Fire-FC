@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Upload, X, Trash2, Loader2, ChevronLeft, ChevronRight, Calendar, User, Image as ImageIcon } from 'lucide-react';
+import { Camera, Upload, X, Trash2, Loader2, ChevronLeft, ChevronRight, Calendar, User, Image as ImageIcon, Play } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import ReactionBar from '../ReactionBar';
 import useLongPress from '../../hooks/useLongPress';
+
+// Gallery accepts photos and short videos. We tell them apart by extension
+// (media_gallery has no media_type column) so render code can pick <img>
+// vs <video>.
+const VIDEO_EXTS = ['mp4', 'mov', 'm4v', 'webm', 'ogv', 'ogg'];
+const MAX_IMAGE_MB = 10;
+const MAX_VIDEO_MB = 50;
+const isVideoPath = (path = '') => VIDEO_EXTS.includes((path.split('.').pop() || '').toLowerCase());
 
 const GalleryView = () => {
     const { user, profile } = useAuth();
@@ -50,12 +58,15 @@ const GalleryView = () => {
     const handleFileSelect = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            toast.error('Only image files are allowed.');
+        const isVideo = file.type.startsWith('video/');
+        const isImage = file.type.startsWith('image/');
+        if (!isImage && !isVideo) {
+            toast.error('Pick a photo or video file.');
             return;
         }
-        if (file.size > 10 * 1024 * 1024) {
-            toast.error('File too large — max 10MB.');
+        const maxMb = isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB;
+        if (file.size > maxMb * 1024 * 1024) {
+            toast.error(`${isVideo ? 'Video' : 'Photo'} too large — max ${maxMb}MB.`);
             return;
         }
         // Replace any previously-pending file (and revoke its URL)
@@ -176,6 +187,7 @@ const GalleryView = () => {
                 return {
                     ...item,
                     publicUrl: urlData?.publicUrl,
+                    isVideo: isVideoPath(item.file_path),
                     profiles: { full_name: nameByUser[item.uploaded_by] || null },
                 };
             });
@@ -205,10 +217,11 @@ const GalleryView = () => {
 
     const handleUpload = async () => {
         if (!pendingFile) {
-            toast.error('Pick a photo first.');
+            toast.error('Pick a photo or video first.');
             return;
         }
 
+        const wasVideo = pendingFile.type.startsWith('video/');
         setUploading(true);
 
         try {
@@ -220,7 +233,10 @@ const GalleryView = () => {
             // Upload to storage
             const { error: uploadErr } = await supabase.storage
                 .from('media')
-                .upload(filePath, pendingFile);
+                .upload(filePath, pendingFile, {
+                    contentType: pendingFile.type || undefined,
+                    cacheControl: '3600',
+                });
 
             if (uploadErr) throw uploadErr;
 
@@ -243,7 +259,7 @@ const GalleryView = () => {
             setShowUpload(false);
             resetPendingFile();
             fetchMedia();
-            toast.success('Photo uploaded.');
+            toast.success(wasVideo ? 'Video uploaded.' : 'Photo uploaded.');
         } catch (err) {
             console.error('Upload error:', err);
             const msg = err?.message || '';
@@ -261,7 +277,7 @@ const GalleryView = () => {
 
     const handleDelete = async (item) => {
         const ok = await confirm({
-            title: 'Delete this photo?',
+            title: `Delete this ${item.isVideo ? 'video' : 'photo'}?`,
             body: 'This cannot be undone.',
             confirmLabel: 'Delete',
             destructive: true,
@@ -322,14 +338,14 @@ const GalleryView = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-2xl md:text-3xl text-white font-display uppercase font-bold tracking-wider">Media Gallery</h2>
-                    <p className="text-gray-400 text-sm mt-1">{media.length} photo{media.length !== 1 ? 's' : ''}</p>
+                    <p className="text-gray-400 text-sm mt-1">{media.length} item{media.length !== 1 ? 's' : ''}</p>
                 </div>
                 {canUpload && (
                     <button
                         onClick={() => setShowUpload(true)}
                         className="bg-brand-green text-brand-dark px-5 py-2.5 rounded-xl font-bold uppercase text-sm flex items-center gap-2 hover:bg-white transition-colors"
                     >
-                        <Upload className="w-4 h-4" /> Upload Photo
+                        <Upload className="w-4 h-4" /> Upload
                     </button>
                 )}
             </div>
@@ -365,9 +381,9 @@ const GalleryView = () => {
             {filtered.length === 0 ? (
                 <div className="text-center py-16 border-2 border-dashed border-white/10 rounded-xl">
                     <Camera className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                    <p className="text-gray-400 font-bold mb-1">No photos yet</p>
+                    <p className="text-gray-400 font-bold mb-1">No photos or videos yet</p>
                     <p className="text-gray-500 text-sm">
-                        {canUpload ? 'Upload your first team photo!' : 'Photos will appear here once uploaded.'}
+                        {canUpload ? 'Upload your first team photo or video!' : 'Photos and videos will appear here once uploaded.'}
                     </p>
                 </div>
             ) : (
@@ -378,12 +394,29 @@ const GalleryView = () => {
                             onClick={() => setLightbox(item)}
                             className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/10 hover:border-brand-gold/50 transition-all cursor-pointer group relative"
                         >
-                            <img
-                                src={item.publicUrl}
-                                alt={item.caption || 'Team photo'}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                loading="lazy"
-                            />
+                            {item.isVideo ? (
+                                <>
+                                    <video
+                                        src={item.publicUrl}
+                                        className="w-full h-full object-cover"
+                                        muted
+                                        playsInline
+                                        preload="metadata"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="w-11 h-11 rounded-full bg-black/55 backdrop-blur flex items-center justify-center">
+                                            <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <img
+                                    src={item.publicUrl}
+                                    alt={item.caption || 'Team photo'}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    loading="lazy"
+                                />
+                            )}
                             {/* Delete button — top-right, visible to uploader + staff.
                                 Always visible on touch devices (no hover); fades on
                                 desktop unless hovered. */}
@@ -417,7 +450,7 @@ const GalleryView = () => {
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
                     <div className="bg-brand-dark border border-white/10 rounded-2xl p-6 w-full max-w-md space-y-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-white font-bold text-lg uppercase">Upload Photo</h3>
+                            <h3 className="text-white font-bold text-lg uppercase">Upload to Gallery</h3>
                             <button
                                 onClick={() => { setShowUpload(false); resetPendingFile(); setCaption(''); setSelectedEventId(''); }}
                                 disabled={uploading}
@@ -430,11 +463,20 @@ const GalleryView = () => {
                         {/* File picker: dropzone when nothing picked, preview when picked */}
                         {pendingFile ? (
                             <div className="relative">
-                                <img
-                                    src={pendingPreview}
-                                    alt="Preview"
-                                    className="w-full h-56 object-cover rounded-xl border border-white/10"
-                                />
+                                {pendingFile.type.startsWith('video/') ? (
+                                    <video
+                                        src={pendingPreview}
+                                        className="w-full h-56 object-cover rounded-xl border border-white/10 bg-black"
+                                        controls
+                                        playsInline
+                                    />
+                                ) : (
+                                    <img
+                                        src={pendingPreview}
+                                        alt="Preview"
+                                        className="w-full h-56 object-cover rounded-xl border border-white/10"
+                                    />
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
@@ -452,14 +494,14 @@ const GalleryView = () => {
                                 className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer hover:border-brand-green/50 transition-colors"
                             >
                                 <ImageIcon className="w-10 h-10 text-gray-500 mx-auto mb-2" />
-                                <p className="text-gray-400 text-sm">Tap to select a photo</p>
-                                <p className="text-gray-600 text-xs mt-1">JPG, PNG, WebP up to 10MB</p>
+                                <p className="text-gray-400 text-sm">Tap to select a photo or video</p>
+                                <p className="text-gray-600 text-xs mt-1">Photos up to 10MB · Videos up to 50MB</p>
                             </div>
                         )}
                         <input
                             type="file"
                             ref={fileInputRef}
-                            accept="image/jpeg,image/png,image/webp"
+                            accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
                             className="hidden"
                             onChange={handleFileSelect}
                         />
@@ -562,15 +604,26 @@ const GalleryView = () => {
                             </button>
                         )}
 
-                        <img
-                            src={lightbox.publicUrl}
-                            alt={lightbox.caption || 'Photo'}
-                            className="max-h-[80vh] max-w-full object-contain rounded-lg select-none"
-                            onContextMenu={(e) => { e.preventDefault(); setLightboxPickerOpen(true); }}
-                            {...lightboxLongPress}
-                            draggable={false}
-                            title="Press and hold to react"
-                        />
+                        {lightbox.isVideo ? (
+                            <video
+                                src={lightbox.publicUrl}
+                                className="max-h-[80vh] max-w-full object-contain rounded-lg bg-black"
+                                controls
+                                autoPlay
+                                playsInline
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        ) : (
+                            <img
+                                src={lightbox.publicUrl}
+                                alt={lightbox.caption || 'Photo'}
+                                className="max-h-[80vh] max-w-full object-contain rounded-lg select-none"
+                                onContextMenu={(e) => { e.preventDefault(); setLightboxPickerOpen(true); }}
+                                {...lightboxLongPress}
+                                draggable={false}
+                                title="Press and hold to react"
+                            />
+                        )}
 
                         {lightboxIndex < filtered.length - 1 && (
                             <button
