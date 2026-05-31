@@ -13,7 +13,7 @@ import * as tus from 'tus-js-client';
 // vs <video>.
 const VIDEO_EXTS = ['mp4', 'mov', 'm4v', 'webm', 'ogv', 'ogg'];
 const MAX_IMAGE_MB = 10;
-const MAX_VIDEO_MB = 500;
+const MAX_VIDEO_MB = 200; // ~1 min of 1080p high quality; keeps egress inside the Pro free tier
 const isVideoPath = (path = '') => VIDEO_EXTS.includes((path.split('.').pop() || '').toLowerCase());
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -553,7 +553,7 @@ const GalleryView = () => {
                             >
                                 <ImageIcon className="w-10 h-10 text-gray-500 mx-auto mb-2" />
                                 <p className="text-gray-400 text-sm">Tap to select a photo or video</p>
-                                <p className="text-gray-600 text-xs mt-1">Photos up to 10MB · Videos up to 500MB (1 min high quality)</p>
+                                <p className="text-gray-600 text-xs mt-1">Photos up to 10MB · Videos up to 200MB (~1 min at 1080p)</p>
                             </div>
                         )}
                         <input
