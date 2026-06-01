@@ -14,6 +14,7 @@ import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
+import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
 // Heavy modals — only loaded when the user opens them.
@@ -682,6 +683,14 @@ const PlayerDashboard = () => {
                     <PersonalPlanCard assignments={personalPlanAssignments} onComplete={handleDrillComplete} />
 
                     <HomeworkHub assignments={challengeAssignments} onComplete={handleDrillComplete} />
+
+                    {playerRecord?.id && (
+                        <JuggleChallengeCard
+                            playerId={playerRecord.id}
+                            teamId={playerRecord.team_id || null}
+                            playerName={playerRecord.first_name}
+                        />
+                    )}
 
                     {/* Solo Training Builder — kids build their own practice */}
                     <button

@@ -17,6 +17,7 @@ import VacationPeriodsManager from '../components/family/VacationPeriodsManager'
 import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
+import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
@@ -935,6 +936,15 @@ const ParentDashboard = () => {
                              of the player card (PlayerEvaluationModal), so the
                              front was duplicating. Tap the player card to flip
                              for the full breakdown. */}
+
+                        {/* June Juggling Competition */}
+                        {selectedChild?.id && (
+                            <JuggleChallengeCard
+                                playerId={selectedChild.id}
+                                teamId={selectedChild.team_id || null}
+                                playerName={selectedChild.first_name}
+                            />
+                        )}
 
                         {/* 7. Leaderboard — always shown, no toggle. */}
                         <Leaderboard />
