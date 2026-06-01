@@ -86,7 +86,16 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
 
         } catch (error) {
             console.error('Error creating player:', error);
-            toast.error(`Failed to create player: ${error.message}`);
+            const msg = (error?.message || '').toLowerCase();
+            if (msg.includes('jersey') || msg.includes('players_team_id_jersey_number')) {
+                toast.error(`Jersey #${number} is already taken on this team — pick a different number.`);
+            } else if (msg.includes('display_name') || msg.includes('players_team_id_display_name')) {
+                toast.error(`That name + number combo is already on the roster — try a different number.`);
+            } else if (msg.includes('duplicate') || msg.includes('already')) {
+                toast.error('That player already exists — double-check the jersey number and name.');
+            } else {
+                toast.error(`Failed to create player: ${error.message}`);
+            }
         } finally {
             setLoading(false);
         }
