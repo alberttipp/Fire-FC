@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, AlertCircle, Hash, MessageSquare, Users, Bell, Megaphone, Lock, Loader2, Menu, X, Plus } from 'lucide-react';
+import { Send, AlertCircle, Hash, MessageSquare, Users, Bell, Megaphone, Lock, Loader2, Menu, X, Plus, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
@@ -42,6 +42,8 @@ const ChatView = () => {
     const [isUrgent, setIsUrgent] = useState(false);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [imageUploading, setImageUploading] = useState(false);
+    const imageInputRef = useRef(null);
     const [memberCount, setMemberCount] = useState(0);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showNewDM, setShowNewDM] = useState(false);
@@ -475,6 +477,87 @@ const ChatView = () => {
         }
     };
 
+    // Attach + send a picture. Uploads to the shared `media` bucket under the
+    // team-<id> prefix (already permitted by the media_team_gallery_insert
+    // storage policy for any team member), then sends a message_type='image'
+    // message whose content is the public URL — the bubble renderer already
+    // handles image messages. Scoped to non-players (they have token sessions
+    // without an auth.uid(), so direct storage uploads would fail RLS).
+    const handleSendImage = async (file) => {
+        if (!file || !activeChannel) return;
+        if (currentUserRole === 'player') return;
+        if (!file.type.startsWith('image/')) {
+            setChatError('Only image files can be attached.');
+            setTimeout(() => setChatError(null), 4000);
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            setChatError('Image too large — max 10MB.');
+            setTimeout(() => setChatError(null), 4000);
+            return;
+        }
+        if (!currentTeamId) {
+            setChatError("Couldn't attach the image — your team isn't loaded yet. Try again in a moment.");
+            setTimeout(() => setChatError(null), 4000);
+            return;
+        }
+
+        const sendChannelId = activeChannel.id;
+        const clientMessageId =
+            (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+        setImageUploading(true);
+        try {
+            const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+            const path = `team-${currentTeamId}/chat-${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+            const { error: uploadErr } = await supabase.storage
+                .from('media')
+                .upload(path, file, { contentType: file.type || undefined, cacheControl: '3600' });
+            if (uploadErr) throw uploadErr;
+
+            const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+            const publicUrl = urlData?.publicUrl;
+            if (!publicUrl) throw new Error('Could not resolve the uploaded image URL.');
+
+            const messageData = {
+                id: clientMessageId,
+                conversation_id: sendChannelId,
+                sender_id: user?.id || null,
+                sender_name: currentUserName,
+                sender_role: currentUserRole,
+                content: publicUrl,
+                message_type: 'image',
+                is_urgent: false,
+            };
+
+            if (activeChannelIdRef.current === sendChannelId) {
+                setMessages(prev => prev.some(m => m.id === clientMessageId)
+                    ? prev
+                    : [...prev, { ...messageData, created_at: new Date().toISOString(), _pending: true }]);
+            }
+
+            const { error } = await supabase.from('messages').insert([messageData]);
+            if (error) throw error;
+
+            if (activeChannelIdRef.current === sendChannelId) {
+                setMessages(prev => prev.map(m =>
+                    m.id === clientMessageId && m._pending ? { ...m, _pending: false } : m));
+            }
+        } catch (err) {
+            if (activeChannelIdRef.current === sendChannelId) {
+                setMessages(prev => prev.filter(m => m.id !== clientMessageId));
+            }
+            console.error('Error sending image:', err);
+            setChatError('Failed to send image. You may not have permission to post here.');
+            setTimeout(() => setChatError(null), 4000);
+        } finally {
+            setImageUploading(false);
+            if (imageInputRef.current) imageInputRef.current.value = '';
+        }
+    };
+
     const fetchTeamMembers = async () => {
         // Use the active channel's team_id, or first available channel's team_id
         const teamId = activeChannel?.team_id || channels[0]?.team_id || currentTeamId;
@@ -835,13 +918,34 @@ const ChatView = () => {
 
                             {/* Text Box */}
                             <div className="flex gap-2">
+                                {currentUserRole !== 'player' && (
+                                    <>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            ref={imageInputRef}
+                                            className="hidden"
+                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSendImage(f); }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => imageInputRef.current?.click()}
+                                            disabled={sending || imageUploading}
+                                            title="Attach a picture"
+                                            aria-label="Attach a picture"
+                                            className="shrink-0 bg-white/5 border border-white/10 rounded-xl px-3 text-gray-300 hover:bg-white/10 hover:text-white transition-colors flex items-center justify-center disabled:opacity-50"
+                                        >
+                                            {imageUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
+                                        </button>
+                                    </>
+                                )}
                                 <input
                                     type="text"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                                     placeholder={`Message ${activeChannel?.name || 'channel'}...`}
-                                    disabled={sending}
+                                    disabled={sending || imageUploading}
                                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-green/50 placeholder:text-gray-600 font-sans disabled:opacity-50"
                                 />
                                 <button
@@ -929,12 +1033,19 @@ const MessageRow = ({
                     )}
                     {msg.message_type === 'image' && msg.content?.startsWith('http')
                         ? (
-                            <img
-                                src={msg.content}
-                                alt="event cover"
-                                className="rounded-lg max-w-full h-auto"
-                                loading="lazy"
-                            />
+                            <a
+                                href={msg.content}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <img
+                                    src={msg.content}
+                                    alt="shared image"
+                                    className="rounded-lg max-w-full max-h-72 h-auto object-cover"
+                                    loading="lazy"
+                                />
+                            </a>
                         )
                         : msg.content}
                 </div>
