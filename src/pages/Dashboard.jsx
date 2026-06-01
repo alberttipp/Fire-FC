@@ -379,7 +379,7 @@ const Dashboard = () => {
             </div>
 
             {/* Main Content Area */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] md:pb-8">
                 <Suspense fallback={<ViewLoader />}>
                     {renderView()}
                 </Suspense>

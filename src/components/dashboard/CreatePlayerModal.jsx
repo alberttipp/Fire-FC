@@ -9,6 +9,7 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
     const [lastName, setLastName] = useState('');
     const [number, setNumber] = useState('');
     const [pin, setPin] = useState('');
+    const [practiceOnly, setPracticeOnly] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -66,7 +67,15 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
                 throw new Error(result.error || 'Failed to create player');
             }
 
-            toast.success(`Player ${result.display_name} created! They can now login with their PIN.`);
+            // Flag practice-only players (full app access, but excluded from
+            // games). Staff can update their own team's players via RLS.
+            if (practiceOnly && result.player_id) {
+                const { error: poErr } = await supabase
+                    .from('players').update({ practice_only: true }).eq('id', result.player_id);
+                if (poErr) console.warn('[create-player] practice_only flag failed:', poErr.message);
+            }
+
+            toast.success(`Player ${result.display_name} created!${practiceOnly ? ' (practice-only)' : ''} They can now login with their PIN.`);
 
             // Hand the whole payload to the parent so it can immediately
             // open the FamilyInviteModal with the new player + guardian
@@ -166,6 +175,16 @@ const CreatePlayerModal = ({ onClose, teamId, onPlayerCreated }) => {
                                 </div>
                             </div>
                         </div>
+
+                        <label className="flex items-start gap-2.5 text-sm text-gray-300 bg-black/30 p-3 rounded-lg border border-white/5 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={practiceOnly}
+                                onChange={(e) => setPracticeOnly(e.target.checked)}
+                                className="mt-0.5 w-4 h-4 accent-brand-green shrink-0"
+                            />
+                            <span><strong className="text-white">Practice-only player</strong> — full app access (training, juggling, stats), but won't count toward game attendance or show in game lineups.</span>
+                        </label>
 
                         <p className="text-xs text-gray-400 bg-black/30 p-3 rounded-lg border border-white/5">
                             <strong className="text-brand-green">Note:</strong> Player will login using their Display Name (e.g., "Bo58") and this 4-digit PIN. No email needed.
