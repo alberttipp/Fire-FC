@@ -147,9 +147,9 @@ const Login = () => {
                     // surface so they're prompted for the guardian code,
                     // not the coach dashboard that's empty for them.
                     if (joinCode) {
-                        navigate('/dashboard');
+                        navigate('/dashboard', { replace: true });
                     } else {
-                        navigate('/parent-dashboard');
+                        navigate('/parent-dashboard', { replace: true });
                     }
                 } else {
                     toast.info("Please check your email to confirm your account.");
@@ -172,10 +172,10 @@ const Login = () => {
                 if (data?.user) {
                     // Check role from user_metadata (not profiles table)
                     const userRole = data.user.user_metadata?.role;
-                    if (userRole === 'parent') navigate('/parent-dashboard');
-                    else navigate('/dashboard');
+                    if (userRole === 'parent') navigate('/parent-dashboard', { replace: true });
+                    else navigate('/dashboard', { replace: true });
                 } else {
-                    navigate('/dashboard');
+                    navigate('/dashboard', { replace: true });
                 }
             }
         } catch (error) {
@@ -276,7 +276,7 @@ const Login = () => {
             if (error) throw error;
 
             toast.success(`Welcome, ${selectedPlayer.first_name}!`);
-            navigate('/player-dashboard');
+            navigate('/player-dashboard', { replace: true });
 
         } catch (err) {
             console.error('Player login error:', err);
@@ -618,25 +618,25 @@ const Login = () => {
                     <p className="text-sm text-brand-green font-bold uppercase tracking-widest mb-4 text-center">Quick Demo Access</p>
                     <div className="grid grid-cols-4 gap-2">
                         <button
-                            onClick={async () => { await loginDemo('coach'); navigate('/dashboard'); }}
+                            onClick={async () => { await loginDemo('coach'); navigate('/dashboard', { replace: true }); }}
                             className="py-3 px-2 bg-brand-green/20 hover:bg-brand-green/40 border border-brand-green rounded-lg text-brand-green font-bold text-sm transition-all"
                         >
                             Coach
                         </button>
                         <button
-                            onClick={async () => { await loginDemo('parent'); navigate('/parent-dashboard'); }}
+                            onClick={async () => { await loginDemo('parent'); navigate('/parent-dashboard', { replace: true }); }}
                             className="py-3 px-2 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500 rounded-lg text-blue-400 font-bold text-sm transition-all"
                         >
                             Parent
                         </button>
                         <button
-                            onClick={async () => { await loginDemo('manager'); navigate('/dashboard'); }}
+                            onClick={async () => { await loginDemo('manager'); navigate('/dashboard', { replace: true }); }}
                             className="py-3 px-2 bg-brand-gold/20 hover:bg-brand-gold/40 border border-brand-gold rounded-lg text-brand-gold font-bold text-sm transition-all"
                         >
                             Manager
                         </button>
                         <button
-                            onClick={async () => { await loginDemo('player'); navigate('/player-dashboard'); }}
+                            onClick={async () => { await loginDemo('player'); navigate('/player-dashboard', { replace: true }); }}
                             className="py-3 px-2 bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500 rounded-lg text-orange-400 font-bold text-sm transition-all"
                         >
                             Player

@@ -15,6 +15,7 @@ import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
+import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
 // Heavy modals — only loaded when the user opens them.
@@ -48,6 +49,17 @@ const PlayerDashboard = () => {
     const [playerError, setPlayerError] = useState(null); // Error if player not found
     const [playerLoading, setPlayerLoading] = useState(true); // Loading state for player lookup
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
+
+    // Phone back button → close the topmost open modal instead of leaving the
+    // app (and never to login).
+    useBackGuard(() => {
+        if (showSessionBuilder) { setShowSessionBuilder(false); return true; }
+        if (showDetails) { setShowDetails(false); return true; }
+        if (showGame) { setShowGame(false); return true; }
+        if (showBadgeCelebration) { setShowBadgeCelebration(false); return true; }
+        if (showCelebration) { setShowCelebration(false); return true; }
+        return false;
+    });
 
     // Refetch just the assignments row — used after Solo Training Builder save.
     const refetchAssignments = async () => {

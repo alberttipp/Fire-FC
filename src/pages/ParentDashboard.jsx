@@ -18,6 +18,7 @@ import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
+import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
@@ -93,6 +94,19 @@ const ParentDashboard = () => {
     const [playerAccessLink, setPlayerAccessLink] = useState(null);
     const [generatingLink, setGeneratingLink] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
+
+    // Phone back button → close the topmost open modal instead of leaving the
+    // app (and never to login). Returns false when nothing's open so the home
+    // screen can exit cleanly.
+    useBackGuard(() => {
+        if (openLineupEvent) { setOpenLineupEvent(null); return true; }
+        if (openEvent) { setOpenEvent(null); return true; }
+        if (showDrillLibrary) { setShowDrillLibrary(false); return true; }
+        if (showFamilyBuilder) { setShowFamilyBuilder(false); return true; }
+        if (inviteOpen) { setInviteOpen(false); return true; }
+        if (showDetails) { setShowDetails(false); return true; }
+        return false;
+    });
 
     // Lock the body's scroll while any modal is open so the dashboard
     // behind the modal doesn't shift when the user scrolls / drags

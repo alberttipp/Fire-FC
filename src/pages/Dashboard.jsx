@@ -1,7 +1,8 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
+import useBackGuard from '../hooks/useBackGuard';
 import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
@@ -66,7 +67,26 @@ const Dashboard = () => {
 
     // Track a wrapper so a button click prevents the staff default from
     // overriding the user's pick after profile loads late.
-    const pickView = (v) => { setHasPickedView(true); setCurrentView(v); };
+    // Track visited views so the back button can step back through them.
+    const viewHistory = useRef([]);
+    const pickView = (v) => {
+        if (v !== currentView) viewHistory.current.push(currentView);
+        setHasPickedView(true);
+        setCurrentView(v);
+    };
+
+    // Phone back button → close an open overlay, else step back one tab, else
+    // (at the home tab) let the app exit. Never dumps the user on login.
+    useBackGuard(() => {
+        if (showPreviewPicker) { setShowPreviewPicker(false); return true; }
+        if (showNotifications) { setShowNotifications(false); return true; }
+        if (mobileMenuOpen) { setMobileMenuOpen(false); return true; }
+        if (viewHistory.current.length > 0) {
+            setCurrentView(viewHistory.current.pop());
+            return true;
+        }
+        return false;
+    });
 
     // Voice command integration
     const voiceCommand = useVoiceCommand();
