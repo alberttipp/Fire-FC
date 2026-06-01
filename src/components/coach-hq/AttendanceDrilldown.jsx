@@ -25,7 +25,7 @@ const AttendanceDrilldown = ({ teamId, eventType, label, onClose }) => {
 
             // Roster + RSVPs in parallel
             const [{ data: roster }, { data: rsvps }] = await Promise.all([
-                supabase.from('player_teams').select('player_id, players!inner(id,first_name,last_name,jersey_number)').eq('team_id', teamId).eq('status', 'active'),
+                supabase.from('player_teams').select('player_id, players!inner(id,first_name,last_name,jersey_number,practice_only)').eq('team_id', teamId).eq('status', 'active'),
                 supabase.from('event_rsvps').select('event_id, player_id, status').in('event_id', eventIds),
             ]);
             if (cancelled) return;
@@ -37,7 +37,10 @@ const AttendanceDrilldown = ({ teamId, eventType, label, onClose }) => {
                 }
             });
             const total = eventIds.length;
-            const computed = (roster || []).map(r => {
+            const computed = (roster || [])
+                // Practice-only players don't play games — leave them out of game attendance.
+                .filter(r => eventType !== 'game' || !r.players?.practice_only)
+                .map(r => {
                 const p = r.players;
                 const went = wentByPlayer.get(p.id) || 0;
                 return {

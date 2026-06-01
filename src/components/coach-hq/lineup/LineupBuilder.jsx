@@ -77,7 +77,7 @@ const LineupBuilder = ({ event, onClose }) => {
             const [rosterRes, lineupRes] = await Promise.all([
                 supabase
                     .from('player_teams')
-                    .select('player_id, players!inner(id,first_name,last_name,jersey_number)')
+                    .select('player_id, players!inner(id,first_name,last_name,jersey_number,practice_only)')
                     .eq('team_id', event.team_id).eq('status', 'active'),
                 supabase
                     .from('event_lineups')
@@ -87,7 +87,8 @@ const LineupBuilder = ({ event, onClose }) => {
             ]);
             if (cancelled) return;
 
-            const roster = (rosterRes.data || []).map(r => r.players);
+            // Practice-only players don't play games — keep them out of game lineups.
+            const roster = (rosterRes.data || []).map(r => r.players).filter(p => !p.practice_only);
             // Sort by jersey then last name for stable bench order
             roster.sort((a, b) => (a.jersey_number ?? 999) - (b.jersey_number ?? 999) || (a.last_name || '').localeCompare(b.last_name || ''));
             setPlayers(roster);

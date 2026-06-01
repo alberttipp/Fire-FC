@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { Trophy, TrendingUp, Clock, Flame, Loader2, PlayCircle, Target } from 'lucide-react';
+import { Trophy, TrendingUp, Clock, Flame, Loader2, PlayCircle, Target, Lock } from 'lucide-react';
 import LogJuggleModal from './LogJuggleModal';
 
 const STAMP_LADDER = [20, 30, 40, 50, 60, 70, 80, 90, 100];
@@ -49,6 +49,10 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
     const rows = board.rows || [];
     const me = rows.find((r) => r.player_id === playerId) || null;
     const locked = board.baselines_locked;
+    // Most Improved stays hidden until EVERY kid has entered a baseline, so no
+    // one can size up the field before they've all committed a starting number.
+    const withBaseline = rows.filter((r) => r.has_baseline).length;
+    const improvedUnlocked = rows.length > 0 && withBaseline === rows.length;
     const endDays = daysLeft(cfg.ends_on);
     const finalsDays = daysLeft(cfg.finals_on);
 
@@ -157,14 +161,29 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
                             className={`flex-1 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${tab === 'top' ? 'bg-brand-gold/20 text-brand-gold' : 'bg-white/5 text-gray-400'}`}>
                         Top Score
                     </button>
-                    <button onClick={() => setTab('improved')} disabled={!locked}
-                            title={locked ? '' : 'Unlocks once baselines are locked'}
-                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider disabled:opacity-40 ${tab === 'improved' ? 'bg-brand-green/20 text-brand-green' : 'bg-white/5 text-gray-400'}`}>
-                        Most Improved {locked ? '' : '🔒'}
+                    <button onClick={() => setTab('improved')}
+                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${tab === 'improved' ? 'bg-brand-green/20 text-brand-green' : 'bg-white/5 text-gray-400'}`}>
+                        Most Improved {improvedUnlocked ? '' : '🔒'}
                     </button>
                 </div>
-                {tab === 'improved' && !locked ? (
-                    <p className="text-center text-xs text-gray-500 py-3">Most Improved unlocks once everyone's baseline is locked.</p>
+                {tab === 'improved' && !improvedUnlocked ? (
+                    <div className="relative">
+                        <div className="space-y-1 blur-sm select-none pointer-events-none" aria-hidden="true">
+                            {(improvedBoard.length ? improvedBoard : topBoard).slice(0, 5).map((r, i) => (
+                                <div key={r.player_id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
+                                    <span className="w-5 text-center text-xs font-bold text-gray-500">{i + 1}</span>
+                                    <span className="flex-1 text-sm text-gray-200 truncate">{r.first_name} {r.last_initial}.</span>
+                                    <span className="text-sm font-bold text-white">+{r.improvement}</span>
+                                </div>
+                            ))}
+                            {improvedBoard.length === 0 && topBoard.length === 0 && <div className="h-20" />}
+                        </div>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 bg-brand-dark/50 rounded-lg">
+                            <Lock className="w-5 h-5 text-brand-gold mb-1" />
+                            <p className="text-xs text-gray-300 font-medium">Hidden until <span className="text-white font-bold">everyone</span> has entered their first juggles.</p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">{withBaseline} of {rows.length} kids are in.</p>
+                        </div>
+                    </div>
                 ) : (
                     <div className="space-y-1">
                         {shownBoard.length === 0 && <p className="text-center text-xs text-gray-500 py-3">No scores logged yet — be first!</p>}
