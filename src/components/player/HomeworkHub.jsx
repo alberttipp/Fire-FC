@@ -233,6 +233,13 @@ const HomeworkHub = ({ assignments, onComplete }) => {
                                             <p className="mt-1 text-xs text-gray-500 leading-relaxed line-clamp-2">
                                                 {description}
                                             </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedDrill(drillObj)}
+                                                className="mt-0.5 text-[11px] font-medium text-brand-gold/80 hover:text-brand-gold"
+                                            >
+                                                Read full description →
+                                            </button>
                                         </div>
                                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider shrink-0">{drillObj.duration}</span>
                                     </div>

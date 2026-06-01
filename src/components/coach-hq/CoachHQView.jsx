@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell } from 'lucide-react';
+import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 import CoachHQTile from './CoachHQTile';
 import UpcomingWeek from '../dashboard/UpcomingWeek';
 import SetupHealthPanel from './SetupHealthPanel';
@@ -21,10 +23,40 @@ const IDPProgressDrilldown  = lazy(() => import('./IDPProgressDrilldown'));
 //                   setCurrentView('chat').
 const CoachHQView = ({ onJumpToChat }) => {
     const { user, profile } = useAuth();
+    const toast = useToast();
+    const confirm = useConfirm();
     const [teamId, setTeamId] = useState(profile?.team_id || null);
     const [metrics, setMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [sendingChallenge, setSendingChallenge] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
+
+    // "Send this week's solo challenge to the whole team" — assigns the weekly
+    // solo set to every active player who doesn't already have this week's
+    // drills (per-player; leaves already-set kids untouched).
+    const handleSendChallenge = async () => {
+        if (!teamId || sendingChallenge) return;
+        const ok = await confirm({
+            title: "Send this week's solo challenge?",
+            body: "Every player who doesn't already have this week's drills gets a fresh solo set. Kids who already have drills this week are left untouched.",
+            confirmLabel: 'Send to team',
+        });
+        if (!ok) return;
+        setSendingChallenge(true);
+        try {
+            const { data, error } = await supabase.rpc('assign_weekly_solo_to_team_now', { p_team_id: teamId });
+            if (error) throw error;
+            const n = data ?? 0;
+            toast.success(n > 0
+                ? "Sent! This week's solo challenge is on the way to the team."
+                : "Everyone already has this week's drills — nothing to send.");
+        } catch (err) {
+            console.error('[CoachHQ] send challenge error', err);
+            toast.error("Couldn't send the challenge. Try again.");
+        } finally {
+            setSendingChallenge(false);
+        }
+    };
 
     // Resolve team_id from team_memberships if not on profile (coach with
     // multiple teams: pick the most recently joined for now).
@@ -153,6 +185,22 @@ const CoachHQView = ({ onJumpToChat }) => {
                     loading={loading}
                 />
             </div>
+
+            {/* Send this week's solo challenge to the whole team */}
+            <button
+                type="button"
+                onClick={handleSendChallenge}
+                disabled={sendingChallenge || !teamId}
+                className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors disabled:opacity-50"
+            >
+                {sendingChallenge
+                    ? <Loader2 className="w-5 h-5 text-brand-green shrink-0 animate-spin" />
+                    : <Dumbbell className="w-5 h-5 text-brand-green shrink-0" />}
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Send this week's solo challenge to the whole team
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
 
             {/* Upcoming events — UpcomingWeek already shows live attendance + tap-to-modal */}
             <UpcomingWeek teamId={teamId} />

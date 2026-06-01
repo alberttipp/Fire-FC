@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle, Clock, Dumbbell, Target } from 'lucide-react';
+import DrillDetailModal from './DrillDetailModal';
 
 const formatDue = (dateStr) => {
     if (!dateStr) return null;
@@ -12,6 +13,7 @@ const formatDue = (dateStr) => {
 const PersonalPlanCard = ({ assignments = [], onComplete, readOnly = false }) => {
     const completedCount = assignments.filter(a => a.status === 'completed').length;
     const totalCount = assignments.length;
+    const [selectedDrill, setSelectedDrill] = useState(null);
 
     return (
         <div className="glass-panel p-5 border-l-4 border-l-brand-green animate-fade-in-up">
@@ -67,6 +69,13 @@ const PersonalPlanCard = ({ assignments = [], onComplete, readOnly = false }) =>
                                         <p className="mt-2 text-xs text-gray-400 leading-relaxed line-clamp-3">
                                             {description}
                                         </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedDrill({ id: assign.id, title: drill.name || drill.title || 'Drill', duration: `${duration}m`, completed, originalDrill: drill })}
+                                            className="mt-0.5 text-[11px] font-medium text-brand-gold/80 hover:text-brand-gold"
+                                        >
+                                            Read full description →
+                                        </button>
                                     </div>
                                 </div>
 
@@ -83,6 +92,14 @@ const PersonalPlanCard = ({ assignments = [], onComplete, readOnly = false }) =>
                         );
                     })}
                 </div>
+            )}
+
+            {selectedDrill && (
+                <DrillDetailModal
+                    drill={selectedDrill}
+                    onClose={() => setSelectedDrill(null)}
+                    onComplete={readOnly ? undefined : onComplete}
+                />
             )}
         </div>
     );
