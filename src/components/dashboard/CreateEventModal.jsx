@@ -606,9 +606,33 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                         onClick={() => setCoverEnabled(v => !v)}
                                         className={`px-2 py-1 text-[10px] uppercase tracking-wider rounded ${coverEnabled ? 'bg-brand-green text-brand-dark font-bold' : 'bg-white/10 text-gray-400'}`}
                                     >
-                                        {coverEnabled ? 'On' : 'Off'}
+                                        {isEditMode
+                                            ? (coverEnabled ? 'Editing' : 'Change')
+                                            : (coverEnabled ? 'On' : 'Off')}
                                     </button>
                                 </div>
+
+                                {/* Edit mode, designer closed: show the event's CURRENT
+                                    cover (or a prompt) so changing the background image on
+                                    an already-scheduled event is obvious. */}
+                                {isEditMode && !coverEnabled && (
+                                    existingEvent?.cover_image_url ? (
+                                        <div>
+                                            <img
+                                                src={existingEvent.cover_image_url}
+                                                alt="Current cover"
+                                                className="w-full rounded-lg border border-white/10"
+                                            />
+                                            <p className="text-[11px] text-gray-500 mt-1.5">
+                                                Tap <span className="text-brand-gold font-semibold">Change</span> to pick a new background image.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[11px] text-gray-500">
+                                            No cover image yet — tap <span className="text-brand-gold font-semibold">Change</span> to add a background image.
+                                        </p>
+                                    )
+                                )}
 
                                 {coverEnabled && (
                                     <>
