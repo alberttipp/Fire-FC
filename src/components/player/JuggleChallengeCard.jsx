@@ -167,20 +167,21 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
                     </button>
                 </div>
                 {tab === 'improved' && !improvedUnlocked ? (
-                    <div className="relative">
-                        <div className="space-y-1 blur-sm select-none pointer-events-none" aria-hidden="true">
-                            {(improvedBoard.length ? improvedBoard : topBoard).slice(0, 5).map((r, i) => (
-                                <div key={r.player_id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
-                                    <span className="w-5 text-center text-xs font-bold text-gray-500">{i + 1}</span>
-                                    <span className="flex-1 text-sm text-gray-200 truncate">{r.first_name} {r.last_initial}.</span>
-                                    <span className="text-sm font-bold text-white">+{r.improvement}</span>
+                    <div className="relative min-h-[120px]">
+                        {/* Placeholder skeleton ONLY — never real names/scores — so
+                            nothing real can be read even if the blur is defeated. */}
+                        <div className="space-y-1 blur-md select-none pointer-events-none" aria-hidden="true">
+                            {[0, 1, 2, 3, 4].map((i) => (
+                                <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
+                                    <span className="w-5 h-3 rounded bg-white/10" />
+                                    <span className="flex-1 h-3 rounded bg-white/10" style={{ maxWidth: `${70 - i * 8}%` }} />
+                                    <span className="w-8 h-3 rounded bg-white/10" />
                                 </div>
                             ))}
-                            {improvedBoard.length === 0 && topBoard.length === 0 && <div className="h-20" />}
                         </div>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 bg-brand-dark/50 rounded-lg">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 bg-brand-dark/90 backdrop-blur-sm rounded-lg">
                             <Lock className="w-5 h-5 text-brand-gold mb-1" />
-                            <p className="text-xs text-gray-300 font-medium">Hidden until <span className="text-white font-bold">everyone</span> has entered their first juggles.</p>
+                            <p className="text-xs text-gray-300 font-medium">Locked until <span className="text-white font-bold">everyone</span> has entered their first juggles.</p>
                             <p className="text-[11px] text-gray-500 mt-0.5">{withBaseline} of {rows.length} kids are in.</p>
                         </div>
                     </div>
