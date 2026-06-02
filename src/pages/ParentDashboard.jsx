@@ -985,7 +985,14 @@ const ParentDashboard = () => {
                             ) : (
                                 <div className="space-y-2">
                                     {teamCoachAssignments.map(assign => (
-                                        <div key={assign.id} className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5'}`}>
+                                        <div
+                                            key={assign.id}
+                                            role={assign.status === 'completed' ? undefined : 'button'}
+                                            tabIndex={assign.status === 'completed' ? undefined : 0}
+                                            onClick={assign.status === 'completed' ? undefined : () => handleCompleteCoachDrill(assign.id)}
+                                            onKeyDown={assign.status === 'completed' ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCompleteCoachDrill(assign.id); } }}
+                                            className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5 cursor-pointer hover:bg-white/10 active:bg-white/15'}`}
+                                        >
                                             {assign.status === 'completed' ? (
                                                 <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
                                             ) : (
@@ -998,6 +1005,9 @@ const ParentDashboard = () => {
                                                 <div className="text-xs text-gray-500">
                                                     {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
                                                 </div>
+                                                {assign.status !== 'completed' && (
+                                                    <div className="text-[11px] text-blue-400 font-semibold mt-0.5">Tap to mark done ✓</div>
+                                                )}
                                             </div>
                                             {assign.status !== 'completed' && assign.due_date && (() => {
                                                 const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
