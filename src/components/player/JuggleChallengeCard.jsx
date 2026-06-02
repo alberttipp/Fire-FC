@@ -64,7 +64,10 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
     const topBoard = [...rows].sort((a, b) => b.current_best - a.current_best).slice(0, 8);
     const improvedBoard = [...rows].filter((r) => r.has_baseline)
         .sort((a, b) => b.improvement - a.improvement).slice(0, 8);
-    const shownBoard = tab === 'improved' ? improvedBoard : topBoard;
+    // While locked, the Most-Improved board (and its very name) must stay
+    // hidden — otherwise a kid who knows improvement is rewarded could lowball
+    // their starting number to game it. Force Top Score until everyone's in.
+    const shownBoard = (improvedUnlocked && tab === 'improved') ? improvedBoard : topBoard;
 
     return (
         <div className="glass-panel p-5 border-l-4 border-l-brand-gold animate-fade-in-up">
@@ -156,49 +159,44 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
 
             {/* Leaderboards */}
             <div className="mt-4 pt-4 border-t border-white/10">
-                <div className="flex gap-2 mb-2">
-                    <button onClick={() => setTab('top')}
-                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${tab === 'top' ? 'bg-brand-gold/20 text-brand-gold' : 'bg-white/5 text-gray-400'}`}>
-                        Top Score
-                    </button>
-                    <button onClick={() => setTab('improved')}
-                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${tab === 'improved' ? 'bg-brand-green/20 text-brand-green' : 'bg-white/5 text-gray-400'}`}>
-                        Most Improved {improvedUnlocked ? '' : '🔒'}
-                    </button>
-                </div>
-                {tab === 'improved' && !improvedUnlocked ? (
-                    <div className="relative min-h-[120px]">
-                        {/* Placeholder skeleton ONLY — never real names/scores — so
-                            nothing real can be read even if the blur is defeated. */}
-                        <div className="space-y-1 blur-md select-none pointer-events-none" aria-hidden="true">
-                            {[0, 1, 2, 3, 4].map((i) => (
-                                <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
-                                    <span className="w-5 h-3 rounded bg-white/10" />
-                                    <span className="flex-1 h-3 rounded bg-white/10" style={{ maxWidth: `${70 - i * 8}%` }} />
-                                    <span className="w-8 h-3 rounded bg-white/10" />
-                                </div>
-                            ))}
-                        </div>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 bg-brand-dark/90 backdrop-blur-sm rounded-lg">
-                            <Lock className="w-5 h-5 text-brand-gold mb-1" />
-                            <p className="text-xs text-gray-300 font-medium">Locked until <span className="text-white font-bold">everyone</span> has entered their first juggles.</p>
-                            <p className="text-[11px] text-gray-500 mt-0.5">{withBaseline} of {rows.length} kids are in.</p>
-                        </div>
+                {improvedUnlocked ? (
+                    /* Both boards revealed only once EVERY kid has a baseline. */
+                    <div className="flex gap-2 mb-2">
+                        <button onClick={() => setTab('top')}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${tab === 'top' ? 'bg-brand-gold/20 text-brand-gold' : 'bg-white/5 text-gray-400'}`}>
+                            Top Score
+                        </button>
+                        <button onClick={() => setTab('improved')}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider ${tab === 'improved' ? 'bg-brand-green/20 text-brand-green' : 'bg-white/5 text-gray-400'}`}>
+                            Most Improved
+                        </button>
                     </div>
                 ) : (
-                    <div className="space-y-1">
-                        {shownBoard.length === 0 && <p className="text-center text-xs text-gray-500 py-3">No scores logged yet — be first!</p>}
-                        {shownBoard.map((r, i) => (
-                            <div key={r.player_id} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${r.player_id === playerId ? 'bg-brand-green/10 border border-brand-green/20' : ''}`}>
-                                <span className="w-5 text-center text-xs font-bold text-gray-500">{i + 1}</span>
-                                <span className="flex-1 text-sm text-gray-200 truncate">{r.first_name} {r.last_initial}.{r.player_id === playerId ? ' (you)' : ''}</span>
-                                <span className="text-sm font-bold text-white">
-                                    {tab === 'improved' ? `+${r.improvement}` : r.current_best}
-                                </span>
-                            </div>
-                        ))}
+                    /* Locked: show ONLY Top Score. No "Most Improved" wording —
+                       a metric-neutral teaser so kids don't learn improvement is
+                       rewarded (which would invite sandbagging the baseline). */
+                    <div className="flex items-center justify-between mb-2 gap-2">
+                        <span className="py-1.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider bg-brand-gold/20 text-brand-gold">
+                            Top Score
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-400">
+                            <Lock className="w-3.5 h-3.5 text-brand-gold" />
+                            Bonus prize unlocks at {withBaseline}/{rows.length} started
+                        </span>
                     </div>
                 )}
+                <div className="space-y-1">
+                    {shownBoard.length === 0 && <p className="text-center text-xs text-gray-500 py-3">No scores logged yet — be first!</p>}
+                    {shownBoard.map((r, i) => (
+                        <div key={r.player_id} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${r.player_id === playerId ? 'bg-brand-green/10 border border-brand-green/20' : ''}`}>
+                            <span className="w-5 text-center text-xs font-bold text-gray-500">{i + 1}</span>
+                            <span className="flex-1 text-sm text-gray-200 truncate">{r.first_name} {r.last_initial}.{r.player_id === playerId ? ' (you)' : ''}</span>
+                            <span className="text-sm font-bold text-white">
+                                {(improvedUnlocked && tab === 'improved') ? `+${r.improvement}` : r.current_best}
+                            </span>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {modal && (
