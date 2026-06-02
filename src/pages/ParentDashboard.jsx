@@ -35,6 +35,7 @@ const EventDetailModal = lazy(() => import('../components/dashboard/calendar/Eve
 const LineupBuilder    = lazy(() => import('../components/coach-hq/lineup/LineupBuilder'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
 const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
+const DrillDetailModal = lazy(() => import('../components/player/DrillDetailModal'));
 
 const ViewLoader = () => (
     <div className="flex items-center justify-center py-20">
@@ -62,6 +63,9 @@ const ParentDashboard = () => {
     const [openEvent, setOpenEvent] = useState(null);
     const [openLineupEvent, setOpenLineupEvent] = useState(null);
     const [showFamilyBuilder, setShowFamilyBuilder] = useState(false);
+    // When set, DrillDetailModal opens so a parent can read the FULL drill
+    // (name + description + video) for a coach-assigned team challenge.
+    const [coachDrillDetail, setCoachDrillDetail] = useState(null);
 
     // Wire voice navigation: lets the user say "go to schedule" / "messages"
     // / "overview" and have the parent dashboard switch tabs.
@@ -99,6 +103,7 @@ const ParentDashboard = () => {
     // app (and never to login). Returns false when nothing's open so the home
     // screen can exit cleanly.
     useBackGuard(() => {
+        if (coachDrillDetail) { setCoachDrillDetail(null); return true; }
         if (openLineupEvent) { setOpenLineupEvent(null); return true; }
         if (openEvent) { setOpenEvent(null); return true; }
         if (showDrillLibrary) { setShowDrillLibrary(false); return true; }
@@ -112,12 +117,12 @@ const ParentDashboard = () => {
     // behind the modal doesn't shift when the user scrolls / drags
     // inside it. Restored on close.
     useEffect(() => {
-        const anyOpen = showDetails || inviteOpen || !!openEvent || !!openLineupEvent || showDrillLibrary || showFamilyBuilder;
+        const anyOpen = showDetails || inviteOpen || !!openEvent || !!openLineupEvent || showDrillLibrary || showFamilyBuilder || !!coachDrillDetail;
         if (!anyOpen) return;
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = prev; };
-    }, [showDetails, inviteOpen, openEvent, openLineupEvent, showDrillLibrary, showFamilyBuilder]);
+    }, [showDetails, inviteOpen, openEvent, openLineupEvent, showDrillLibrary, showFamilyBuilder, coachDrillDetail]);
 
     // When the user picks a different top-nav tab, close any open modal
     // first — otherwise the modal stays mounted on top of the new view.
@@ -371,7 +376,7 @@ const ParentDashboard = () => {
             // Fetch coach assignments, including individual Personal Plan rows.
             const { data: coachAssigns } = await supabase
                 .from('assignments')
-                .select('*, drills:drill_id (id, name, category, duration, description)')
+                .select('*, drills:drill_id (id, name, category, duration, description, video_url)')
                 .eq('player_id', playerId)
                 .eq('source', 'coach')
                 .or(`status.neq.completed,completed_at.gte.${weekStartIso}`)
@@ -1005,6 +1010,24 @@ const ParentDashboard = () => {
                                                 <div className="text-xs text-gray-500">
                                                     {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
                                                 </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const d = assign.drills || {};
+                                                        const dur = assign.custom_duration || d.duration || d.duration_minutes;
+                                                        setCoachDrillDetail({
+                                                            id: assign.id,
+                                                            title: d.name || d.title || 'Drill',
+                                                            duration: dur ? `${dur}m` : null,
+                                                            completed: assign.status === 'completed',
+                                                            originalDrill: d,
+                                                        });
+                                                    }}
+                                                    className="mt-0.5 text-[11px] font-medium text-brand-gold/90 hover:text-brand-gold"
+                                                >
+                                                    Read full description →
+                                                </button>
                                                 {assign.status !== 'completed' && (
                                                     <div className="text-[11px] text-blue-400 font-semibold mt-0.5">Tap to mark done ✓</div>
                                                 )}
@@ -1208,6 +1231,19 @@ const ParentDashboard = () => {
                             fetchChildDetails(selectedChild.id);
                             window.dispatchEvent(new CustomEvent('drill-completed'));
                         }}
+                    />
+                </Suspense>
+            )}
+
+            {/* Coach Challenge "Read full description" — rendered here at the page
+                root (not inside the Coach Challenge glass-panel) so the fixed modal
+                isn't trapped by a backdrop-filter ancestor. */}
+            {coachDrillDetail && (
+                <Suspense fallback={null}>
+                    <DrillDetailModal
+                        drill={coachDrillDetail}
+                        onClose={() => setCoachDrillDetail(null)}
+                        onComplete={(id) => { handleCompleteCoachDrill(id); setCoachDrillDetail(null); }}
                     />
                 </Suspense>
             )}
