@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { X, Calendar, Clock, MapPin, Trophy, Users, Coffee, Sparkles } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, Trophy, Users, Coffee, Sparkles, Upload } from 'lucide-react';
 import { toBlob } from 'html-to-image';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -662,9 +662,29 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                             </div>
                                         </div>
 
-                                        {/* Background buttons + upload */}
+                                        {/* Background — prominent photo upload, then quick color presets */}
                                         <div>
                                             <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1.5">Background</div>
+
+                                            {/* Primary: upload your own photo/graphic */}
+                                            <label className={`relative flex items-center justify-center w-full h-20 rounded-lg border-2 border-dashed cursor-pointer overflow-hidden mb-1.5 ${customBgImage ? 'border-brand-gold' : 'border-white/25 hover:border-brand-gold/60 bg-white/5'}`}
+                                                style={customBgImage ? { backgroundImage: `url(${customBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                                            >
+                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleBgUpload(e.target.files?.[0])} />
+                                                <div className="absolute inset-0 bg-black/45" />
+                                                <div className="relative text-white font-bold uppercase tracking-wider text-sm flex items-center gap-2">
+                                                    <Upload className="w-4 h-4" />
+                                                    {customBgImage ? 'Custom image — tap to replace' : 'Upload background image'}
+                                                </div>
+                                            </label>
+                                            {customBgImage && (
+                                                <button type="button" onClick={() => setCustomBgImage(null)} className="text-[10px] text-gray-500 hover:text-white mb-2">
+                                                    Clear custom background
+                                                </button>
+                                            )}
+
+                                            {/* Or pick a quick color/gradient */}
+                                            <div className="text-[10px] text-gray-600 mt-2 mb-1">or pick a color</div>
                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                                 {BACKGROUNDS.map(b => (
                                                     <button
@@ -678,22 +698,7 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                                         <div className="relative text-white font-bold uppercase tracking-wider">{b.label}</div>
                                                     </button>
                                                 ))}
-                                                {/* Upload custom bg */}
-                                                <label className={`relative p-2 rounded text-left text-[11px] border h-14 overflow-hidden bg-white/5 cursor-pointer flex items-center justify-center gap-1 ${customBgImage ? 'border-brand-gold ring-2 ring-brand-gold/40' : 'border-white/10 hover:border-white/30'}`}
-                                                    style={customBgImage ? { backgroundImage: `url(${customBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-                                                >
-                                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleBgUpload(e.target.files?.[0])} />
-                                                    <div className="absolute inset-0 bg-black/40" />
-                                                    <div className="relative text-white font-bold uppercase tracking-wider text-center">
-                                                        {customBgImage ? '✓ Custom' : '⬆ Upload'}
-                                                    </div>
-                                                </label>
                                             </div>
-                                            {customBgImage && (
-                                                <button type="button" onClick={() => setCustomBgImage(null)} className="text-[10px] text-gray-500 hover:text-white mt-2">
-                                                    Clear custom background
-                                                </button>
-                                            )}
                                         </div>
                                     </>
                                 )}
