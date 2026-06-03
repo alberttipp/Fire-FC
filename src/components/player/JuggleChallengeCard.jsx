@@ -22,6 +22,7 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
     const [loading, setLoading] = useState(true);
     const [modal, setModal] = useState(null);      // 'baseline' | 'session' | null
     const [tab, setTab] = useState('top');         // 'top' | 'improved'
+    const [showAllBoard, setShowAllBoard] = useState(false); // leaderboard: top 8 vs full roster
 
     const load = useCallback(async () => {
         if (!teamId) { setLoading(false); return; }
@@ -66,13 +67,16 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
     const improvement = me?.improvement ?? 0;
     const pct = Math.min(100, Math.round((best / GOAL) * 100));
 
-    const topBoard = [...rows].sort((a, b) => b.current_best - a.current_best).slice(0, 8);
-    const improvedBoard = [...rows].filter((r) => r.has_baseline)
-        .sort((a, b) => b.improvement - a.improvement).slice(0, 8);
+    const fullTop = [...rows].sort((a, b) => b.current_best - a.current_best);
+    const fullImproved = [...rows].filter((r) => r.has_baseline)
+        .sort((a, b) => b.improvement - a.improvement);
     // While locked, the Most-Improved board (and its very name) must stay
     // hidden — otherwise a kid who knows improvement is rewarded could lowball
     // their starting number to game it. Force Top Score until everyone's in.
-    const shownBoard = (improvedUnlocked && tab === 'improved') ? improvedBoard : topBoard;
+    const activeBoard = (improvedUnlocked && tab === 'improved') ? fullImproved : fullTop;
+    // Show a top-8 preview with a "Show all" toggle so EVERY kid on the roster
+    // is reachable — the old hard slice(0,8) made parents think kids were missing.
+    const shownBoard = showAllBoard ? activeBoard : activeBoard.slice(0, 8);
 
     return (
         <>
@@ -202,6 +206,12 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
                             </span>
                         </div>
                     ))}
+                    {activeBoard.length > 8 && (
+                        <button onClick={() => setShowAllBoard((v) => !v)}
+                                className="w-full mt-1 py-2 rounded-lg bg-white/5 text-gray-300 text-xs font-bold uppercase tracking-wider hover:bg-white/10">
+                            {showAllBoard ? 'Show less' : `Show all ${activeBoard.length}`}
+                        </button>
+                    )}
                 </div>
             </div>
 
