@@ -91,14 +91,14 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <div className="sticky top-0 bg-brand-dark/95 backdrop-blur border-b border-white/10 p-4 flex items-center gap-3 z-10">
+            <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="shrink-0 border-b border-white/10 p-4 flex items-center gap-3">
                     <Trophy className="w-5 h-5 text-brand-gold" />
                     <h3 className="text-white font-bold flex-1">June Juggling Competition</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
                 </div>
 
-                <div className="p-4">
+                <div className="overflow-y-auto p-4">
                     {loading ? (
                         <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-brand-gold animate-spin" /></div>
                     ) : (
