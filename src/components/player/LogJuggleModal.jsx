@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Loader2, Trophy, Sparkles, Video } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
@@ -19,6 +19,14 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
     const [videoFile, setVideoFile] = useState(null);
     const [saving, setSaving] = useState(false);
     const fileRef = useRef(null);
+
+    // Lock the page behind the modal so a touch-drag scrolls the modal content
+    // (to reach Save) instead of moving the dashboard up and down behind it.
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, []);
 
     const num = (v) => {
         const n = parseInt(v, 10);

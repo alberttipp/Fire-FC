@@ -32,6 +32,14 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
 
     useEffect(() => { load(); }, [load]);
 
+    // Lock the page behind the sheet so a touch-drag scrolls the standings/
+    // editor instead of moving the dashboard up and down behind it.
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, []);
+
     const rows = board?.rows || [];
     const cfg = board?.config || {};
 

@@ -70,6 +70,7 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
     const shownBoard = (improvedUnlocked && tab === 'improved') ? improvedBoard : topBoard;
 
     return (
+        <>
         <div className="glass-panel p-5 border-l-4 border-l-brand-gold animate-fade-in-up">
             {/* Header + countdown */}
             <div className="flex items-start justify-between gap-3 mb-3">
@@ -199,18 +200,24 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
                 </div>
             </div>
 
-            {modal && (
-                <LogJuggleModal
-                    mode={modal}
-                    playerId={playerId}
-                    teamId={teamId}
-                    playerName={playerName}
-                    currentBest={best}
-                    onClose={() => setModal(null)}
-                    onDone={load}
-                />
-            )}
         </div>
+
+        {/* Rendered as a SIBLING of the glass-panel (not a child): the panel's
+            backdrop-filter would otherwise become the containing block for this
+            fixed modal, squashing it to the card and letting the page scroll
+            behind it. See feedback-firefc-glass-panel-trap. */}
+        {modal && (
+            <LogJuggleModal
+                mode={modal}
+                playerId={playerId}
+                teamId={teamId}
+                playerName={playerName}
+                currentBest={best}
+                onClose={() => setModal(null)}
+                onDone={load}
+            />
+        )}
+        </>
     );
 };
 
