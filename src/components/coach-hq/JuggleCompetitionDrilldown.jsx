@@ -89,16 +89,21 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
 
     const standings = [...rows].sort((a, b) => b.current_best - a.current_best);
 
+    // Positioner is pinned to the top and given an explicit DYNAMIC-viewport
+    // height (h-screen = 100vh fallback; inline 100dvh wins where supported).
+    // Using inset-0 (top:0 + bottom:0) instead would size this to the LAYOUT
+    // viewport, so on Android the sheet's bottom lands behind the address/nav
+    // bar and the last rows can never be scrolled into view.
     return (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90dvh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-x-0 top-0 z-50 h-screen flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" style={{ height: '100dvh' }} onClick={onClose}>
+            <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" style={{ maxHeight: '90dvh' }} onClick={(e) => e.stopPropagation()}>
                 <div className="shrink-0 border-b border-white/10 p-4 flex items-center gap-3">
                     <Trophy className="w-5 h-5 text-brand-gold" />
                     <h3 className="text-white font-bold flex-1">June Juggling Competition</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]" style={{ WebkitOverflowScrolling: 'touch' }}>
                     {loading ? (
                         <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 text-brand-gold animate-spin" /></div>
                     ) : (
