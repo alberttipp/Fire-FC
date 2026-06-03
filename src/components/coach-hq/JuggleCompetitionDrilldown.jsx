@@ -113,7 +113,7 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
                                     {[
                                         ['Have baseline', `${summary.players_with_baseline}/${summary.total_players}`],
                                         ['Can juggle 20+', summary.can_20],
-                                        ['Team juggles', (summary.team_total_juggles || 0).toLocaleString()],
+                                        ['Combined best', standings.reduce((s, r) => s + (r.current_best || 0), 0).toLocaleString()],
                                         ['Total minutes', (summary.team_total_minutes || 0).toLocaleString()],
                                         ['Avg improvement', `+${summary.avg_improvement}`],
                                         ['Sessions · 24h', summary.sessions_24h || 0],

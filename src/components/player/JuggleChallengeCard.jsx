@@ -47,6 +47,11 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
 
     const cfg = board.config || {};
     const rows = board.rows || [];
+    // "Combined best" = every kid's top-juggles-in-a-row added together. Clean
+    // (one value per player), on-theme with the 100-in-a-row goal, and it
+    // self-corrects when a bad score is fixed. Replaces the old volume metric
+    // that depended on an optional field nobody filled (showed "1").
+    const teamBestTotal = rows.reduce((s, r) => s + (r.current_best || 0), 0);
     const me = rows.find((r) => r.player_id === playerId) || null;
     const locked = board.baselines_locked;
     // Most Improved stays hidden until EVERY kid has entered a baseline, so no
@@ -154,7 +159,7 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
             {summary && (
                 <div className="mt-4 text-center text-xs text-gray-400">
                     🔥 <span className="text-white font-bold">{summary.can_20}</span> of {summary.total_players} can juggle 20+ ·
-                    Team total: <span className="text-white font-bold">{(summary.team_total_juggles || 0).toLocaleString()}</span> juggles
+                    Combined best: <span className="text-white font-bold">{teamBestTotal.toLocaleString()}</span> in a row
                 </div>
             )}
 
