@@ -106,9 +106,9 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
     );
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="bg-brand-dark border border-white/10 w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl relative max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <div className="p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 top-0 z-50 h-screen flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" style={{ height: '100dvh' }} onClick={onClose}>
+            <div className="bg-brand-dark border border-white/10 w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl relative max-h-[90vh] overflow-hidden flex flex-col" style={{ maxHeight: '90dvh' }} onClick={(e) => e.stopPropagation()}>
+                <div className="flex-1 min-h-0 overflow-y-auto p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]" style={{ WebkitOverflowScrolling: 'touch' }}>
                     <div className="flex items-center gap-3 mb-5">
                         <div className="w-11 h-11 rounded-full bg-brand-green/15 border-2 border-brand-green/40 flex items-center justify-center text-xl">⚽</div>
                         <div className="min-w-0">

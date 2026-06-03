@@ -18,6 +18,7 @@ import { VoiceCommandProvider } from './context/VoiceCommandContext';
 import AIAssistant from './components/AIAssistant';
 import VoiceCommandOverlay from './components/VoiceCommandOverlay';
 import BuildStamp from './components/BuildStamp';
+import JuggleCountdownBanner from './components/JuggleCountdownBanner';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import { logBuildInfo } from './utils/buildInfo';
 
@@ -89,6 +90,7 @@ const AIAssistantWrapper = () => {
   // real use for it (and remove the corresponding memory reminder).
   return showAssistant ? (
     <>
+      <JuggleCountdownBanner />
       <AIAssistant />
       {/* <VoiceCommandOverlay /> */}
     </>
