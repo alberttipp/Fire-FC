@@ -11,8 +11,11 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState('standings'); // 'standings' | 'finals'
-    const [editing, setEditing] = useState(null);   // player_id being edited
+    const [editing, setEditing] = useState(null);   // player_id whose BASELINE is being edited
     const [editVal, setEditVal] = useState('');
+    const [editingBest, setEditingBest] = useState(null); // player_id whose BEST is being edited
+    const [bestVal, setBestVal] = useState('');
+    const [showAll, setShowAll] = useState(false);   // standings: top 5 vs full list
     const [finals, setFinals] = useState({});        // player_id -> count string
     const [busy, setBusy] = useState(false);
 
@@ -41,6 +44,21 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
             if (error) throw error;
             toast.success('Baseline updated.');
             setEditing(null); setEditVal('');
+            await load();
+        } catch (e) { toast.error(e.message || 'Failed'); } finally { setBusy(false); }
+    };
+
+    // Staff correction of a player's current best (e.g. fix a fat-fingered score).
+    // Unlike logging, this can LOWER the value — set_juggle_best sets it exactly.
+    const saveBest = async (playerId) => {
+        const n = parseInt(bestVal, 10);
+        if (!Number.isFinite(n) || n < 0) { toast.error('Enter a number'); return; }
+        setBusy(true);
+        try {
+            const { error } = await supabase.rpc('set_juggle_best', { p_player_id: playerId, p_best: n });
+            if (error) throw error;
+            toast.success('Best updated.');
+            setEditingBest(null); setBestVal('');
             await load();
         } catch (e) { toast.error(e.message || 'Failed'); } finally { setBusy(false); }
     };
@@ -78,12 +96,14 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
                     ) : (
                         <>
                             {summary && (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
                                     {[
                                         ['Have baseline', `${summary.players_with_baseline}/${summary.total_players}`],
                                         ['Can juggle 20+', summary.can_20],
-                                        ['Team total', (summary.team_total_juggles || 0).toLocaleString()],
+                                        ['Team juggles', (summary.team_total_juggles || 0).toLocaleString()],
+                                        ['Total minutes', (summary.team_total_minutes || 0).toLocaleString()],
                                         ['Avg improvement', `+${summary.avg_improvement}`],
+                                        ['Sessions · 24h', summary.sessions_24h || 0],
                                     ].map(([l, v]) => (
                                         <div key={l} className="bg-white/[0.03] rounded-lg p-2.5 text-center">
                                             <div className="text-white font-bold text-lg">{v}</div>
@@ -106,7 +126,7 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
                                         <span className="col-span-2 text-center">Best</span>
                                         <span className="col-span-3 text-center">Improve</span>
                                     </div>
-                                    {standings.map((r, i) => (
+                                    {(showAll ? standings : standings.slice(0, 5)).map((r, i) => (
                                         <div key={r.player_id} className="grid grid-cols-12 gap-2 items-center px-2 py-2 rounded-lg bg-white/[0.02] border border-white/5">
                                             <span className="col-span-5 text-sm text-gray-200 truncate flex items-center gap-1.5">
                                                 <span className="text-xs text-gray-500 w-4">{i + 1}</span>
@@ -126,10 +146,29 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
                                                     </button>
                                                 )}
                                             </span>
-                                            <span className="col-span-2 text-center text-sm font-bold text-white">{r.current_best}</span>
+                                            <span className="col-span-2 text-center text-sm">
+                                                {editingBest === r.player_id ? (
+                                                    <span className="flex items-center gap-1 justify-center">
+                                                        <input type="number" value={bestVal} onChange={(e) => setBestVal(e.target.value)}
+                                                               className="w-12 bg-black/50 border border-white/20 rounded text-white text-center text-sm py-0.5" autoFocus />
+                                                        <button onClick={() => saveBest(r.player_id)} disabled={busy} className="text-brand-green"><Check className="w-4 h-4" /></button>
+                                                    </span>
+                                                ) : (
+                                                    <button onClick={() => { setEditingBest(r.player_id); setBestVal(String(r.current_best ?? 0)); }}
+                                                            className="inline-flex items-center gap-1 font-bold text-white hover:text-brand-gold">
+                                                        {r.current_best} <Pencil className="w-3 h-3 text-gray-600" />
+                                                    </button>
+                                                )}
+                                            </span>
                                             <span className="col-span-3 text-center text-sm text-brand-green font-bold">{r.has_baseline ? `+${r.improvement}` : '—'}</span>
                                         </div>
                                     ))}
+                                    {standings.length > 5 && (
+                                        <button onClick={() => setShowAll((v) => !v)}
+                                                className="w-full mt-1 py-2 rounded-lg bg-white/5 text-gray-300 text-xs font-bold uppercase tracking-wider hover:bg-white/10">
+                                            {showAll ? 'Show less' : `Show all ${standings.length}`}
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 <div>
