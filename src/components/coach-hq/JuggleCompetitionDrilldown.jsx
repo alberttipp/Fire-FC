@@ -18,6 +18,7 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
     const [showAll, setShowAll] = useState(false);   // standings: top 5 vs full list
     const [finals, setFinals] = useState({});        // player_id -> count string
     const [busy, setBusy] = useState(false);
+    const [vp, setVp] = useState({ h: null, top: 0 }); // actual visible viewport
 
     const load = useCallback(async () => {
         if (!teamId) return;
@@ -38,6 +39,27 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = prev; };
+    }, []);
+
+    // Size the sheet to the ACTUALLY visible viewport (visualViewport API) rather
+    // than dvh/vh CSS units, which some Android devices weren't honoring — leaving
+    // the bottom of the list unreachable.
+    useEffect(() => {
+        const vv = window.visualViewport;
+        const update = () => setVp(vv
+            ? { h: Math.round(vv.height), top: Math.round(vv.offsetTop) }
+            : { h: window.innerHeight, top: 0 });
+        update();
+        vv?.addEventListener('resize', update);
+        vv?.addEventListener('scroll', update);
+        window.addEventListener('resize', update);
+        window.addEventListener('orientationchange', update);
+        return () => {
+            vv?.removeEventListener('resize', update);
+            vv?.removeEventListener('scroll', update);
+            window.removeEventListener('resize', update);
+            window.removeEventListener('orientationchange', update);
+        };
     }, []);
 
     const rows = board?.rows || [];
@@ -95,8 +117,8 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
     // viewport, so on Android the sheet's bottom lands behind the address/nav
     // bar and the last rows can never be scrolled into view.
     return (
-        <div className="fixed inset-x-0 top-0 z-50 h-screen flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" style={{ height: '100dvh' }} onClick={onClose}>
-            <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" style={{ maxHeight: '90dvh' }} onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-x-0 top-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" style={{ top: vp.top, height: vp.h ? `${vp.h}px` : '100dvh' }} onClick={onClose}>
+            <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" style={{ maxHeight: vp.h ? `${vp.h}px` : '90dvh' }} onClick={(e) => e.stopPropagation()}>
                 <div className="shrink-0 border-b border-white/10 p-4 flex items-center gap-3">
                     <Trophy className="w-5 h-5 text-brand-gold" />
                     <h3 className="text-white font-bold flex-1">June Juggling Competition</h3>

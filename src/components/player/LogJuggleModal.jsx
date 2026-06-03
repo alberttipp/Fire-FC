@@ -28,6 +28,30 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
         return () => { document.body.style.overflow = prev; };
     }, []);
 
+    // Size the modal to the ACTUALLY visible viewport via the visualViewport API.
+    // This tracks the real on-screen area — it shrinks when the soft keyboard
+    // opens and excludes the browser toolbar — far more reliably than dvh/vh CSS
+    // units (which some Android devices weren't honoring, leaving the Save button
+    // off-screen). With the pinned footer below, the button stays visible.
+    const [vp, setVp] = useState({ h: null, top: 0 });
+    useEffect(() => {
+        const vv = window.visualViewport;
+        const update = () => setVp(vv
+            ? { h: Math.round(vv.height), top: Math.round(vv.offsetTop) }
+            : { h: window.innerHeight, top: 0 });
+        update();
+        vv?.addEventListener('resize', update);
+        vv?.addEventListener('scroll', update);
+        window.addEventListener('resize', update);
+        window.addEventListener('orientationchange', update);
+        return () => {
+            vv?.removeEventListener('resize', update);
+            vv?.removeEventListener('scroll', update);
+            window.removeEventListener('resize', update);
+            window.removeEventListener('orientationchange', update);
+        };
+    }, []);
+
     const num = (v) => {
         const n = parseInt(v, 10);
         return Number.isFinite(n) && n >= 0 ? n : null;
@@ -93,6 +117,9 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
         }
     };
 
+    // Pressing the keyboard's Go/Enter (or submitting the form) saves too.
+    const onSubmit = (e) => { e.preventDefault(); handleSave(); };
+
     const NumberField = ({ label, hint, value, onChange, autoFocus }) => (
         <div>
             <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">{label}</label>
@@ -106,16 +133,25 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
     );
 
     return (
-        <div className="fixed inset-x-0 top-0 z-50 h-screen flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" style={{ height: '100dvh' }} onClick={onClose}>
-            <div className="bg-brand-dark border border-white/10 w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl relative max-h-[90vh] overflow-hidden flex flex-col" style={{ maxHeight: '90dvh' }} onClick={(e) => e.stopPropagation()}>
-                <div className="flex-1 min-h-0 overflow-y-auto p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div
+            className="fixed inset-x-0 top-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+            style={{ top: vp.top, height: vp.h ? `${vp.h}px` : '100dvh' }}
+            onClick={onClose}
+        >
+            <form
+                className="bg-brand-dark border border-white/10 w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl relative overflow-hidden flex flex-col"
+                style={{ maxHeight: vp.h ? `${vp.h}px` : '90dvh' }}
+                onClick={(e) => e.stopPropagation()}
+                onSubmit={onSubmit}
+            >
+                <div className="flex-1 min-h-0 overflow-y-auto p-6" style={{ WebkitOverflowScrolling: 'touch' }}>
                     <div className="flex items-center gap-3 mb-5">
                         <div className="w-11 h-11 rounded-full bg-brand-green/15 border-2 border-brand-green/40 flex items-center justify-center text-xl">⚽</div>
                         <div className="min-w-0">
                             <h3 className="text-white font-bold text-lg leading-tight">{isBaseline ? 'Set your starting score' : 'Log a juggling session'}</h3>
                             <p className="text-gray-400 text-xs">{playerName ? `${playerName} · ` : ''}June Juggling Competition</p>
                         </div>
-                        <button onClick={onClose} className="ml-auto text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+                        <button type="button" onClick={onClose} className="ml-auto text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
                     </div>
 
                     {isBaseline ? (
@@ -155,12 +191,18 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
                         </button>
                     )}
 
-                    <button onClick={handleSave} disabled={saving}
-                            className="mt-5 w-full py-3.5 rounded-lg bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                </div>
+
+                {/* Pinned footer — the Save button lives OUTSIDE the scroll area so
+                    it is ALWAYS visible at the bottom of the panel, never cut off,
+                    regardless of content height, keyboard, or scroll position. */}
+                <div className="shrink-0 border-t border-white/10 bg-brand-dark p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                    <button type="submit" disabled={saving}
+                            className="w-full py-3.5 rounded-lg bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                         {saving ? <><Loader2 className="w-5 h-5 animate-spin" /> Saving…</> : (isBaseline ? 'Lock in my start' : 'Save session')}
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
     );
 };
