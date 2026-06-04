@@ -94,7 +94,7 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
     // (flex-1 min-h-0 overflow-y-auto). No dvh / visualViewport tricks.
     return (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" style={{ maxHeight: 'min(90vh, 90dvh)' }} onClick={(e) => e.stopPropagation()}>
                 <div className="shrink-0 border-b border-white/10 p-4 flex items-center gap-3">
                     <Trophy className="w-5 h-5 text-brand-gold" />
                     <h3 className="text-white font-bold flex-1">June Juggling Competition</h3>

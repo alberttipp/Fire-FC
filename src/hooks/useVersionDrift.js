@@ -42,8 +42,23 @@ export function useVersionDrift({ toast, intervalMs = 5 * 60 * 1000 } = {}) {
                             // can read it and tap before it auto-dismisses.
                             30000,
                             {
-                                label: 'Reload',
-                                onClick: () => window.location.reload(),
+                                label: 'Update now',
+                                // window.location.reload() can re-serve from the
+                                // bfcache/disk cache on mobile, leaving the user on
+                                // stale JS. Force a brand-new document fetch (HTML is
+                                // no-store) by navigating to a fresh cache-busted URL,
+                                // and clear any Cache Storage first.
+                                onClick: async () => {
+                                    try {
+                                        if (window.caches?.keys) {
+                                            const keys = await caches.keys();
+                                            await Promise.all(keys.map((k) => caches.delete(k)));
+                                        }
+                                    } catch { /* ignore */ }
+                                    const u = new URL(window.location.href);
+                                    u.searchParams.set('_v', Date.now().toString());
+                                    window.location.replace(u.toString());
+                                },
                             }
                         );
                     }
@@ -53,8 +68,9 @@ export function useVersionDrift({ toast, intervalMs = 5 * 60 * 1000 } = {}) {
             }
         };
 
-        // Initial check shortly after mount, then on interval.
-        const initial = setTimeout(check, 30 * 1000);
+        // Initial check shortly after mount, then on interval. Check quickly so a
+        // user who just opened a stale cached app is told to update right away.
+        const initial = setTimeout(check, 3 * 1000);
         const handle = setInterval(check, intervalMs);
 
         // Also re-check when the tab regains focus — common case is the

@@ -123,6 +123,7 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <form
                 className="bg-brand-dark border border-white/10 w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col"
+                style={{ maxHeight: 'min(90vh, 90dvh)' }}
                 onClick={(e) => e.stopPropagation()}
                 onSubmit={onSubmit}
             >
