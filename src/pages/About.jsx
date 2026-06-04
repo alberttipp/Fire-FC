@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import SupportTeamCard from '../components/SupportTeamCard';
 import {
     Flame,
     Target,
@@ -287,6 +288,17 @@ const About = () => {
                         body="Players log in via a tap-to-open access link or a 4-digit PIN. No email or password needed. Their own dashboard shows their stats, passport stamps, and weekly challenges."
                     />
                 </div>
+            </section>
+
+            {/* Support / donate — public-facing, opens the hosted Zeffy form */}
+            <section className="max-w-3xl mx-auto px-4 sm:px-6 pb-12 sm:pb-16">
+                <h2 className="font-display font-bold uppercase tracking-wider text-xs text-brand-gold text-center mb-2">
+                    Support our players
+                </h2>
+                <p className="text-gray-400 text-sm text-center max-w-xl mx-auto mb-6 leading-relaxed">
+                    815YouthSports is a registered 501(c)(3) nonprofit. Donations and business sponsorships are tax-deductible and go straight to equipment, fields, and player development.
+                </p>
+                <SupportTeamCard />
             </section>
 
             {/* How to log in */}

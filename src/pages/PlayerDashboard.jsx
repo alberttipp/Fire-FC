@@ -15,6 +15,7 @@ import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
+import SupportTeamCard from '../components/SupportTeamCard';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
@@ -703,6 +704,9 @@ const PlayerDashboard = () => {
                             playerName={playerRecord.first_name}
                         />
                     )}
+
+                    {/* Support / sponsor — opens the hosted Zeffy form (815YouthSports 501c3). */}
+                    <SupportTeamCard />
 
                     {/* Solo Training Builder — kids build their own practice */}
                     <button
