@@ -7,7 +7,8 @@ import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
-const CSS = fs.readFileSync(path.resolve('dist/assets/index-rmeWEWDY.css'), 'utf8');
+const cssFile = fs.readdirSync(path.resolve('dist/assets')).find((f) => f.endsWith('.css'));
+const CSS = fs.readFileSync(path.resolve('dist/assets', cssFile), 'utf8');
 
 const HTML = `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head>
@@ -17,7 +18,7 @@ const HTML = `<!doctype html><html><head><meta charset="utf-8">
     <main class="max-w-7xl mx-auto px-4 py-8">
       ${Array.from({ length: 40 }, (_, i) => `<p style="color:#888">background line ${i}</p>`).join('')}
       <!-- the modal, exactly as JuggleCompetitionDrilldown renders it -->
-      <div class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div class="fixed inset-0 z-[110] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
         <div id="panel" class="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <div class="shrink-0 border-b border-white/10 p-4 flex items-center gap-3"><h3 class="text-white font-bold flex-1">June Juggling Competition</h3></div>
           <div id="body" class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
@@ -29,6 +30,9 @@ const HTML = `<!doctype html><html><head><meta charset="utf-8">
         </div>
       </div>
     </main>
+    <!-- The real MobileBottomNav: fixed bottom-0 z-[80]. This is what occluded the
+         modal's bottom when the modal was only z-50 (the actual bug). -->
+    <nav id="nav" class="fixed bottom-0 left-0 right-0 z-[80] bg-brand-dark/95 backdrop-blur-lg border-t border-white/10" style="height:64px"></nav>
   </div>
 </body></html>`;
 
@@ -61,5 +65,16 @@ test('drilldown scrolls inside the real Dashboard ancestor chain (portrait)', as
   });
   expect(reached).toBe(true);
 
-  console.log('DASHBOARD-CHAIN PROOF:', JSON.stringify({ fixedBox: box, ...m, reachedBottom: reached }, null, 2));
+  // CRITICAL regression guard for THE bug in the screenshot: the bottom of the
+  // modal must sit ABOVE the fixed bottom nav (z-[80]), not behind it. At a point
+  // ~24px from the bottom (inside the nav's band), the topmost element must be
+  // the MODAL (z-[110]). With the old z-50 modal, this point returned the nav.
+  const hit = await page.evaluate(() => {
+    const el = document.elementFromPoint(Math.round(innerWidth / 2), innerHeight - 24);
+    return { id: el?.id || '', inNav: !!el?.closest('#nav'), inModal: !!el?.closest('#panel') };
+  });
+  expect(hit.inNav).toBe(false);
+  expect(hit.inModal).toBe(true);
+
+  console.log('DASHBOARD-CHAIN PROOF:', JSON.stringify({ fixedBox: box, ...m, reachedBottom: reached, bottomHitsNav: hit.inNav, bottomHitsModal: hit.inModal }, null, 2));
 });

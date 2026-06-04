@@ -5,8 +5,8 @@ import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
-const cssPath = path.resolve('dist/assets/index-rmeWEWDY.css');
-const CSS = fs.readFileSync(cssPath, 'utf8');
+const cssFile = fs.readdirSync(path.resolve('dist/assets')).find((f) => f.endsWith('.css'));
+const CSS = fs.readFileSync(path.resolve('dist/assets', cssFile), 'utf8');
 
 // Exact class strings from JuggleCompetitionDrilldown.jsx
 const HTML = `<!doctype html><html><head><meta charset="utf-8">
