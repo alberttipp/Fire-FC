@@ -18,6 +18,7 @@ import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
+import SupportTeamCard from '../components/SupportTeamCard';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
@@ -967,6 +968,9 @@ const ParentDashboard = () => {
 
                         {/* 7. Leaderboard — always shown, no toggle. */}
                         <Leaderboard />
+
+                        {/* Support / sponsor — opens the hosted Zeffy form (815YouthSports 501c3). */}
+                        <SupportTeamCard />
 
                         {/* 8. Coach Challenge */}
                         <div className="glass-panel p-5 border-l-4 border-l-blue-500">
