@@ -3,11 +3,33 @@ import { X, Loader2, Trophy, Sparkles, Video } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
 
+// Defined at MODULE scope (not inside the component) on purpose: a component
+// declared inside another is a brand-new type on every render, so React
+// unmounts/remounts it each time — with autoFocus that caused a focus-steal
+// re-render loop on some Androids (screen "flashing", couldn't type). Kept
+// stable here, the input mounts once and typing is smooth.
+const NumberField = ({ label, hint, value, onChange, autoFocus }) => (
+    <div>
+        <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">{label}</label>
+        <input
+            type="number" inputMode="numeric" min="0" value={value}
+            onChange={(e) => onChange(e.target.value)} autoFocus={autoFocus} placeholder="0"
+            className="w-full bg-black/50 border border-white/10 rounded-lg py-3 px-4 text-white text-2xl font-mono text-center focus:border-brand-green focus:ring-1 focus:ring-brand-green outline-none"
+        />
+        {hint && <p className="text-[11px] text-gray-500 mt-1">{hint}</p>}
+    </div>
+);
+
 // Log a juggling session OR set the starting baseline.
 //   mode='baseline' — one number ("your best right now") + honesty pledge
 //   mode='session'  — best this session, total juggles, minutes
 // Optional short video (uploaded to the media bucket under team-<id>/, which
 // only works when the user has a real session — kid-mode silently skips it).
+//
+// Modal shell intentionally mirrors CreateEventModal (a known-good modal on
+// mobile): plain `fixed inset-0` + `max-h-[90vh] flex flex-col`, a shrink-0
+// header, a scrolling body, and a shrink-0 footer that keeps the Save button
+// pinned and always visible. No dvh / visualViewport tricks.
 const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, currentBest = 0, onClose, onDone }) => {
     const toast = useToast();
     const isBaseline = mode === 'baseline';
@@ -20,36 +42,12 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
     const [saving, setSaving] = useState(false);
     const fileRef = useRef(null);
 
-    // Lock the page behind the modal so a touch-drag scrolls the modal content
-    // (to reach Save) instead of moving the dashboard up and down behind it.
+    // Lock the page behind the modal so a touch-drag scrolls the modal, not the
+    // dashboard behind it.
     useEffect(() => {
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = prev; };
-    }, []);
-
-    // Size the modal to the ACTUALLY visible viewport via the visualViewport API.
-    // This tracks the real on-screen area — it shrinks when the soft keyboard
-    // opens and excludes the browser toolbar — far more reliably than dvh/vh CSS
-    // units (which some Android devices weren't honoring, leaving the Save button
-    // off-screen). With the pinned footer below, the button stays visible.
-    const [vp, setVp] = useState({ h: null, top: 0 });
-    useEffect(() => {
-        const vv = window.visualViewport;
-        const update = () => setVp(vv
-            ? { h: Math.round(vv.height), top: Math.round(vv.offsetTop) }
-            : { h: window.innerHeight, top: 0 });
-        update();
-        vv?.addEventListener('resize', update);
-        vv?.addEventListener('scroll', update);
-        window.addEventListener('resize', update);
-        window.addEventListener('orientationchange', update);
-        return () => {
-            vv?.removeEventListener('resize', update);
-            vv?.removeEventListener('scroll', update);
-            window.removeEventListener('resize', update);
-            window.removeEventListener('orientationchange', update);
-        };
     }, []);
 
     const num = (v) => {
@@ -74,6 +72,7 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
     };
 
     const handleSave = async () => {
+        if (saving) return;
         const bestN = num(best);
         if (bestN === null) {
             toast.error(isBaseline ? 'Enter your best juggles in a row.' : 'Enter your best run this session.');
@@ -120,40 +119,25 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
     // Pressing the keyboard's Go/Enter (or submitting the form) saves too.
     const onSubmit = (e) => { e.preventDefault(); handleSave(); };
 
-    const NumberField = ({ label, hint, value, onChange, autoFocus }) => (
-        <div>
-            <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-1.5">{label}</label>
-            <input
-                type="number" inputMode="numeric" min="0" value={value}
-                onChange={(e) => onChange(e.target.value)} autoFocus={autoFocus} placeholder="0"
-                className="w-full bg-black/50 border border-white/10 rounded-lg py-3 px-4 text-white text-2xl font-mono text-center focus:border-brand-green focus:ring-1 focus:ring-brand-green outline-none"
-            />
-            {hint && <p className="text-[11px] text-gray-500 mt-1">{hint}</p>}
-        </div>
-    );
-
     return (
-        <div
-            className="fixed inset-x-0 top-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
-            style={{ top: vp.top, height: vp.h ? `${vp.h}px` : '100dvh' }}
-            onClick={onClose}
-        >
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <form
-                className="bg-brand-dark border border-white/10 w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl relative overflow-hidden flex flex-col"
-                style={{ maxHeight: vp.h ? `${vp.h}px` : '90dvh' }}
+                className="bg-brand-dark border border-white/10 w-full md:max-w-md rounded-t-2xl md:rounded-2xl shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
                 onSubmit={onSubmit}
             >
-                <div className="flex-1 min-h-0 overflow-y-auto p-6" style={{ WebkitOverflowScrolling: 'touch' }}>
-                    <div className="flex items-center gap-3 mb-5">
-                        <div className="w-11 h-11 rounded-full bg-brand-green/15 border-2 border-brand-green/40 flex items-center justify-center text-xl">⚽</div>
-                        <div className="min-w-0">
-                            <h3 className="text-white font-bold text-lg leading-tight">{isBaseline ? 'Set your starting score' : 'Log a juggling session'}</h3>
-                            <p className="text-gray-400 text-xs">{playerName ? `${playerName} · ` : ''}June Juggling Competition</p>
-                        </div>
-                        <button type="button" onClick={onClose} className="ml-auto text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+                {/* Header (fixed) */}
+                <div className="shrink-0 flex items-center gap-3 p-6 pb-4 border-b border-white/10">
+                    <div className="w-11 h-11 rounded-full bg-brand-green/15 border-2 border-brand-green/40 flex items-center justify-center text-xl">⚽</div>
+                    <div className="min-w-0">
+                        <h3 className="text-white font-bold text-lg leading-tight">{isBaseline ? 'Set your starting score' : 'Log a juggling session'}</h3>
+                        <p className="text-gray-400 text-xs">{playerName ? `${playerName} · ` : ''}June Juggling Competition</p>
                     </div>
+                    <button type="button" onClick={onClose} className="ml-auto text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+                </div>
 
+                {/* Scrolling body */}
+                <div className="flex-1 min-h-0 overflow-y-auto p-6">
                     {isBaseline ? (
                         <div className="space-y-4">
                             <div className="rounded-xl border border-brand-gold/30 bg-brand-gold/10 p-3 text-sm text-brand-gold">
@@ -190,12 +174,10 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
                             <Sparkles className="w-4 h-4" /> {pledged ? "I'll count honestly! 🤝" : 'Tap: I promise to count honestly 🤝'}
                         </button>
                     )}
-
                 </div>
 
-                {/* Pinned footer — the Save button lives OUTSIDE the scroll area so
-                    it is ALWAYS visible at the bottom of the panel, never cut off,
-                    regardless of content height, keyboard, or scroll position. */}
+                {/* Pinned footer — Save lives OUTSIDE the scroll area so it is always
+                    visible at the bottom of the panel, never cut off. */}
                 <div className="shrink-0 border-t border-white/10 bg-brand-dark p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
                     <button type="submit" disabled={saving}
                             className="w-full py-3.5 rounded-lg bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
