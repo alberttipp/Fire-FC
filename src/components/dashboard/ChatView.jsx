@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import ReactionBar from '../ReactionBar';
 import useLongPress from '../../hooks/useLongPress';
-import { isStaff } from '../../constants/roles';
 import NewConversationModal from './NewConversationModal';
 
 const ChatView = () => {
@@ -163,10 +162,11 @@ const ChatView = () => {
             let firstFetchError = null;
 
             if (!isPlayer) {
-                // Staff: fan out team-channel fetch + staff_dm fetch in
-                // parallel. They're independent queries; doing them
-                // sequentially was adding ~150-300ms to chat open.
-                const [teamRes, staffRes] = await Promise.all([
+                // Staff + parents: team channel(s) the user can see via RLS, plus
+                // ANY conversation they're a member of (dm / group / staff_dm) —
+                // member-based so parent DMs and quick "Message Coach" groups show
+                // up, not just staff_dm. Two independent queries in parallel.
+                const [teamRes, memberRes] = await Promise.all([
                     supabase
                         .from('conversations')
                         .select('id, team_id, type, name, created_at')
@@ -176,7 +176,7 @@ const ChatView = () => {
                         .from('conversations')
                         .select('id, team_id, type, name, created_at, conversation_members!inner(user_id)')
                         .eq('conversation_members.user_id', user.id)
-                        .eq('type', 'staff_dm')
+                        .neq('type', 'team')
                         .order('created_at', { ascending: true }),
                 ]);
 
@@ -186,11 +186,11 @@ const ChatView = () => {
                 }
                 if (teamRes.data) allChannels.push(...teamRes.data);
 
-                if (staffRes.error) {
-                    console.error('Staff DMs error:', staffRes.error);
-                    firstFetchError = firstFetchError || staffRes.error;
+                if (memberRes.error) {
+                    console.error('Member convos error:', memberRes.error);
+                    firstFetchError = firstFetchError || memberRes.error;
                 }
-                if (staffRes.data) allChannels.push(...staffRes.data);
+                if (memberRes.data) allChannels.push(...memberRes.data);
             } else {
                 // Players: only player_dm via conversation_members
                 const { data: playerDMs, error: playerErr } = await supabase
@@ -627,6 +627,35 @@ const ChatView = () => {
         }
     };
 
+    // One-tap "Message Coach / Manager / Coaches & Manager". Resolves the team's
+    // staff and find-or-creates the right thread server-side (deduped), then
+    // jumps into it. For parents + staff (not players).
+    const startStaffThread = async (target, label) => {
+        const teamId = currentTeamId || activeChannel?.team_id || channels[0]?.team_id;
+        if (!teamId) {
+            toast.error("Your team isn't loaded yet — try again in a moment.");
+            return;
+        }
+        try {
+            const { data: convId, error } = await supabase.rpc('message_staff', { p_team_id: teamId, p_target: target });
+            if (error) throw error;
+            await fetchChannels();
+            const { data: conv } = await supabase
+                .from('conversations')
+                .select('id, team_id, type, name, created_at')
+                .eq('id', convId)
+                .maybeSingle();
+            if (conv) setActiveChannel(conv);
+            setSidebarOpen(false);
+        } catch (err) {
+            console.error('[ChatView] message_staff failed:', err);
+            const msg = String(err?.message || '');
+            toast.error(msg.includes('no_recipient')
+                ? `There's no ${label.toLowerCase()} on this team yet.`
+                : "Couldn't start that conversation. Try again.");
+        }
+    };
+
     const getChannelIcon = (type) => {
         switch (type) {
             case 'team': return <Hash className="w-4 h-4 text-brand-green" />;
@@ -696,9 +725,9 @@ const ChatView = () => {
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 h-full
             `}>
-                <div className="flex items-center justify-between mb-4 px-2">
+                <div className="flex items-center justify-between mb-3 px-2">
                     <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Channels</h3>
-                    {isStaff(currentUserRole) && (
+                    {currentUserRole !== 'player' && (
                         <button
                             onClick={() => setShowNewDM(true)}
                             className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-brand-green"
@@ -708,6 +737,25 @@ const ChatView = () => {
                         </button>
                     )}
                 </div>
+
+                {/* Quick message to staff — for parents + staff, not players. */}
+                {currentUserRole !== 'player' && (
+                    <div className="mb-3 space-y-1.5">
+                        <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold px-2">Quick message</p>
+                        <button onClick={() => startStaffThread('coach', 'Coach')}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 text-sm text-gray-200 hover:bg-brand-gold/10 hover:border-brand-gold/30">
+                            <Megaphone className="w-4 h-4 text-brand-gold shrink-0" /> Message Coach
+                        </button>
+                        <button onClick={() => startStaffThread('manager', 'Manager')}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 text-sm text-gray-200 hover:bg-purple-500/10 hover:border-purple-500/30">
+                            <Lock className="w-4 h-4 text-purple-400 shrink-0" /> Message Manager
+                        </button>
+                        <button onClick={() => startStaffThread('staff', 'Staff')}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 text-sm text-gray-200 hover:bg-brand-green/10 hover:border-brand-green/30">
+                            <Users className="w-4 h-4 text-brand-green shrink-0" /> Coaches &amp; Manager
+                        </button>
+                    </div>
+                )}
 
                 <div className="space-y-1 flex-1 overflow-y-auto">
                     {loading ? (
