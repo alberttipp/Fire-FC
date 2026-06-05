@@ -173,7 +173,9 @@ const NewConversationModal = ({ onClose, onCreated }) => {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-white text-sm font-medium truncate">{p.display_name || 'Unnamed'}</div>
-                                                <div className="text-gray-500 text-[11px] capitalize">{p.role_hint}{p.team_name ? ` · ${p.team_name}` : ''}</div>
+                                                <div className="text-gray-500 text-[11px] capitalize">
+                                                    {p.relation ? p.relation : `${p.role_hint}${p.team_name ? ` · ${p.team_name}` : ''}`}
+                                                </div>
                                             </div>
                                             {isSel && <Check className="w-4 h-4 text-brand-gold shrink-0" />}
                                         </button>
