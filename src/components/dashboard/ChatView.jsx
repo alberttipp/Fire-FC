@@ -106,6 +106,15 @@ const ChatView = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // Lock background scroll while the mobile channel drawer is open so a
+    // touch-drag scrolls the drawer's list, not the page behind it.
+    useEffect(() => {
+        if (!sidebarOpen) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = prev; };
+    }, [sidebarOpen]);
+
     useEffect(() => {
         if (user?.id) {
             fetchChannels();
@@ -627,35 +636,6 @@ const ChatView = () => {
         }
     };
 
-    // One-tap "Message Coach / Manager / Coaches & Manager". Resolves the team's
-    // staff and find-or-creates the right thread server-side (deduped), then
-    // jumps into it. For parents + staff (not players).
-    const startStaffThread = async (target, label) => {
-        const teamId = currentTeamId || activeChannel?.team_id || channels[0]?.team_id;
-        if (!teamId) {
-            toast.error("Your team isn't loaded yet — try again in a moment.");
-            return;
-        }
-        try {
-            const { data: convId, error } = await supabase.rpc('message_staff', { p_team_id: teamId, p_target: target });
-            if (error) throw error;
-            await fetchChannels();
-            const { data: conv } = await supabase
-                .from('conversations')
-                .select('id, team_id, type, name, created_at')
-                .eq('id', convId)
-                .maybeSingle();
-            if (conv) setActiveChannel(conv);
-            setSidebarOpen(false);
-        } catch (err) {
-            console.error('[ChatView] message_staff failed:', err);
-            const msg = String(err?.message || '');
-            toast.error(msg.includes('no_recipient')
-                ? `There's no ${label.toLowerCase()} on this team yet.`
-                : "Couldn't start that conversation. Try again.");
-        }
-    };
-
     const getChannelIcon = (type) => {
         switch (type) {
             case 'team': return <Hash className="w-4 h-4 text-brand-green" />;
@@ -717,47 +697,35 @@ const ChatView = () => {
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            {/* Sidebar / Channel List */}
+            {/* Sidebar / Channel List. Mobile: a drawer ABOVE the app header
+                (z-50) and bottom nav (z-80) so its top option isn't hidden;
+                top padding clears the status bar. Desktop: a normal column. */}
             <div className={`
-                fixed md:relative inset-y-0 left-0 z-20
+                fixed md:relative inset-y-0 left-0 z-[100] md:z-auto
                 w-72 md:w-64 glass-panel p-4 flex flex-col rounded-none md:rounded-2xl
+                pt-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] md:pt-4
                 transform transition-transform duration-200 ease-in-out
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 h-full
             `}>
                 <div className="flex items-center justify-between mb-3 px-2">
-                    <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Channels</h3>
-                    {currentUserRole !== 'player' && (
-                        <button
-                            onClick={() => setShowNewDM(true)}
-                            className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-brand-green"
-                            title="New conversation"
-                        >
-                            <Plus className="w-4 h-4" />
-                        </button>
-                    )}
+                    <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Chats</h3>
+                    <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1 text-gray-400 hover:text-white" title="Close">
+                        <X className="w-4 h-4" />
+                    </button>
                 </div>
 
-                {/* Quick message to staff — for parents + staff, not players. */}
+                {/* DM anyone on the team — opens a searchable contact list. */}
                 {currentUserRole !== 'player' && (
-                    <div className="mb-3 space-y-1.5">
-                        <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold px-2">Quick message</p>
-                        <button onClick={() => startStaffThread('coach', 'Coach')}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 text-sm text-gray-200 hover:bg-brand-gold/10 hover:border-brand-gold/30">
-                            <Megaphone className="w-4 h-4 text-brand-gold shrink-0" /> Message Coach
-                        </button>
-                        <button onClick={() => startStaffThread('manager', 'Manager')}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 text-sm text-gray-200 hover:bg-purple-500/10 hover:border-purple-500/30">
-                            <Lock className="w-4 h-4 text-purple-400 shrink-0" /> Message Manager
-                        </button>
-                        <button onClick={() => startStaffThread('staff', 'Staff')}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 text-sm text-gray-200 hover:bg-brand-green/10 hover:border-brand-green/30">
-                            <Users className="w-4 h-4 text-brand-green shrink-0" /> Coaches &amp; Manager
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => setShowNewDM(true)}
+                        className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-brand-green/15 border border-brand-green/40 text-brand-green text-sm font-bold uppercase tracking-wider hover:bg-brand-green/25"
+                    >
+                        <Plus className="w-4 h-4" /> New message
+                    </button>
                 )}
 
-                <div className="space-y-1 flex-1 overflow-y-auto">
+                <div className="space-y-1 flex-1 min-h-0 overflow-y-auto overscroll-contain">
                     {loading ? (
                         <div className="text-center py-8 px-2">
                             <Loader2 className="w-6 h-6 text-gray-500 mx-auto mb-2 animate-spin" />
@@ -807,19 +775,6 @@ const ChatView = () => {
                 {/* New Conversation Modal — DM or Group. Uses the
                     create_conversation RPC (atomic) and the
                     get_messageable_users RPC for the picker. */}
-                {showNewDM && (
-                    <NewConversationModal
-                        onClose={() => setShowNewDM(false)}
-                        onCreated={async (newConvoId) => {
-                            await fetchChannels();
-                            // Best-effort: select the freshly created convo so the
-                            // user lands in it. fetchChannels above repopulates.
-                            const fresh = channels.find(c => c.id === newConvoId);
-                            if (fresh) setActiveChannel(fresh);
-                        }}
-                    />
-                )}
-
                 {/* Online Status */}
                 <div className="mt-auto pt-4 border-t border-white/10">
                     <div className="flex items-center gap-2 px-2 text-xs text-gray-500">
@@ -829,9 +784,9 @@ const ChatView = () => {
                 </div>
             </div>
 
-            {/* Overlay for mobile sidebar */}
+            {/* Overlay for mobile sidebar — just below the drawer (z-100). */}
             {sidebarOpen && (
-                <div className="fixed inset-0 bg-black/50 z-10 md:hidden" onClick={() => setSidebarOpen(false)} />
+                <div className="fixed inset-0 bg-black/50 z-[99] md:hidden" onClick={() => setSidebarOpen(false)} />
             )}
 
             {/* Main Chat Area */}
@@ -1012,6 +967,25 @@ const ChatView = () => {
                     </div>
                 )}
             </div>
+
+            {/* New conversation / DM contact picker — rendered at the ChatView
+                root so it is NOT trapped inside the sidebar's glass-panel
+                (backdrop-filter breaks a fixed modal's positioning). */}
+            {showNewDM && (
+                <NewConversationModal
+                    onClose={() => setShowNewDM(false)}
+                    onCreated={async (newConvoId) => {
+                        await fetchChannels();
+                        const { data: conv } = await supabase
+                            .from('conversations')
+                            .select('id, team_id, type, name, created_at')
+                            .eq('id', newConvoId)
+                            .maybeSingle();
+                        if (conv) setActiveChannel(conv);
+                        setSidebarOpen(false);
+                    }}
+                />
+            )}
         </div>
     );
 };
