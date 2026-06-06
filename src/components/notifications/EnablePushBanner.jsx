@@ -9,7 +9,7 @@ import { getPushSupport, isPushSubscribed, isIOSWithoutStandalone, enablePush } 
 // never found the buried settings toggle, so events/messages weren't reaching
 // phones — this surfaces the one-tap enable everywhere.
 const DISMISS_KEY = 'fcPushBannerDismissedAt';
-const RESHOW_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // re-ask after a week if dismissed
+const RESHOW_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // re-ask after 3 days if dismissed
 
 const recentlyDismissed = () => {
     try {
