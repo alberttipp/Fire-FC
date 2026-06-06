@@ -4,19 +4,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { getPushSupport, isPushSubscribed, isIOSWithoutStandalone, enablePush } from '../../utils/push';
 
-// Prominent, dismissible "turn on notifications" banner shown to any signed-in
-// user whose device isn't push-subscribed yet. Most of the team (incl. staff)
-// never found the buried settings toggle, so events/messages weren't reaching
-// phones — this surfaces the one-tap enable everywhere.
-const DISMISS_KEY = 'fcPushBannerDismissedAt';
-const RESHOW_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // re-ask after 3 days if dismissed
-
-const recentlyDismissed = () => {
-    try {
-        const ts = Number(localStorage.getItem(DISMISS_KEY) || 0);
-        return ts && (Date.now() - ts) < RESHOW_AFTER_MS;
-    } catch { return false; }
-};
+// Prominent "turn on notifications" banner shown to any signed-in user whose
+// device isn't push-subscribed yet. Most of the team (incl. staff) never found
+// the buried settings toggle, so events/messages weren't reaching phones.
+//
+// Relentless by design (per Albert): it shows on EVERY app open until they
+// actually enable push. The X only hides it for the current session — reopen
+// the app and it's back. Once push is on, it never shows again.
 
 const EnablePushBanner = () => {
     const { user } = useAuth();
@@ -27,7 +21,7 @@ const EnablePushBanner = () => {
     useEffect(() => {
         let cancelled = false;
         (async () => {
-            if (!user?.id || recentlyDismissed()) return;
+            if (!user?.id) return;
             if (!getPushSupport().ok) return;          // don't nag if push can't work here
             if (isIOSWithoutStandalone()) { if (!cancelled) setMode('ios'); return; }
             const subbed = await isPushSubscribed();
@@ -36,10 +30,8 @@ const EnablePushBanner = () => {
         return () => { cancelled = true; };
     }, [user?.id]);
 
-    const dismiss = () => {
-        try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* ignore */ }
-        setMode(null);
-    };
+    // Session-only hide: it returns on the next app open (relentless until enabled).
+    const dismiss = () => setMode(null);
 
     const onEnable = async () => {
         if (busy) return;
