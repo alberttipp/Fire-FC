@@ -20,6 +20,7 @@ import PersonalPlanCard from '../components/player/PersonalPlanCard';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
 import SupportTeamCard from '../components/SupportTeamCard';
 import TeamCelebrationBanner from '../components/TeamCelebrationBanner';
+import TeamGoalBar from '../components/TeamGoalBar';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
@@ -959,6 +960,7 @@ const ParentDashboard = () => {
                              for the full breakdown. */}
 
                         {selectedChild?.team_id && <TeamCelebrationBanner teamId={selectedChild.team_id} />}
+                        {selectedChild?.team_id && <TeamGoalBar teamId={selectedChild.team_id} />}
 
                         {/* June Juggling Competition */}
                         {selectedChild?.id && (
