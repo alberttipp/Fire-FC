@@ -19,6 +19,7 @@ import DevelopmentPassportCard from '../components/player/DevelopmentPassportCar
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
 import SupportTeamCard from '../components/SupportTeamCard';
+import TeamCelebrationBanner from '../components/TeamCelebrationBanner';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
@@ -956,6 +957,8 @@ const ParentDashboard = () => {
                              of the player card (PlayerEvaluationModal), so the
                              front was duplicating. Tap the player card to flip
                              for the full breakdown. */}
+
+                        {selectedChild?.team_id && <TeamCelebrationBanner teamId={selectedChild.team_id} />}
 
                         {/* June Juggling Competition */}
                         {selectedChild?.id && (

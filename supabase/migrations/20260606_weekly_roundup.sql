@@ -1,0 +1,13 @@
+-- Applied to prod via MCP 2026-06-06. Mirrored for traceability.
+-- Sunday 9 AM Central roundup posted to team chat (auto-notifies via the
+-- messages trigger): top 5 jugglers (overall best) + top 5 trainers (self-logged
+-- minutes outside practice, last 7 days) + 100 Club. See DB for full bodies of
+-- post_weekly_roundup(team, dry_run) and post_weekly_roundup_all().
+--
+-- Scheduling (pg_cron, set via cron.schedule, not in this file):
+--   weekly-roundup-1400utc : '0 14 * * 0' -> SELECT public.post_weekly_roundup_all()
+--   weekly-roundup-1500utc : '0 15 * * 0' -> SELECT public.post_weekly_roundup_all()
+-- The function guards on America/Chicago hour = 09 so it fires exactly once at
+-- 9 AM Central year-round (14:00 UTC in CDT / 15:00 UTC in CST); 20h dedup guard.
+-- post_weekly_roundup posts as a staff sender_id with sender_name 'Fire FC ⚽'.
+SELECT 'see DB for post_weekly_roundup / post_weekly_roundup_all definitions' AS note;

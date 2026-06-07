@@ -16,6 +16,7 @@ import DevelopmentPassportCard from '../components/player/DevelopmentPassportCar
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
 import SupportTeamCard from '../components/SupportTeamCard';
+import TeamCelebrationBanner from '../components/TeamCelebrationBanner';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 
@@ -696,6 +697,8 @@ const PlayerDashboard = () => {
                     <PersonalPlanCard assignments={personalPlanAssignments} onComplete={handleDrillComplete} />
 
                     <HomeworkHub assignments={challengeAssignments} onComplete={handleDrillComplete} />
+
+                    {playerRecord?.team_id && <TeamCelebrationBanner teamId={playerRecord.team_id} />}
 
                     {playerRecord?.id && (
                         <JuggleChallengeCard
