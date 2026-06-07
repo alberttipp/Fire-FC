@@ -1,0 +1,6 @@
+-- Applied to prod via MCP 2026-06-06. Mirrored for traceability.
+-- Fix: kid logins (players.user_id) and parents aren't in team_memberships, so
+-- the juggle leaderboard/summary guard rejected them ("Not a member") -- Bo
+-- couldn't see top jugglers. Added can_view_team_juggle(team) helper allowing
+-- anon (kid-mode) OR service OR team staff OR the player themselves OR a family
+-- member of a player on the team; both RPCs now use it. See DB for full bodies.
