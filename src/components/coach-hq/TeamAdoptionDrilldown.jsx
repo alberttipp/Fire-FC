@@ -30,6 +30,22 @@ const TeamAdoptionDrilldown = ({ teamId, onClose }) => {
     const s = data?.summary || {};
     const players = data?.players || [];
     const off = data?.notifications_off || [];
+    const people = data?.people || [];
+
+    const ago = (iso) => {
+        if (!iso) return 'never';
+        const days = Math.floor((Date.now() - new Date(iso)) / 86400000);
+        if (days <= 0) return 'today';
+        if (days === 1) return 'yesterday';
+        if (days < 7) return `${days}d ago`;
+        if (days < 30) return `${Math.floor(days / 7)}w ago`;
+        return `${Math.floor(days / 30)}mo ago`;
+    };
+    const agoColor = (iso) => {
+        if (!iso) return 'text-red-400';
+        const days = Math.floor((Date.now() - new Date(iso)) / 86400000);
+        return days <= 2 ? 'text-brand-green' : days <= 7 ? 'text-gray-300' : 'text-red-400';
+    };
 
     const copyOff = async () => {
         const names = off.map((o) => o.name).join(', ');
@@ -97,6 +113,28 @@ const TeamAdoptionDrilldown = ({ teamId, onClose }) => {
                                     </div>
                                 )}
                                 <p className="text-[10px] text-gray-500 mt-2">Tip: copy the names and send a quick group text asking them to open the app and tap “Turn on” in the gold banner.</p>
+                            </div>
+
+                            {/* People — who's active, who's gone quiet */}
+                            <div>
+                                <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2 px-1">People · most active first</h4>
+                                <div className="space-y-1">
+                                    {people.map((u, i) => (
+                                        <div key={(u.name || '') + i} className="flex items-center gap-2 px-2 py-2 rounded-lg bg-white/[0.02] border border-white/5">
+                                            <span className="flex-1 min-w-0 text-sm text-gray-200 truncate">
+                                                {u.name}
+                                                {u.role === 'staff' && <span className="ml-1.5 text-[9px] uppercase tracking-wider text-brand-gold">staff</span>}
+                                                {u.kids && <span className="text-gray-500 text-[11px]"> · {u.kids}</span>}
+                                            </span>
+                                            {u.push_on
+                                                ? <Bell className="w-3.5 h-3.5 text-brand-green shrink-0" title="Notifications on" />
+                                                : <BellOff className="w-3.5 h-3.5 text-gray-600 shrink-0" title="Notifications off" />}
+                                            {u.msgs > 0 && <span className="text-[10px] text-gray-500 shrink-0">{u.msgs}💬</span>}
+                                            <span className={`text-[11px] font-medium shrink-0 w-16 text-right ${agoColor(u.last_sign_in)}`}>{ago(u.last_sign_in)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] text-gray-500 mt-2 px-1"><span className="text-brand-green">Green</span> = active (≤2 days), <span className="text-red-400">red</span> = hasn't opened it in over a week.</p>
                             </div>
 
                             {/* Per-player */}
