@@ -30,6 +30,23 @@ const TeamView = () => {
     const [invitePlayer, setInvitePlayer] = useState(null); // For Family Invite Modal
     const [feedbackPlayer, setFeedbackPlayer] = useState(null);
     const [copied, setCopied] = useState(false);
+    const [showTeamSettings, setShowTeamSettings] = useState(false);
+    const [savingEvalMode, setSavingEvalMode] = useState(false);
+
+    // Set the team's default evaluation depth (youth = trimmed, pro = full FIFA).
+    // Players inherit this unless they have a personal override.
+    const setTeamEvalMode = async (nextMode) => {
+        if (!myTeam?.id || savingEvalMode || myTeam.eval_mode === nextMode) return;
+        setSavingEvalMode(true);
+        const prev = myTeam.eval_mode;
+        setMyTeam((t) => ({ ...t, eval_mode: nextMode })); // optimistic
+        const { error } = await supabase.from('teams').update({ eval_mode: nextMode }).eq('id', myTeam.id);
+        if (error) {
+            console.warn('[TeamView] could not set eval_mode', error);
+            setMyTeam((t) => ({ ...t, eval_mode: prev })); // revert
+        }
+        setSavingEvalMode(false);
+    };
 
     // Check if user is manager or coach (used for UI)
     const isManager = profile?.role === 'manager' || user?.role === 'manager';
@@ -371,11 +388,42 @@ const TeamView = () => {
                             </button>
                         </div>
                     </div>
-                    <button className="px-4 py-2 border border-brand-green/30 text-brand-green hover:bg-brand-green/10 rounded uppercase font-bold text-xs tracking-wider">
+                    <button
+                        onClick={() => setShowTeamSettings((s) => !s)}
+                        className={`px-4 py-2 border rounded uppercase font-bold text-xs tracking-wider transition-colors ${showTeamSettings ? 'border-brand-green bg-brand-green/10 text-brand-green' : 'border-brand-green/30 text-brand-green hover:bg-brand-green/10'}`}
+                    >
                         Settings
                     </button>
                 </div>
             </div>
+
+            {/* Team settings — coach/manager only */}
+            {showTeamSettings && (isManager || isCoach) && (
+                <div className="bg-black/30 border border-white/10 rounded-xl p-4 md:p-5 -mt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 className="text-white font-bold text-sm uppercase tracking-wider">Evaluation Depth</h3>
+                            <p className="text-xs text-gray-400 mt-0.5 max-w-md">
+                                <span className="text-gray-200 font-semibold">Youth</span> = simplified card for younger players ·{' '}
+                                <span className="text-gray-200 font-semibold">Pro</span> = full FIFA sub-stats. Players inherit this unless individually overridden.
+                            </p>
+                        </div>
+                        <div className="inline-flex rounded-lg border border-white/15 overflow-hidden shrink-0 self-start">
+                            {[['youth', 'Youth'], ['pro', 'Pro']].map(([val, label]) => (
+                                <button
+                                    key={val}
+                                    type="button"
+                                    onClick={() => setTeamEvalMode(val)}
+                                    disabled={savingEvalMode}
+                                    className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-60 ${(myTeam.eval_mode || 'youth') === val ? 'bg-brand-green text-brand-dark' : 'text-gray-300 hover:text-white'}`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {selectedPlayer && (
                 <PlayerEvaluationModal player={selectedPlayer} onClose={() => { setSelectedPlayer(null); if (myTeam?.id) fetchRosterForTeam(myTeam.id); }} />
