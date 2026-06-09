@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { isStaff } from '../constants/roles';
 
@@ -110,6 +110,10 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const [demoUser, setDemoUser] = useState(null);
+    // Last user id we already fetched profile + memberships for, so the multiple
+    // auth events on a single load (initial-session / signed-in / token-refreshed)
+    // don't each re-run those queries. Reset to null on logout / no session.
+    const lastProfileUserId = useRef(null);
 
     useEffect(() => {
         // Initial mount — restore from real Supabase session OR fall back
@@ -146,6 +150,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(session.user);
                 fetchProfile(session.user.id);
             } else {
+                lastProfileUserId.current = null;
                 // No real session. DO NOT clear a virtual user here — they
                 // (player tokens, demo accounts) are managed via localStorage
                 // with their own TTL. Earlier code did `setUser(null)` here
@@ -167,6 +172,11 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const fetchProfile = async (userId) => {
+        // Dedupe: getSession() + onAuthStateChange both call this, and the latter
+        // fires for every auth event on a single load. Skip if we already have
+        // this user's profile (was firing profiles + team_memberships ~3x/load).
+        if (lastProfileUserId.current === userId) return;
+        lastProfileUserId.current = userId;
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -212,6 +222,7 @@ export const AuthProvider = ({ children }) => {
         clearVirtualUser();
         setUser(null);
         setProfile(null);
+        lastProfileUserId.current = null;
         return supabase.auth.signOut();
     };
 
