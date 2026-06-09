@@ -1,5 +1,113 @@
 # Fire-FC Development Notes
 
+## Session: 2026-06-09 (FIFA evaluation system — built + shipped to production)
+
+Albert: "evaluations are about to be put into service — make it clean and
+perfect, in line with how we display/offer drills, mimic the FIFA video games
+to engage the 10–11 yos." Built the whole thing in one arc and promoted to
+production. **All four eval commits are live on `production` (= `main`) at
+`1a93f8a`** (base before this work was `8004966`).
+
+### What it is
+An EA-FC-style player card replacing the old flat 6-slider eval:
+- **6 face attributes** (PAC/SHO/PAS/DRI/DEF/PHY) that each expand into
+  authentic FIFA **sub-stats**. The face value auto-rolls up from its active
+  sub-stats (or is scored directly when an attribute has no active subs).
+- **Two depth modes**: `youth` (default, trimmed — 22 sub-stats, right for
+  ~10–11) and `pro` (full FIFA — 29 sub-stats). The mode is the intended
+  **premium upsell down the road** — free tier = youth, paid = pro. Built so
+  gating `pro` later is trivial.
+- **Goalkeeper card**: separate DIV/HAN/KIC/REF/SPD/POS faces. Auto-selected
+  when `players.position = 'Goalkeeper'`, with a manual toggle for unset
+  positions. Youth GK scores the 6 faces directly; pro GK expands each into 2.
+- Radar + OVR are computed from the faces; dashed baseline = first eval.
+- **Score → train loop**: each attribute lists its linked drill categories;
+  in the coach view they're clickable and open the drill library pre-filtered.
+
+### Mode hierarchy (how depth resolves)
+`players.eval_mode` (per-player override, null = inherit) → `teams.eval_mode`
+(team default) → `'youth'`. **Private-training clients are `teams` rows
+(`team_type='private_group'`), so they inherit the exact same mechanism for
+free** — no separate path was needed.
+
+### Schema — migration `20260609_fifa_evaluation_system.sql` (APPLIED TO PROD)
+Additive + idempotent, no drops, safe while families are live:
+- `teams.eval_mode text not null default 'youth'` (CHECK youth|pro)
+- `players.eval_mode text` (null = inherit; CHECK null|youth|pro)
+- `evaluations.sub_stats jsonb` — authoritative card `{card_type, mode,
+  attributes:{6 faces}, subs:{...}, directFaces:{...}}`
+- `evaluations.card_type text default 'outfield'` (CHECK outfield|gk)
+- `evaluations.eval_mode text`
+- The existing 6 int columns (pace..physical) are KEPT as the computed face
+  rollup so radar/OVR/history/Coach-HQ queries are unchanged. For a GK card
+  those 6 columns hold DIV/HAN/KIC/REF/SPD/POS in order; `card_type` tells the
+  UI how to label them.
+
+### Files
+- **NEW `src/constants/fifaAttributes.js`** — single source of truth. 6
+  outfield attrs + GK card, each sub-stat flagged `youth`, `drillCategories`
+  per attr (verified to match real `drills.category` values), helpers
+  (`getCard`, `activeSubs`, `attributeFace`, `overallRating`, `resolveEvalMode`).
+- `PlayerEvaluationModal.jsx` — Eval tab rewritten: expandable attribute groups
+  with sub-stat sliders → live faces + OVR; Youth/Pro toggle (persists
+  `players.eval_mode` immediately); GK auto + manual toggle; save writes
+  `sub_stats`/`card_type`/`eval_mode` and mirrors faces into the 6 int columns.
+  New optional `onTrainCategory` prop → clickable "Train" chips (coach only).
+  All other tabs (Info/Badges/Training/Notes/IDP) untouched.
+- `TeamView.jsx` — the previously-DEAD "Settings" button now opens a team
+  settings panel (coach/manager) with a Youth/Pro **Evaluation Depth** toggle
+  that sets `teams.eval_mode` (optimistic + revert). Also renders
+  `DrillLibraryModal` stacked over the eval card when a Train chip is tapped.
+- `DrillLibraryModal.jsx` — added `initialFilter` prop so it can open
+  pre-filtered to a category.
+
+### Commits (rebased onto current main, then ff'd to main + production)
+- `a1bd35e` foundation (constants + migration)
+- `437159b` card UI (attributes, sub-stats, GK, modes)
+- `6906cf3` team-level depth toggle
+- `1a93f8a` Train links → drill library
+
+### DB data changes (live, no redeploy — Supabase is shared by preview+prod)
+- **Deleted the 1 test eval** (Bryce Gunderson, `c9d76fe1-...`) → `evaluations`
+  is now 0 rows, clean slate for real scoring.
+- **Set goalkeepers**: `position='Goalkeeper'` for **Jameson McCarthy (#6)** and
+  **Bryce Gunderson (#44)**. Their cards now auto-show the GK layout.
+- Roster: 23 players, all 23 link to auth + on a team; team mode = youth.
+
+### Verification done / NOT done
+- ✅ Production build passes; rollup/mode/GK math checked via node (youth DRI
+  avg=78, pro pulls Composure in → 73, GK youth faces preserved); drill
+  categories confirmed against DB (all 10 have drills, Goalkeeper has 6).
+- ❌ **NOT browser-tested** — the web session env can't reach the live app.
+  Albert to hard-refresh **firefcapp.com**, open Jameson/Bryce (confirm GK card)
+  + an outfield kid (confirm Youth/Pro toggle + a Train link jumps to the
+  filtered library).
+
+### Open / carry-over
+- [ ] **Field positions for the 21 outfield players** — Albert asked to set
+  them, but I won't fabricate real kids' positions. Waiting on a jersey#→
+  position mapping. Valid values (match Info-tab dropdown): Goalkeeper, Center
+  Back, Fullback, Defensive Midfielder, Center Midfielder, Attacking
+  Midfielder, Winger, Striker, Anywhere. Positions are pure DB data → instant,
+  no deploy. (Keepers #6 + #44 already done.)
+- [ ] Premium gating: when ready to monetize, gate `pro` mode behind the paid
+  tier (per-team and/or per-player). Plumbing already in place.
+- [ ] Minor: GK evaluation-history delta chips still label deltas with outfield
+  names (cosmetic; only shows once a keeper has 2+ evals).
+- [ ] Minor: parent/player **read-only** eval views keep the static "Train:"
+  hint (not clickable — no nav target wired in those dashboards).
+- [ ] `drills.category` still has legacy lowercase values (cooldown, warmup,
+  fitness, game, shooting, technical) alongside the 10 real ones — harmless,
+  could be consolidated later.
+
+### Rollback
+- Code: `git push origin 8004966:production --force-with-lease` reverts
+  production to pre-eval state instantly.
+- Schema: down-script (drop the 5 columns) is in the migration file header.
+  Columns are additive + harmless to leave even if code is reverted.
+
+---
+
 ## Session: 2026-05-14 → 2026-05-17 (family rollout, private training, stability hardening)
 
 A multi-day run. Albert started rolling the app out to the 19 Summer Squad
