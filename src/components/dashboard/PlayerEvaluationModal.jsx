@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, TrendingUp, Award, Medal, Clock, FileText, Target, IdCard, Loader2 } from 'lucide-react';
+import { X, Save, TrendingUp, Award, Medal, Clock, FileText, Target, IdCard, Loader2, ChevronDown, Shield, Dumbbell } from 'lucide-react';
 import CoachNotesPanel from './CoachNotesPanel';
 import IDPBuilder from './IDPBuilder';
 import AvatarUploader from '../player/AvatarUploader';
@@ -8,6 +8,10 @@ import { badges as mockBadges } from '../../data/badges';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
+import {
+    OUTFIELD_ATTRIBUTES, GK_ATTRIBUTES, getCard, activeSubs, isFaceScoredDirectly,
+    attributeFace, overallRating, resolveEvalMode, GK_POSITION, DEFAULT_SUBSTAT,
+} from '../../constants/fifaAttributes';
 
 const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     const { user } = useAuth();
@@ -62,7 +66,6 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
     const [season, setSeason] = useState('Spring 2026');
     const [existingEvalId, setExistingEvalId] = useState(null);
     const [evalHistory, setEvalHistory] = useState([]);
-    const [baselineStats, setBaselineStats] = useState(null);
 
     // Badge Data State
     const [allBadges, setAllBadges] = useState([]);
@@ -86,15 +89,55 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         career_touches: 0,
     });
 
-    // Stats - will load from DB if exists
-    const [stats, setStats] = useState({
-        Pace: 50,
-        Shooting: 50,
-        Passing: 50,
-        Dribbling: 50,
-        Defending: 50,
-        Physical: 50,
-    });
+    // --- FIFA card state -----------------------------------------------------
+    // cardType: 'outfield' | 'gk' (keepers get DIV/HAN/KIC/REF/SPD/POS).
+    // mode: effective depth — 'youth' (trimmed) | 'pro' (full FIFA sub-stats).
+    // subValues: { subStatKey: 0-99 } — the coach scores these; faces compute.
+    // directFaces: { ATTR_KEY: 0-99 } — for attributes with no active sub-stats
+    //   in this mode (e.g. youth goalkeeper faces), scored directly.
+    const [cardType, setCardType] = useState('outfield');
+    const [playerEvalMode, setPlayerEvalMode] = useState(null); // null = inherit team
+    const [teamEvalMode, setTeamEvalMode] = useState('youth');
+    const mode = resolveEvalMode(playerEvalMode, teamEvalMode);
+    const [subValues, setSubValues] = useState({});
+    const [directFaces, setDirectFaces] = useState({});
+    const [expandedAttr, setExpandedAttr] = useState(null);
+    const [baselineFaces, setBaselineFaces] = useState(null); // array of 6, in card order
+
+    // A player whose position is Goalkeeper always shows the GK card; otherwise
+    // the (manually toggleable) cardType state applies. Position is the truth.
+    const isKeeper = info.position === GK_POSITION;
+    const effCardType = isKeeper ? 'gk' : cardType;
+    const card = getCard(effCardType);
+    const faceValue = (attr) => isFaceScoredDirectly(attr, mode)
+        ? (directFaces[attr.key] ?? DEFAULT_SUBSTAT)
+        : attributeFace(attr, mode, subValues);
+    const faces = card.map(faceValue);
+    const ovr = overallRating(faces);
+
+    // Reconstruct sub/face state from a saved evaluation row. New rows carry a
+    // structured sub_stats jsonb; legacy rows (6 int columns only) get each
+    // column spread across that attribute's sub-stats so faces still match.
+    const hydrateFromEval = (ev) => {
+        const ct = ev?.card_type === 'gk' ? 'gk' : 'outfield';
+        if (ev?.sub_stats && typeof ev.sub_stats === 'object') {
+            return { cardType: ct, subs: ev.sub_stats.subs || {}, directFaces: ev.sub_stats.directFaces || {} };
+        }
+        const cols = { PAC: ev?.pace, SHO: ev?.shooting, PAS: ev?.passing, DRI: ev?.dribbling, DEF: ev?.defending, PHY: ev?.physical };
+        const subs = {}; const faceMap = {};
+        OUTFIELD_ATTRIBUTES.forEach((attr) => {
+            const v = cols[attr.key] ?? DEFAULT_SUBSTAT;
+            if (attr.subs.length) attr.subs.forEach((s) => { subs[s.key] = v; });
+            else faceMap[attr.key] = v;
+        });
+        return { cardType: 'outfield', subs, directFaces: faceMap };
+    };
+
+    // Compute the 6 face values (in card order) for an arbitrary card/subs/faces
+    // combo — used to build the dashed baseline radar from the first evaluation.
+    const computeFaces = (ct, m, subs, faceMap) => getCard(ct).map((attr) => (
+        isFaceScoredDirectly(attr, m) ? (faceMap[attr.key] ?? DEFAULT_SUBSTAT) : attributeFace(attr, m, subs)
+    ));
 
     // Fetch Badges, Evaluations & Player's Earned Badges
     useEffect(() => {
@@ -121,30 +164,26 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 if (allEvals && allEvals.length > 0) {
                     setEvalHistory(allEvals);
 
-                    // Baseline = first evaluation ever
-                    const baseline = allEvals[0];
-                    setBaselineStats({
-                        Pace: baseline.pace || 50,
-                        Shooting: baseline.shooting || 50,
-                        Passing: baseline.passing || 50,
-                        Dribbling: baseline.dribbling || 50,
-                        Defending: baseline.defending || 50,
-                        Physical: baseline.physical || 50,
-                    });
-
-                    // Current = latest evaluation
+                    // Current = latest evaluation — hydrate the editable card.
                     const latest = allEvals[allEvals.length - 1];
                     setExistingEvalId(latest.id);
-                    setStats({
-                        Pace: latest.pace || 50,
-                        Shooting: latest.shooting || 50,
-                        Passing: latest.passing || 50,
-                        Dribbling: latest.dribbling || 50,
-                        Defending: latest.defending || 50,
-                        Physical: latest.physical || 50,
-                    });
+                    const latestState = hydrateFromEval(latest);
+                    setCardType(latestState.cardType);
+                    setSubValues(latestState.subs);
+                    setDirectFaces(latestState.directFaces);
+                    if (latest.eval_mode === 'youth' || latest.eval_mode === 'pro') {
+                        setPlayerEvalMode(latest.eval_mode);
+                    }
                     setCoachNotes(latest.notes || '');
                     setSeason(latest.season || 'Summer 2026');
+
+                    // Baseline = first evaluation ever → dashed radar overlay.
+                    const baseline = allEvals[0];
+                    const baseState = hydrateFromEval(baseline);
+                    const baseMode = (baseline.eval_mode === 'youth' || baseline.eval_mode === 'pro')
+                        ? baseline.eval_mode
+                        : resolveEvalMode(latest.eval_mode, teamEvalMode);
+                    setBaselineFaces(computeFaces(baseState.cardType, baseMode, baseState.subs, baseState.directFaces));
                 }
 
                 // 3. Get Earned Badges - query by player_user_id (auth.users UUID)
@@ -202,7 +241,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         (async () => {
             const { data, error } = await supabase
                 .from('players')
-                .select('first_name, last_name, jersey_number, position, position_secondary, birthdate, display_name')
+                .select('first_name, last_name, jersey_number, position, position_secondary, birthdate, display_name, eval_mode, team_id')
                 .eq('id', player.id)
                 .single();
             if (cancelled || error || !data) return;
@@ -215,6 +254,13 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                 birthdate: data.birthdate || '',
                 display_name: data.display_name || '',
             });
+            // Evaluation depth: player override (null = inherit) + team default.
+            if (data.eval_mode === 'youth' || data.eval_mode === 'pro') setPlayerEvalMode(data.eval_mode);
+            const teamId = data.team_id || player.team_id;
+            if (teamId) {
+                const { data: team } = await supabase.from('teams').select('eval_mode').eq('id', teamId).maybeSingle();
+                if (!cancelled && (team?.eval_mode === 'youth' || team?.eval_mode === 'pro')) setTeamEvalMode(team.eval_mode);
+            }
         })();
         return () => { cancelled = true; };
     }, [player?.id]);
@@ -275,16 +321,28 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
         }
     };
 
-    const data = Object.keys(stats).map(key => ({
-        subject: key,
-        A: stats[key],
-        baseline: baselineStats ? baselineStats[key] : stats[key],
+    const data = card.map((attr, i) => ({
+        subject: attr.key,
+        A: faces[i],
+        baseline: baselineFaces ? (baselineFaces[i] ?? faces[i]) : faces[i],
         fullMark: 100,
     }));
 
-    const handleSliderChange = (key, value) => {
+    const setSub = (subKey, value) => {
         if (readOnly) return;
-        setStats(prev => ({ ...prev, [key]: parseInt(value) }));
+        setSubValues(prev => ({ ...prev, [subKey]: parseInt(value) }));
+    };
+    const setDirectFace = (attrKey, value) => {
+        if (readOnly) return;
+        setDirectFaces(prev => ({ ...prev, [attrKey]: parseInt(value) }));
+    };
+    // Persist a per-player depth-mode override immediately so it sticks even if
+    // the coach closes without saving an eval. null clears back to team default.
+    const changePlayerMode = async (nextMode) => {
+        if (readOnly) return;
+        setPlayerEvalMode(nextMode);
+        try { await supabase.from('players').update({ eval_mode: nextMode }).eq('id', player.id); }
+        catch (err) { console.warn('[eval] could not persist eval_mode', err); }
     };
 
     const toggleBadge = async (badgeId) => {
@@ -357,25 +415,27 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
 
         setSaving(true);
         try {
+            // Face values in card order drive the six legacy int columns (kept as
+            // the rollup for radar/OVR/history) and are mirrored into sub_stats.
+            // For a GK card those columns hold DIV/HAN/KIC/REF/SPD/POS in order.
+            const faceMap = {};
+            card.forEach((attr, i) => { faceMap[attr.key] = faces[i]; });
+            const [c0, c1, c2, c3, c4, c5] = faces;
+
             const evaluationData = {
                 player_id: player.id,
                 coach_id: user.id,
-                season: season,
-                pace: stats.Pace,
-                shooting: stats.Shooting,
-                passing: stats.Passing,
-                dribbling: stats.Dribbling,
-                defending: stats.Defending,
-                physical: stats.Physical,
+                season,
                 notes: coachNotes,
+                card_type: effCardType,
+                eval_mode: mode,
+                sub_stats: { card_type: effCardType, mode, attributes: faceMap, subs: subValues, directFaces },
+                pace: c0, shooting: c1, passing: c2, dribbling: c3, defending: c4, physical: c5,
             };
 
-            // Always INSERT a new evaluation — creates timestamped history
-            // Each save becomes a historical record; latest = current, first = baseline
-            const { error } = await supabase
-                .from('evaluations')
-                .insert([evaluationData]);
-
+            // Always INSERT a new evaluation — creates timestamped history.
+            // Each save becomes a historical record; latest = current, first = baseline.
+            const { error } = await supabase.from('evaluations').insert([evaluationData]);
             if (error) throw error;
 
             toast.success('Evaluation saved.');
@@ -449,7 +509,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                 <PolarGrid stroke="#333" />
                                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 'bold' }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                {baselineStats && evalHistory.length > 1 && (
+                                {baselineFaces && evalHistory.length > 1 && (
                                     <Radar
                                         name="Baseline"
                                         dataKey="baseline"
@@ -474,7 +534,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                         {/* Overall Rating Overlay */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                             <span className="text-2xl md:text-4xl font-display font-bold text-white drop-shadow-md">
-                                {Math.round(Object.values(stats).reduce((a, b) => a + b, 0) / 6)}
+                                {ovr}
                             </span>
                             <p className="text-[9px] md:text-[10px] text-gray-400 uppercase">OVR</p>
                         </div>
@@ -607,31 +667,112 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                             </div>
                         ) : activeTab === 'eval' ? (
                             <div className="space-y-6">
-                                {Object.keys(stats).map((key) => (
-                                    <div key={key}>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-xs text-gray-400 uppercase font-bold tracking-wider">{key}</label>
-                                            <span className={`text-xs font-bold ${stats[key] > 80 ? 'text-brand-green' : 'text-white'}`}>{stats[key]}</span>
+                                {/* Depth mode (youth/pro) + goalkeeper card controls — coach only */}
+                                {!readOnly && (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Card</span>
+                                        <div className="inline-flex rounded-md border border-white/10 overflow-hidden">
+                                            {['youth', 'pro'].map((m) => (
+                                                <button
+                                                    key={m}
+                                                    type="button"
+                                                    onClick={() => changePlayerMode(m)}
+                                                    className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${mode === m ? 'bg-brand-green text-brand-dark' : 'text-gray-400 hover:text-white'}`}
+                                                >
+                                                    {m === 'youth' ? 'Youth' : 'Pro'}
+                                                </button>
+                                            ))}
                                         </div>
-                                        {!readOnly ? (
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="99"
-                                                value={stats[key]}
-                                                onChange={(e) => handleSliderChange(key, e.target.value)}
-                                                className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-green hover:accent-brand-gold transition-colors"
-                                            />
+                                        {playerEvalMode && (
+                                            <button
+                                                type="button"
+                                                onClick={() => changePlayerMode(null)}
+                                                className="text-[10px] text-gray-500 underline hover:text-gray-300"
+                                            >
+                                                use team default ({teamEvalMode})
+                                            </button>
+                                        )}
+                                        {isKeeper ? (
+                                            <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand-gold">
+                                                <Shield className="w-3 h-3" /> Goalkeeper card
+                                            </span>
                                         ) : (
-                                            <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-brand-green transition-all duration-1000"
-                                                    style={{ width: `${stats[key]}%` }}
-                                                ></div>
-                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setCardType((c) => (c === 'gk' ? 'outfield' : 'gk')); setExpandedAttr(null); }}
+                                                className={`ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-md border text-[10px] font-bold uppercase tracking-wider transition-colors ${effCardType === 'gk' ? 'border-brand-gold/50 text-brand-gold bg-brand-gold/10' : 'border-white/10 text-gray-400 hover:text-white'}`}
+                                            >
+                                                <Shield className="w-3 h-3" /> Goalkeeper
+                                            </button>
                                         )}
                                     </div>
-                                ))}
+                                )}
+
+                                {/* Attribute groups — tap to expand into FIFA sub-stats */}
+                                <div className="space-y-2.5">
+                                    {card.map((attr, i) => {
+                                        const subs = activeSubs(attr, mode);
+                                        const direct = subs.length === 0; // scored at the face (e.g. youth GK)
+                                        const face = faces[i];
+                                        const isOpen = expandedAttr === attr.key;
+                                        return (
+                                            <div key={attr.key} className="rounded-lg border border-white/5 bg-white/[0.02]">
+                                                <button
+                                                    type="button"
+                                                    disabled={direct}
+                                                    onClick={() => !direct && setExpandedAttr(isOpen ? null : attr.key)}
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
+                                                >
+                                                    <span className="w-9 text-center text-[11px] font-display font-bold tracking-wider" style={{ color: attr.color }}>{attr.key}</span>
+                                                    <span className="flex-1 text-sm text-gray-200 font-bold">{attr.label}</span>
+                                                    {direct && !readOnly && (
+                                                        <input
+                                                            type="range" min="0" max="99" value={face}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onChange={(e) => setDirectFace(attr.key, e.target.value)}
+                                                            className="w-24 sm:w-28 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-green"
+                                                        />
+                                                    )}
+                                                    <span className={`w-7 text-right text-sm font-bold ${face > 80 ? 'text-brand-green' : 'text-white'}`}>{face}</span>
+                                                    {!direct && <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />}
+                                                </button>
+
+                                                {!direct && isOpen && (
+                                                    <div className="px-3 pb-3 pt-1 space-y-3 border-t border-white/5">
+                                                        {subs.map((s) => {
+                                                            const v = subValues[s.key] ?? DEFAULT_SUBSTAT;
+                                                            return (
+                                                                <div key={s.key}>
+                                                                    <div className="flex justify-between mb-1">
+                                                                        <label className="text-[11px] text-gray-400">{s.label}</label>
+                                                                        <span className={`text-[11px] font-bold ${v > 80 ? 'text-brand-green' : 'text-gray-200'}`}>{v}</span>
+                                                                    </div>
+                                                                    {!readOnly ? (
+                                                                        <input
+                                                                            type="range" min="0" max="99" value={v}
+                                                                            onChange={(e) => setSub(s.key, e.target.value)}
+                                                                            className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-green hover:accent-brand-gold transition-colors"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
+                                                                            <div className="h-full bg-brand-green" style={{ width: `${v}%` }} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {attr.drillCategories?.length > 0 && (
+                                                            <p className="text-[10px] text-gray-500 flex items-center gap-1.5 pt-1">
+                                                                <Dumbbell className="w-3 h-3 text-brand-gold shrink-0" />
+                                                                Train: {attr.drillCategories.join(' · ')}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                                 {!readOnly && (
                                     <div className="mt-8 pt-6 border-t border-white/10 space-y-4">
                                         <div>
