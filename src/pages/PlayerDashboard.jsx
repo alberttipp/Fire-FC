@@ -699,8 +699,10 @@ const PlayerDashboard = () => {
 
                     <HomeworkHub assignments={challengeAssignments} onComplete={handleDrillComplete} />
 
-                    {playerRecord?.team_id && <TeamCelebrationBanner teamId={playerRecord.team_id} />}
-                    {playerRecord?.team_id && <TeamGoalBar teamId={playerRecord.team_id} />}
+                    {/* Temporarily disabled 2026-06-08 during a DB-saturation incident to
+                        shed per-load RPC calls. Re-enable after adding indexes. */}
+                    {false && playerRecord?.team_id && <TeamCelebrationBanner teamId={playerRecord.team_id} />}
+                    {false && playerRecord?.team_id && <TeamGoalBar teamId={playerRecord.team_id} />}
 
                     {playerRecord?.id && (
                         <JuggleChallengeCard
