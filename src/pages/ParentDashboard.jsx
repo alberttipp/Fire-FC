@@ -959,10 +959,8 @@ const ParentDashboard = () => {
                              front was duplicating. Tap the player card to flip
                              for the full breakdown. */}
 
-                        {/* Temporarily disabled 2026-06-08 during a DB-saturation incident to
-                            shed per-load RPC calls. Re-enable after adding indexes. */}
-                        {false && selectedChild?.team_id && <TeamCelebrationBanner teamId={selectedChild.team_id} />}
-                        {false && selectedChild?.team_id && <TeamGoalBar teamId={selectedChild.team_id} />}
+                        {selectedChild?.team_id && <TeamCelebrationBanner teamId={selectedChild.team_id} />}
+                        {selectedChild?.team_id && <TeamGoalBar teamId={selectedChild.team_id} />}
 
                         {/* June Juggling Competition */}
                         {selectedChild?.id && (
