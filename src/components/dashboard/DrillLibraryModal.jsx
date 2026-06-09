@@ -4,7 +4,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 
-const DrillLibraryModal = ({ onClose, player, teamId }) => {
+const DrillLibraryModal = ({ onClose, player, teamId, initialFilter = 'all' }) => {
     const { user } = useAuth();
     const toast = useToast();
     const [drills, setDrills] = useState([]);
@@ -13,7 +13,7 @@ const DrillLibraryModal = ({ onClose, player, teamId }) => {
     const [fetchError, setFetchError] = useState(null);
     const fetchRef = useRef(null);
     const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('all');
+    const [filter, setFilter] = useState(initialFilter);
     const [assigning, setAssigning] = useState(null);
     const [assigned, setAssigned] = useState(new Set());
 

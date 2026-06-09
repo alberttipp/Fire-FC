@@ -13,7 +13,7 @@ import {
     attributeFace, overallRating, resolveEvalMode, GK_POSITION, DEFAULT_SUBSTAT,
 } from '../../constants/fifaAttributes';
 
-const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
+const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCategory = null }) => {
     const { user } = useAuth();
     const toast = useToast();
     const [activeTab, setActiveTab] = useState('eval'); // 'eval', 'awards', or 'training'
@@ -762,10 +762,25 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false }) => {
                                                             );
                                                         })}
                                                         {attr.drillCategories?.length > 0 && (
-                                                            <p className="text-[10px] text-gray-500 flex items-center gap-1.5 pt-1">
-                                                                <Dumbbell className="w-3 h-3 text-brand-gold shrink-0" />
-                                                                Train: {attr.drillCategories.join(' · ')}
-                                                            </p>
+                                                            <div className="flex items-center gap-x-2 gap-y-1 flex-wrap pt-1">
+                                                                <span className="text-[10px] text-gray-500 flex items-center gap-1.5">
+                                                                    <Dumbbell className="w-3 h-3 text-brand-gold shrink-0" /> Train:
+                                                                </span>
+                                                                {onTrainCategory ? (
+                                                                    attr.drillCategories.map((cat) => (
+                                                                        <button
+                                                                            key={cat}
+                                                                            type="button"
+                                                                            onClick={() => onTrainCategory(cat)}
+                                                                            className="text-[10px] font-semibold text-brand-gold/90 hover:text-brand-gold underline decoration-dotted underline-offset-2"
+                                                                        >
+                                                                            {cat}
+                                                                        </button>
+                                                                    ))
+                                                                ) : (
+                                                                    <span className="text-[10px] text-gray-500">{attr.drillCategories.join(' · ')}</span>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
                                                 )}

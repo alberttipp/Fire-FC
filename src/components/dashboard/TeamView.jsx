@@ -3,6 +3,7 @@ import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check } from 'lu
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import PlayerEvaluationModal from './PlayerEvaluationModal';
+import DrillLibraryModal from './DrillLibraryModal';
 import AIFeedbackModal from './AIFeedbackModal';
 import CreateTeamModal from './CreateTeamModal';
 import InviteManager from './InviteManager';
@@ -32,6 +33,7 @@ const TeamView = () => {
     const [copied, setCopied] = useState(false);
     const [showTeamSettings, setShowTeamSettings] = useState(false);
     const [savingEvalMode, setSavingEvalMode] = useState(false);
+    const [trainCategory, setTrainCategory] = useState(null); // drill-library deep-link from an attribute
 
     // Set the team's default evaluation depth (youth = trimmed, pro = full FIFA).
     // Players inherit this unless they have a personal override.
@@ -426,7 +428,22 @@ const TeamView = () => {
             )}
 
             {selectedPlayer && (
-                <PlayerEvaluationModal player={selectedPlayer} onClose={() => { setSelectedPlayer(null); if (myTeam?.id) fetchRosterForTeam(myTeam.id); }} />
+                <PlayerEvaluationModal
+                    player={selectedPlayer}
+                    onTrainCategory={setTrainCategory}
+                    onClose={() => { setSelectedPlayer(null); if (myTeam?.id) fetchRosterForTeam(myTeam.id); }}
+                />
+            )}
+
+            {/* Drill library opened from an attribute's "Train" link — stacks over
+                the eval card so the coach can browse/assign, then return. */}
+            {trainCategory && selectedPlayer && (
+                <DrillLibraryModal
+                    initialFilter={trainCategory}
+                    player={selectedPlayer}
+                    teamId={myTeam?.id}
+                    onClose={() => setTrainCategory(null)}
+                />
             )}
 
             {feedbackPlayer && (
