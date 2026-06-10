@@ -109,6 +109,12 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
     const isKeeper = info.position === GK_POSITION;
     const effCardType = isKeeper ? 'gk' : cardType;
     const card = getCard(effCardType);
+
+    // A position must be picked before an evaluation can be saved "official" — it
+    // determines the card layout (outfield vs goalkeeper) and feeds the lineup
+    // builder. We surface this up front (banner + disabled save) so the coach is
+    // never blocked AFTER filling out a whole card.
+    const positionSet = !!(info.position && String(info.position).trim());
     const faceValue = (attr) => isFaceScoredDirectly(attr, mode)
         ? (directFaces[attr.key] ?? DEFAULT_SUBSTAT)
         : attributeFace(attr, mode, subValues);
@@ -423,6 +429,13 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
             toast.error('Missing player or user information.');
             return;
         }
+        // Position is required before an eval is official. The button is disabled
+        // when unset, but guard here too and steer the coach to the Info tab.
+        if (!positionSet) {
+            toast.warning("Set this player's position in the Info tab first.");
+            setActiveTab('info');
+            return;
+        }
 
         setSaving(true);
         try {
@@ -685,6 +698,21 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
                             </div>
                         ) : activeTab === 'eval' ? (
                             <div className="space-y-6">
+                                {/* Position required before an eval can be saved. Shown up
+                                    front (not as a save-time error) with a one-tap jump to Info. */}
+                                {!readOnly && !positionSet && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('info')}
+                                        className="w-full flex items-center gap-3 text-left p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15 transition-colors"
+                                    >
+                                        <IdCard className="w-5 h-5 text-amber-400 shrink-0" />
+                                        <span className="text-xs text-amber-200 leading-snug">
+                                            <b className="text-amber-100">Set this player's position first.</b> It picks the right card (e.g. goalkeeper) and unlocks saving. Tap to go to <b>Info</b>.
+                                        </span>
+                                        <ChevronDown className="w-4 h-4 -rotate-90 text-amber-400 shrink-0 ml-auto" />
+                                    </button>
+                                )}
                                 {/* Depth mode (youth/pro) + goalkeeper card controls — coach only */}
                                 {!readOnly && (
                                     <div className="flex flex-wrap items-center gap-2">
@@ -1082,12 +1110,13 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
                     {!readOnly && ['eval', 'training', 'awards'].includes(activeTab) && (
                         <div className="p-3 md:p-6 md:pt-4 border-t border-white/10 bg-black/20 shrink-0 flex justify-between items-center gap-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
                             <span className="text-xs text-gray-500 hidden sm:inline">
-                                {activeTab === 'training' ? 'Edit training minutes' : activeTab === 'awards' ? 'Tap badges to award' : rosterIndex >= 0 ? `Player ${rosterIndex + 1} of ${roster.length}` : 'Adjust stats carefully'}
+                                {activeTab === 'eval' && !positionSet ? 'Set position in Info to save' : activeTab === 'training' ? 'Edit training minutes' : activeTab === 'awards' ? 'Tap badges to award' : rosterIndex >= 0 ? `Player ${rosterIndex + 1} of ${roster.length}` : 'Adjust stats carefully'}
                             </span>
                             <div className="flex items-center gap-2 ml-auto">
                                 <button
                                     onClick={activeTab === 'training' ? handleSaveTraining : () => handleSave(false)}
-                                    disabled={saving}
+                                    disabled={saving || (activeTab === 'eval' && !positionSet)}
+                                    title={activeTab === 'eval' && !positionSet ? 'Set this player\'s position in the Info tab first' : undefined}
                                     className="btn-primary flex items-center gap-2 disabled:opacity-50"
                                 >
                                     <Save className="w-4 h-4" /> {saving ? 'Saving...' : (
@@ -1100,7 +1129,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
                                 {activeTab === 'eval' && nextPlayer && (
                                     <button
                                         onClick={() => handleSave(true)}
-                                        disabled={saving}
+                                        disabled={saving || !positionSet}
                                         className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-white text-sm font-bold hover:bg-white/15 transition-colors disabled:opacity-50"
                                         title={`Save and go to ${nextPlayer.name || 'next player'}`}
                                     >
