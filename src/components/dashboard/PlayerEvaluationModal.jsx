@@ -13,7 +13,7 @@ import {
     attributeFace, overallRating, resolveEvalMode, GK_POSITION, DEFAULT_SUBSTAT,
 } from '../../constants/fifaAttributes';
 
-const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCategory = null }) => {
+const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCategory = null, roster = null, onNavigate = null }) => {
     const { user } = useAuth();
     const toast = useToast();
     const [activeTab, setActiveTab] = useState('eval'); // 'eval', 'awards', or 'training'
@@ -114,6 +114,17 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
         : attributeFace(attr, mode, subValues);
     const faces = card.map(faceValue);
     const ovr = overallRating(faces);
+
+    // "Save & Next player" — when launched from the coach roster (TeamView passes
+    // `roster` + `onNavigate`), find the next player so the coach can baseline the
+    // whole squad without closing/reopening the modal each time. TeamView remounts
+    // the modal via key={player.id}, so each player gets clean card state.
+    const rosterIndex = Array.isArray(roster) && player?.id
+        ? roster.findIndex((p) => p.id === player.id)
+        : -1;
+    const nextPlayer = rosterIndex >= 0 && rosterIndex < roster.length - 1
+        ? roster[rosterIndex + 1]
+        : null;
 
     // Reconstruct sub/face state from a saved evaluation row. New rows carry a
     // structured sub_stats jsonb; legacy rows (6 int columns only) get each
@@ -407,7 +418,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
         }
     };
 
-    const handleSave = async () => {
+    const handleSave = async (advance = false) => {
         if (!player?.id || !user?.id) {
             toast.error('Missing player or user information.');
             return;
@@ -438,8 +449,15 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
             const { error } = await supabase.from('evaluations').insert([evaluationData]);
             if (error) throw error;
 
-            toast.success('Evaluation saved.');
-            onClose();
+            // Advance to the next roster player without closing (clean remount
+            // per player via key={id} in TeamView).
+            if (advance && nextPlayer && onNavigate) {
+                toast.success(`Saved. Next up: ${nextPlayer.name || 'player'}.`);
+                onNavigate(nextPlayer);
+            } else {
+                toast.success('Evaluation saved.');
+                onClose();
+            }
         } catch (err) {
             console.error('Error saving evaluation:', err);
             toast.error("Couldn't save the evaluation. Try again in a moment.");
@@ -1062,21 +1080,34 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
                     </div>
 
                     {!readOnly && ['eval', 'training', 'awards'].includes(activeTab) && (
-                        <div className="p-3 md:p-6 md:pt-4 border-t border-white/10 bg-black/20 shrink-0 flex justify-between items-center gap-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+                        <div className="p-3 md:p-6 md:pt-4 border-t border-white/10 bg-black/20 shrink-0 flex justify-between items-center gap-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
                             <span className="text-xs text-gray-500 hidden sm:inline">
-                                {activeTab === 'training' ? 'Edit training minutes' : activeTab === 'awards' ? 'Tap badges to award' : 'Adjust stats carefully'}
+                                {activeTab === 'training' ? 'Edit training minutes' : activeTab === 'awards' ? 'Tap badges to award' : rosterIndex >= 0 ? `Player ${rosterIndex + 1} of ${roster.length}` : 'Adjust stats carefully'}
                             </span>
-                            <button
-                                onClick={activeTab === 'training' ? handleSaveTraining : handleSave}
-                                disabled={saving}
-                                className="btn-primary flex items-center gap-2 disabled:opacity-50 ml-auto"
-                            >
-                                <Save className="w-4 h-4" /> {saving ? 'Saving...' : (
-                                    activeTab === 'training' ? 'Save Training' :
-                                    activeTab === 'awards' ? 'Save Badges' :
-                                    evalHistory.length === 0 ? 'Lock In Eval' : 'Update Eval'
+                            <div className="flex items-center gap-2 ml-auto">
+                                <button
+                                    onClick={activeTab === 'training' ? handleSaveTraining : () => handleSave(false)}
+                                    disabled={saving}
+                                    className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    <Save className="w-4 h-4" /> {saving ? 'Saving...' : (
+                                        activeTab === 'training' ? 'Save Training' :
+                                        activeTab === 'awards' ? 'Save Badges' :
+                                        evalHistory.length === 0 ? 'Lock In Eval' : 'Update Eval'
+                                    )}
+                                </button>
+                                {/* Baseline the whole roster without closing the modal. */}
+                                {activeTab === 'eval' && nextPlayer && (
+                                    <button
+                                        onClick={() => handleSave(true)}
+                                        disabled={saving}
+                                        className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-white text-sm font-bold hover:bg-white/15 transition-colors disabled:opacity-50"
+                                        title={`Save and go to ${nextPlayer.name || 'next player'}`}
+                                    >
+                                        Next <ChevronDown className="w-4 h-4 -rotate-90" />
+                                    </button>
                                 )}
-                            </button>
+                            </div>
                         </div>
                     )}
                 </div>

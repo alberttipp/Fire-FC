@@ -429,7 +429,10 @@ const TeamView = () => {
 
             {selectedPlayer && (
                 <PlayerEvaluationModal
+                    key={selectedPlayer.id}
                     player={selectedPlayer}
+                    roster={roster}
+                    onNavigate={(nextP) => { setTrainCategory(null); setSelectedPlayer(nextP); }}
                     onTrainCategory={setTrainCategory}
                     onClose={() => { setSelectedPlayer(null); if (myTeam?.id) fetchRosterForTeam(myTeam.id); }}
                 />
