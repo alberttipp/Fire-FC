@@ -100,7 +100,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center md:p-4 z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center md:p-4 z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-xl w-full md:max-w-2xl h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Cover hero — only when set. object-contain so the FULL image
                     is visible (no cropping); container hugs the 1200:630 ratio. */}
