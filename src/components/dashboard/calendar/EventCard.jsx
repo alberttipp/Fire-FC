@@ -12,7 +12,7 @@ import { isStaff as roleIsStaff } from '../../../constants/roles';
 // event_rsvps.player_id has an FK to players, and a coach's user.id isn't
 // a player_id, so every upsert failed FK validation.
 
-const EventCard = ({ event, rsvpStatus, rsvpCounts, onRsvp, onClick, compact = false }) => {
+const EventCard = ({ event, rsvpStatus, rsvpCounts, onRsvp, onClick, compact = false, multiKid = false }) => {
     const { profile } = useAuth();
     const isStaff = roleIsStaff(profile?.role);
     const config = getEventConfig(event.type);
@@ -121,8 +121,11 @@ const EventCard = ({ event, rsvpStatus, rsvpCounts, onRsvp, onClick, compact = f
 
                 {/* RSVP + Actions */}
                 <div className="flex flex-col items-end gap-2 shrink-0">
-                    {!isStaff && (
+                    {!isStaff && !multiKid && (
                         <RsvpButtons eventId={event.id} currentStatus={rsvpStatus} onRsvp={onRsvp} />
+                    )}
+                    {!isStaff && multiKid && (
+                        <span className="text-[10px] text-brand-green font-bold uppercase tracking-wider">Tap to RSVP each player →</span>
                     )}
                     {isStaff && (
                         <span className="text-[10px] text-gray-500 italic">Tap to manage attendance</span>

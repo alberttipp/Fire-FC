@@ -22,7 +22,7 @@ export async function resolveWritablePlayers(userId, role) {
     if (role === 'parent') {
         const { data } = await supabase
             .from('family_members')
-            .select('player_id, players:players!inner(id, first_name, last_name)')
+            .select('player_id, players:players!inner(id, first_name, last_name, jersey_number)')
             .eq('user_id', userId)
             .in('relationship', WRITE_RELATIONSHIPS);
         return (data || []).map(r => r.players).filter(Boolean);
@@ -30,7 +30,7 @@ export async function resolveWritablePlayers(userId, role) {
     if (role === 'player') {
         const { data } = await supabase
             .from('players')
-            .select('id, first_name, last_name')
+            .select('id, first_name, last_name, jersey_number')
             .eq('user_id', userId)
             .maybeSingle();
         return data ? [data] : [];

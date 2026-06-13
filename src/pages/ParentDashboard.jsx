@@ -366,6 +366,18 @@ const ParentDashboard = () => {
                         counts[r.event_id].total++;
                     });
                     setUpcomingCounts(counts);
+
+                    // THIS child's own RSVP per event, so the inline buttons
+                    // highlight the right status and reset when the parent
+                    // switches kids in the child picker.
+                    const { data: childRsvps } = await supabase
+                        .from('event_rsvps')
+                        .select('event_id, status')
+                        .eq('player_id', playerId)
+                        .in('event_id', evIds);
+                    const mine = {};
+                    (childRsvps || []).forEach(r => { mine[r.event_id] = r.status; });
+                    setEventRsvps(mine);
                 }
             }
 
@@ -513,18 +525,17 @@ const ParentDashboard = () => {
         }
     };
 
-    // Handle RSVP for events. Applies to EVERY linked kid that's on the
-    // event's team — covers multi-kid families like the Schroms (Declan +
-    // Oliver on Summer Squad). Single-kid families behave the same as
-    // before (just one upsert). Per-kid override is available in the
-    // EventDetailModal's attendance panel via the same row.
+    // Handle RSVP for events. The overview is scoped to the child picked in
+    // the switcher (selectedChild), so RSVP applies to THAT child only —
+    // multi-kid families like the Schroms (Declan + Oliver on Summer Squad)
+    // switch child to RSVP each independently. Per-child controls also live
+    // in EventDetailModal. Only when there's no selected child do we fall
+    // back to every linked kid on the event's team.
     const handleRsvp = async (eventId, status, event) => {
         const teamId = event?.team_id;
-        // Filter to kids on this event's team. If team_id wasn't passed in
-        // (back-compat with old callers), fall back to all linked kids.
-        const targets = teamId
-            ? children.filter(c => c.team_id === teamId)
-            : (selectedChild ? [selectedChild] : children);
+        const targets = selectedChild
+            ? [selectedChild]
+            : (teamId ? children.filter(c => c.team_id === teamId) : children);
 
         if (targets.length === 0) {
             toast.warning("No kid on this team to RSVP for.");

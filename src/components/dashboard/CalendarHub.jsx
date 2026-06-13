@@ -39,13 +39,17 @@ const CalendarHub = () => {
         };
     }, [viewDate, viewMode]);
 
-    const { events, rsvps, rsvpCounts, loading, handleRsvp, refetch } = useCalendarEvents({
+    const { events, rsvps, rsvpCounts, loading, handleRsvp, refetch, linkedPlayers } = useCalendarEvents({
         user,
         profile,
         dateRange,
     });
 
     const isCoach = isStaff(profile?.role);
+    // Families with 2+ kids on the team can't use the inline one-tap cluster
+    // (it would RSVP every child the same). Route them to the per-child
+    // controls in EventDetailModal instead.
+    const multiKid = (linkedPlayers?.length || 0) > 1;
 
     const navLabel = viewMode === 'week'
         ? 'This Week'
@@ -150,6 +154,7 @@ const CalendarHub = () => {
                     rsvpCounts={rsvpCounts}
                     onEventClick={setSelectedEvent}
                     onRsvp={handleRsvp}
+                    multiKid={multiKid}
                     onAddEvent={isCoach ? openCreateModalForDate : undefined}
                 />
             )}
@@ -164,6 +169,7 @@ const CalendarHub = () => {
                     rsvpCounts={rsvpCounts}
                     onEventClick={setSelectedEvent}
                     onRsvp={handleRsvp}
+                    multiKid={multiKid}
                 />
             )}
 

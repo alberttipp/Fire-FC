@@ -2,7 +2,7 @@ import React from 'react';
 import { isSameMonth, format } from 'date-fns';
 import EventCard from './EventCard';
 
-const AgendaList = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp }) => {
+const AgendaList = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp, multiKid = false }) => {
     // Filter events to the selected month
     const monthEvents = events.filter(e => isSameMonth(new Date(e.start_time), viewDate));
 
@@ -40,6 +40,7 @@ const AgendaList = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp 
                                 rsvpCounts={rsvpCounts[event.id]}
                                 onRsvp={onRsvp}
                                 onClick={onEventClick}
+                                multiKid={multiKid}
                             />
                         ))}
                     </div>

@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../Toast';
 import { getEventConfig } from './constants';
 import RsvpSummary from './RsvpSummary';
+import ParentRsvpControls from './ParentRsvpControls';
 import { isStaff } from '../../../constants/roles';
 const EventCoverDesigner = lazy(() => import('../../event-cover/EventCoverDesigner'));
 const CreateEventModal   = lazy(() => import('../CreateEventModal'));
@@ -226,6 +227,13 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                                 <iframe src={getYouTubeEmbedUrl(event.video_url)} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="Stream" />
                             </div>
                         </div>
+                    )}
+
+                    {/* Per-child RSVP — parents/players mark each of their own
+                        kids independently. Hidden for staff (they use the
+                        coach-override controls in RsvpSummary below). */}
+                    {!isCoach && (
+                        <ParentRsvpControls eventId={event.id} teamId={event.team_id} />
                     )}
 
                     {/* Attendance — visible to everyone (Byga-style). */}

@@ -248,7 +248,7 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
         }
     };
 
-    return { events, rsvps, rsvpCounts, loading, handleRsvp, refetch: fetchEvents };
+    return { events, rsvps, rsvpCounts, loading, handleRsvp, refetch: fetchEvents, linkedPlayers };
 };
 
 export default useCalendarEvents;

@@ -6,7 +6,7 @@ import EventCard from './EventCard';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const MonthGrid = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp, onAddEvent }) => {
+const MonthGrid = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp, onAddEvent, multiKid = false }) => {
     const [selectedDay, setSelectedDay] = useState(null);
 
     const monthStart = startOfMonth(viewDate);
@@ -116,6 +116,7 @@ const MonthGrid = ({ viewDate, events, rsvps, rsvpCounts, onEventClick, onRsvp, 
                                 rsvpCounts={rsvpCounts[event.id]}
                                 onRsvp={onRsvp}
                                 onClick={onEventClick}
+                                multiKid={multiKid}
                             />
                         ))
                     )}
