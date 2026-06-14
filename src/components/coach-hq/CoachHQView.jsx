@@ -7,6 +7,7 @@ import { useConfirm } from '../ConfirmDialog';
 import CoachHQTile from './CoachHQTile';
 import UpcomingWeek from '../dashboard/UpcomingWeek';
 import SetupHealthPanel from './SetupHealthPanel';
+import EvalNudgeBanner from './EvalNudgeBanner';
 
 const AttendanceDrilldown   = lazy(() => import('./AttendanceDrilldown'));
 const RosterStatsDrilldown  = lazy(() => import('./RosterStatsDrilldown'));
@@ -24,7 +25,7 @@ const TeamPulseDrilldown    = lazy(() => import('./TeamPulseDrilldown'));
 //   onJumpToChat — () => void; called when user taps the unread banner
 //                   or the Unread Chat tile. Dashboard wires this to
 //                   setCurrentView('chat').
-const CoachHQView = ({ onJumpToChat }) => {
+const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
     const { user, profile } = useAuth();
     const toast = useToast();
     const confirm = useConfirm();
@@ -115,6 +116,10 @@ const CoachHQView = ({ onJumpToChat }) => {
 
     return (
         <div className="space-y-5">
+            {/* Eval adoption nudge — marquee feature, get the cards built.
+                Hides itself once every player is rated. */}
+            <EvalNudgeBanner teamId={teamId} onStart={onJumpToTeam} />
+
             {/* Rollout setup-health tracker — onboarding progress + chase
                 list. Renders nothing for non-staff (RPC self-checks). */}
             <SetupHealthPanel />
