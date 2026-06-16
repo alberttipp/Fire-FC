@@ -1,0 +1,17 @@
+-- Applied to prod via MCP 2026-06-16. Live scoring v1 — a per-game
+-- scorekeeper (assigned by staff OR self-claimed by a team parent) can drive
+-- the score, via SECURITY DEFINER RPCs so parents never get broad UPDATE on
+-- events (which would let them edit time/title/delete). See LiveScoringView.jsx.
+--
+-- events.scorekeeper_user_id — who currently holds the score for that game.
+-- RPCs (all self-gate internally; granted to authenticated, revoked from anon/PUBLIC):
+--   claim_game_scorekeeper(event)        — staff always; team parent only if seat open
+--   assign_game_scorekeeper(event, user) — staff only
+--   release_game_scorekeeper(event)      — staff or current keeper
+--   bump_game_score(event, side, delta)  — staff or keeper; side in (home,away), clamp >=0
+--   set_game_status(event, status)       — staff or keeper; pushes team on ->live (kickoff)
+--                                           and ->finished (final score). No per-goal push.
+-- Helper fns is_event_staff / is_event_team_parent / can_score_game revoked from clients.
+--
+-- See the full bodies in the DB; this file is the traceability mirror.
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS scorekeeper_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
 import useBackGuard from '../hooks/useBackGuard';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
 import { isStaff as isStaffRole } from '../constants/roles';
@@ -289,6 +289,12 @@ const Dashboard = () => {
                                 Schedule
                             </button>
                             <button
+                                onClick={() => pickView('live')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'live' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <Trophy className="w-3 h-3" /> Live
+                            </button>
+                            <button
                                 onClick={() => pickView('rules')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'rules' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
@@ -353,9 +359,10 @@ const Dashboard = () => {
                                             { id: 'private', label: 'Private Training' },
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
+                                            { id: 'live', label: 'Live' },
                                             { id: 'rules', label: 'Rules' },
                                             { id: 'gallery', label: 'Gallery' },
-                                            // live / carpool still hidden — re-add when those features are tested
+                                            // carpool still hidden — re-add when tested
                                         ].map(tab => (
                                             <button
                                                 key={tab.id}
