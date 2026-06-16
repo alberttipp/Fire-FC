@@ -36,7 +36,9 @@ const LiveGameBanner = ({ onOpen }) => {
                 .select('id, title, opponent_name, home_score, away_score, game_status')
                 .eq('team_id', teamId).eq('type', 'game').eq('game_status', 'live')
                 .order('start_time', { ascending: false }).limit(1);
-            if (!cancelled) setGame((data && data[0]) || null);
+            // [TEST] games stay silent — never banner the whole team.
+            const g = (data || []).find(e => !(e.title || '').toUpperCase().startsWith('[TEST]'));
+            if (!cancelled) setGame(g || null);
         };
         refresh();
         const channel = supabase

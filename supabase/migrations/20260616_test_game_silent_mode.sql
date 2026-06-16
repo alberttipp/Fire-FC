@@ -1,0 +1,7 @@
+-- Applied to prod via MCP 2026-06-16. "[TEST]" game convention (matches the
+-- [SEED] tagging rule): a game whose title starts with [TEST] is fully silent
+-- so staff can rehearse live scoring with zero family noise.
+--   * trg_notify_new_event  — no "New event" push for [TEST] games
+--   * set_game_status        — no kickoff/final push for [TEST] games (status still updates)
+--   * LiveGameBanner.jsx     — [TEST] live games excluded from the dashboard banner
+-- (Full function bodies in the DB; this is the traceability mirror.)
