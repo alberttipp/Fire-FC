@@ -430,34 +430,28 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                 </div>
             )}
 
-            {/* Create Event Modal */}
-            {showCreateModal && (
-                <CreateEventModal
-                    onClose={() => setShowCreateModal(false)}
-                    onEventCreated={() => fetchEvents()}
-                />
-            )}
-
-            {/* Event Detail Modal — consistent with CalendarHub: tap an event
-                anywhere → see the full attendance breakdown (going / out /
-                vacation / no response). Staff also get coach-override controls
-                inside this modal. */}
-            {openEventDetail && (
-                <Suspense fallback={null}>
-                    <EventDetailModal
-                        event={openEventDetail}
-                        onClose={() => { setOpenEventDetail(null); fetchEvents(); }}
-                        onOpenLineup={(e) => { setOpenEventDetail(null); setOpenLineupEvent(e); }}
-                    />
-                </Suspense>
-            )}
-
         </div>
-        {/* Lineup builder — rendered as a sibling of (not inside) the glass-panel
-            wrapper so its `fixed inset-0` resolves against the viewport. The
+        {/* ALL modals are rendered as siblings of (not inside) the glass-panel
+            wrapper so their `fixed inset-0` resolves against the viewport. The
             glass-panel uses `backdrop-filter: blur(...)`, which per the CSS spec
-            becomes the containing block for any fixed descendants — that was
-            squashing the modal into the panel's box and hiding the pitch. */}
+            becomes the containing block for any fixed descendant — that traps the
+            modal inside the panel's box. On the multi-column Club view that let
+            the adjacent Key Dates panel overlap the Create-event Save button. */}
+        {showCreateModal && (
+            <CreateEventModal
+                onClose={() => setShowCreateModal(false)}
+                onEventCreated={() => fetchEvents()}
+            />
+        )}
+        {openEventDetail && (
+            <Suspense fallback={null}>
+                <EventDetailModal
+                    event={openEventDetail}
+                    onClose={() => { setOpenEventDetail(null); fetchEvents(); }}
+                    onOpenLineup={(e) => { setOpenEventDetail(null); setOpenLineupEvent(e); }}
+                />
+            </Suspense>
+        )}
         {openLineupEvent && (
             <Suspense fallback={null}>
                 <LineupBuilder event={openLineupEvent} onClose={() => setOpenLineupEvent(null)} />
