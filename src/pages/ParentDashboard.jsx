@@ -2,7 +2,8 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell, Trophy } from 'lucide-react';
+import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import Leaderboard from '../components/player/Leaderboard';
@@ -1290,6 +1291,7 @@ const ParentDashboard = () => {
                             {[
                                 { id: 'overview',      label: 'Overview', icon: LayoutDashboard },
                                 { id: 'schedule',      label: 'Schedule', icon: Calendar },
+                                { id: 'live',          label: 'Live',     icon: Trophy },
                                 { id: 'messages',      label: 'Messages', icon: MessageSquare },
                                 { id: 'notifications', label: 'Alerts',   icon: Bell },
                                 { id: 'vacation',      label: 'Vacation', icon: Plane },
@@ -1367,6 +1369,7 @@ const ParentDashboard = () => {
             )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
+                {currentView !== 'live' && <LiveGameBanner onOpen={() => setCurrentView('live')} />}
                 <Suspense fallback={<ViewLoader />}>
                     {renderView()}
                 </Suspense>
@@ -1386,6 +1389,7 @@ const ParentDashboard = () => {
                     { id: 'messages', label: 'Messages', icon: MessageSquare },
                 ]}
                 moreItems={[
+                    { id: 'live',          label: 'Live', icon: Trophy },
                     { id: 'notifications', label: 'Alerts', icon: Bell },
                     { id: 'vacation',      label: 'Vacation', icon: Plane },
                     { id: 'gallery',       label: 'Gallery',  icon: Camera },
