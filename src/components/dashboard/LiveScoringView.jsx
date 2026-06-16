@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trophy, Plus, Minus, Play, Video, Loader2, Clock, Hand, UserCheck } from 'lucide-react';
+import { Trophy, Plus, Minus, Play, Video, Loader2, Clock, Hand, UserCheck, Goal } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { STAFF_ROLES } from '../../constants/roles';
+import GoalAttributionModal from './GoalAttributionModal';
 
 const STATUS_CONFIG = {
     scheduled: { label: 'Upcoming', color: 'bg-gray-500/20 text-gray-400', dot: '' },
@@ -11,8 +12,6 @@ const STATUS_CONFIG = {
     halftime:  { label: 'Half Time', color: 'bg-yellow-500/20 text-yellow-400', dot: '' },
     finished:  { label: 'Final',     color: 'bg-red-500/20 text-red-400', dot: '' },
 };
-
-// scheduled → live → halftime → live → finished
 const NEXT_STATUS = { scheduled: 'live', live: 'halftime', halftime: 'live', finished: 'finished' };
 const NEXT_LABEL  = { scheduled: 'Start', live: 'Halftime', halftime: 'Resume', finished: 'Final' };
 
@@ -20,7 +19,10 @@ const LiveScoringView = () => {
     const { user, profile } = useAuth();
     const toast = useToast();
     const [games, setGames] = useState([]);
-    const [skNames, setSkNames] = useState({}); // user_id -> display name
+    const [skNames, setSkNames] = useState({});
+    const [roster, setRoster] = useState([]);           // [{id, first_name, jersey_number, avatar_url}]
+    const [goalsByEvent, setGoalsByEvent] = useState({}); // event_id -> [{id, scorer_player_id, assist_player_id}]
+    const [goalModalGame, setGoalModalGame] = useState(null);
     const [loading, setLoading] = useState(true);
     const [teamId, setTeamId] = useState(null);
     const [currentRole, setCurrentRole] = useState(profile?.role || user?.role || 'player');
@@ -28,16 +30,21 @@ const LiveScoringView = () => {
 
     const isStaff = STAFF_ROLES.has(currentRole);
     const canScore = (g) => isStaff || (!!user?.id && g.scorekeeper_user_id === user.id);
+    const rosterMap = Object.fromEntries(roster.map(p => [p.id, p]));
+    const nameOf = (pid) => pid ? (rosterMap[pid]?.first_name || 'Player') : null;
 
     useEffect(() => { if (user?.id) getTeamId(); }, [user]);
 
     useEffect(() => {
         if (!teamId) return;
         fetchGames();
+        fetchRoster();
         const channel = supabase
             .channel('live-scores')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `team_id=eq.${teamId}` },
                 (payload) => setGames(prev => prev.map(g => g.id === payload.new.id ? { ...g, ...payload.new } : g)))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'game_goals', filter: `team_id=eq.${teamId}` },
+                () => setGames(prev => { fetchGoals(prev.map(g => g.id)); return prev; }))
             .subscribe();
         return () => supabase.removeChannel(channel);
     }, [teamId]);
@@ -54,13 +61,34 @@ const LiveScoringView = () => {
         setLoading(false);
     };
 
-    const loadNames = useCallback(async (rows) => {
+    const fetchRoster = async () => {
+        const { data } = await supabase
+            .from('player_teams')
+            .select('players!inner(id, first_name, last_name, jersey_number, avatar_url)')
+            .eq('team_id', teamId).eq('status', 'active');
+        const rows = (data || []).map(r => r.players).filter(Boolean)
+            .sort((a, b) => (a.jersey_number ?? 999) - (b.jersey_number ?? 999));
+        setRoster(rows);
+    };
+
+    const loadNames = async (rows) => {
         const ids = [...new Set(rows.map(g => g.scorekeeper_user_id).filter(Boolean))];
         if (ids.length === 0) return;
         const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
-        const map = {};
-        (data || []).forEach(p => { map[p.id] = p.full_name; });
+        const map = {}; (data || []).forEach(p => { map[p.id] = p.full_name; });
         setSkNames(prev => ({ ...prev, ...map }));
+    };
+
+    const fetchGoals = useCallback(async (eventIds) => {
+        if (!eventIds?.length) return;
+        const { data } = await supabase
+            .from('game_goals')
+            .select('id, event_id, scorer_player_id, assist_player_id, created_at')
+            .in('event_id', eventIds)
+            .order('created_at', { ascending: true });
+        const map = {};
+        (data || []).forEach(g => { (map[g.event_id] = map[g.event_id] || []).push(g); });
+        setGoalsByEvent(map);
     }, []);
 
     const fetchGames = async () => {
@@ -75,6 +103,7 @@ const LiveScoringView = () => {
             if (error) throw error;
             setGames(data || []);
             loadNames(data || []);
+            fetchGoals((data || []).map(g => g.id));
         } catch (err) {
             console.error('Error fetching games:', err);
         } finally {
@@ -82,17 +111,45 @@ const LiveScoringView = () => {
         }
     };
 
-    const updateScore = async (game, side /* 'home'|'away' */, delta) => {
+    // Away goals (and any minus) stay simple integer bumps.
+    const bumpScore = async (game, side, delta) => {
         const field = side === 'home' ? 'home_score' : 'away_score';
         const prevVal = game[field] || 0;
-        const optimistic = Math.max(0, prevVal + delta);
-        setGames(prev => prev.map(g => g.id === game.id ? { ...g, [field]: optimistic } : g));
+        setGames(prev => prev.map(g => g.id === game.id ? { ...g, [field]: Math.max(0, prevVal + delta) } : g));
         const { data, error } = await supabase.rpc('bump_game_score', { p_event_id: game.id, p_side: side, p_delta: delta });
         if (error) {
             setGames(prev => prev.map(g => g.id === game.id ? { ...g, [field]: prevVal } : g));
             toast.error('Could not update the score.');
         } else if (data) {
             setGames(prev => prev.map(g => g.id === game.id ? { ...g, home_score: data.home_score, away_score: data.away_score } : g));
+        }
+    };
+
+    // Fire FC goal: open attribution (who scored -> assist?), then record.
+    const recordGoal = async (scorerId, assistId) => {
+        const game = goalModalGame;
+        setGoalModalGame(null);
+        if (!game) return;
+        const { data, error } = await supabase.rpc('record_goal', {
+            p_event_id: game.id, p_scorer_player_id: scorerId, p_assist_player_id: assistId,
+        });
+        if (error) { toast.error('Could not record the goal.'); return; }
+        if (data) setGames(prev => prev.map(g => g.id === game.id ? { ...g, home_score: data.home_score, away_score: data.away_score } : g));
+        fetchGoals(games.map(g => g.id));
+        const who = scorerId ? nameOf(scorerId) : 'Fire FC';
+        toast.success(assistId ? `⚽ ${who} (assist: ${nameOf(assistId)})!` : `⚽ ${who} scores!`);
+    };
+
+    const removeLastGoal = async (game) => {
+        const prev = game.home_score || 0;
+        setGames(g => g.map(x => x.id === game.id ? { ...x, home_score: Math.max(0, prev - 1) } : x));
+        const { data, error } = await supabase.rpc('remove_last_goal', { p_event_id: game.id });
+        if (error) {
+            setGames(g => g.map(x => x.id === game.id ? { ...x, home_score: prev } : x));
+            toast.error('Could not undo.');
+        } else {
+            if (data) setGames(g => g.map(x => x.id === game.id ? { ...x, home_score: data.home_score, away_score: data.away_score } : x));
+            fetchGoals(games.map(g => g.id));
         }
     };
 
@@ -115,11 +172,7 @@ const LiveScoringView = () => {
         setBusyId(game.id);
         const { error } = await supabase.rpc('claim_game_scorekeeper', { p_event_id: game.id });
         setBusyId(null);
-        if (error) {
-            toast.error(/already/i.test(error.message) ? 'Someone’s already keeping score.' : "Couldn't claim scoring.");
-            fetchGames();
-            return;
-        }
+        if (error) { toast.error(/already/i.test(error.message) ? 'Someone’s already keeping score.' : "Couldn't claim scoring."); fetchGames(); return; }
         setGames(prev => prev.map(g => g.id === game.id ? { ...g, scorekeeper_user_id: user.id } : g));
         setSkNames(prev => ({ ...prev, [user.id]: profile?.full_name || 'You' }));
         toast.success("You're keeping score! Tap + when Fire scores. ⚽");
@@ -171,10 +224,10 @@ const LiveScoringView = () => {
                         const skName = game.scorekeeper_user_id ? (skNames[game.scorekeeper_user_id] || 'A parent') : null;
                         const skIsMe = game.scorekeeper_user_id && game.scorekeeper_user_id === user?.id;
                         const busy = busyId === game.id;
+                        const goals = goalsByEvent[game.id] || [];
 
                         return (
                             <div key={game.id} className={`glass-panel p-5 border-l-4 ${isLive ? 'border-l-green-500' : status === 'finished' ? 'border-l-red-500' : 'border-l-brand-gold'}`}>
-                                {/* Date + Status */}
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-3">
                                         <div className="w-12 h-12 bg-brand-gold/10 rounded-lg flex flex-col items-center justify-center">
@@ -207,11 +260,11 @@ const LiveScoringView = () => {
                                         <p className="text-xs text-gray-400 uppercase font-bold mb-1">Fire FC</p>
                                         <div className="flex items-center gap-2">
                                             {iCanScore && (
-                                                <button onClick={() => updateScore(game, 'home', -1)} className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center justify-center transition-colors"><Minus className="w-4 h-4" /></button>
+                                                <button onClick={() => removeLastGoal(game)} className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center justify-center transition-colors" title="Undo last goal"><Minus className="w-4 h-4" /></button>
                                             )}
                                             <span className="text-4xl sm:text-5xl font-mono font-bold text-white min-w-[3rem] text-center">{game.home_score || 0}</span>
                                             {iCanScore && (
-                                                <button onClick={() => updateScore(game, 'home', 1)} className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center transition-colors"><Plus className="w-4 h-4" /></button>
+                                                <button onClick={() => setGoalModalGame(game)} className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center transition-colors" title="Add a Fire FC goal"><Plus className="w-4 h-4" /></button>
                                             )}
                                         </div>
                                     </div>
@@ -230,15 +283,28 @@ const LiveScoringView = () => {
                                         </p>
                                         <div className="flex items-center gap-2">
                                             {iCanScore && (
-                                                <button onClick={() => updateScore(game, 'away', -1)} className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center justify-center transition-colors"><Minus className="w-4 h-4" /></button>
+                                                <button onClick={() => bumpScore(game, 'away', -1)} className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center justify-center transition-colors"><Minus className="w-4 h-4" /></button>
                                             )}
                                             <span className="text-4xl sm:text-5xl font-mono font-bold text-white min-w-[3rem] text-center">{game.away_score || 0}</span>
                                             {iCanScore && (
-                                                <button onClick={() => updateScore(game, 'away', 1)} className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center transition-colors"><Plus className="w-4 h-4" /></button>
+                                                <button onClick={() => bumpScore(game, 'away', 1)} className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center transition-colors"><Plus className="w-4 h-4" /></button>
                                             )}
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Goal log (scorer + assist) */}
+                                {goals.length > 0 && (
+                                    <div className="mt-3 space-y-1">
+                                        {goals.map(gl => (
+                                            <div key={gl.id} className="flex items-center gap-2 text-xs text-gray-300">
+                                                <Goal className="w-3.5 h-3.5 text-brand-green shrink-0" />
+                                                <span className="text-white font-medium">{nameOf(gl.scorer_player_id) || 'Goal'}</span>
+                                                {gl.assist_player_id && <span className="text-gray-400">(assist: {nameOf(gl.assist_player_id)})</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {/* Scorekeeper row */}
                                 {status !== 'finished' && (
@@ -262,7 +328,6 @@ const LiveScoringView = () => {
                                     </div>
                                 )}
 
-                                {/* Video link */}
                                 {game.video_url && (
                                     <a href={game.video_url} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center gap-2 text-red-400 hover:text-red-300 text-sm transition-colors">
                                         <Video className="w-4 h-4" /> Watch Stream
@@ -272,6 +337,14 @@ const LiveScoringView = () => {
                         );
                     })}
                 </div>
+            )}
+
+            {goalModalGame && (
+                <GoalAttributionModal
+                    roster={roster}
+                    onConfirm={recordGoal}
+                    onClose={() => setGoalModalGame(null)}
+                />
             )}
         </div>
     );

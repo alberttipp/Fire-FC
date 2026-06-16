@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
 import useBackGuard from '../hooks/useBackGuard';
+import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
@@ -407,6 +408,7 @@ const Dashboard = () => {
 
             {/* Main Content Area */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] md:pb-8">
+                {currentView !== 'live' && <LiveGameBanner onOpen={() => pickView('live')} />}
                 <Suspense fallback={<ViewLoader />}>
                     {renderView()}
                 </Suspense>
