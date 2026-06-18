@@ -8,6 +8,7 @@ import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import CardCustomizeModal from '../components/player/CardCustomizeModal';
 import HeroModeModal from '../components/player/HeroModeModal';
+import HeroProgress from '../components/player/HeroProgress';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import Leaderboard from '../components/player/Leaderboard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
@@ -65,6 +66,7 @@ const ParentDashboard = () => {
     const [showDetails, setShowDetails] = useState(false);
     const [customizeOpen, setCustomizeOpen] = useState(false);
     const [heroOpen, setHeroOpen] = useState(false);
+    const [heroRefresh, setHeroRefresh] = useState(0);
     const [loading, setLoading] = useState(true);
     const [inviteOpen, setInviteOpen] = useState(false);
     // When set, EventDetailModal opens with this event so the parent can see
@@ -887,6 +889,7 @@ const ParentDashboard = () => {
                                 ✨ Hero Mode
                             </button>
                         </div>
+                        {selectedChild?.id && <HeroProgress playerId={selectedChild.id} refreshKey={heroRefresh} />}
                         {heroOpen && selectedChild?.id && (
                             <HeroModeModal
                                 playerId={selectedChild.id}
@@ -894,6 +897,7 @@ const ParentDashboard = () => {
                                 onSaved={(mode) => {
                                     setSelectedChild(prev => prev ? { ...prev, hero_mode: mode } : prev);
                                     setChildren(prev => prev.map(c => c.id === selectedChild.id ? { ...c, hero_mode: mode } : c));
+                                    setHeroRefresh(n => n + 1);
                                 }}
                                 onClose={() => setHeroOpen(false)}
                             />

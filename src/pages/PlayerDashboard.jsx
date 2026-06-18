@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import PlayerCard from '../components/player/PlayerCard';
 import CardCustomizeModal from '../components/player/CardCustomizeModal';
 import HeroModeModal from '../components/player/HeroModeModal';
+import HeroProgress from '../components/player/HeroProgress';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
@@ -56,6 +57,7 @@ const PlayerDashboard = () => {
     const [playerLoading, setPlayerLoading] = useState(true); // Loading state for player lookup
     const [customizeOpen, setCustomizeOpen] = useState(false);
     const [heroOpen, setHeroOpen] = useState(false);
+    const [heroRefresh, setHeroRefresh] = useState(0);
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
 
     // Phone back button → close the topmost open modal instead of leaving the
@@ -638,11 +640,12 @@ const PlayerDashboard = () => {
                                 </button>
                             </div>
                         )}
+                        {playerRecord?.id && <HeroProgress playerId={playerRecord.id} refreshKey={heroRefresh} />}
                         {heroOpen && playerRecord?.id && (
                             <HeroModeModal
                                 playerId={playerRecord.id}
                                 playerName={playerRecord.first_name || ''}
-                                onSaved={(mode) => setPlayerRecord(prev => prev ? { ...prev, hero_mode: mode } : prev)}
+                                onSaved={(mode) => { setPlayerRecord(prev => prev ? { ...prev, hero_mode: mode } : prev); setHeroRefresh(n => n + 1); }}
                                 onClose={() => setHeroOpen(false)}
                             />
                         )}
