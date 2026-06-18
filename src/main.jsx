@@ -80,6 +80,18 @@ if ('serviceWorker' in navigator && !import.meta.env.DEV) {
   });
 }
 
+// Request PERSISTENT storage so the browser/OS won't evict our localStorage —
+// which is where the Supabase auth session lives. Default ("best-effort")
+// storage gets cleared under pressure / by iOS ITP, which is the #1 reason an
+// installed PWA "forgets" the login and drops users back to the welcome screen.
+// For installed PWAs this is usually granted without a prompt; harmless if not.
+if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
+  navigator.storage.persisted()
+    .then((already) => { if (!already) return navigator.storage.persist(); })
+    .then((granted) => { if (granted !== undefined) console.info('[storage] persistent:', granted); })
+    .catch(() => { /* unsupported — ignore */ });
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
