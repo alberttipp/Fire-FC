@@ -44,6 +44,31 @@ export async function isPushSubscribed() {
     }
 }
 
+// Is the app running as an installed PWA (home-screen / standalone)?
+export function isStandalone() {
+    if (typeof window === 'undefined') return false;
+    return window.navigator.standalone === true
+        || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+
+// Full per-device push status — drives the banner + the Alerts settings readout.
+// Push is PER browser context: the installed app and a browser tab each have
+// their own subscription, which is why one can be on and the other off.
+export async function getPushStatus() {
+    const support = getPushSupport();
+    const permission = (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported';
+    let subscribed = false;
+    try { subscribed = await isPushSubscribed(); } catch { /* ignore */ }
+    return {
+        supported: support.ok,
+        reason: support.reason || null,
+        permission,                       // 'granted' | 'denied' | 'default' | 'unsupported'
+        subscribed,
+        standalone: isStandalone(),
+        iosNeedsInstall: isIOSWithoutStandalone(),
+    };
+}
+
 // Request permission, (re)subscribe this device, and save the subscription row.
 // Resolves true on success; throws on failure (caller shows the toast).
 export async function enablePush(userId) {

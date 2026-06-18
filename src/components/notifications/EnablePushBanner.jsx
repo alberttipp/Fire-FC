@@ -2,30 +2,37 @@ import React, { useEffect, useState } from 'react';
 import { Bell, Loader2, Smartphone, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
-import { getPushSupport, isPushSubscribed, isIOSWithoutStandalone, enablePush } from '../../utils/push';
+import { getPushSupport, isIOSWithoutStandalone, enablePush, getPushStatus } from '../../utils/push';
 
 // Prominent "turn on notifications" banner shown to any signed-in user whose
 // device isn't push-subscribed yet. Most of the team (incl. staff) never found
 // the buried settings toggle, so events/messages weren't reaching phones.
 //
-// Relentless by design (per Albert): it shows on EVERY app open until they
-// actually enable push. The X only hides it for the current session — reopen
-// the app and it's back. Once push is on, it never shows again.
+// Push is PER browser context — the installed home-screen app and a plain
+// browser tab each have their OWN subscription, and on iOS the browser tab
+// can't do push at all (only the installed app can). So the banner is honest
+// about WHY it's showing: install (iOS browser), blocked (permission denied),
+// or just-not-on-yet (enable). Relentless until subscribed; X hides for the
+// session only.
 
 const EnablePushBanner = () => {
     const { user } = useAuth();
     const toast = useToast();
-    const [mode, setMode] = useState(null); // null (hidden) | 'enable' | 'ios'
+    const [mode, setMode] = useState(null); // null | 'enable' | 'ios' | 'blocked'
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
         (async () => {
             if (!user?.id) return;
-            if (!getPushSupport().ok) return;          // don't nag if push can't work here
+            // iOS browser (not installed) → can't push until added to Home Screen.
+            // Check this BEFORE getPushSupport, since iOS Safari lacks PushManager.
             if (isIOSWithoutStandalone()) { if (!cancelled) setMode('ios'); return; }
-            const subbed = await isPushSubscribed();
-            if (!cancelled && !subbed) setMode('enable');
+            const { supported, subscribed, permission } = await getPushStatus();
+            if (cancelled) return;
+            if (!supported) return;           // desktop/other where push truly can't work
+            if (subscribed) return;           // already on for THIS context
+            setMode(permission === 'denied' ? 'blocked' : 'enable');
         })();
         return () => { cancelled = true; };
     }, [user?.id]);
@@ -66,6 +73,13 @@ const EnablePushBanner = () => {
                         <Smartphone className="w-5 h-5 shrink-0" />
                         <p className="flex-1 text-xs sm:text-sm font-semibold leading-tight">
                             Add Fire FC to your Home Screen (Share → "Add to Home Screen") to turn on notifications.
+                        </p>
+                    </>
+                ) : mode === 'blocked' ? (
+                    <>
+                        <Bell className="w-5 h-5 shrink-0" />
+                        <p className="flex-1 text-xs sm:text-sm font-semibold leading-tight">
+                            Notifications are blocked for this device. Allow them in your device Settings → Notifications → Fire FC (or your browser's site settings), then reopen the app.
                         </p>
                     </>
                 ) : (

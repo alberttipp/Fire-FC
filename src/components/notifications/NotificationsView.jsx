@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { NOTIFICATION_CATEGORIES, NOTIFICATION_CHANNELS, SNOOZE_OPTIONS } from '../../constants/notifications';
 import EnablePushButton from './EnablePushButton';
+import { getPushStatus } from '../../utils/push';
 
 // Phase 3 settings view: per-category snooze + channel matrix + quiet
 // hours + registered devices. Reads/writes notification_preferences,
@@ -18,8 +19,17 @@ const NotificationsView = () => {
     const [snoozes, setSnoozes] = useState({});  // { cat: ISO string }
     const [quiet, setQuiet] = useState({ start: '', end: '', tz: 'America/Chicago' });
     const [devices, setDevices] = useState([]);
+    const [pushStatus, setPushStatus] = useState(null); // this device/context's live status
     const [loading, setLoading] = useState(true);
     const [savingQuiet, setSavingQuiet] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        const tick = () => getPushStatus().then(s => { if (!cancelled) setPushStatus(s); });
+        tick();
+        document.addEventListener('visibilitychange', tick);
+        return () => { cancelled = true; document.removeEventListener('visibilitychange', tick); };
+    }, []);
 
     const load = async () => {
         if (!user?.id) return;
@@ -143,6 +153,18 @@ const NotificationsView = () => {
                 <p className="text-xs text-gray-400">
                     Required before any phone banners can reach this browser. iPhone users need to Add to Home Screen first.
                 </p>
+                {/* Live per-context status — push is per browser context, so the
+                    installed app and a browser tab each show their own state. */}
+                {pushStatus && (
+                    <div className="flex flex-wrap gap-2 text-[11px]">
+                        <span className={`px-2 py-1 rounded-full font-bold ${pushStatus.subscribed ? 'bg-brand-green/20 text-brand-green' : 'bg-red-500/20 text-red-300'}`}>
+                            This device: {pushStatus.subscribed ? 'Subscribed ✅' : 'Not subscribed ❌'}
+                        </span>
+                        <span className="px-2 py-1 rounded-full bg-white/5 text-gray-300">Permission: {pushStatus.permission}</span>
+                        <span className="px-2 py-1 rounded-full bg-white/5 text-gray-300">{pushStatus.standalone ? 'Installed app' : 'Browser tab'}</span>
+                        {pushStatus.iosNeedsInstall && <span className="px-2 py-1 rounded-full bg-brand-gold/20 text-brand-gold">iPhone: add to Home Screen to enable</span>}
+                    </div>
+                )}
                 <EnablePushButton />
             </div>
 
