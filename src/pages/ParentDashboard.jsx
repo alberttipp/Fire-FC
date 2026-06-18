@@ -6,6 +6,8 @@ import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loa
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
+import CardCustomizeModal from '../components/player/CardCustomizeModal';
+import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import Leaderboard from '../components/player/Leaderboard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
 import { useToast } from '../components/Toast';
@@ -60,6 +62,7 @@ const ParentDashboard = () => {
     const isPreview = Boolean(previewPlayerId);
     const [currentView, setCurrentView] = useState('overview');
     const [showDetails, setShowDetails] = useState(false);
+    const [customizeOpen, setCustomizeOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [inviteOpen, setInviteOpen] = useState(false);
     // When set, EventDetailModal opens with this event so the parent can see
@@ -650,6 +653,7 @@ const ParentDashboard = () => {
             defending: playerEvaluation?.defending || 50,
             physical: playerEvaluation?.physical || 50,
             messiMode: playerStats?.messi_mode_unlocked || false,
+            country: player.card_country || DEFAULT_CARD_COUNTRY,
             image: getPlayerAvatarPath({
                 avatarUrl: player.avatar_url || null,
                 firstName: player.first_name || '',
@@ -866,6 +870,26 @@ const ParentDashboard = () => {
                             </div>
                             <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
                         </div>
+                        <div className="text-center -mt-2">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setCustomizeOpen(true); }}
+                                className="text-xs text-gray-400 hover:text-brand-gold font-bold uppercase tracking-wider transition-colors"
+                            >
+                                🏳️ Customize card flag
+                            </button>
+                        </div>
+                        {customizeOpen && selectedChild?.id && (
+                            <CardCustomizeModal
+                                playerId={selectedChild.id}
+                                playerName={selectedChild.first_name || ''}
+                                current={selectedChild.card_country || DEFAULT_CARD_COUNTRY}
+                                onSaved={(code) => {
+                                    setSelectedChild(prev => prev ? { ...prev, card_country: code } : prev);
+                                    setChildren(prev => prev.map(c => c.id === selectedChild.id ? { ...c, card_country: code } : c));
+                                }}
+                                onClose={() => setCustomizeOpen(false)}
+                            />
+                        )}
 
                         {/* 4. IDP */}
                         {selectedChild?.id && (

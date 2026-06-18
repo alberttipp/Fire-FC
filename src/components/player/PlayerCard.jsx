@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, Star, TrendingUp, RotateCw, ChevronRight } from 'lucide-react';
+import { flagUrl, countryName, DEFAULT_CARD_COUNTRY } from '../../constants/cardCountries';
 
 const PlayerCard = ({ player, onClick, showBack = false }) => {
     const [isFlipped, setIsFlipped] = useState(showBack);
@@ -17,6 +18,7 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
         defending = 45,
         physical = 78,
         messiMode = false,
+        country = DEFAULT_CARD_COUNTRY,
         image = "https://images.unsplash.com/photo-1511886929837-354d827aae26?q=80&w=1000&auto=format&fit=crop"
     } = player || {};
 
@@ -78,13 +80,9 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
 
                                     <div className="w-full h-[1px] bg-brand-gold/30 mb-3"></div>
 
-                                    {/* Nation (USA) */}
-                                    <div className="w-8 h-6 relative shadow-md mb-2 overflow-hidden rounded border border-brand-gold/30" title="USA">
-                                        <div className="absolute inset-0 bg-white">
-                                            <div className="h-[2px] w-full bg-red-600 top-2 absolute"></div>
-                                            <div className="h-[2px] w-full bg-red-600 bottom-1 absolute"></div>
-                                            <div className="w-4 h-3 bg-blue-700 top-0 left-0 absolute"></div>
-                                        </div>
+                                    {/* Nation flag (player-selected; defaults to USA) */}
+                                    <div className="w-8 h-6 relative shadow-md mb-2 overflow-hidden rounded border border-brand-gold/30" title={countryName(country)}>
+                                        <img src={flagUrl(country, 80)} alt={countryName(country)} className="absolute inset-0 w-full h-full object-cover" />
                                     </div>
 
                                     {/* Club Logo */}

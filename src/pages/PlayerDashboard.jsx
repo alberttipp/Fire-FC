@@ -1,5 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import PlayerCard from '../components/player/PlayerCard';
+import CardCustomizeModal from '../components/player/CardCustomizeModal';
+import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, Flame, Zap, AlertTriangle, Dumbbell, ChevronRight } from 'lucide-react';
@@ -51,6 +53,7 @@ const PlayerDashboard = () => {
     const [playerStatsFull, setPlayerStatsFull] = useState(null); // Full player_stats row for TrainingStatsCard
     const [playerError, setPlayerError] = useState(null); // Error if player not found
     const [playerLoading, setPlayerLoading] = useState(true); // Loading state for player lookup
+    const [customizeOpen, setCustomizeOpen] = useState(false);
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
 
     // Phone back button → close the topmost open modal instead of leaving the
@@ -378,6 +381,7 @@ const PlayerDashboard = () => {
         defending: stats?.defending || 50,
         physical: stats?.physical || 50,
         messiMode: stats?.messi_mode_unlocked || false,
+        country: playerRecord?.card_country || DEFAULT_CARD_COUNTRY,
         image: getPlayerAvatarPath({
             avatarUrl: playerRecord?.avatar_url || profile?.avatar_url || user?.avatar_url || null,
             firstName: playerRecord?.first_name || profile?.full_name || '',
@@ -615,6 +619,25 @@ const PlayerDashboard = () => {
                                 onClick={() => setShowDetails(true)}
                             />
                         </div>
+                        {playerRecord?.id && (
+                            <div className="text-center -mt-2">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setCustomizeOpen(true); }}
+                                    className="text-xs text-gray-400 hover:text-brand-gold font-bold uppercase tracking-wider transition-colors"
+                                >
+                                    🏳️ Customize card flag
+                                </button>
+                            </div>
+                        )}
+                        {customizeOpen && playerRecord?.id && (
+                            <CardCustomizeModal
+                                playerId={playerRecord.id}
+                                playerName={playerRecord.first_name || ''}
+                                current={playerRecord.card_country || DEFAULT_CARD_COUNTRY}
+                                onSaved={(code) => setPlayerRecord(prev => prev ? { ...prev, card_country: code } : prev)}
+                                onClose={() => setCustomizeOpen(false)}
+                            />
+                        )}
 
                         {/* Training Streak Widget */}
                         <div className="mt-8 w-full glass-panel p-4 border border-orange-500/20 bg-gradient-to-r from-orange-500/5 to-transparent">
