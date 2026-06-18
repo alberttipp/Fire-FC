@@ -3,6 +3,7 @@ import PlayerCard from '../components/player/PlayerCard';
 import CardCustomizeModal from '../components/player/CardCustomizeModal';
 import HeroModeModal from '../components/player/HeroModeModal';
 import HeroProgress from '../components/player/HeroProgress';
+import PhotoUploadButton from '../components/player/PhotoUploadButton';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
@@ -625,7 +626,11 @@ const PlayerDashboard = () => {
                             />
                         </div>
                         {playerRecord?.id && (
-                            <div className="text-center -mt-2 flex items-center justify-center gap-4">
+                            <div className="text-center -mt-2 flex items-center justify-center gap-4 flex-wrap">
+                                <PhotoUploadButton
+                                    playerId={playerRecord.id}
+                                    onUploaded={(url) => setPlayerRecord(prev => prev ? { ...prev, avatar_url: url } : prev)}
+                                />
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setCustomizeOpen(true); }}
                                     className="text-xs text-gray-400 hover:text-brand-gold font-bold uppercase tracking-wider transition-colors"

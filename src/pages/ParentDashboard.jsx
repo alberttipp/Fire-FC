@@ -9,6 +9,7 @@ import PlayerCard from '../components/player/PlayerCard';
 import CardCustomizeModal from '../components/player/CardCustomizeModal';
 import HeroModeModal from '../components/player/HeroModeModal';
 import HeroProgress from '../components/player/HeroProgress';
+import PhotoUploadButton from '../components/player/PhotoUploadButton';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import Leaderboard from '../components/player/Leaderboard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
@@ -875,7 +876,16 @@ const ParentDashboard = () => {
                             </div>
                             <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
                         </div>
-                        <div className="text-center -mt-2 flex items-center justify-center gap-4">
+                        <div className="text-center -mt-2 flex items-center justify-center gap-4 flex-wrap">
+                            {selectedChild?.id && (
+                                <PhotoUploadButton
+                                    playerId={selectedChild.id}
+                                    onUploaded={(url) => {
+                                        setSelectedChild(prev => prev ? { ...prev, avatar_url: url } : prev);
+                                        setChildren(prev => prev.map(c => c.id === selectedChild.id ? { ...c, avatar_url: url } : c));
+                                    }}
+                                />
+                            )}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setCustomizeOpen(true); }}
                                 className="text-xs text-gray-400 hover:text-brand-gold font-bold uppercase tracking-wider transition-colors"

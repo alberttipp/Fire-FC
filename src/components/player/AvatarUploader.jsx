@@ -1,15 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { Camera, Loader2, User } from 'lucide-react';
-import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
+import { uploadPlayerPhoto } from '../../utils/playerPhoto';
 
-// Phase 1: staff-only avatar upload. No client-side resize / bg removal
-// (Albert pre-processes externally before uploading each player). Storage
-// RLS at media/players/{player.id}/* enforces that only team staff for
-// that player's team can write.
-//
-// Phase 2 (deferred): client-side resize, parents can upload, in-app
-// background removal + customization (flags, club crests, themes).
+// Avatar upload widget. Routes through the `process-avatar` edge function,
+// which resizes, removes the background (remove.bg), stores the cutout, sets
+// players.avatar_url, and does the staff/guardian/self permission check — so
+// the same widget works for coaches AND parents/kids.
 
 const MIME_TO_EXT = {
     'image/jpeg': 'jpg',
@@ -74,59 +71,17 @@ const AvatarUploader = ({
         setLocalUrl(previewUrl);
         setUploading(true);
 
-        const ext = MIME_TO_EXT[file.type];
-        const ts = Date.now();
-        const path = `players/${playerId}/avatar-${ts}.${ext}`;
-
         try {
-            // 1) Upload new file
-            const { error: uploadErr } = await supabase
-                .storage
-                .from('media')
-                .upload(path, file, {
-                    cacheControl: '3600',
-                    upsert: false,
-                    contentType: file.type,
-                });
-            if (uploadErr) throw uploadErr;
-
-            // 2) Public URL + cache-bust query so any cached <img> swaps immediately
-            const { data: pub } = supabase.storage.from('media').getPublicUrl(path);
-            const publicUrl = `${pub.publicUrl}?v=${ts}`;
-
-            // 3) Update players row
-            const { error: updateErr } = await supabase
-                .from('players')
-                .update({ avatar_url: publicUrl })
-                .eq('id', playerId);
-            if (updateErr) throw updateErr;
-
-            // 4) Best-effort cleanup of older avatars for this player
-            try {
-                const { data: olderFiles } = await supabase
-                    .storage
-                    .from('media')
-                    .list(`players/${playerId}`, { limit: 50 });
-                const toRemove = (olderFiles || [])
-                    .filter(f => f.name && `players/${playerId}/${f.name}` !== path)
-                    .map(f => `players/${playerId}/${f.name}`);
-                if (toRemove.length > 0) {
-                    await supabase.storage.from('media').remove(toRemove);
-                }
-            } catch (cleanupErr) {
-                // Cleanup is non-fatal — log but don't break the user flow
-                console.warn('[AvatarUploader] old-file cleanup skipped:', cleanupErr);
-            }
-
-            toast.success('Player photo updated.');
-            if (typeof onUploaded === 'function') onUploaded(publicUrl);
+            const { url, cutout } = await uploadPlayerPhoto(playerId, file);
+            setLocalUrl(url);
+            toast.success(cutout ? 'Photo updated — background removed. ✨' : 'Player photo updated.');
+            if (typeof onUploaded === 'function') onUploaded(url);
         } catch (err) {
             console.error('[AvatarUploader] upload failed:', err);
             const msg = err?.message || 'Upload failed.';
-            toast.error(msg.includes('policy') || msg.includes('permission')
+            toast.error(/not allowed|policy|permission/i.test(msg)
                 ? "You don't have permission to upload this player's photo."
                 : `Upload failed: ${msg}`);
-            // Roll back optimistic preview
             setLocalUrl(null);
         } finally {
             setUploading(false);
