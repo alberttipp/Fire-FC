@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { Shield, Star, TrendingUp, RotateCw, ChevronRight } from 'lucide-react';
 import { flagUrl, countryName, DEFAULT_CARD_COUNTRY } from '../../constants/cardCountries';
 
+// Unlockable hero card themes (earned via play; see set_player_hero_mode).
+export const HERO_THEMES = {
+    messi:   { border: 'border-pink-400/70',   accent: 'text-pink-300',   glow: 'shadow-[0_0_35px_rgba(244,114,182,0.35)]', badge: 'MESSI MODE', emoji: '🐐', badgeCls: 'bg-gradient-to-r from-pink-500 to-rose-500 text-white' },
+    ronaldo: { border: 'border-yellow-400/80', accent: 'text-yellow-300', glow: 'shadow-[0_0_35px_rgba(250,204,21,0.40)]',  badge: 'CR7 · SIUU', emoji: '🤫', badgeCls: 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black' },
+};
+
 const PlayerCard = ({ player, onClick, showBack = false }) => {
     const [isFlipped, setIsFlipped] = useState(showBack);
 
@@ -18,9 +24,13 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
         defending = 45,
         physical = 78,
         messiMode = false,
+        heroMode = null,
         country = DEFAULT_CARD_COUNTRY,
         image = "https://images.unsplash.com/photo-1511886929837-354d827aae26?q=80&w=1000&auto=format&fit=crop"
     } = player || {};
+
+    const theme = HERO_THEMES[heroMode] || null;
+    const ratingColor = theme?.accent || 'text-brand-gold';
 
     const handleCardClick = () => {
         // Just flip — no auto-open. The back has a "View Full Profile" button
@@ -42,10 +52,12 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
             className="relative w-full max-w-80 h-[480px] mx-auto group font-sans select-none cursor-pointer"
             style={{ perspective: '1000px' }}
         >
-            {/* Messi Mode Badge Overlay */}
-            {messiMode && (
-                <div className="absolute -top-8 -right-8 z-50 w-28 h-28 animate-bounce-slow drop-shadow-[0_0_25px_rgba(255,105,180,0.9)] filter hover:scale-110 transition-transform">
-                    <img src="/branding/messi_mode_new.png" alt="Messi Mode" className="w-full h-full object-contain" />
+            {/* Hero Mode badge — themed pill when the player has an active mode. */}
+            {theme && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-50">
+                    <span className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-lg whitespace-nowrap ${theme.badgeCls}`}>
+                        {theme.emoji} {theme.badge}
+                    </span>
                 </div>
             )}
 
@@ -60,7 +72,7 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
                     style={{ backfaceVisibility: 'hidden' }}
                 >
                     {/* Main Card Shape - Dark Premium Style */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-t-[2rem] rounded-br-[4rem] rounded-bl-[2rem] border-2 border-brand-gold/40 transition-all duration-300 group-hover:shadow-[0_25px_60px_rgba(59,130,246,0.2)]">
+                    <div className={`absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.6)] rounded-t-[2rem] rounded-br-[4rem] rounded-bl-[2rem] border-2 transition-all duration-300 group-hover:shadow-[0_25px_60px_rgba(59,130,246,0.2)] ${theme ? `${theme.border} ${theme.glow}` : 'border-brand-gold/40'}`}>
                         {/* Texture Overlay */}
                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30 mix-blend-overlay rounded-t-[2rem] rounded-br-[4rem] rounded-bl-[2rem]"></div>
 
@@ -75,7 +87,7 @@ const PlayerCard = ({ player, onClick, showBack = false }) => {
 
                                 {/* Left Column Info */}
                                 <div className="w-[30%] pt-10 pl-6 flex flex-col items-center z-20">
-                                    <span className="text-5xl font-black text-brand-gold leading-none tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{rating}</span>
+                                    <span className={`text-5xl font-black leading-none tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${ratingColor}`}>{rating}</span>
                                     <span className="text-xl font-bold text-white uppercase leading-none mb-3">{position}</span>
 
                                     <div className="w-full h-[1px] bg-brand-gold/30 mb-3"></div>

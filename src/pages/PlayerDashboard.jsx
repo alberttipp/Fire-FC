@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import PlayerCard from '../components/player/PlayerCard';
 import CardCustomizeModal from '../components/player/CardCustomizeModal';
+import HeroModeModal from '../components/player/HeroModeModal';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
@@ -54,6 +55,7 @@ const PlayerDashboard = () => {
     const [playerError, setPlayerError] = useState(null); // Error if player not found
     const [playerLoading, setPlayerLoading] = useState(true); // Loading state for player lookup
     const [customizeOpen, setCustomizeOpen] = useState(false);
+    const [heroOpen, setHeroOpen] = useState(false);
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
 
     // Phone back button → close the topmost open modal instead of leaving the
@@ -381,6 +383,7 @@ const PlayerDashboard = () => {
         defending: stats?.defending || 50,
         physical: stats?.physical || 50,
         messiMode: stats?.messi_mode_unlocked || false,
+        heroMode: playerRecord?.hero_mode || null,
         country: playerRecord?.card_country || DEFAULT_CARD_COUNTRY,
         image: getPlayerAvatarPath({
             avatarUrl: playerRecord?.avatar_url || profile?.avatar_url || user?.avatar_url || null,
@@ -620,14 +623,28 @@ const PlayerDashboard = () => {
                             />
                         </div>
                         {playerRecord?.id && (
-                            <div className="text-center -mt-2">
+                            <div className="text-center -mt-2 flex items-center justify-center gap-4">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setCustomizeOpen(true); }}
                                     className="text-xs text-gray-400 hover:text-brand-gold font-bold uppercase tracking-wider transition-colors"
                                 >
-                                    🏳️ Customize card flag
+                                    🏳️ Card flag
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setHeroOpen(true); }}
+                                    className="text-xs text-gray-400 hover:text-brand-gold font-bold uppercase tracking-wider transition-colors"
+                                >
+                                    ✨ Hero Mode
                                 </button>
                             </div>
+                        )}
+                        {heroOpen && playerRecord?.id && (
+                            <HeroModeModal
+                                playerId={playerRecord.id}
+                                playerName={playerRecord.first_name || ''}
+                                onSaved={(mode) => setPlayerRecord(prev => prev ? { ...prev, hero_mode: mode } : prev)}
+                                onClose={() => setHeroOpen(false)}
+                            />
                         )}
                         {customizeOpen && playerRecord?.id && (
                             <CardCustomizeModal

@@ -7,6 +7,7 @@ import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import CardCustomizeModal from '../components/player/CardCustomizeModal';
+import HeroModeModal from '../components/player/HeroModeModal';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import Leaderboard from '../components/player/Leaderboard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
@@ -63,6 +64,7 @@ const ParentDashboard = () => {
     const [currentView, setCurrentView] = useState('overview');
     const [showDetails, setShowDetails] = useState(false);
     const [customizeOpen, setCustomizeOpen] = useState(false);
+    const [heroOpen, setHeroOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [inviteOpen, setInviteOpen] = useState(false);
     // When set, EventDetailModal opens with this event so the parent can see
@@ -653,6 +655,7 @@ const ParentDashboard = () => {
             defending: playerEvaluation?.defending || 50,
             physical: playerEvaluation?.physical || 50,
             messiMode: playerStats?.messi_mode_unlocked || false,
+            heroMode: player.hero_mode || null,
             country: player.card_country || DEFAULT_CARD_COUNTRY,
             image: getPlayerAvatarPath({
                 avatarUrl: player.avatar_url || null,
@@ -870,14 +873,31 @@ const ParentDashboard = () => {
                             </div>
                             <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
                         </div>
-                        <div className="text-center -mt-2">
+                        <div className="text-center -mt-2 flex items-center justify-center gap-4">
                             <button
                                 onClick={(e) => { e.stopPropagation(); setCustomizeOpen(true); }}
                                 className="text-xs text-gray-400 hover:text-brand-gold font-bold uppercase tracking-wider transition-colors"
                             >
-                                🏳️ Customize card flag
+                                🏳️ Card flag
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setHeroOpen(true); }}
+                                className="text-xs text-gray-400 hover:text-brand-gold font-bold uppercase tracking-wider transition-colors"
+                            >
+                                ✨ Hero Mode
                             </button>
                         </div>
+                        {heroOpen && selectedChild?.id && (
+                            <HeroModeModal
+                                playerId={selectedChild.id}
+                                playerName={selectedChild.first_name || ''}
+                                onSaved={(mode) => {
+                                    setSelectedChild(prev => prev ? { ...prev, hero_mode: mode } : prev);
+                                    setChildren(prev => prev.map(c => c.id === selectedChild.id ? { ...c, hero_mode: mode } : c));
+                                }}
+                                onClose={() => setHeroOpen(false)}
+                            />
+                        )}
                         {customizeOpen && selectedChild?.id && (
                             <CardCustomizeModal
                                 playerId={selectedChild.id}
