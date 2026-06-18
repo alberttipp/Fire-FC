@@ -1,7 +1,10 @@
 -- Applied to prod via MCP 2026-06-17. Unlockable hero card themes.
 -- players.hero_mode (null=classic | 'messi' | 'ronaldo'). Unlock is COMPUTED:
 --   Messi Mode   — best single-session juggle streak >= 25 (skill)
---   Ronaldo Mode — >= 15 training sessions logged (work / "SIUU")
+--   Ronaldo Mode — >= 5 training sessions of 20+ MINUTES (work / "SIUU").
+--     (Updated 2026-06-18: only sessions with minutes>=20 count — assigned
+--      drills avg ~8 min, so "session" now means a real session; threshold
+--      recalibrated 15→5 to match. Santi Jimenez has 5 → unlocked.)
 -- get_player_hero_modes(player) -> {selected, heroes:[{id,name,progress,goal,unlocked,...}]}
 -- set_player_hero_mode(player, mode) -> equips an UNLOCKED mode; null/'default'
 --   clears. Auth: staff on team / guardian / the player. anon revoked.

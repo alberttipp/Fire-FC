@@ -7,7 +7,10 @@ const Leaderboard = () => {
     const { user } = useAuth();
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('weekly'); // 'weekly', 'career', or 'touches'
+    // Default to Career so the big cumulative totals (incl. 90-min practice
+    // credits) show first — weekly alone looked deceptively small. Toggle still
+    // cycles Weekly / Career / Touches.
+    const [viewMode, setViewMode] = useState('career'); // 'weekly', 'career', or 'touches'
 
     useEffect(() => {
         fetchLeaderboard();
