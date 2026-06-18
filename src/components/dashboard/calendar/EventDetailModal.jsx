@@ -101,7 +101,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center md:p-4 z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center md:p-4 z-[110]" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-xl w-full md:max-w-2xl h-[90dvh] md:h-auto md:max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Cover hero — only when set. object-contain so the FULL image
                     is visible (no cropping). Capped so a tall cover can't eat the
@@ -185,7 +185,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                 {/* Body — flex-1 + min-h-0 so it fills the remaining height and
                     scrolls fully (the attendance list incl. Vacation / No Response
                     was getting clipped under a cover image with the old fixed max-h). */}
-                <div className="p-4 overflow-y-auto flex-1 min-h-0 space-y-4">
+                <div className="p-4 overflow-y-auto flex-1 min-h-0 space-y-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                     <div className="flex flex-wrap gap-4 text-sm text-gray-400">
                         <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {event.location_name || 'TBD'}</span>
                         {event.kit_color && (
