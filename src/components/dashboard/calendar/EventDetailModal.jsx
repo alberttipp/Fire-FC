@@ -102,12 +102,13 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-end md:items-center justify-center md:p-4 z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-xl w-full md:max-w-2xl h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-xl w-full md:max-w-2xl h-[90dvh] md:h-auto md:max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Cover hero — only when set. object-contain so the FULL image
-                    is visible (no cropping); container hugs the 1200:630 ratio. */}
+                    is visible (no cropping). Capped so a tall cover can't eat the
+                    modal and push the attendance list off-screen. */}
                 {event.cover_image_url && (
-                    <div className="relative bg-black overflow-hidden">
-                        <img src={event.cover_image_url} alt="" className="w-full h-auto block" />
+                    <div className="relative bg-black overflow-hidden shrink-0">
+                        <img src={event.cover_image_url} alt="" className="w-full h-auto block max-h-[28vh] object-contain mx-auto" />
                         {isCoach && (
                             <button
                                 onClick={() => setEditingCover(true)}
@@ -121,7 +122,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                 )}
                 {/* Staff action bar (Edit / Delete / Add cover / Lineup) — top of modal regardless of whether a cover exists. */}
                 {isCoach && (
-                    <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5">
+                    <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5 shrink-0">
                         {isGame && (
                             <button
                                 onClick={() => onOpenLineup?.(event)}
@@ -155,7 +156,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                 )}
                 {/* Parent-facing lineup button — game events only, non-staff */}
                 {!isCoach && isGame && (
-                    <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5">
+                    <div className="bg-black/30 px-4 py-2 flex items-center justify-end gap-1 border-b border-white/5 shrink-0">
                         <button
                             onClick={() => onOpenLineup?.(event)}
                             className="text-xs text-brand-green hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-brand-green/10"
@@ -166,7 +167,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                 )}
 
                 {/* Header */}
-                <div className={`p-4 border-b border-white/10 flex items-center justify-between ${config.bg}`}>
+                <div className={`p-4 border-b border-white/10 flex items-center justify-between shrink-0 ${config.bg}`}>
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <h3 className="text-xl text-white font-bold">{event.title}</h3>
@@ -181,8 +182,10 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                     </button>
                 </div>
 
-                {/* Body */}
-                <div className="p-4 overflow-y-auto max-h-[65vh] space-y-4">
+                {/* Body — flex-1 + min-h-0 so it fills the remaining height and
+                    scrolls fully (the attendance list incl. Vacation / No Response
+                    was getting clipped under a cover image with the old fixed max-h). */}
+                <div className="p-4 overflow-y-auto flex-1 min-h-0 space-y-4">
                     <div className="flex flex-wrap gap-4 text-sm text-gray-400">
                         <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {event.location_name || 'TBD'}</span>
                         {event.kit_color && (
