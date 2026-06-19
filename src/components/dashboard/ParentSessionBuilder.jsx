@@ -124,6 +124,13 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
     const [customCategory, setCustomCategory] = useState('Ball Mastery (Solo)');
     const [customMinutes, setCustomMinutes] = useState(15);
 
+    // Phase 2: saved routines + most-used (recents)
+    const [routines, setRoutines] = useState([]);
+    const [recentDrills, setRecentDrills] = useState([]);
+    const [showSaveRoutine, setShowSaveRoutine] = useState(false);
+    const [routineName, setRoutineName] = useState('');
+    const [savingRoutine, setSavingRoutine] = useState(false);
+
     // Session-level metadata (from AI)
     const [sessionEquipment, setSessionEquipment] = useState([]);
     const [sessionSetup, setSessionSetup] = useState([]);
@@ -221,31 +228,45 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
         fetchDrills();
     }, []);
 
-    // This player's saved custom drills — shown in the picker so a family can
-    // re-use the drills they made before instead of recreating them.
-    useEffect(() => {
+    // Map a saved/library drill row -> a picker template (reuses by drillId).
+    const toTemplate = (d) => ({
+        id: d.id, drillId: d.id, custom: false,
+        name: d.name, duration: d.duration || 15, description: d.description || '',
+        category: STYLE_FROM_CANONICAL[d.category] || 'technical', originalCategory: d.category,
+    });
+
+    // This player's saved custom drills (reusable in the picker).
+    const fetchMyDrills = async () => {
         if (!playerId) return;
-        let cancelled = false;
-        supabase
-            .from('drills')
-            .select('id, name, category, duration, description')
-            .eq('is_custom', true)
-            .eq('owner_player_id', playerId)
-            .order('created_at', { ascending: false })
-            .then(({ data }) => {
-                if (cancelled) return;
-                setMyDrills((data || []).map(d => ({
-                    id: d.id,
-                    drillId: d.id,          // reuse the existing drill (no re-insert on save)
-                    custom: false,
-                    name: d.name,
-                    duration: d.duration || 15,
-                    description: d.description || '',
-                    category: STYLE_FROM_CANONICAL[d.category] || 'technical',
-                    originalCategory: d.category,
-                })));
-            });
-        return () => { cancelled = true; };
+        const { data } = await supabase
+            .from('drills').select('id, name, category, duration, description')
+            .eq('is_custom', true).eq('owner_player_id', playerId)
+            .order('created_at', { ascending: false });
+        setMyDrills((data || []).map(toTemplate));
+    };
+
+    // This player's saved routines (named drill sets) with their drills.
+    const fetchRoutines = async () => {
+        if (!playerId) return;
+        const { data } = await supabase
+            .from('drill_routines')
+            .select('id, name, drill_routine_items(position, custom_duration, drills(id, name, category, duration, description))')
+            .eq('player_id', playerId).order('created_at', { ascending: false });
+        setRoutines(data || []);
+    };
+
+    // Most-used drills (recents) via the get_recent_drills RPC.
+    const fetchRecents = async () => {
+        if (!playerId) return;
+        const { data } = await supabase.rpc('get_recent_drills', { p_player_id: playerId, p_limit: 6 });
+        setRecentDrills((data || []).map(toTemplate));
+    };
+
+    useEffect(() => {
+        fetchMyDrills();
+        fetchRoutines();
+        fetchRecents();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [playerId]);
 
     // Speech recognition setup
@@ -507,6 +528,93 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
+    // Resolve every block to a real drills.id, persisting custom blocks first
+    // (canonical category + skill tag + owner so they feed the rating loop and
+    // are reusable). Shared by "Save Challenge" and "Save as routine".
+    const resolveBlockDrillIds = async (blocksToResolve) => {
+        const resolved = [];
+        for (const block of blocksToResolve) {
+            if (block.drillId && !block.custom) {
+                resolved.push({ ...block, resolvedDrillId: block.drillId });
+                continue;
+            }
+            const canonicalCat = block.customCategory || CANONICAL_FROM_STYLE[block.category] || 'Ball Mastery (Solo)';
+            const skill = SKILL_FROM_CANONICAL[canonicalCat];
+            const { data: newDrill, error: drillErr } = await supabase
+                .from('drills')
+                .insert({
+                    name: block.name || 'Custom Drill',
+                    category: canonicalCat,
+                    duration: block.duration || 10,
+                    description: block.description || '',
+                    is_custom: true,
+                    created_by: user?.id || null,
+                    owner_player_id: playerId || null,
+                    team_id: teamId || null,
+                    tagged_skills: skill ? [skill] : null,
+                })
+                .select('id')
+                .single();
+            if (drillErr) throw drillErr;
+            resolved.push({ ...block, resolvedDrillId: newDrill.id });
+        }
+        return resolved;
+    };
+
+    // Load a saved routine's drills into the builder (one tap = whole set).
+    const loadRoutine = (routine) => {
+        const items = [...(routine.drill_routine_items || [])]
+            .filter(it => it.drills)
+            .sort((a, b) => (a.position || 0) - (b.position || 0));
+        const newBlocks = items.map((it, i) => {
+            const d = it.drills;
+            return {
+                id: `routine-${d.id}-${Date.now()}-${i}`,
+                drillId: d.id, custom: false,
+                name: d.name,
+                duration: it.custom_duration || d.duration || 10,
+                category: STYLE_FROM_CANONICAL[d.category] || 'technical',
+                description: d.description || '',
+                setup: [], coachingPoints: [], progressions: [],
+            };
+        });
+        setBlocks(prev => [...prev, ...newBlocks]);
+        setShowDrillPicker(false);
+        toast.success(`Loaded "${routine.name}".`);
+    };
+
+    // Save the current blocks as a reusable routine for this player.
+    const saveAsRoutine = async () => {
+        const name = routineName.trim();
+        if (!name) { toast.warning('Name your routine.'); return; }
+        if (blocks.length === 0) { toast.warning('Add some drills first.'); return; }
+        setSavingRoutine(true);
+        try {
+            const resolved = await resolveBlockDrillIds(blocks);
+            const { data: routine, error } = await supabase
+                .from('drill_routines')
+                .insert({ player_id: playerId, name, created_by: user?.id || null })
+                .select('id')
+                .single();
+            if (error) throw error;
+            const items = resolved.map((b, i) => ({
+                routine_id: routine.id, drill_id: b.resolvedDrillId, position: i, custom_duration: b.duration,
+            }));
+            const { error: itemsErr } = await supabase.from('drill_routine_items').insert(items);
+            if (itemsErr) throw itemsErr;
+            toast.success(`Saved routine "${name}".`);
+            setShowSaveRoutine(false);
+            setRoutineName('');
+            fetchRoutines();
+            fetchMyDrills();
+        } catch (err) {
+            console.error('Save routine error:', err);
+            toast.error("Couldn't save the routine.");
+        } finally {
+            setSavingRoutine(false);
+        }
+    };
+
     // Save the built session as a training challenge. All blocks (library AND custom) are
     // saved. Custom drills get persisted to the `drills` table first with
     // is_custom=true so they have a stable drill_id that the leaderboard /
@@ -529,36 +637,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
             const source = saveMode === 'player' ? 'player' : 'parent';
 
             // Persist any custom drills first so we can reference their ids.
-            const blocksWithDrillIds = [];
-            for (const block of blocks) {
-                if (block.drillId && !block.custom) {
-                    blocksWithDrillIds.push({ ...block, resolvedDrillId: block.drillId });
-                    continue;
-                }
-                // Custom drill — INSERT into drills, take the new id. Store the
-                // CANONICAL (proper-case) category + the skill tag so the drill's
-                // minutes roll up to the right FIFA attribute / rating. Scope it to
-                // this player (owner_player_id) so it's private + reusable.
-                const canonicalCat = block.customCategory || CANONICAL_FROM_STYLE[block.category] || 'Ball Mastery (Solo)';
-                const skill = SKILL_FROM_CANONICAL[canonicalCat];
-                const { data: newDrill, error: drillErr } = await supabase
-                    .from('drills')
-                    .insert({
-                        name: block.name || 'Custom Drill',
-                        category: canonicalCat,
-                        duration: block.duration || 10,
-                        description: block.description || '',
-                        is_custom: true,
-                        created_by: user?.id || null,
-                        owner_player_id: playerId || null,
-                        team_id: teamId || null,
-                        tagged_skills: skill ? [skill] : null,
-                    })
-                    .select('id')
-                    .single();
-                if (drillErr) throw drillErr;
-                blocksWithDrillIds.push({ ...block, resolvedDrillId: newDrill.id });
-            }
+            const blocksWithDrillIds = await resolveBlockDrillIds(blocks);
 
             const assignmentRows = blocksWithDrillIds.map(block => ({
                 drill_id: block.resolvedDrillId,
@@ -971,6 +1050,14 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                                 <Timer className="w-4 h-4" /> Run with Timers
                             </button>
                         )}
+                        {blocks.length > 0 && (
+                            <button
+                                onClick={() => setShowSaveRoutine(true)}
+                                className="px-4 py-2 bg-white/5 border border-white/10 text-gray-300 rounded-lg font-bold hover:bg-white/10 flex items-center gap-2 text-sm"
+                            >
+                                <ListChecks className="w-4 h-4" /> Save as routine
+                            </button>
+                        )}
                         <button
                             onClick={handleSaveAsAssignments}
                             disabled={blocks.length === 0 || saving}
@@ -980,6 +1067,29 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                         </button>
                     </div>
                 </div>
+
+                {/* Save-as-routine name prompt */}
+                {showSaveRoutine && (
+                    <div className="absolute inset-0 bg-black/90 flex items-center justify-center p-4 z-20">
+                        <div className="bg-brand-dark border border-white/10 rounded-xl w-full max-w-sm p-5">
+                            <h3 className="text-white font-bold mb-1 flex items-center gap-2"><ListChecks className="w-4 h-4 text-brand-green" /> Save as a routine</h3>
+                            <p className="text-xs text-gray-400 mb-3">Name it so {playerName || 'you'} can load the whole set in one tap next time.</p>
+                            <input
+                                value={routineName} autoFocus
+                                onChange={(e) => setRoutineName(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && saveAsRoutine()}
+                                placeholder="e.g., Morning 20"
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm mb-3"
+                            />
+                            <div className="flex gap-2">
+                                <button onClick={saveAsRoutine} disabled={savingRoutine || !routineName.trim()} className="flex-1 py-2 bg-brand-green text-brand-dark rounded-lg font-bold disabled:opacity-50">
+                                    {savingRoutine ? 'Saving…' : 'Save routine'}
+                                </button>
+                                <button onClick={() => { setShowSaveRoutine(false); setRoutineName(''); }} className="px-3 py-2 bg-white/5 text-gray-400 rounded-lg">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Drill Picker Modal */}
                 {showDrillPicker && (
@@ -1033,6 +1143,30 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                                     </div>
                                 )}
 
+                                {/* My Routines — load a whole saved set in one tap */}
+                                {routines.length > 0 && (
+                                    <div className="mb-3">
+                                        <div className="text-xs uppercase tracking-wider text-brand-green font-bold mb-1 flex items-center gap-1">
+                                            <ListChecks className="w-3.5 h-3.5" /> My Routines
+                                        </div>
+                                        <div className="space-y-1">
+                                            {routines.map(r => {
+                                                const items = (r.drill_routine_items || []).filter(it => it.drills);
+                                                const mins = items.reduce((s, it) => s + (it.custom_duration || it.drills?.duration || 0), 0);
+                                                return (
+                                                    <button key={r.id} onClick={() => loadRoutine(r)} className="w-full flex items-center justify-between p-2 rounded-lg bg-brand-green/5 border border-brand-green/20 hover:bg-brand-green/10 text-left">
+                                                        <div className="min-w-0">
+                                                            <p className="text-white text-sm font-medium truncate">{r.name}</p>
+                                                            <p className="text-xs text-gray-500">{items.length} drill{items.length === 1 ? '' : 's'} · {mins} min</p>
+                                                        </div>
+                                                        <span className="text-brand-green text-[11px] font-bold uppercase tracking-wider shrink-0">Load all →</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* My Drills — this player's saved customs, reusable */}
                                 {myDrills.length > 0 && (
                                     <div className="mb-3">
@@ -1042,6 +1176,26 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                                         <div className="space-y-1">
                                             {myDrills.map(drill => (
                                                 <button key={drill.id} onClick={() => addDrill(drill)} className="w-full flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 text-left">
+                                                    <div className="min-w-0">
+                                                        <p className="text-white text-sm font-medium truncate">{drill.name}</p>
+                                                        <p className="text-xs text-gray-500 truncate">{drill.originalCategory}</p>
+                                                    </div>
+                                                    <span className="text-brand-green text-sm font-mono shrink-0">{drill.duration}m</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Recent / go-to — this player's most-used drills */}
+                                {recentDrills.length > 0 && (
+                                    <div className="mb-3">
+                                        <div className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-1 flex items-center gap-1">
+                                            <RotateCcw className="w-3.5 h-3.5" /> Recent / Go-to
+                                        </div>
+                                        <div className="space-y-1">
+                                            {recentDrills.map(drill => (
+                                                <button key={`recent-${drill.id}`} onClick={() => addDrill(drill)} className="w-full flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 text-left">
                                                     <div className="min-w-0">
                                                         <p className="text-white text-sm font-medium truncate">{drill.name}</p>
                                                         <p className="text-xs text-gray-500 truncate">{drill.originalCategory}</p>
