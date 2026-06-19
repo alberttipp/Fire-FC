@@ -22,6 +22,33 @@ const DRILL_CATEGORIES = [
     { id: 'cooldown', name: 'Cool Down', icon: Shield, color: 'text-teal-400', bg: 'bg-teal-500/20' },
 ];
 
+// Canonical drill categories that map to FIFA-card attributes, so a custom
+// drill still feeds the rating/tracking loop. `value` is the proper-case
+// category stored on drills.category; `style` is the lowercase id the builder
+// uses for the icon/color; `skill` is tagged on the drill for the attribute tie-in.
+const CUSTOM_CATEGORIES = [
+    { value: 'Dribbling & 1v1',              label: 'Dribbling / 1v1',       skill: 'Dribbling', style: 'technical' },
+    { value: 'Ball Mastery (Solo)',          label: 'Ball Mastery',          skill: 'Dribbling', style: 'technical' },
+    { value: 'First Touch',                  label: 'First Touch',           skill: 'Dribbling', style: 'technical' },
+    { value: 'Passing & Receiving',          label: 'Passing',               skill: 'Passing',   style: 'passing' },
+    { value: 'Finishing & Shooting',         label: 'Shooting / Finishing',  skill: 'Shooting',  style: 'shooting' },
+    { value: 'Speed & Agility',              label: 'Speed / Agility',       skill: 'Pace',      style: 'fitness' },
+    { value: 'Conditioning',                 label: 'Fitness',               skill: 'Physical',  style: 'fitness' },
+    { value: 'Defending',                    label: 'Defending',             skill: 'Defending', style: 'tactical' },
+    { value: 'Tactical / Game Intelligence', label: 'Tactical / Game IQ',    skill: 'Defending', style: 'tactical' },
+    { value: 'Goalkeeper',                   label: 'Goalkeeper',            skill: 'GK',        style: 'technical' },
+    { value: 'Warm-Up',                      label: 'Warm Up',               skill: null,        style: 'warmup' },
+];
+const STYLE_FROM_CANONICAL = Object.fromEntries(CUSTOM_CATEGORIES.map(c => [c.value, c.style]));
+const SKILL_FROM_CANONICAL = Object.fromEntries(CUSTOM_CATEGORIES.map(c => [c.value, c.skill]));
+// AI-built custom blocks carry a lowercase style id; map it to a sensible
+// canonical category so those customs also tie to a rating attribute.
+const CANONICAL_FROM_STYLE = {
+    warmup: 'Warm-Up', technical: 'Ball Mastery (Solo)', passing: 'Passing & Receiving',
+    shooting: 'Finishing & Shooting', tactical: 'Tactical / Game Intelligence',
+    fitness: 'Conditioning', game: 'Tactical / Game Intelligence', cooldown: 'Warm-Up',
+};
+
 // Play alarm sound
 const playAlarm = () => {
     try {
@@ -88,6 +115,14 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
     const [drillsFetchError, setDrillsFetchError] = useState(null);
     const drillFetchRef = useRef(null);
     const [saving, setSaving] = useState(false);
+
+    // This player's previously-saved custom drills (reusable from the picker),
+    // plus the inline "create your own" form state.
+    const [myDrills, setMyDrills] = useState([]);
+    const [showCustomForm, setShowCustomForm] = useState(false);
+    const [customName, setCustomName] = useState('');
+    const [customCategory, setCustomCategory] = useState('Ball Mastery (Solo)');
+    const [customMinutes, setCustomMinutes] = useState(15);
 
     // Session-level metadata (from AI)
     const [sessionEquipment, setSessionEquipment] = useState([]);
@@ -185,6 +220,33 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
     useEffect(() => {
         fetchDrills();
     }, []);
+
+    // This player's saved custom drills — shown in the picker so a family can
+    // re-use the drills they made before instead of recreating them.
+    useEffect(() => {
+        if (!playerId) return;
+        let cancelled = false;
+        supabase
+            .from('drills')
+            .select('id, name, category, duration, description')
+            .eq('is_custom', true)
+            .eq('owner_player_id', playerId)
+            .order('created_at', { ascending: false })
+            .then(({ data }) => {
+                if (cancelled) return;
+                setMyDrills((data || []).map(d => ({
+                    id: d.id,
+                    drillId: d.id,          // reuse the existing drill (no re-insert on save)
+                    custom: false,
+                    name: d.name,
+                    duration: d.duration || 15,
+                    description: d.description || '',
+                    category: STYLE_FROM_CANONICAL[d.category] || 'technical',
+                    originalCategory: d.category,
+                })));
+            });
+        return () => { cancelled = true; };
+    }, [playerId]);
 
     // Speech recognition setup
     useEffect(() => {
@@ -345,13 +407,39 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
         setBlocks((prev) => [...prev, {
             ...template,
             id: `${template.id}-${Date.now()}`,
-            drillId: template.id,
-            custom: false,
+            drillId: template.drillId ?? template.id,
+            custom: template.custom ?? false,
             setup: [],
             coachingPoints: [],
             progressions: []
         }]);
         setShowDrillPicker(false);
+    };
+
+    // Family "create your own" drill — name + a CANONICAL category (so it maps
+    // to a FIFA attribute and counts toward the rating). Persisted on save as a
+    // private custom drill (owner_player_id) so it's reusable next time.
+    const addCustomDrill = () => {
+        const name = customName.trim();
+        if (!name) { toast.warning('Give your drill a name.'); return; }
+        const cat = CUSTOM_CATEGORIES.find(c => c.value === customCategory) || CUSTOM_CATEGORIES[1];
+        setBlocks(prev => [...prev, {
+            id: `custom-${Date.now()}`,
+            drillId: null,
+            custom: true,
+            name,
+            duration: Math.max(5, Math.min(60, customMinutes || 15)),
+            category: cat.style,           // lowercase id for the builder's icon/color
+            customCategory: cat.value,     // proper-case canonical -> drills.category + rating tie-in
+            description: '',
+            setup: [], coachingPoints: [], progressions: [],
+        }]);
+        setCustomName('');
+        setCustomCategory('Ball Mastery (Solo)');
+        setCustomMinutes(15);
+        setShowCustomForm(false);
+        setShowDrillPicker(false);
+        toast.success('Added your drill.');
     };
 
     // ?drillIds=<uuid>,<uuid>... deep-link from the IDP Hub / PlayerIDPView
@@ -447,17 +535,24 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                     blocksWithDrillIds.push({ ...block, resolvedDrillId: block.drillId });
                     continue;
                 }
-                // Custom drill — INSERT into drills, take the new id.
+                // Custom drill — INSERT into drills, take the new id. Store the
+                // CANONICAL (proper-case) category + the skill tag so the drill's
+                // minutes roll up to the right FIFA attribute / rating. Scope it to
+                // this player (owner_player_id) so it's private + reusable.
+                const canonicalCat = block.customCategory || CANONICAL_FROM_STYLE[block.category] || 'Ball Mastery (Solo)';
+                const skill = SKILL_FROM_CANONICAL[canonicalCat];
                 const { data: newDrill, error: drillErr } = await supabase
                     .from('drills')
                     .insert({
                         name: block.name || 'Custom Drill',
-                        category: block.category || 'technical',
+                        category: canonicalCat,
                         duration: block.duration || 10,
                         description: block.description || '',
                         is_custom: true,
                         created_by: user?.id || null,
+                        owner_player_id: playerId || null,
                         team_id: teamId || null,
+                        tagged_skills: skill ? [skill] : null,
                     })
                     .select('id')
                     .single();
@@ -895,6 +990,69 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                                 <button onClick={() => setShowDrillPicker(false)} className="p-1 hover:bg-white/10 rounded"><X className="w-5 h-5 text-gray-400" /></button>
                             </div>
                             <div className="p-4 overflow-y-auto max-h-[60vh]">
+                                {/* Create your own — the fix for "I can't find the exact drill" */}
+                                {!showCustomForm ? (
+                                    <button
+                                        onClick={() => setShowCustomForm(true)}
+                                        className="w-full mb-3 p-3 rounded-lg border border-dashed border-brand-gold/50 text-brand-gold text-sm font-bold hover:bg-brand-gold/10 flex items-center justify-center gap-2"
+                                    >
+                                        <Plus className="w-4 h-4" /> Can’t find it? Create your own drill
+                                    </button>
+                                ) : (
+                                    <div className="mb-3 p-3 rounded-lg border border-brand-gold/30 bg-brand-gold/5 space-y-2">
+                                        <input
+                                            type="text" value={customName} autoFocus
+                                            onChange={(e) => setCustomName(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && addCustomDrill()}
+                                            placeholder="Drill name (e.g., Cone weave + finish)"
+                                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm"
+                                        />
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={customCategory}
+                                                onChange={(e) => setCustomCategory(e.target.value)}
+                                                className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg p-2.5 text-white text-sm"
+                                            >
+                                                {CUSTOM_CATEGORIES.map(c => (
+                                                    <option key={c.value} value={c.value} className="bg-brand-dark">
+                                                        {c.label}{c.skill ? ` · builds ${c.skill}` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button type="button" onClick={() => setCustomMinutes(m => Math.max(5, m - 5))} className="w-7 h-7 rounded bg-white/10 text-gray-300">-</button>
+                                                <span className="text-brand-green font-mono w-9 text-center text-sm">{customMinutes}m</span>
+                                                <button type="button" onClick={() => setCustomMinutes(m => Math.min(60, m + 5))} className="w-7 h-7 rounded bg-white/10 text-gray-300">+</button>
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500">Pick the closest skill so it counts toward {playerName ? `${playerName}’s` : 'the'} rating.</p>
+                                        <div className="flex gap-2">
+                                            <button onClick={addCustomDrill} className="flex-1 py-2 bg-brand-green text-brand-dark rounded-lg text-sm font-bold">Add it</button>
+                                            <button onClick={() => setShowCustomForm(false)} className="px-3 py-2 bg-white/5 text-gray-400 rounded-lg text-sm">Cancel</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* My Drills — this player's saved customs, reusable */}
+                                {myDrills.length > 0 && (
+                                    <div className="mb-3">
+                                        <div className="text-xs uppercase tracking-wider text-brand-gold font-bold mb-1 flex items-center gap-1">
+                                            <Sparkles className="w-3.5 h-3.5" /> My Drills
+                                        </div>
+                                        <div className="space-y-1">
+                                            {myDrills.map(drill => (
+                                                <button key={drill.id} onClick={() => addDrill(drill)} className="w-full flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 text-left">
+                                                    <div className="min-w-0">
+                                                        <p className="text-white text-sm font-medium truncate">{drill.name}</p>
+                                                        <p className="text-xs text-gray-500 truncate">{drill.originalCategory}</p>
+                                                    </div>
+                                                    <span className="text-brand-green text-sm font-mono shrink-0">{drill.duration}m</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {DRILL_CATEGORIES.map(cat => {
                                     const CatIcon = cat.icon;
                                     const drills = drillTemplates.filter(d => d.category === cat.id);
