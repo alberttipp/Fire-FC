@@ -174,6 +174,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
                 // Library only — exclude user-created custom drills (those are
                 // saved per-session and would otherwise pollute everyone's picker).
                 .eq('is_custom', false)
+                .eq('hidden', false)
                 .order('category', { ascending: true });
 
             if (error) {
@@ -240,7 +241,7 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
         if (!playerId) return;
         const { data } = await supabase
             .from('drills').select('id, name, category, duration, description')
-            .eq('is_custom', true).eq('owner_player_id', playerId)
+            .eq('is_custom', true).eq('owner_player_id', playerId).eq('hidden', false)
             .order('created_at', { ascending: false });
         setMyDrills((data || []).map(toTemplate));
     };

@@ -1,0 +1,21 @@
+-- Applied to prod via MCP 2026-06-19. Family drills Phase 3 — coach oversight
+-- + category cleanup.
+--
+-- 1) One-time category normalization (legacy lowercase/duplicates -> canonical
+--    attribute-mapped set, so every drill ties to a rating):
+--    update drills set category = case category
+--      when 'warmup' then 'Warm-Up' when 'shooting' then 'Finishing & Shooting'
+--      when 'fitness' then 'Conditioning' when 'technical' then 'Ball Mastery (Solo)'
+--      when 'game' then 'Tactical / Game Intelligence' when 'cooldown' then 'Cool Down'
+--      else category end
+--    where category in ('warmup','shooting','fitness','technical','game','cooldown');
+--
+-- 2) drills.hidden + coach RPCs (staff-gated, SECURITY DEFINER):
+--    is_staff_for_drill(drill) — staff on the drill's owner-player team / drill.team_id
+--    get_team_custom_drills(team) — list family-created customs for the oversight panel
+--    coach_set_drill(drill, category?, hidden?) — recategorize / hide
+--    coach_promote_drill(drill) — is_custom=false, owner_player_id=null -> shared library
+--    get_recent_drills — also updated to exclude hidden drills.
+-- Family pickers (ParentSessionBuilder) now filter .eq('hidden', false).
+-- UI: CoachDrillsDrilldown in Coach HQ. (Function bodies live in the DB.)
+ALTER TABLE public.drills ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false;

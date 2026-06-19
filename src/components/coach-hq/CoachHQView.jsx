@@ -15,6 +15,7 @@ const IDPProgressDrilldown  = lazy(() => import('./IDPProgressDrilldown'));
 const JuggleCompetitionDrilldown = lazy(() => import('./JuggleCompetitionDrilldown'));
 const TeamAdoptionDrilldown = lazy(() => import('./TeamAdoptionDrilldown'));
 const TeamPulseDrilldown    = lazy(() => import('./TeamPulseDrilldown'));
+const CoachDrillsDrilldown  = lazy(() => import('./CoachDrillsDrilldown'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -36,6 +37,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
     const [showJuggle, setShowJuggle] = useState(false);
     const [showAdoption, setShowAdoption] = useState(false);
     const [showPulse, setShowPulse] = useState(false);
+    const [showDrills, setShowDrills] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -239,6 +241,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
 
+            {/* Player-created drills — review / recategorize / promote */}
+            <button
+                type="button"
+                onClick={() => setShowDrills(true)}
+                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+            >
+                <Dumbbell className="w-5 h-5 text-brand-gold shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Player-created drills — review, recategorize &amp; promote to the library
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+
             {/* Team Adoption — who's onboard, who needs a nudge */}
             <button
                 type="button"
@@ -265,6 +280,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 {showJuggle               && <JuggleCompetitionDrilldown teamId={teamId} onClose={() => setShowJuggle(false)} />}
                 {showAdoption             && <TeamAdoptionDrilldown teamId={teamId} onClose={() => setShowAdoption(false)} />}
                 {showPulse                && <TeamPulseDrilldown teamId={teamId} onClose={() => setShowPulse(false)} />}
+                {showDrills               && <CoachDrillsDrilldown teamId={teamId} onClose={() => setShowDrills(false)} />}
             </Suspense>
         </div>
     );
