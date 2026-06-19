@@ -99,7 +99,7 @@ const scoreDrillCandidate = (drill, transcript) => {
 // the old virtual-user/no-session model — is no longer on this path.)
 // Note: an internal `mode` state already exists for build/run timer mode,
 // so this prop is named saveMode to avoid the collision.
-const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, saveMode = 'parent' }) => {
+const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, saveMode = 'parent', preloadRoutine = null }) => {
     const { user } = useAuth();
     const toast = useToast();
 
@@ -269,6 +269,25 @@ const ParentSessionBuilder = ({ onClose, onSave, playerId, teamId, playerName, s
         fetchRecents();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [playerId]);
+
+    // Preload a routine when launched from the My Training shelf's "Start".
+    useEffect(() => {
+        if (!preloadRoutine) return;
+        const items = [...(preloadRoutine.drill_routine_items || [])]
+            .filter(it => it.drills)
+            .sort((a, b) => (a.position || 0) - (b.position || 0));
+        setBlocks(items.map((it, i) => ({
+            id: `routine-${it.drills.id}-${Date.now()}-${i}`,
+            drillId: it.drills.id, custom: false,
+            name: it.drills.name,
+            duration: it.custom_duration || it.drills.duration || 10,
+            category: STYLE_FROM_CANONICAL[it.drills.category] || 'technical',
+            description: it.drills.description || '',
+            setup: [], coachingPoints: [], progressions: [],
+        })));
+        if (preloadRoutine.name) setSessionName(preloadRoutine.name);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Speech recognition setup
     useEffect(() => {

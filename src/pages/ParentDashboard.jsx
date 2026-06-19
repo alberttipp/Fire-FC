@@ -10,6 +10,7 @@ import CardCustomizeModal from '../components/player/CardCustomizeModal';
 import HeroModeModal from '../components/player/HeroModeModal';
 import HeroProgress from '../components/player/HeroProgress';
 import PhotoUploadButton from '../components/player/PhotoUploadButton';
+import MyTrainingShelf from '../components/player/MyTrainingShelf';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import Leaderboard from '../components/player/Leaderboard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
@@ -68,6 +69,7 @@ const ParentDashboard = () => {
     const [customizeOpen, setCustomizeOpen] = useState(false);
     const [heroOpen, setHeroOpen] = useState(false);
     const [heroRefresh, setHeroRefresh] = useState(0);
+    const [builderPreload, setBuilderPreload] = useState(null);
     const [loading, setLoading] = useState(true);
     const [inviteOpen, setInviteOpen] = useState(false);
     // When set, EventDetailModal opens with this event so the parent can see
@@ -900,6 +902,13 @@ const ParentDashboard = () => {
                             </button>
                         </div>
                         {selectedChild?.id && <HeroProgress playerId={selectedChild.id} refreshKey={heroRefresh} />}
+
+                        {selectedChild?.id && (
+                            <MyTrainingShelf
+                                playerId={selectedChild.id}
+                                onStartRoutine={(r) => { setBuilderPreload(r); setShowFamilyBuilder(true); }}
+                            />
+                        )}
                         {heroOpen && selectedChild?.id && (
                             <HeroModeModal
                                 playerId={selectedChild.id}
@@ -1305,7 +1314,8 @@ const ParentDashboard = () => {
                         playerId={selectedChild.id}
                         teamId={selectedChild.team_id}
                         playerName={`${selectedChild.first_name || ''} ${selectedChild.last_name || ''}`.trim()}
-                        onClose={() => setShowFamilyBuilder(false)}
+                        preloadRoutine={builderPreload}
+                        onClose={() => { setShowFamilyBuilder(false); setBuilderPreload(null); }}
                         onSave={() => {
                             fetchChildDetails(selectedChild.id);
                             window.dispatchEvent(new CustomEvent('drill-completed'));

@@ -4,6 +4,7 @@ import CardCustomizeModal from '../components/player/CardCustomizeModal';
 import HeroModeModal from '../components/player/HeroModeModal';
 import HeroProgress from '../components/player/HeroProgress';
 import PhotoUploadButton from '../components/player/PhotoUploadButton';
+import MyTrainingShelf from '../components/player/MyTrainingShelf';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import HomeworkHub from '../components/player/HomeworkHub';
 import { useAuth } from '../context/AuthContext';
@@ -60,6 +61,7 @@ const PlayerDashboard = () => {
     const [heroOpen, setHeroOpen] = useState(false);
     const [heroRefresh, setHeroRefresh] = useState(0);
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
+    const [builderPreload, setBuilderPreload] = useState(null);
 
     // Phone back button → close the topmost open modal instead of leaving the
     // app (and never to login).
@@ -776,6 +778,14 @@ const PlayerDashboard = () => {
                         <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-brand-green transition-colors" />
                     </button>
 
+                    {/* My Training shelf — saved routines + custom drills, manage + one-tap start */}
+                    {playerRecord?.id && (
+                        <MyTrainingShelf
+                            playerId={playerRecord.id}
+                            onStartRoutine={(r) => { setBuilderPreload(r); setShowSessionBuilder(true); }}
+                        />
+                    )}
+
                     <Leaderboard />
 
                     {/* Training stats — same component the parent dashboard uses.
@@ -789,7 +799,8 @@ const PlayerDashboard = () => {
                 <Suspense fallback={null}>
                     <ParentSessionBuilder
                         saveMode="player"
-                        onClose={() => setShowSessionBuilder(false)}
+                        preloadRoutine={builderPreload}
+                        onClose={() => { setShowSessionBuilder(false); setBuilderPreload(null); }}
                         onSave={() => {
                             // Refetch the assignments list immediately so the
                             // newly-saved drills show up in HomeworkHub without
