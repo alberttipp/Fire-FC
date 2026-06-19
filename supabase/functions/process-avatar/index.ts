@@ -124,14 +124,9 @@ Deno.serve(async (req) => {
     const { error: updErr } = await admin.from('players').update({ avatar_url: publicUrl }).eq('id', playerId)
     if (updErr) return json(500, { error: `avatar_url update failed: ${updErr.message}` })
 
-    // best-effort cleanup of older avatars for this player
-    try {
-      const { data: olds } = await admin.storage.from('media').list(`players/${playerId}`, { limit: 50 })
-      const toRemove = (olds ?? [])
-        .filter((f: any) => f.name && `players/${playerId}/${f.name}` !== path)
-        .map((f: any) => `players/${playerId}/${f.name}`)
-      if (toRemove.length > 0) await admin.storage.from('media').remove(toRemove)
-    } catch (_) { /* non-fatal */ }
+    // NOTE: we intentionally DO NOT delete prior avatars — keeping them lets a
+    // photo be reverted and avoids destroying the previous image on every swap.
+    // (Files are small; prune very old ones with a retention sweep if ever needed.)
 
     return json(200, { url: publicUrl, cutout })
   } catch (e) {
