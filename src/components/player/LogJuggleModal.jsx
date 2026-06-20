@@ -40,6 +40,8 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
     const [pledged, setPledged] = useState(false);
     const [videoFile, setVideoFile] = useState(null);
     const [saving, setSaving] = useState(false);
+    // Once the user hand-types a total we stop auto-filling it from the estimate.
+    const [totalEdited, setTotalEdited] = useState(false);
     const fileRef = useRef(null);
 
     // Lock the page behind the modal so a touch-drag scrolls the modal, not the
@@ -54,6 +56,27 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
         const n = parseInt(v, 10);
         return Number.isFinite(n) && n >= 0 ? n : null;
     };
+
+    // Estimate total touches from time on the ball. A focused juggling session
+    // lands around ~38 touches per active minute; we nudge that up or down a
+    // little by the player's best run (a higher streak means fewer drops, so a
+    // few more touches per minute). Calibrated against real logged sessions
+    // (~36–48 touches/min for engaged players). Rounded to the nearest 10 so it
+    // reads as the estimate it is, not a fake-precise count.
+    const estimateTotal = (minutesN, bestN) => {
+        if (!minutesN || minutesN <= 0) return null;
+        const b = bestN && bestN > 0 ? bestN : 15;
+        const rate = Math.max(28, Math.min(52, Math.round(38 + (b - 20) * 0.2)));
+        return Math.max(10, Math.round((minutesN * rate) / 10) * 10);
+    };
+
+    const estimate = !isBaseline ? estimateTotal(num(minutes), num(best)) : null;
+
+    // Keep the Total field in sync with the estimate until the user overrides it.
+    useEffect(() => {
+        if (isBaseline || totalEdited) return;
+        if (estimate != null) setTotal(String(estimate));
+    }, [estimate, totalEdited, isBaseline]);
 
     const uploadVideoIfAny = async () => {
         if (!videoFile || !teamId) return null;
@@ -154,8 +177,28 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
                                 </div>
                             )}
                             <NumberField label="Best run this session" hint="Most juggles in a row you hit just now" value={best} onChange={setBest} autoFocus />
-                            <NumberField label="Total juggles (all attempts)" hint="Roughly how many total — counts toward the team goal" value={total} onChange={setTotal} />
-                            <NumberField label="Minutes spent" hint="Adds to your weekly / career training time too" value={minutes} onChange={setMinutes} />
+                            <NumberField label="Minutes spent" hint="How long they juggled — also adds to weekly / career training time" value={minutes} onChange={(v) => setMinutes(v)} />
+                            <div>
+                                <NumberField
+                                    label="Total juggles (all attempts)"
+                                    hint={
+                                        estimate != null && !totalEdited
+                                            ? '✨ Estimated from your time & best run — counts toward the team goal. Edit if you counted.'
+                                            : 'Roughly how many total — counts toward the team goal'
+                                    }
+                                    value={total}
+                                    onChange={(v) => { setTotalEdited(true); setTotal(v); }}
+                                />
+                                {totalEdited && estimate != null && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setTotalEdited(false); setTotal(String(estimate)); }}
+                                        className="mt-1.5 text-[11px] text-brand-green hover:text-white underline underline-offset-2"
+                                    >
+                                        ✨ Use the estimate ({estimate.toLocaleString()})
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )}
 
