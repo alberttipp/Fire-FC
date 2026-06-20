@@ -65,8 +65,9 @@ const ParentDashboard = () => {
     const previewPlayerId = searchParams.get('preview');
     const isPreview = Boolean(previewPlayerId);
     const [currentView, setCurrentView] = useState('overview');
-    // Deep link from a push notification (?conv= for the target chat thread).
+    // Deep link from a push notification (?conv= chat thread, ?event= event modal).
     const [deepConv] = useState(() => new URLSearchParams(window.location.search).get('conv'));
+    const [deepEvent] = useState(() => new URLSearchParams(window.location.search).get('event'));
     const [showDetails, setShowDetails] = useState(false);
     const [customizeOpen, setCustomizeOpen] = useState(false);
     const [heroOpen, setHeroOpen] = useState(false);
@@ -713,7 +714,7 @@ const ParentDashboard = () => {
 
         switch (currentView) {
             case 'schedule':
-                return <CalendarHub />;
+                return <CalendarHub initialEventId={deepEvent} />;
             case 'messages':
                 return <ChatView initialConversationId={deepConv} />;
             case 'gallery':

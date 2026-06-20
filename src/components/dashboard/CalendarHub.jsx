@@ -1,4 +1,5 @@
-import React, { useState, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
+import { supabase } from '../../supabaseClient';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Grid3X3, List, CalendarDays, ClipboardList } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
@@ -13,13 +14,26 @@ import SessionRunner from './calendar/SessionRunner';
 import RosterPlan from './calendar/RosterPlan';
 import { isStaff } from '../../constants/roles';
 
-const CalendarHub = () => {
+const CalendarHub = ({ initialEventId = null }) => {
     const { user, profile } = useAuth();
     const [viewMode, setViewMode] = useState('month'); // 'month' | 'week' | 'list'
     const [viewDate, setViewDate] = useState(new Date());
     const [showCreateModal, setShowCreateModal] = useState(null);
     const [createDefaultDate, setCreateDefaultDate] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
+
+    // Open a specific event's detail modal from a notification deep link
+    // (?event=<id>). Fetched by id so it works even if the event isn't in the
+    // currently-viewed month. Consumed once.
+    const deepEventConsumed = useRef(false);
+    useEffect(() => {
+        if (!initialEventId || deepEventConsumed.current) return;
+        deepEventConsumed.current = true;
+        (async () => {
+            const { data } = await supabase.from('events').select('*').eq('id', initialEventId).maybeSingle();
+            if (data) setSelectedEvent(data);
+        })();
+    }, [initialEventId]);
     const [openLineupEvent, setOpenLineupEvent] = useState(null);
     const [runningSession, setRunningSession] = useState(null);
 

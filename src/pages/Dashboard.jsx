@@ -201,7 +201,7 @@ const Dashboard = () => {
             case 'idp': return <IDPHub />;
             case 'private': return <PrivateTrainingView />;
             case 'chat': return <ChatView initialConversationId={deepLink.conv} />;
-            case 'calendar': return <CalendarHub />;
+            case 'calendar': return <CalendarHub initialEventId={deepLink.event} />;
             case 'gallery': return <GalleryView />;
             case 'live': return <LiveScoringView />;
             case 'carpool': return <CarpoolVolunteerView />;
