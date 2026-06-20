@@ -38,6 +38,9 @@ const LineupBuilder = ({ event, onClose }) => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
+    // Tap-to-place: tap a bench player to select, then tap a spot to place
+    // them. Far more reliable on a phone than press-and-hold-and-drag.
+    const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
     // Lock body scroll while the modal is open. Without this, a touch
     // that starts on a bench chip can scroll the underlying page before
@@ -129,16 +132,10 @@ const LineupBuilder = ({ event, onClose }) => {
         });
     }, [formation]);
 
-    const handleDragEnd = useCallback((evt) => {
-        const { active, over } = evt;
-        if (!over) return;
-        if (!String(active.id).startsWith('player:')) return;
-        if (!String(over.id).startsWith('slot:')) return;
-        const playerId = String(active.id).slice('player:'.length);
-        const slotId = String(over.id).slice('slot:'.length);
+    // Place a player into a slot (used by both drag-drop AND tap-to-place).
+    const placePlayer = useCallback((playerId, slotId) => {
         const player = playerById.get(playerId);
         if (!player) return;
-
         setAssignments(prev => {
             const next = { ...prev };
             // Remove player from any other slot first (prevents dupes)
@@ -150,6 +147,32 @@ const LineupBuilder = ({ event, onClose }) => {
         });
         setDirty(true);
     }, [playerById]);
+
+    const handleDragEnd = useCallback((evt) => {
+        const { active, over } = evt;
+        if (!over) return;
+        if (!String(active.id).startsWith('player:')) return;
+        if (!String(over.id).startsWith('slot:')) return;
+        placePlayer(String(active.id).slice('player:'.length), String(over.id).slice('slot:'.length));
+        setSelectedPlayerId(null);
+    }, [placePlayer]);
+
+    // Tap a bench player → select (tap again to deselect).
+    const handlePlayerTap = useCallback((playerId) => {
+        if (readOnly) return;
+        setSelectedPlayerId(prev => (prev === playerId ? null : playerId));
+    }, [readOnly]);
+
+    // Tap a spot → if a player is selected, place them; otherwise pick up
+    // whoever is already in that spot (so they can be moved).
+    const handleSlotTap = useCallback((slotId) => {
+        if (readOnly) return;
+        setSelectedPlayerId(sel => {
+            if (sel) { placePlayer(sel, slotId); return null; }
+            const cur = assignments[slotId];
+            return cur?.player_id || null;
+        });
+    }, [readOnly, placePlayer, assignments]);
 
     const handleUnassign = useCallback((slotId) => {
         setAssignments(prev => ({ ...prev, [slotId]: null }));
@@ -265,9 +288,17 @@ const LineupBuilder = ({ event, onClose }) => {
                                     players={players}
                                     onUnassign={handleUnassign}
                                     readOnly={readOnly}
+                                    selectedPlayerId={selectedPlayerId}
+                                    onSlotTap={handleSlotTap}
                                 />
                             </div>
-                            <AvailablePlayers players={players} assignments={assignments} readOnly={readOnly} />
+                            <AvailablePlayers
+                                players={players}
+                                assignments={assignments}
+                                readOnly={readOnly}
+                                selectedPlayerId={selectedPlayerId}
+                                onPlayerTap={handlePlayerTap}
+                            />
                         </DndContext>
                     )}
                 </div>

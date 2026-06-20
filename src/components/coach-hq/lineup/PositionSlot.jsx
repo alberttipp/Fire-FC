@@ -6,15 +6,20 @@ import { SLOT_LABELS } from './formations';
 // One position bubble on the pitch. Droppable area for AvailablePlayers
 // drags. When filled, shows the player's jersey + last name. Tap the X
 // to unassign (staff only).
-const PositionSlot = ({ slot, assignment, onUnassign, readOnly }) => {
+const PositionSlot = ({ slot, assignment, onUnassign, readOnly, selectedPlayerId = null, onSlotTap }) => {
     const { setNodeRef, isOver } = useDroppable({ id: `slot:${slot.id}`, disabled: readOnly });
     const filled = !!assignment;
+    // This slot already holds the player the coach just picked up.
+    const isSelectedHere = filled && assignment.player_id === selectedPlayerId;
+    // A bench player is selected and waiting for a spot — invite the tap.
+    const inviting = !readOnly && !!selectedPlayerId && !isSelectedHere;
 
     return (
         <div
             ref={setNodeRef}
+            onClick={() => !readOnly && onSlotTap?.(slot.id)}
             style={{ left: `${slot.x}%`, top: `${slot.y}%`, transform: 'translate(-50%, -50%)' }}
-            className="absolute"
+            className={`absolute ${readOnly ? '' : 'cursor-pointer'}`}
             title={SLOT_LABELS[slot.id] || slot.id}
         >
             <div className={`relative flex flex-col items-center group ${filled ? '' : 'opacity-90'}`}>
@@ -23,6 +28,8 @@ const PositionSlot = ({ slot, assignment, onUnassign, readOnly }) => {
                         ${filled ? 'bg-brand-green text-brand-dark border-white shadow-lg' : 'bg-white/15 text-white border-dashed border-white/60'}
                         ${isOver && !filled ? 'scale-110 bg-brand-gold/40 border-brand-gold' : ''}
                         ${isOver && filled ? 'ring-2 ring-brand-gold' : ''}
+                        ${isSelectedHere ? 'ring-2 ring-brand-gold scale-110' : ''}
+                        ${inviting ? 'ring-2 ring-brand-gold/70 animate-pulse' : ''}
                     `}
                 >
                     {filled ? (assignment.jersey ?? slot.id) : slot.id}
@@ -34,7 +41,7 @@ const PositionSlot = ({ slot, assignment, onUnassign, readOnly }) => {
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onUnassign?.(slot.id); }}
-                        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-400 text-white rounded-full flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-400 text-white rounded-full flex items-center justify-center shadow transition-opacity"
                         title="Remove"
                     >
                         <X className="w-3 h-3" strokeWidth={3} />

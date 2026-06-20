@@ -10,7 +10,7 @@ import { useDraggable } from '@dnd-kit/core';
 // initiates the drag normally. Vertical pulls also initiate drag because
 // pan-x only permits horizontal scrolling — anything else gets handed
 // over to the pointer/touch listeners.
-const DraggablePlayer = ({ player }) => {
+const DraggablePlayer = ({ player, selected, onSelect }) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `player:${player.id}` });
     const shortName = player.first_name || player.last_name || '—';
 
@@ -19,8 +19,10 @@ const DraggablePlayer = ({ player }) => {
             ref={setNodeRef}
             {...listeners}
             {...attributes}
+            onClick={() => onSelect?.(player.id)}
             style={{ touchAction: 'pan-x' }}
-            className={`shrink-0 w-[78px] flex flex-col items-center gap-0.5 px-1 py-1 rounded bg-white/10 border border-white/15 hover:bg-white/20 cursor-grab active:cursor-grabbing select-none
+            className={`shrink-0 w-[78px] flex flex-col items-center gap-0.5 px-1 py-1 rounded border cursor-pointer active:cursor-grabbing select-none transition-all
+                ${selected ? 'bg-brand-gold/25 border-brand-gold ring-2 ring-brand-gold' : 'bg-white/10 border-white/15 hover:bg-white/20'}
                 ${isDragging ? 'opacity-30' : ''}`}
         >
             <span className="w-7 h-7 rounded-full bg-brand-green/25 text-brand-green text-[11px] font-bold flex items-center justify-center shrink-0">
@@ -36,7 +38,7 @@ const DraggablePlayer = ({ player }) => {
 // the old aspect-ratio sizing trap; ResizeObserver in SoccerPitch lets
 // the pitch reflow into whatever vertical space is left. Two visual rows
 // fit ~19 chips with smooth horizontal scroll.
-const AvailablePlayers = ({ players, assignments, readOnly }) => {
+const AvailablePlayers = ({ players, assignments, readOnly, selectedPlayerId, onPlayerTap }) => {
     const assignedIds = new Set(Object.values(assignments).filter(Boolean).map(a => a.player_id));
     const available = players.filter(p => !assignedIds.has(p.id));
 
@@ -51,7 +53,9 @@ const AvailablePlayers = ({ players, assignments, readOnly }) => {
     return (
         <div className="shrink-0 border-t border-white/10 bg-black/30 px-2 pt-1.5 pb-2">
             <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] uppercase tracking-widest text-white font-bold">Bench · hold to drag</span>
+                <span className="text-[10px] uppercase tracking-widest text-white font-bold">
+                    {selectedPlayerId ? 'Tap a spot on the field →' : 'Bench · tap a player, then a spot'}
+                </span>
                 <span className="text-[10px] text-gray-300">{available.length}</span>
             </div>
             {available.length === 0 ? (
@@ -63,11 +67,11 @@ const AvailablePlayers = ({ players, assignments, readOnly }) => {
                 >
                     <div className="flex flex-col gap-1 min-w-max">
                         <div className="flex gap-1.5">
-                            {row1.map(p => <DraggablePlayer key={p.id} player={p} />)}
+                            {row1.map(p => <DraggablePlayer key={p.id} player={p} selected={selectedPlayerId === p.id} onSelect={onPlayerTap} />)}
                         </div>
                         {row2.length > 0 && (
                             <div className="flex gap-1.5">
-                                {row2.map(p => <DraggablePlayer key={p.id} player={p} />)}
+                                {row2.map(p => <DraggablePlayer key={p.id} player={p} selected={selectedPlayerId === p.id} onSelect={onPlayerTap} />)}
                             </div>
                         )}
                     </div>

@@ -10,7 +10,7 @@ import { FORMATIONS } from './formations';
 // largest 2:3 box that fits inside it. CSS-only solutions with
 // aspect-ratio + max-width + max-height don't shrink reliably when
 // both axes clamp — this approach is bulletproof across browsers.
-const SoccerPitch = ({ formation = '4-4-2', assignments = {}, players = [], onUnassign, readOnly = false }) => {
+const SoccerPitch = ({ formation = '4-4-2', assignments = {}, players = [], onUnassign, readOnly = false, selectedPlayerId = null, onSlotTap }) => {
     const def = FORMATIONS[formation] || FORMATIONS['4-4-2'];
     const wrapperRef = useRef(null);
     const [size, setSize] = useState({ w: 0, h: 0 });
@@ -66,6 +66,8 @@ const SoccerPitch = ({ formation = '4-4-2', assignments = {}, players = [], onUn
                             assignment={assignments[slot.id] || null}
                             onUnassign={onUnassign}
                             readOnly={readOnly}
+                            selectedPlayerId={selectedPlayerId}
+                            onSlotTap={onSlotTap}
                         />
                     ))}
                 </div>
