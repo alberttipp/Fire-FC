@@ -42,6 +42,11 @@ const Dashboard = () => {
     const { user, profile, signOut } = useAuth(); // Added profile
     const navigate = useNavigate();
     const [currentView, setCurrentView] = useState('club');
+    // Deep link from a push notification: ?view=&conv=&event=
+    const [deepLink] = useState(() => {
+        const p = new URLSearchParams(window.location.search);
+        return { view: p.get('view'), conv: p.get('conv'), event: p.get('event') };
+    });
     const [hasPickedView, setHasPickedView] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -195,7 +200,7 @@ const Dashboard = () => {
             case 'practice': return <TrainingView />;
             case 'idp': return <IDPHub />;
             case 'private': return <PrivateTrainingView />;
-            case 'chat': return <ChatView />;
+            case 'chat': return <ChatView initialConversationId={deepLink.conv} />;
             case 'calendar': return <CalendarHub />;
             case 'gallery': return <GalleryView />;
             case 'live': return <LiveScoringView />;
@@ -219,7 +224,16 @@ const Dashboard = () => {
     // the effect never re-fires and a later click on 'Club' isn't reverted.
     useEffect(() => {
         if (!effectiveRole || hasPickedView) return;
-        if (isStaff) setCurrentView('coach_hq');
+        // A parent/player can land here from a notification deep link (the SW
+        // navigates to the URL the trigger emitted). Send them to their own
+        // dashboard, carrying the ?view=&conv=&event= params so it deep-links.
+        if (!isStaff) {
+            const dest = effectiveRole === 'player' ? '/player-dashboard' : '/parent-dashboard';
+            navigate(dest + window.location.search, { replace: true });
+            return;
+        }
+        // Staff: honor the deep-linked view, else default to Coach HQ.
+        setCurrentView(deepLink.view || 'coach_hq');
         setHasPickedView(true);
     }, [effectiveRole, isStaff, hasPickedView]);
     return (

@@ -65,6 +65,8 @@ const ParentDashboard = () => {
     const previewPlayerId = searchParams.get('preview');
     const isPreview = Boolean(previewPlayerId);
     const [currentView, setCurrentView] = useState('overview');
+    // Deep link from a push notification (?conv= for the target chat thread).
+    const [deepConv] = useState(() => new URLSearchParams(window.location.search).get('conv'));
     const [showDetails, setShowDetails] = useState(false);
     const [customizeOpen, setCustomizeOpen] = useState(false);
     const [heroOpen, setHeroOpen] = useState(false);
@@ -88,6 +90,20 @@ const ParentDashboard = () => {
             voiceCommand.registerDashboardControls(setCurrentView);
         }
     }, [voiceCommand]);
+
+    // Deep link from a push notification: map the notification's view name to a
+    // parent tab (chat->messages, calendar->schedule, etc.) and open it.
+    useEffect(() => {
+        const v = new URLSearchParams(window.location.search).get('view');
+        if (!v) return;
+        const map = {
+            chat: 'messages', messages: 'messages', calendar: 'schedule', schedule: 'schedule',
+            live: 'live', gallery: 'gallery', rules: 'rules', notifications: 'notifications',
+            vacation: 'vacation', overview: 'overview',
+        };
+        if (map[v]) setCurrentView(map[v]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Real data state
     const [children, setChildren] = useState([]);
@@ -699,7 +715,7 @@ const ParentDashboard = () => {
             case 'schedule':
                 return <CalendarHub />;
             case 'messages':
-                return <ChatView />;
+                return <ChatView initialConversationId={deepConv} />;
             case 'gallery':
                 return <GalleryView />;
             case 'rules':

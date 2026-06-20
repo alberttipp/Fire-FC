@@ -7,9 +7,12 @@ import ReactionBar from '../ReactionBar';
 import useLongPress from '../../hooks/useLongPress';
 import NewConversationModal from './NewConversationModal';
 
-const ChatView = () => {
+const ChatView = ({ initialConversationId = null }) => {
     const { user, profile } = useAuth();
     const toast = useToast();
+    // Deep-link target from a chat push notification — consumed once on the
+    // first channel load so it lands on that thread, then normal behavior.
+    const initialConvRef = useRef(initialConversationId);
     const [channels, setChannels] = useState([]);
     const [activeChannel, setActiveChannel] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -233,10 +236,17 @@ const ChatView = () => {
             // the first channel in the list. Falls back to the first
             // channel if the cached id is no longer accessible.
             let preferred = null;
-            try {
-                const cachedId = localStorage.getItem('firefc-last-chat-channel');
-                if (cachedId) preferred = unique.find(c => c.id === cachedId) || null;
-            } catch (_) { /* localStorage blocked — non-fatal */ }
+            // A push-notification deep link wins (consumed once).
+            if (initialConvRef.current) {
+                preferred = unique.find(c => c.id === initialConvRef.current) || null;
+                initialConvRef.current = null;
+            }
+            if (!preferred) {
+                try {
+                    const cachedId = localStorage.getItem('firefc-last-chat-channel');
+                    if (cachedId) preferred = unique.find(c => c.id === cachedId) || null;
+                } catch (_) { /* localStorage blocked — non-fatal */ }
+            }
             setActiveChannel(preferred || (unique.length > 0 ? unique[0] : null));
         } catch (err) {
             console.error('Error fetching conversations:', err);
