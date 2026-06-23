@@ -12,8 +12,12 @@ const STATUS_CONFIG = {
     halftime:  { label: 'Half Time', color: 'bg-yellow-500/20 text-yellow-400', dot: '' },
     finished:  { label: 'Final',     color: 'bg-red-500/20 text-red-400', dot: '' },
 };
+// The advance button toggles the in-progress phases (kick off → halftime →
+// resume). Ending the game is a SEPARATE, deliberate action (see endGame) so
+// the keeper can't get stuck cycling live↔halftime with no way to finish — the
+// original bug that left games stuck "live" forever.
 const NEXT_STATUS = { scheduled: 'live', live: 'halftime', halftime: 'live', finished: 'finished' };
-const NEXT_LABEL  = { scheduled: 'Start', live: 'Halftime', halftime: 'Resume', finished: 'Final' };
+const NEXT_LABEL  = { scheduled: 'Start', live: 'Halftime', halftime: 'Resume 2nd', finished: 'Final' };
 
 const LiveScoringView = () => {
     const { user, profile } = useAuth();
@@ -168,6 +172,21 @@ const LiveScoringView = () => {
         }
     };
 
+    // End the game: set status -> finished, which sends the final-score push.
+    // Deliberate + confirmed because it's the one-way action that closes scoring.
+    const endGame = async (game) => {
+        if (!window.confirm(`End the game and send the final score (Fire FC ${game.home_score || 0}–${game.away_score || 0} ${game.opponent_name || ''}) to the team?`)) return;
+        const prevStatus = game.game_status || 'scheduled';
+        setGames(prev => prev.map(g => g.id === game.id ? { ...g, game_status: 'finished' } : g));
+        const { error } = await supabase.rpc('set_game_status', { p_event_id: game.id, p_status: 'finished' });
+        if (error) {
+            setGames(prev => prev.map(g => g.id === game.id ? { ...g, game_status: prevStatus } : g));
+            toast.error('Could not end the game.');
+        } else {
+            toast.success('Final whistle — score sent to the team. 🏁');
+        }
+    };
+
     const claim = async (game) => {
         setBusyId(game.id);
         const { error } = await supabase.rpc('claim_game_scorekeeper', { p_event_id: game.id });
@@ -247,8 +266,13 @@ const LiveScoringView = () => {
                                         {isLive && <span className={`w-2 h-2 rounded-full bg-green-500 ${statusCfg.dot}`} />}
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${statusCfg.color}`}>{statusCfg.label}</span>
                                         {iCanScore && status !== 'finished' && (
-                                            <button onClick={() => advanceStatus(game)} className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-gray-300 hover:text-white text-xs font-bold uppercase flex items-center gap-1 transition-colors" title="Advance game status">
+                                            <button onClick={() => advanceStatus(game)} className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-gray-300 hover:text-white text-xs font-bold uppercase flex items-center gap-1 transition-colors" title="Advance game phase">
                                                 <Play className="w-3.5 h-3.5" /> {NEXT_LABEL[status]}
+                                            </button>
+                                        )}
+                                        {iCanScore && (status === 'live' || status === 'halftime') && (
+                                            <button onClick={() => endGame(game)} className="px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400 hover:text-red-300 text-xs font-bold uppercase flex items-center gap-1 transition-colors" title="End the game and send the final score">
+                                                End Game
                                             </button>
                                         )}
                                     </div>
