@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Trophy, TrendingUp, Clock, Flame, Loader2, PlayCircle, Target, Lock } from 'lucide-react';
 import LogJuggleModal from './LogJuggleModal';
+import FamilyJuggleOff from './FamilyJuggleOff';
 
 const STAMP_LADDER = [20, 30, 40, 50, 60, 70, 80, 90, 100];
 const GOAL = 100;
@@ -61,6 +62,12 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
     const improvedUnlocked = rows.length > 0 && withBaseline === rows.length;
     const endDays = daysLeft(cfg.ends_on);
     const finalsDays = daysLeft(cfg.finals_on);
+
+    // Family Juggle-Off lights up in the final 10 days of the competition and
+    // stays up through finals day, then disappears. A separate-for-fun event.
+    const endTs = cfg.ends_on ? new Date(cfg.ends_on + 'T23:59:59').getTime() : null;
+    const finalsTs = cfg.finals_on ? new Date(cfg.finals_on + 'T23:59:59').getTime() : endTs;
+    const showFamily = endTs != null && Date.now() >= endTs - 10 * 86400000 && Date.now() <= (finalsTs ?? endTs);
 
     const best = me?.current_best ?? 0;
     const baseline = me?.has_baseline ? me.baseline : null;
@@ -214,6 +221,18 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
                     )}
                 </div>
             </div>
+
+            {/* Family Juggle-Off — final-stretch fun, separate from the real comp.
+                Its log modal portals to document.body, so the glass-panel here
+                doesn't trap it. */}
+            {showFamily && (
+                <FamilyJuggleOff
+                    playerId={playerId}
+                    teamId={teamId}
+                    playerName={playerName}
+                    playerBest={best}
+                />
+            )}
 
         </div>
 
