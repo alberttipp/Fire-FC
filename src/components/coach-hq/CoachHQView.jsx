@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2 } from 'lucide-react';
+import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
@@ -16,6 +16,7 @@ const JuggleCompetitionDrilldown = lazy(() => import('./JuggleCompetitionDrilldo
 const TeamAdoptionDrilldown = lazy(() => import('./TeamAdoptionDrilldown'));
 const TeamPulseDrilldown    = lazy(() => import('./TeamPulseDrilldown'));
 const CoachDrillsDrilldown  = lazy(() => import('./CoachDrillsDrilldown'));
+const TeamEvalGrid          = lazy(() => import('./TeamEvalGrid'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -38,6 +39,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
     const [showAdoption, setShowAdoption] = useState(false);
     const [showPulse, setShowPulse] = useState(false);
     const [showDrills, setShowDrills] = useState(false);
+    const [showEvalGrid, setShowEvalGrid] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -120,7 +122,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
         <div className="space-y-5">
             {/* Eval adoption nudge — marquee feature, get the cards built.
                 Hides itself once every player is rated. */}
-            <EvalNudgeBanner teamId={teamId} onStart={onJumpToTeam} />
+            <EvalNudgeBanner teamId={teamId} onStart={() => setShowEvalGrid(true)} />
 
             {/* Rollout setup-health tracker — onboarding progress + chase
                 list. Renders nothing for non-staff (RPC self-checks). */}
@@ -198,6 +200,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                     loading={loading}
                 />
             </div>
+
+            {/* Squad Eval Grid — rate the whole team & set positions in one place */}
+            <button
+                type="button"
+                onClick={() => setShowEvalGrid(true)}
+                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+            >
+                <Star className="w-5 h-5 text-brand-gold shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Squad Eval Grid — rate the whole team &amp; set positions
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
 
             {/* Send this week's solo challenge to the whole team */}
             <button
@@ -281,6 +296,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 {showAdoption             && <TeamAdoptionDrilldown teamId={teamId} onClose={() => setShowAdoption(false)} />}
                 {showPulse                && <TeamPulseDrilldown teamId={teamId} onClose={() => setShowPulse(false)} />}
                 {showDrills               && <CoachDrillsDrilldown teamId={teamId} onClose={() => setShowDrills(false)} />}
+                {showEvalGrid             && <TeamEvalGrid teamId={teamId} onClose={() => setShowEvalGrid(false)} />}
             </Suspense>
         </div>
     );
