@@ -110,10 +110,16 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     const [demoUser, setDemoUser] = useState(null);
-    // Last user id we already fetched profile + memberships for, so the multiple
-    // auth events on a single load (initial-session / signed-in / token-refreshed)
-    // don't each re-run those queries. Reset to null on logout / no session.
+    // Last user id we SUCCESSFULLY fetched profile + memberships for, so the
+    // multiple auth events on a single load (initial-session / signed-in /
+    // token-refreshed) don't each re-run those queries. Reset to null on
+    // logout / no session.
     const lastProfileUserId = useRef(null);
+    // User id whose fetch is currently in flight. Dedupes concurrent auth
+    // events WITHOUT claiming the userId before we know the fetch succeeded —
+    // claiming early is what let a single failed read lock in a role-less
+    // profile and bounce the manager to the "Welcome to Fire FC" setup screen.
+    const inFlightUserId = useRef(null);
 
     useEffect(() => {
         // Initial mount — restore from real Supabase session OR fall back
@@ -151,6 +157,7 @@ export const AuthProvider = ({ children }) => {
                 fetchProfile(session.user.id);
             } else {
                 lastProfileUserId.current = null;
+                inFlightUserId.current = null;
                 // No real session. DO NOT clear a virtual user here — they
                 // (player tokens, demo accounts) are managed via localStorage
                 // with their own TTL. Earlier code did `setUser(null)` here
@@ -171,22 +178,21 @@ export const AuthProvider = ({ children }) => {
         return () => subscription.unsubscribe();
     }, []);
 
-    const fetchProfile = async (userId) => {
+    const fetchProfile = async (userId, attempt = 0) => {
         // Dedupe: getSession() + onAuthStateChange both call this, and the latter
-        // fires for every auth event on a single load. Skip if we already have
-        // this user's profile (was firing profiles + team_memberships ~3x/load).
+        // fires for every auth event on a single load. Skip if we already loaded
+        // this user, or a fetch for them is already in flight (was firing
+        // profiles + team_memberships ~3x/load).
         if (lastProfileUserId.current === userId) return;
-        lastProfileUserId.current = userId;
+        if (attempt === 0 && inFlightUserId.current === userId) return;
+        inFlightUserId.current = userId;
         try {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .single();
-
-            if (error) {
-                console.warn('Error fetching profile:', error);
-            }
+            if (error) throw error;
 
             // Fetch all memberships so we can prefer staff access over any
             // newer parent/player link that might otherwise override it.
@@ -195,21 +201,37 @@ export const AuthProvider = ({ children }) => {
                 .select('role, team_id')
                 .eq('user_id', userId)
                 .order('joined_at', { ascending: false });
+            if (membershipError) throw membershipError;
 
             const membershipContext = resolveMembershipContext(memberships || [], data);
 
             // Merge role into profile
-            const profileWithRole = {
+            setProfile({
                 ...data,
                 role: membershipContext.role || data?.role || null,
-                team_id: membershipContext.team_id || data?.team_id || null
-            };
+                team_id: membershipContext.team_id || data?.team_id || null,
+            });
 
-            setProfile(profileWithRole);
-        } catch (error) {
-            console.error('Error:', error);
-        } finally {
+            // Claim the dedupe ONLY after a clean fetch. If either query errors
+            // (transient DB / RLS / token hiccup — common right after switching
+            // accounts or under DB load), we must NOT lock in a role-less
+            // profile, or the manager gets bounced to the "Welcome to Fire FC"
+            // setup screen until a full reload. Leaving the ref unclaimed lets
+            // the retry below self-heal it.
+            lastProfileUserId.current = userId;
+            inFlightUserId.current = null;
             setLoading(false);
+        } catch (err) {
+            console.error(`Error fetching profile (attempt ${attempt}):`, err);
+            inFlightUserId.current = null;
+            if (attempt < 3) {
+                // Back off and retry so a transient failure self-heals without
+                // needing another auth event or a manual reload. Keep loading
+                // true meanwhile so we don't flash the parent-setup screen.
+                setTimeout(() => fetchProfile(userId, attempt + 1), 600 * (attempt + 1));
+            } else {
+                setLoading(false);
+            }
         }
     };
 
@@ -223,6 +245,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setProfile(null);
         lastProfileUserId.current = null;
+        inFlightUserId.current = null;
         return supabase.auth.signOut();
     };
 
