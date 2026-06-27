@@ -595,6 +595,10 @@ const ParentDashboard = () => {
     // library default (the root cause of under-credited training minutes).
     // Only set when the parent taps the stepper; otherwise the default stands.
     const [editedMins, setEditedMins] = useState({});
+    // Drill-library deep-link from a weak stat's "Train" link in the read-only
+    // eval card — opens the library filtered to that category so the parent can
+    // assign a targeted drill (closes the score → train → re-score loop).
+    const [evalTrainCategory, setEvalTrainCategory] = useState(null);
     const drillMinsOf = (assign) => {
         if (editedMins[assign.id] != null) return editedMins[assign.id];
         const d = assign.drills || {};
@@ -1464,6 +1468,21 @@ const ParentDashboard = () => {
                         player={formatPlayerForCard(selectedChild)}
                         onClose={() => setShowDetails(false)}
                         readOnly={true}
+                        onTrainCategory={setEvalTrainCategory}
+                    />
+                </Suspense>
+            )}
+
+            {/* "Train" deep-link from the eval card → drill library filtered to
+                the weak stat's category, so a parent can assign a targeted drill
+                right from the player's evaluation (closes the score→train loop). */}
+            {evalTrainCategory && selectedChild && (
+                <Suspense fallback={null}>
+                    <DrillLibraryModal
+                        initialFilter={evalTrainCategory}
+                        player={selectedChild}
+                        teamId={selectedChild.team_id}
+                        onClose={() => setEvalTrainCategory(null)}
                     />
                 </Suspense>
             )}
