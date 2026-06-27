@@ -24,6 +24,7 @@ import VacationPeriodsManager from '../components/family/VacationPeriodsManager'
 import PrivateTrainingBadge from '../components/family/PrivateTrainingBadge';
 import DevelopmentPassportCard from '../components/player/DevelopmentPassportCard';
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
+import DrillMinutesStepper from '../components/player/DrillMinutesStepper';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
 import SupportTeamCard from '../components/SupportTeamCard';
 import TeamCelebrationBanner from '../components/TeamCelebrationBanner';
@@ -589,7 +590,23 @@ const ParentDashboard = () => {
         }
     };
 
-    const completeAssignmentForSelectedChild = async (assignmentId) => {
+    // Per-assignment "actual minutes trained", adjustable inline before the
+    // drill is marked done — so credit reflects real time, not the drill's short
+    // library default (the root cause of under-credited training minutes).
+    // Only set when the parent taps the stepper; otherwise the default stands.
+    const [editedMins, setEditedMins] = useState({});
+    const drillMinsOf = (assign) => {
+        if (editedMins[assign.id] != null) return editedMins[assign.id];
+        const d = assign.drills || {};
+        return assign.custom_duration ?? d.duration ?? d.duration_minutes ?? 15;
+    };
+
+    const completeAssignmentForSelectedChild = async (assignmentId, minutes = null) => {
+        // Record actual minutes FIRST so the completion trigger credits the real
+        // time — it reads assignments.custom_duration when crediting.
+        if (minutes != null) {
+            await supabase.from('assignments').update({ custom_duration: minutes }).eq('id', assignmentId);
+        }
         const { error } = await supabase
             .rpc('complete_assignment', {
                 p_assignment_id: assignmentId,
@@ -605,7 +622,7 @@ const ParentDashboard = () => {
         }
     };
 
-    const handleCompleteCoachDrill = async (assignmentId) => {
+    const handleCompleteCoachDrill = async (assignmentId, minutes = null) => {
         if (!selectedChild?.id) return;
 
         setCoachAssignments(prev => prev.map(a =>
@@ -613,7 +630,7 @@ const ParentDashboard = () => {
         ));
 
         try {
-            await completeAssignmentForSelectedChild(assignmentId);
+            await completeAssignmentForSelectedChild(assignmentId, minutes);
             if (selectedChild?.id) {
                 await fetchChildDetails(selectedChild.id);
             }
@@ -627,7 +644,7 @@ const ParentDashboard = () => {
     };
 
     // Handle completing a parent-assigned drill
-    const handleCompleteParentDrill = async (assignmentId) => {
+    const handleCompleteParentDrill = async (assignmentId, minutes = null) => {
         if (!selectedChild?.id) return;
 
         // Optimistic update
@@ -636,7 +653,7 @@ const ParentDashboard = () => {
         ));
 
         try {
-            await completeAssignmentForSelectedChild(assignmentId);
+            await completeAssignmentForSelectedChild(assignmentId, minutes);
             if (selectedChild?.id) {
                 await fetchChildDetails(selectedChild.id);
             }
@@ -1099,8 +1116,8 @@ const ParentDashboard = () => {
                                             key={assign.id}
                                             role={assign.status === 'completed' ? undefined : 'button'}
                                             tabIndex={assign.status === 'completed' ? undefined : 0}
-                                            onClick={assign.status === 'completed' ? undefined : () => handleCompleteCoachDrill(assign.id)}
-                                            onKeyDown={assign.status === 'completed' ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCompleteCoachDrill(assign.id); } }}
+                                            onClick={assign.status === 'completed' ? undefined : () => handleCompleteCoachDrill(assign.id, drillMinsOf(assign))}
+                                            onKeyDown={assign.status === 'completed' ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCompleteCoachDrill(assign.id, drillMinsOf(assign)); } }}
                                             className={`flex items-center gap-3 p-2.5 rounded-lg transition-all ${assign.status === 'completed' ? 'bg-brand-green/5' : 'bg-white/5 cursor-pointer hover:bg-white/10 active:bg-white/15'}`}
                                         >
                                             {assign.status === 'completed' ? (
@@ -1113,8 +1130,16 @@ const ParentDashboard = () => {
                                                     {assign.drills?.name || assign.drills?.title || 'Drill'}
                                                 </div>
                                                 <div className="text-xs text-gray-500">
-                                                    {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
+                                                    {assign.drills?.category || assign.drills?.skill || ''}
                                                 </div>
+                                                {assign.status === 'completed' ? (
+                                                    <div className="text-xs text-gray-500 mt-0.5">{drillMinsOf(assign)} min trained</div>
+                                                ) : (
+                                                    <div className="mt-1 flex items-center gap-2">
+                                                        <DrillMinutesStepper minutes={drillMinsOf(assign)} onChange={(v) => setEditedMins(prev => ({ ...prev, [assign.id]: v }))} />
+                                                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">actual time</span>
+                                                    </div>
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
@@ -1191,7 +1216,7 @@ const ParentDashboard = () => {
                                                 <CheckCircle className="w-5 h-5 text-brand-green shrink-0" />
                                             ) : (
                                                 <button
-                                                    onClick={() => handleCompleteParentDrill(assign.id)}
+                                                    onClick={() => handleCompleteParentDrill(assign.id, drillMinsOf(assign))}
                                                     className="w-5 h-5 rounded-full border-2 border-brand-gold/50 shrink-0 hover:bg-brand-gold/20 transition-colors cursor-pointer"
                                                     title={coachChallengeDone ? 'Mark as done' : 'Complete the coach challenge first'}
                                                 />
@@ -1206,8 +1231,16 @@ const ParentDashboard = () => {
                                                     </span>
                                                 </div>
                                                 <div className="text-xs text-gray-500 mt-1">
-                                                    {assign.drills?.category || assign.drills?.skill || ''} {assign.drills?.duration_minutes || assign.drills?.duration ? `- ${assign.drills?.duration_minutes || assign.drills?.duration} min` : ''}
+                                                    {assign.drills?.category || assign.drills?.skill || ''}
                                                 </div>
+                                                {assign.status === 'completed' ? (
+                                                    <div className="text-xs text-gray-500 mt-1">{drillMinsOf(assign)} min trained</div>
+                                                ) : (
+                                                    <div className="mt-1 flex items-center gap-2">
+                                                        <DrillMinutesStepper minutes={drillMinsOf(assign)} onChange={(v) => setEditedMins(prev => ({ ...prev, [assign.id]: v }))} />
+                                                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">actual time</span>
+                                                    </div>
+                                                )}
                                             </div>
                                             {assign.status !== 'completed' && assign.due_date && (() => {
                                                 const days = Math.ceil((new Date(assign.due_date) - new Date()) / 86400000);
