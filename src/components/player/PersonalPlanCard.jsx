@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle, Clock, Dumbbell, Target } from 'lucide-react';
 import DrillDetailModal from './DrillDetailModal';
+import DrillMinutesStepper from './DrillMinutesStepper';
 
 const formatDue = (dateStr) => {
     if (!dateStr) return null;
@@ -14,6 +15,9 @@ const PersonalPlanCard = ({ assignments = [], onComplete, readOnly = false }) =>
     const completedCount = assignments.filter(a => a.status === 'completed').length;
     const totalCount = assignments.length;
     const [selectedDrill, setSelectedDrill] = useState(null);
+    // Actual minutes trained, adjustable inline before "Mark Done" (defaults to
+    // the drill's set time). Keeps credit honest instead of the short default.
+    const [editMins, setEditMins] = useState({});
 
     return (
         <div className="glass-panel p-5 border-l-4 border-l-brand-green animate-fade-in-up">
@@ -40,6 +44,7 @@ const PersonalPlanCard = ({ assignments = [], onComplete, readOnly = false }) =>
                         const completed = assign.status === 'completed';
                         const drill = assign.drills || {};
                         const duration = assign.custom_duration || drill.duration || drill.duration_minutes || 15;
+                        const liveMins = editMins[assign.id] ?? duration;
                         const due = formatDue(assign.due_date);
                         const description = drill.description || 'Follow your coach instructions for this drill.';
 
@@ -59,10 +64,14 @@ const PersonalPlanCard = ({ assignments = [], onComplete, readOnly = false }) =>
                                             {drill.name || drill.title || 'Drill'}
                                         </div>
                                         <div className="mt-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider flex-wrap">
-                                            <span className="text-brand-green flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                {duration} min
-                                            </span>
+                                            {completed ? (
+                                                <span className="text-brand-green flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    {duration} min
+                                                </span>
+                                            ) : (
+                                                <DrillMinutesStepper minutes={liveMins} onChange={(v) => setEditMins(prev => ({ ...prev, [assign.id]: v }))} />
+                                            )}
                                             {drill.category && <span className="text-gray-500">{drill.category}</span>}
                                             {due && <span className={due.className}>{due.label}</span>}
                                         </div>
@@ -82,7 +91,7 @@ const PersonalPlanCard = ({ assignments = [], onComplete, readOnly = false }) =>
                                 {!completed && !readOnly && (
                                     <button
                                         type="button"
-                                        onClick={() => onComplete(assign.id)}
+                                        onClick={() => onComplete(assign.id, liveMins)}
                                         className="mt-3 w-full py-2 rounded-lg bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider text-xs hover:bg-brand-green/90 transition-colors"
                                     >
                                         Mark Done

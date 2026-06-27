@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { CheckCircle, ChevronDown, ChevronUp, Clipboard, Star, Dumbbell, ChevronsDown, ChevronsUp } from 'lucide-react';
 import DrillDetailModal from './DrillDetailModal';
+import DrillMinutesStepper from './DrillMinutesStepper';
 
 // How many sessions to show in the collapsed default view. Keep small so
 // the player dashboard stays scannable; "See all" expands to the full list.
@@ -58,6 +59,9 @@ const HomeworkHub = ({ assignments, onComplete }) => {
     const [selectedDrill, setSelectedDrill] = useState(null);
     const [expandedSessions, setExpandedSessions] = useState(() => new Set());
     const [showAll, setShowAll] = useState(false);
+    // Actual minutes trained per drill, adjustable inline before "Mark Done"
+    // (defaults to the drill's set time) so credit reflects real time.
+    const [editMins, setEditMins] = useState({});
 
     // Group flat assignment rows into sessions. Anything sharing a session_id
     // is one session; anything without a session_id (legacy / coach one-offs)
@@ -213,6 +217,7 @@ const HomeworkHub = ({ assignments, onComplete }) => {
                                 originalDrill: a.drills,
                             };
                             const description = a.drills?.description || 'Follow your coach instructions for this drill.';
+                            const liveMins = editMins[a.id] ?? (a.custom_duration || a.drills?.duration || 15);
                             return (
                                 <div
                                     key={a.id}
@@ -241,16 +246,21 @@ const HomeworkHub = ({ assignments, onComplete }) => {
                                                 Read full description →
                                             </button>
                                         </div>
-                                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider shrink-0">{drillObj.duration}</span>
+                                        {drillObj.completed && (
+                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider shrink-0">{drillObj.duration}</span>
+                                        )}
                                     </div>
                                     {!drillObj.completed && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onComplete(a.id)}
-                                            className="mt-2 w-full py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white font-display font-bold uppercase tracking-wider text-xs transition-colors"
-                                        >
-                                            Mark Done
-                                        </button>
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <DrillMinutesStepper minutes={liveMins} onChange={(v) => setEditMins(prev => ({ ...prev, [a.id]: v }))} />
+                                            <button
+                                                type="button"
+                                                onClick={() => onComplete(a.id, liveMins)}
+                                                className="flex-1 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white font-display font-bold uppercase tracking-wider text-xs transition-colors"
+                                            >
+                                                Mark Done
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             );

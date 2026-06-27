@@ -468,7 +468,7 @@ const PlayerDashboard = () => {
         }
     };
 
-    const handleDrillComplete = async (drillOrId) => {
+    const handleDrillComplete = async (drillOrId, minutes = null) => {
         // Handle both drill object and plain ID
         const assignmentId = typeof drillOrId === 'object' ? drillOrId.id : drillOrId;
         console.log("Completing Assignment:", assignmentId);
@@ -487,7 +487,8 @@ const PlayerDashboard = () => {
                 const { data: result, error } = await supabase
                     .rpc('complete_assignment', {
                         p_assignment_id: assignmentId,
-                        p_player_id: playerId
+                        p_player_id: playerId,
+                        p_minutes: minutes
                     });
 
                 if (error) {
