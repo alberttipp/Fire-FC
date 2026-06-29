@@ -204,20 +204,39 @@ export const AuthProvider = ({ children }) => {
             if (membershipError) throw membershipError;
 
             const membershipContext = resolveMembershipContext(memberships || [], data);
+            const resolvedRole = membershipContext.role || data?.role || null;
+
+            // CRITICAL: a REAL authenticated user (fetchProfile only ever runs
+            // for Supabase sessions, never virtual users) resolving to NO role
+            // is almost always the token-attach RACE — the team_memberships
+            // query ran a beat before the new JWT was attached, so RLS
+            // (auth.uid() = user_id) returned ZERO rows and the user looks
+            // brand-new. That is what bounces an existing manager/coach onto the
+            // "Welcome to Fire FC" new-user screen even though their account is
+            // fine. The earlier fix only retried on query ERRORS; an empty 200
+            // slipped through. So: if a signed-in user resolves to null role,
+            // RETRY a few times before accepting it. An existing manager/coach
+            // resolves on the next try; a genuinely new parent still resolves to
+            // null after the retries and lands on onboarding correctly. Keep
+            // loading=true meanwhile so we never flash the wrong screen.
+            if (!resolvedRole && attempt < 3) {
+                inFlightUserId.current = null;
+                setTimeout(() => fetchProfile(userId, attempt + 1), 400 * (attempt + 1));
+                return;
+            }
 
             // Merge role into profile
             setProfile({
                 ...data,
-                role: membershipContext.role || data?.role || null,
+                role: resolvedRole,
                 team_id: membershipContext.team_id || data?.team_id || null,
             });
 
-            // Claim the dedupe ONLY after a clean fetch. If either query errors
-            // (transient DB / RLS / token hiccup — common right after switching
-            // accounts or under DB load), we must NOT lock in a role-less
-            // profile, or the manager gets bounced to the "Welcome to Fire FC"
-            // setup screen until a full reload. Leaving the ref unclaimed lets
-            // the retry below self-heal it.
+            // Claim the dedupe ONLY after a clean, role-resolved fetch. If either
+            // query errors (transient DB / RLS / token hiccup), we must NOT lock
+            // in a role-less profile, or the manager gets bounced to the setup
+            // screen until a full reload. Leaving the ref unclaimed lets the
+            // retries above/below self-heal it.
             lastProfileUserId.current = userId;
             inFlightUserId.current = null;
             setLoading(false);
