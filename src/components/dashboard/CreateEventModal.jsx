@@ -5,6 +5,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import CoverPreview from '../event-cover/CoverPreview';
 import { TEMPLATES, BACKGROUNDS, defaultTemplateForEvent } from '../event-cover/templates';
+import { KIT_PRESETS, KIT_PRESET_LABELS } from '../../constants/kits';
 
 const formatDateInput = (d) => {
     if (!d) return '';
@@ -157,7 +158,9 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
         opponentName: existingEvent?.opponent_name || '',
         videoUrl: existingEvent?.video_url || '',
         kitColor: existingEvent?.kit_color || '',
-        // 3-piece custom kit (used when useCustomKit === true)
+        // "Other" free-text kit toggle — true when the stored kit isn't a preset.
+        kitOther: !!(existingEvent?.kit_color && !KIT_PRESET_LABELS.includes(existingEvent.kit_color)),
+        // 3-piece custom kit (legacy — kept for back-compat with old game rows)
         kitShortsColor: existingEvent?.kit_shorts_color || '',
         kitSocksColor:  existingEvent?.kit_socks_color  || '',
         useCustomKit: existingIsCustomKit,
@@ -268,9 +271,9 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                 notes: formData.notes,
                 opponent_name: eventType === 'game' ? (opponent || null) : null,
                 video_url: eventType === 'game' ? (formData.videoUrl || null) : null,
-                kit_color: eventType === 'game' ? (formData.kitColor || null) : null,
-                kit_shorts_color: eventType === 'game' && customKit ? (formData.kitShortsColor || null) : null,
-                kit_socks_color:  eventType === 'game' && customKit ? (formData.kitSocksColor  || null) : null,
+                kit_color: formData.kitColor || null,
+                kit_shorts_color: null,
+                kit_socks_color: null,
             };
 
             let data, error;
@@ -535,50 +538,56 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
                                 )}
                             </div>
 
-                            {/* Game-specific: Kit picker (Red / White / Custom 3-piece) */}
-                            {eventType === 'game' && (
+                            {/* Kit / what to wear — shown for practices AND games
+                                (social events skip it). Preset buttons + Other free-text.
+                                Stored as a label in kit_color; parents see it on the card. */}
+                            {eventType !== 'social' && (
                                 <div>
-                                    <label className="block text-gray-500 text-xs uppercase font-bold mb-2">Kit</label>
+                                    <label className="block text-gray-500 text-xs uppercase font-bold mb-2">Kit / What to wear</label>
                                     <div className="grid grid-cols-3 gap-2">
-                                        {/* Red */}
+                                        {KIT_PRESETS.map(p => {
+                                            const active = !formData.kitOther && formData.kitColor === p.label;
+                                            return (
+                                                <button
+                                                    key={p.label}
+                                                    type="button"
+                                                    onClick={() => setFormData(f => ({ ...f, kitColor: p.label, kitOther: false }))}
+                                                    className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${active ? 'bg-brand-gold/10 border-brand-gold' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                                >
+                                                    <JerseySwatch color={p.color} stroke={p.stroke} size={34} />
+                                                    <span className="uppercase text-[9px] tracking-wider font-bold text-gray-300 text-center leading-tight">{p.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                        {/* Other — free text */}
                                         <button
                                             type="button"
-                                            onClick={() => setFormData(f => ({ ...f, useCustomKit: false, kitColor: 'red', kitShortsColor: '', kitSocksColor: '' }))}
-                                            className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${!formData.useCustomKit && formData.kitColor === 'red' ? 'bg-brand-gold/10 border-brand-gold' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                            onClick={() => setFormData(f => ({ ...f, kitOther: true, kitColor: KIT_PRESET_LABELS.includes(f.kitColor) ? '' : f.kitColor }))}
+                                            className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${formData.kitOther ? 'bg-brand-gold/10 border-brand-gold' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
                                         >
-                                            <JerseySwatch color="#dc2626" stroke="#7f1d1d" size={36} />
-                                            <span className="uppercase text-[10px] tracking-wider font-bold text-gray-300">Red</span>
-                                        </button>
-                                        {/* White */}
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData(f => ({ ...f, useCustomKit: false, kitColor: 'white', kitShortsColor: '', kitSocksColor: '' }))}
-                                            className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${!formData.useCustomKit && formData.kitColor === 'white' ? 'bg-brand-gold/10 border-brand-gold' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
-                                        >
-                                            <JerseySwatch color="#f8fafc" stroke="#475569" size={36} />
-                                            <span className="uppercase text-[10px] tracking-wider font-bold text-gray-300">White</span>
-                                        </button>
-                                        {/* Custom */}
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData(f => ({ ...f, useCustomKit: true, kitColor: f.kitColor && !['red','white'].includes(f.kitColor) ? f.kitColor : 'navy' }))}
-                                            className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${formData.useCustomKit ? 'bg-brand-gold/10 border-brand-gold' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
-                                        >
-                                            <div className="w-9 h-9 rounded border-2 border-dashed border-gray-500 flex items-center justify-center text-[10px] text-gray-400 font-bold">3pc</div>
-                                            <span className="uppercase text-[10px] tracking-wider font-bold text-gray-300">Custom</span>
+                                            <div className="w-9 h-9 rounded border-2 border-dashed border-gray-500 flex items-center justify-center text-gray-400 font-bold">✏️</div>
+                                            <span className="uppercase text-[9px] tracking-wider font-bold text-gray-300">Other</span>
                                         </button>
                                     </div>
 
-                                    {/* 3-piece custom kit pickers */}
-                                    {formData.useCustomKit && (
-                                        <div className="mt-3 space-y-3 p-3 bg-black/30 rounded-lg border border-white/10">
-                                            <KitColorRow label="Shirt"  options={SHIRT_COLORS}  value={formData.kitColor}
-                                                onChange={(v) => setFormData(f => ({ ...f, kitColor: v }))} />
-                                            <KitColorRow label="Shorts" options={SHORTS_COLORS} value={formData.kitShortsColor}
-                                                onChange={(v) => setFormData(f => ({ ...f, kitShortsColor: v }))} />
-                                            <KitColorRow label="Socks"  options={SOCKS_COLORS}  value={formData.kitSocksColor}
-                                                onChange={(v) => setFormData(f => ({ ...f, kitSocksColor: v }))} />
-                                        </div>
+                                    {formData.kitOther && (
+                                        <input
+                                            type="text"
+                                            autoFocus
+                                            placeholder="Type what to wear — e.g. Gray shirt, black shorts"
+                                            value={formData.kitColor}
+                                            onChange={(e) => setFormData(f => ({ ...f, kitColor: e.target.value }))}
+                                            className="mt-2 w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-white text-sm focus:border-brand-green outline-none"
+                                        />
+                                    )}
+                                    {formData.kitColor && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData(f => ({ ...f, kitColor: '', kitOther: false }))}
+                                            className="mt-1.5 text-[10px] text-gray-500 hover:text-white uppercase tracking-wider"
+                                        >
+                                            Clear kit
+                                        </button>
                                     )}
                                 </div>
                             )}

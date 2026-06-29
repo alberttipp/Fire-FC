@@ -8,6 +8,7 @@ import { getEventConfig } from './constants';
 import RsvpSummary from './RsvpSummary';
 import ParentRsvpControls from './ParentRsvpControls';
 import { isStaff } from '../../../constants/roles';
+import { kitSwatchColor } from '../../../constants/kits';
 const EventCoverDesigner = lazy(() => import('../../event-cover/EventCoverDesigner'));
 const CreateEventModal   = lazy(() => import('../CreateEventModal'));
 
@@ -189,9 +190,9 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                     <div className="flex flex-wrap gap-4 text-sm text-gray-400">
                         <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {event.location_name || 'TBD'}</span>
                         {event.kit_color && (
-                            <span className="flex items-center gap-1.5">
-                                <span className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: event.kit_color }} />
-                                Kit: {event.kit_color}
+                            <span className="flex items-center gap-1.5 text-brand-gold font-semibold">
+                                <span className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: kitSwatchColor(event.kit_color) || 'transparent' }} />
+                                Wear: {event.kit_color}
                             </span>
                         )}
                     </div>

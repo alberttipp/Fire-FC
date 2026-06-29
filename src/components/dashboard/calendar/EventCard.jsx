@@ -5,6 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { getEventConfig } from './constants';
 import RsvpButtons from './RsvpButtons';
 import { isStaff as roleIsStaff } from '../../../constants/roles';
+import { kitSwatchColor } from '../../../constants/kits';
 
 // Staff don't get a personal RSVP — they're not on the roster. They manage
 // attendance from inside EventDetailModal (RsvpSummary's coach-override
@@ -97,12 +98,21 @@ const EventCard = ({ event, rsvpStatus, rsvpCounts, onRsvp, onClick, compact = f
                         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-gray-500" /> {format(eventDate, 'h:mm a')}</span>
                         <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-gray-500" /> {event.location_name || 'TBD'}</span>
                         {event.kit_color && (
-                            <span className="flex items-center gap-1">
-                                <span className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: event.kit_color }} />
-                                {event.kit_color}
+                            <span className="flex items-center gap-1 text-brand-gold font-semibold">
+                                <span className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: kitSwatchColor(event.kit_color) || 'transparent' }} />
+                                Wear: {event.kit_color}
                             </span>
                         )}
                     </div>
+
+                    {/* Notes surfaced on the card so parents always see them
+                        (e.g. jersey/what-to-bring) without opening the event. */}
+                    {event.notes && (
+                        <div className="mt-1.5 text-[12px] text-gray-300">
+                            <span className="text-gray-500 font-bold uppercase text-[10px] mr-1.5">Note</span>
+                            <span className="line-clamp-2 align-middle">{event.notes}</span>
+                        </div>
+                    )}
 
                     {/* Countdown + RSVP counts */}
                     <div className="flex items-center gap-3 mt-2">
