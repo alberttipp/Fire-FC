@@ -156,6 +156,15 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
         isFaceScoredDirectly(attr, m) ? (faceMap[attr.key] ?? DEFAULT_SUBSTAT) : attributeFace(attr, m, subs)
     ));
 
+    // Log that a parent/player opened this card. Read-only views only — a coach
+    // editing from TeamView/grid isn't readOnly, so their opens don't count as
+    // "family viewed." RLS-safe RPC; no-ops for PIN-login kids (anon auth.uid).
+    useEffect(() => {
+        if (readOnly && player?.id) {
+            supabase.rpc('mark_evaluation_seen', { p_player_id: player.id });
+        }
+    }, [readOnly, player?.id]);
+
     // Fetch Badges, Evaluations & Player's Earned Badges
     useEffect(() => {
         const fetchData = async () => {

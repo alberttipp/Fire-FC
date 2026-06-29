@@ -17,6 +17,7 @@ const TeamAdoptionDrilldown = lazy(() => import('./TeamAdoptionDrilldown'));
 const TeamPulseDrilldown    = lazy(() => import('./TeamPulseDrilldown'));
 const CoachDrillsDrilldown  = lazy(() => import('./CoachDrillsDrilldown'));
 const TeamEvalGrid          = lazy(() => import('./TeamEvalGrid'));
+const EvalViewsDrilldown    = lazy(() => import('./EvalViewsDrilldown'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -40,6 +41,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
     const [showPulse, setShowPulse] = useState(false);
     const [showDrills, setShowDrills] = useState(false);
     const [showEvalGrid, setShowEvalGrid] = useState(false);
+    const [showEvalViews, setShowEvalViews] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -214,6 +216,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
 
+            {/* Eval Card Views — which families have opened their player's card */}
+            <button
+                type="button"
+                onClick={() => setShowEvalViews(true)}
+                className="w-full glass-panel border-l-4 border-l-blue-500 p-3 flex items-center gap-3 hover:bg-blue-500/5 transition-colors"
+            >
+                <Activity className="w-5 h-5 text-blue-400 shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Eval Card Views — who's opened their player's evaluation
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+
             {/* Send this week's solo challenge to the whole team */}
             <button
                 type="button"
@@ -297,6 +312,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 {showPulse                && <TeamPulseDrilldown teamId={teamId} onClose={() => setShowPulse(false)} />}
                 {showDrills               && <CoachDrillsDrilldown teamId={teamId} onClose={() => setShowDrills(false)} />}
                 {showEvalGrid             && <TeamEvalGrid teamId={teamId} onClose={() => setShowEvalGrid(false)} />}
+                {showEvalViews            && <EvalViewsDrilldown teamId={teamId} onClose={() => setShowEvalViews(false)} />}
             </Suspense>
         </div>
     );
