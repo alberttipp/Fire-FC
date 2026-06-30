@@ -317,7 +317,11 @@ const ChatView = ({ initialConversationId = null }) => {
                 .from('messages')
                 .select('*')
                 .eq('conversation_id', conversationId)
-                .order('created_at', { ascending: true })
+                // Newest 100, NOT oldest 100. With ascending+limit, once a
+                // conversation passed 100 messages the query returned the
+                // OLDEST 100 and every newer message vanished for everyone
+                // (the "no chats since June 24" bug). Fetch newest, reverse below.
+                .order('created_at', { ascending: false })
                 .limit(100);
 
             if (error) {
@@ -337,7 +341,7 @@ const ChatView = ({ initialConversationId = null }) => {
             // Merge with any rows already present (e.g. an optimistic
             // append from handleSend or a realtime INSERT that landed
             // first) so we don't clobber the just-sent message.
-            const incoming = data || [];
+            const incoming = (data || []).slice().reverse(); // newest-first fetch → chronological for display
             setMessages(prev => {
                 if (prev.length === 0) return incoming;
                 const seen = new Set(incoming.map(m => m.id));
