@@ -258,6 +258,20 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
 
             if (!resolvedLocation) throw new Error('Pick a location.');
 
+            // Past-date guard: silently saving an event on a past DAY (usually a
+            // mis-picked month) drops it off the upcoming schedule and looks like
+            // it "didn't save" (Orlando's July 7 → June 7). Confirm before allowing
+            // a past date so the mistake is caught at save time.
+            const startDay = new Date(startDateTime); startDay.setHours(0, 0, 0, 0);
+            const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+            if (startDay < todayStart) {
+                const whenStr = startDateTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                if (!window.confirm(`Heads up — this event is set for ${whenStr}, which has already passed. Double-check the month. Save on that past date anyway?`)) {
+                    setLoading(false);
+                    return;
+                }
+            }
+
             // Build row. Kit fields: when useCustomKit, write shorts+socks.
             // Otherwise clear them (Red / White have no shorts/socks).
             const customKit = formData.useCustomKit;
