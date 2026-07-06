@@ -5,6 +5,13 @@
 @tailwind utilities;
 
 @layer base {
+  /* White-label brand colors as RGB channels (Rockford Fire FC defaults).
+     BrandingContext overrides these per club at runtime; Tailwind reads them via
+     rgb(var(--brand-primary) / <alpha-value>) so opacity utilities still work. */
+  :root {
+    --brand-primary: 59 130 246; /* #3b82f6 brand-green */
+    --brand-accent: 212 175 55;  /* #d4af37 brand-gold */
+  }
   body {
     @apply bg-brand-dark text-white font-sans antialiased;
   }

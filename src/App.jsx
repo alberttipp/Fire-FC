@@ -14,6 +14,7 @@ import { ToastProvider, useToast } from './components/Toast';
 import { ConfirmDialogProvider } from './components/ConfirmDialog';
 import { useVersionDrift } from './hooks/useVersionDrift';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { BrandingProvider } from './context/BrandingContext';
 import { VoiceCommandProvider } from './context/VoiceCommandContext';
 import AIAssistant from './components/AIAssistant';
 import VoiceCommandOverlay from './components/VoiceCommandOverlay';
@@ -128,6 +129,7 @@ function App() {
         <ConfirmDialogProvider>
         <VersionDriftWatcher />
         <Router>
+          <BrandingProvider>
           <AuthProvider>
             <VoiceCommandWrapper>
               <Routes>
@@ -180,6 +182,7 @@ function App() {
               <BuildStamp />
             </VoiceCommandWrapper>
           </AuthProvider>
+          </BrandingProvider>
         </Router>
         </ConfirmDialogProvider>
       </ToastProvider>

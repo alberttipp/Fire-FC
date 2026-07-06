@@ -8,8 +8,11 @@ export default {
         extend: {
             colors: {
                 'brand-dark': '#0a0a0a', // Almost black
-                'brand-green': '#3b82f6', // Vibrant Blue accent
-                'brand-gold': '#d4af37',
+                // Themeable per club via BrandingContext (CSS vars = RGB channels).
+                // Fallback channels = Rockford Fire FC, so it renders identically if unset,
+                // and rgb(... / <alpha-value>) keeps opacity utilities (bg-brand-green/10) working.
+                'brand-green': 'rgb(var(--brand-primary, 59 130 246) / <alpha-value>)',
+                'brand-gold': 'rgb(var(--brand-accent, 212 175 55) / <alpha-value>)',
                 'glass': 'rgba(255, 255, 255, 0.1)',
                 'glass-dark': 'rgba(0, 0, 0, 0.5)',
             },
