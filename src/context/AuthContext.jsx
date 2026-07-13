@@ -154,6 +154,17 @@ export const AuthProvider = ({ children }) => {
                 // mount (manager "sees no team info" bug).
                 clearVirtualUser();
                 setUser(session.user);
+                // A genuinely NEW sign-in (fresh login, not a token refresh for
+                // the already-resolved user) must re-gate the app on loading
+                // until profile + memberships resolve. Otherwise loading is a
+                // stale `false` from an earlier no-session mount, the app renders
+                // Dashboard with a null profile, and role logic falls back to the
+                // Supabase user.role ('authenticated') — bouncing fresh staff
+                // logins to the parent-setup screen before their manager/coach
+                // membership loads. Token refreshes for the SAME user skip this
+                // (fetchProfile dedupes and won't flip loading back to false),
+                // so we never blank the app on a background refresh.
+                if (lastProfileUserId.current !== session.user.id) setLoading(true);
                 fetchProfile(session.user.id);
             } else {
                 lastProfileUserId.current = null;
