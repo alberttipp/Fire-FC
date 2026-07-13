@@ -42,11 +42,15 @@ function resolveSlugFromUrl() {
     try {
         const url = new URL(window.location.href);
         const q = url.searchParams.get('club');
-        if (q) return q;
+        if (q) { try { sessionStorage.setItem('ff_club', q); } catch { /* ignore */ } return q; }
         const path = url.pathname.match(/^\/c\/([^/]+)/);
-        if (path) return path[1];
+        if (path) { try { sessionStorage.setItem('ff_club', path[1]); } catch { /* ignore */ } return path[1]; }
         const parts = url.hostname.split('.');
         if (parts.length > 2 && !['www', 'firefcapp', 'localhost'].includes(parts[0])) return parts[0];
+        // No club in the URL — within this tab session, keep the club the user
+        // entered through (survives SPA nav + hard refresh; clears when the tab
+        // closes). A fresh tab with no ?club stays Rockford, so this is demo-only.
+        try { const s = sessionStorage.getItem('ff_club'); if (s) return s; } catch { /* ignore */ }
     } catch { /* ignore */ }
     return null;
 }
