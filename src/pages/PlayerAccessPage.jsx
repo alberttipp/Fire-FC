@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { Loader2, CheckCircle, XCircle, Rocket } from 'lucide-react';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
+import { useBranding } from '../context/BrandingContext';
 
 const PlayerAccessPage = () => {
     const { token } = useParams();
     const navigate = useNavigate();
+    const brand = useBranding();
 
     const [status, setStatus] = useState('verifying'); // 'verifying', 'ready', 'error', 'logging_in'
     const [player, setPlayer] = useState(null);
@@ -93,7 +95,7 @@ const PlayerAccessPage = () => {
                 {/* Logo */}
                 <div className="text-center mb-6">
                     <div className="inline-flex items-center justify-center w-20 h-20 mb-4 filter drop-shadow-[0_0_20px_rgba(59,130,246,0.2)]">
-                        <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
+                        <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
                     </div>
                     <h2 className="text-xl font-display font-bold text-white tracking-widest uppercase">
                         Player Access
@@ -134,7 +136,7 @@ const PlayerAccessPage = () => {
                                 {player.first_name} {player.last_name}
                             </h3>
                             <p className="text-gray-400 text-sm mt-1">
-                                {player.team_name || 'Fire FC'} • {player.position || 'Player'}
+                                {player.team_name || brand.name} • {player.position || 'Player'}
                             </p>
                         </div>
 

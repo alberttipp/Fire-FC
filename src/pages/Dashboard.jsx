@@ -8,6 +8,7 @@ import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, C
 import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
 import { isStaff as isStaffRole } from '../constants/roles';
+import { useBranding } from '../context/BrandingContext';
 
 const PreviewPickerModal = lazy(() => import('../components/dashboard/PreviewPickerModal'));
 
@@ -41,6 +42,7 @@ const ViewLoader = () => (
 const Dashboard = () => {
     const { user, profile, signOut } = useAuth(); // Added profile
     const navigate = useNavigate();
+    const brand = useBranding();
     const [currentView, setCurrentView] = useState('club');
     // Deep link from a push notification: ?view=&conv=&event=
     const [deepLink] = useState(() => {
@@ -243,10 +245,10 @@ const Dashboard = () => {
                 <div className="max-w-7xl mx-auto flex justify-between items-center gap-2">
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                         <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(59,130,246,0.4)] shrink-0">
-                            <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
+                            <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
                         </div>
                         <h1 className="hidden md:block text-2xl text-white font-display uppercase font-bold tracking-wider">
-                            Rockford Fire <span className="text-brand-green">{isManager ? 'Director' : 'Coach'}</span>
+                            {brand.name} <span className="text-brand-green">{isManager ? 'Director' : 'Coach'}</span>
                         </h1>
                     </div>
 

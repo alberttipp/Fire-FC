@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SupportTeamCard from '../components/SupportTeamCard';
+import { useBranding } from '../context/BrandingContext';
 import {
     Flame,
     Target,
@@ -143,6 +144,7 @@ const RosterCodesSection = () => {
 };
 
 const About = () => {
+    const brand = useBranding();
     return (
         <div className="min-h-screen bg-brand-dark text-white">
             {/* Top nav strip */}
@@ -150,12 +152,12 @@ const About = () => {
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
                     <Link to="/about" className="flex items-center gap-2 group">
                         <img
-                            src="/branding/logo.png"
-                            alt="Fire FC"
+                            src={brand.logoUrl}
+                            alt={brand.name}
                             className="w-8 h-8 rounded"
                         />
                         <span className="font-display font-bold uppercase tracking-wider text-sm group-hover:text-brand-gold transition-colors">
-                            Fire FC
+                            {brand.name}
                         </span>
                     </Link>
                     <Link
@@ -180,11 +182,11 @@ const About = () => {
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-gold/10 border border-brand-gold/30 mb-5">
                         <Flame className="w-3.5 h-3.5 text-brand-gold" />
                         <span className="text-brand-gold text-[11px] font-bold uppercase tracking-widest">
-                            Rockford Fire FC
+                            {brand.name}
                         </span>
                     </div>
                     <h1 className="font-display font-bold uppercase tracking-tight text-4xl sm:text-6xl leading-[1.05] mb-4">
-                        Welcome to Fire FC.
+                        Welcome to {brand.name}.
                         <br />
                         <span className="text-brand-gold">Built for our families.</span>
                     </h1>
@@ -438,11 +440,11 @@ const About = () => {
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
                     <div className="flex items-center gap-2">
                         <img
-                            src="/branding/logo.png"
+                            src={brand.logoUrl}
                             alt=""
                             className="w-6 h-6 rounded opacity-80"
                         />
-                        <span>Fire FC · Rockford, IL</span>
+                        <span>{brand.name} · Rockford, IL</span>
                     </div>
                     <div className="flex items-center gap-4">
                         <Link to="/login" className="hover:text-white transition-colors">

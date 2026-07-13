@@ -7,6 +7,7 @@ import {
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from './Toast';
+import { useBranding } from '../context/BrandingContext';
 
 // Feature flag — keep AIAssistant hidden until we move the LLM call
 // server-side. Direct browser → Gemini call previously baked the API
@@ -18,6 +19,7 @@ const AIAssistant = () => {
     if (!AI_ASSISTANT_ENABLED) return null;
     const { user, profile } = useAuth();
     const toast = useToast();
+    const brand = useBranding();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
@@ -147,7 +149,7 @@ const AIAssistant = () => {
             if (messages.length === 0) {
                 setMessages([{
                     role: 'assistant',
-                    content: `Hi ${profile?.full_name?.split(' ')[0] || 'there'}! 👋 I'm your Fire FC assistant. Ask me anything like:\n\n• "When is our next practice?"\n• "What kit do we wear for the game?"\n• "Who's on the roster?"\n• "Message the coach that we'll be late"`
+                    content: `Hi ${profile?.full_name?.split(' ')[0] || 'there'}! 👋 I'm your ${brand.name} assistant. Ask me anything like:\n\n• "When is our next practice?"\n• "What kit do we wear for the game?"\n• "Who's on the roster?"\n• "Message the coach that we'll be late"`
                 }]);
             }
         } catch (err) {
@@ -210,14 +212,14 @@ const AIAssistant = () => {
             ? roster.map(p => `#${p.number} ${p.first_name} ${p.last_name}`).join(', ')
             : 'No players on roster.';
 
-        return `You are the AI assistant for Rockford Fire FC, a youth soccer club. Be friendly, helpful, and concise.
+        return `You are the AI assistant for ${brand.name}, a youth soccer club.${brand.aiPersona ? ` ${brand.aiPersona}` : ''} Be friendly, helpful, and concise.
 
 TODAY'S DATE: ${today}
 
 CURRENT USER: ${user.name} (${user.role})
 
 TEAM INFO:
-- Team: ${team?.name || 'Rockford Fire FC'} (${team?.age_group || 'U12 Coed'})
+- Team: ${team?.name || brand.name} (${team?.age_group || 'U12 Coed'})
 - Team Code: ${team?.join_code || 'N/A'}
 ${coach ? `- Coach: ${coach.full_name} (${coach.email})` : ''}
 
@@ -272,7 +274,7 @@ IMPORTANT INSTRUCTIONS:
                                 <Sparkles className="w-5 h-5 text-brand-dark" />
                             </div>
                             <div>
-                                <h3 className="text-white font-bold">Fire FC Assistant</h3>
+                                <h3 className="text-white font-bold">{brand.name} Assistant</h3>
                                 <p className="text-xs text-gray-400">Ask me anything</p>
                             </div>
                         </div>

@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Volume2, VolumeX, ArrowLeft, Flame, RotateCcw, Loader2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
+import { useBranding } from '../context/BrandingContext';
 
 // ============================================
 // GAME CONFIGURATION
@@ -52,6 +53,7 @@ const STATES = {
 // MAIN GAME COMPONENT
 // ============================================
 const FireBall = ({ onClose }) => {
+    const brand = useBranding();
     const canvasRef = useRef(null);
     const gameLoopRef = useRef(null);
     const gameRef = useRef(null);
@@ -347,7 +349,7 @@ const FireBall = ({ onClose }) => {
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 18px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('🔥 ROCKFORD FIRE FC 🔥', W/2, 198);
+        ctx.fillText(`🔥 ${brand.name.toUpperCase()} 🔥`, W/2, 198);
 
         // === FIELD ===
         drawField(ctx);
@@ -874,7 +876,7 @@ const FireBall = ({ onClose }) => {
                         <span className="text-orange-500">🔥</span>
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500"> FIRE BALL</span>
                     </h1>
-                    <p className="text-gray-300 mb-8 uppercase tracking-widest">Rockford Fire FC • U12 Coed</p>
+                    <p className="text-gray-300 mb-8 uppercase tracking-widest">{brand.name} • U12 Coed</p>
                     
                     <button
                         onClick={() => setScreen(STATES.SELECT)}

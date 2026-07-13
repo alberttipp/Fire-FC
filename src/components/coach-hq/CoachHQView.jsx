@@ -18,6 +18,7 @@ const TeamPulseDrilldown    = lazy(() => import('./TeamPulseDrilldown'));
 const CoachDrillsDrilldown  = lazy(() => import('./CoachDrillsDrilldown'));
 const TeamEvalGrid          = lazy(() => import('./TeamEvalGrid'));
 const EvalViewsDrilldown    = lazy(() => import('./EvalViewsDrilldown'));
+const SponsorsDrilldown     = lazy(() => import('./SponsorsDrilldown'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -42,6 +43,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
     const [showDrills, setShowDrills] = useState(false);
     const [showEvalGrid, setShowEvalGrid] = useState(false);
     const [showEvalViews, setShowEvalViews] = useState(false);
+    const [showSponsors, setShowSponsors] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -229,6 +231,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
 
+            {/* Sponsors — add the club's sponsors across 3 tiers */}
+            <button
+                type="button"
+                onClick={() => setShowSponsors(true)}
+                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+            >
+                <Star className="w-5 h-5 text-brand-gold shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Sponsors — add your club's sponsors (Title / Premier / Community)
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+
             {/* Send this week's solo challenge to the whole team */}
             <button
                 type="button"
@@ -313,6 +328,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 {showDrills               && <CoachDrillsDrilldown teamId={teamId} onClose={() => setShowDrills(false)} />}
                 {showEvalGrid             && <TeamEvalGrid teamId={teamId} onClose={() => setShowEvalGrid(false)} />}
                 {showEvalViews            && <EvalViewsDrilldown teamId={teamId} onClose={() => setShowEvalViews(false)} />}
+                {showSponsors             && <SponsorsDrilldown teamId={teamId} onClose={() => setShowSponsors(false)} />}
             </Suspense>
         </div>
     );

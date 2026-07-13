@@ -15,6 +15,7 @@ import { ConfirmDialogProvider } from './components/ConfirmDialog';
 import { useVersionDrift } from './hooks/useVersionDrift';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
+import { SponsorProvider } from './context/SponsorContext';
 import { VoiceCommandProvider } from './context/VoiceCommandContext';
 import AIAssistant from './components/AIAssistant';
 import VoiceCommandOverlay from './components/VoiceCommandOverlay';
@@ -130,6 +131,7 @@ function App() {
         <VersionDriftWatcher />
         <Router>
           <BrandingProvider>
+          <SponsorProvider>
           <AuthProvider>
             <VoiceCommandWrapper>
               <Routes>
@@ -182,6 +184,7 @@ function App() {
               <BuildStamp />
             </VoiceCommandWrapper>
           </AuthProvider>
+          </SponsorProvider>
           </BrandingProvider>
         </Router>
         </ConfirmDialogProvider>

@@ -6,10 +6,13 @@ import { isValidEmail, isValidPassword, isValidName, isValidPin } from '../utils
 import { friendlyAuthError } from '../utils/authErrors';
 import { Rocket, Shield, Users, User, ArrowRight, Lock, UserCircle, Mail } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { useBranding } from '../context/BrandingContext';
+import SponsorSlot from '../components/sponsors/SponsorSlot';
 
 const Login = () => {
     const toast = useToast();
     const navigate = useNavigate();
+    const brand = useBranding();
     const { signIn, signUp, loginDemo, loginPlayer } = useAuth();
 
     // Auth Modes
@@ -140,7 +143,7 @@ const Login = () => {
                     }
                 }
 
-                toast.success("Account created! Welcome to Fire FC!");
+                toast.success(`Account created! Welcome to ${brand.name}!`);
                 if (data?.session) {
                     // New signups without a join code default to role=parent
                     // (see signUp() metadata above). Land them on the parent
@@ -314,11 +317,14 @@ const Login = () => {
             <div className="relative z-10 w-full max-w-md p-8 glass-panel border-t-4 border-brand-green animate-fade-in-up">
                 <div className="text-center mb-6">
                     <div className="inline-flex items-center justify-center w-24 h-24 mb-4 filter drop-shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-transform duration-500">
-                        <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
+                        <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
                     </div>
                     <h2 className="text-2xl font-display font-bold text-white tracking-widest uppercase mb-1">
-                        Rockford Fire FC
+                        {brand.name}
                     </h2>
+
+                    {/* Title sponsor — "presented by …" (renders nothing if the club has none) */}
+                    <div className="flex justify-center mt-1 mb-1"><SponsorSlot tier="title" placement="login" /></div>
 
                     {/* Mode Switcher */}
                     <div className="flex justify-center mt-2 mb-4">
@@ -349,7 +355,7 @@ const Login = () => {
                         <div>
                             <h3 className="text-xl text-white font-bold mb-2">Player Access</h3>
                             <p className="text-gray-400 text-sm">
-                                Ask your parent to send you an access link from their Fire FC app.
+                                Ask your parent to send you an access link from their {brand.name} app.
                             </p>
                         </div>
 

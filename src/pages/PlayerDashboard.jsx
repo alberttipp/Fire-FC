@@ -26,6 +26,7 @@ import TeamCelebrationBanner from '../components/TeamCelebrationBanner';
 import TeamGoalBar from '../components/TeamGoalBar';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
+import { useBranding } from '../context/BrandingContext';
 
 // Heavy modals — only loaded when the user opens them.
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
@@ -36,6 +37,7 @@ import { supabase } from '../supabaseClient';
 const PlayerDashboard = () => {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
+    const brand = useBranding();
     const [searchParams] = useSearchParams();
     const previewPlayerId = searchParams.get('preview');
     const isPreview = Boolean(previewPlayerId);
@@ -432,7 +434,7 @@ const PlayerDashboard = () => {
                             Back to Login
                         </button>
                         <p className="text-xs text-gray-500">
-                            Ask your parent to generate a new access link from their Fire FC dashboard.
+                            Ask your parent to generate a new access link from their {brand.name} dashboard.
                         </p>
                     </div>
                 </div>
@@ -574,9 +576,9 @@ const PlayerDashboard = () => {
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur px-6 py-4 flex justify-between items-center border-b border-white/10">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]">
-                        <img src="/branding/logo.png" alt="RFC" className="w-full h-full object-contain" />
+                        <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-white font-display uppercase font-bold tracking-widest text-sm md:text-base">Rockford Fire <span className="text-brand-gold">Player</span></span>
+                    <span className="text-white font-display uppercase font-bold tracking-widest text-sm md:text-base">{brand.name} <span className="text-brand-gold">Player</span></span>
                 </div>
                 <div className="flex items-center gap-4">
                     <button

@@ -31,6 +31,7 @@ import TeamCelebrationBanner from '../components/TeamCelebrationBanner';
 import TeamGoalBar from '../components/TeamGoalBar';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
+import { useBranding } from '../context/BrandingContext';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -61,6 +62,7 @@ const ParentDashboard = () => {
     const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
     const toast = useToast();
+    const brand = useBranding();
     const voiceCommand = useVoiceCommand();
     const [searchParams] = useSearchParams();
     const previewPlayerId = searchParams.get('preview');
@@ -1312,10 +1314,10 @@ const ParentDashboard = () => {
                 <div className="max-w-md w-full">
                     <div className="text-center mb-6">
                         <div className="w-16 h-16 mx-auto mb-3 flex items-center justify-center">
-                            <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
+                            <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
                         </div>
                         <h1 className="text-2xl text-white font-display uppercase font-bold tracking-wider">
-                            Welcome to <span className="text-blue-500">Fire FC</span>
+                            Welcome to <span className="text-blue-500">{brand.name}</span>
                         </h1>
                         <p className="text-gray-400 text-sm mt-2">
                             Complete your family setup, then select the child you want to link.
@@ -1396,14 +1398,14 @@ const ParentDashboard = () => {
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-md">
-                            <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
+                            <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
                         </div>
                         <div>
                             <h1 className="text-xl text-white font-display uppercase font-bold tracking-wider leading-none">
-                                Rockford Fire <span className="text-blue-500">Family</span>
+                                {brand.name} <span className="text-blue-500">Family</span>
                             </h1>
                             <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">
-                                {selectedChild ? `${selectedChild.first_name}'s Dashboard` : 'Fire FC App'}
+                                {selectedChild ? `${selectedChild.first_name}'s Dashboard` : `${brand.name} App`}
                             </span>
                         </div>
                     </div>
