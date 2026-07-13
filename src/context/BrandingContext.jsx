@@ -20,10 +20,10 @@ export const DEFAULT_BRAND = {
 const BrandingContext = createContext(DEFAULT_BRAND);
 export const useBranding = () => useContext(BrandingContext);
 
-// Multi-club white-label is OFF until this flag flips. Until then every user
-// gets Rockford — i.e. today's exact behavior, guaranteed. Set VITE_MULTI_ORG=true
-// to enable per-club resolution.
-const MULTI_ORG_ENABLED = import.meta.env.VITE_MULTI_ORG === 'true';
+// Per-club resolution is safe by construction: with no club in the URL (Rockford's
+// normal domain), resolveSlugFromUrl() returns null and we keep DEFAULT_BRAND
+// (Rockford). Only an explicit ?club=slug, /c/slug, or a club subdomain re-brands,
+// and an unknown slug also falls back to Rockford — so this never changes Rockford.
 
 // "#3b82f6" -> "59 130 246" (space-separated RGB channels) so Tailwind's
 // rgb(var(--x) / <alpha-value>) keeps opacity utilities (bg-brand-green/10) working.
@@ -57,7 +57,6 @@ export const BrandingProvider = ({ children }) => {
     // Resolve a club's branding (only when multi-org is enabled AND a non-default
     // club is identified from the URL). Any failure keeps Rockford — never breaks.
     useEffect(() => {
-        if (!MULTI_ORG_ENABLED) return;
         const slug = resolveSlugFromUrl();
         if (!slug || slug === DEFAULT_BRAND.slug) return;
         let cancelled = false;
