@@ -91,7 +91,25 @@ customer/subscription are throwaway test artifacts (identifiable by slug test-cl
   happens at "approve/place" in the club dashboard (Phase 2e), not in the webhook.
 - Verified: registration-checkout guard rejects a bad program. Backend committed (feature branch).
 
-## NEXT SESSION (Phase 2 frontend — the part Albert sees)
+### Phase 2 frontend — BUILT (2026-07-20)
+- `/register` (public) + `/club/billing` (staff) built; build passes; committed (2e7c7e3).
+- connect-onboard verified (creates Express acct acct_1TzlnL… + onboarding link);
+  connect-status verified (reports real state); registration-checkout guard verified.
+- ⚠️ Flow B full card-payment test NOT completed: Stripe's HOSTED Connect onboarding
+  (Financial Connections bank step) froze under browser automation — the test club is
+  connected=true but charges_enabled=FALSE. registration-checkout correctly blocks until
+  charges_enabled. Flow A (same checkout→webhook pattern) IS fully proven, so confidence high.
+- TO FINISH THE FLOW B TEST: complete the test club's Connect onboarding manually (pick a test
+  bank + agree, ~2 clicks) OR retry browser; then drive registration-checkout programmatically
+  (like Flow A) with card 4242 → verify stripe-webhook-connect marks the registration paid.
+  Test club org fcc991d7-…, director test.director@firefcapp.com / TestDirector2026!.
+
+## LATER (Phase 2e + Phase 3)
+- Phase 2e: "approve/place" a paid registration → create the roster player (players + player_teams).
+- Phase 3: discounts, waitlists, dues reminders/dunning, refunds UI, renewals.
+- Cleanup before go-live: Test Club FC + test.director + test-mode Stripe artifacts.
+
+## PRIOR NEXT-SESSION NOTE (superseded — kept for history)
 - `/club/billing` hub: subscription status + Connect Stripe (connect-onboard/status) + create/list
   programs + registrations list (approve/place → create roster player) + fee display.
 - `/register` PUBLIC page (?club=): get_org_programs → pick program → player/guardian/medical/
