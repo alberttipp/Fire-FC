@@ -7,6 +7,8 @@ import ParentDashboard from './pages/ParentDashboard';
 import ResetPassword from './pages/ResetPassword';
 import PlayerAccessPage from './pages/PlayerAccessPage';
 import TryoutSignup from './pages/TryoutSignup';
+import Register from './pages/Register';
+import ClubBilling from './pages/ClubBilling';
 import About from './pages/About';
 import PrivateRoute from './components/PrivateRoute';
 import ClubSubscriptionGate from './components/billing/ClubSubscriptionGate';
@@ -140,6 +142,7 @@ function App() {
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/player-access/:token" element={<PlayerAccessPage />} />
                 <Route path="/tryout-signup" element={<TryoutSignup />} />
+                <Route path="/register" element={<Register />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/dashboard" element={
                   <PrivateRoute>
@@ -151,6 +154,11 @@ function App() {
                 <Route path="/player-dashboard" element={
                   <PrivateRoute>
                     <PlayerDashboard />
+                  </PrivateRoute>
+                } />
+                <Route path="/club/billing" element={
+                  <PrivateRoute>
+                    <ClubBilling />
                   </PrivateRoute>
                 } />
                 <Route path="/parent-dashboard" element={
