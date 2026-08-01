@@ -1,5 +1,15 @@
 # Registration & Payments Platform — Build Notes
 
+## 🚀 SHIPPED TO PRODUCTION 2026-07-20 (commit da4a092)
+Phases 0/1/2/2e/3-chunk-1 live on firefcapp.com. SAFE for real families: Rockford + Raptors are
+comped (gate_lets_in=true — verified), gate fails open, parents/players not gated, new routes additive.
+⚠️ **Stripe is STILL TEST MODE** — the registration/subscribe UI is live but NO real money can move
+until go-live (swap STRIPE_SECRET_KEY to live + re-run admin-stripe-setup for live product/prices/
+webhooks). Rockford has no programs/Connect yet, so the flows are dormant for Fire FC until set up.
+Test/demo clubs (test-club-fc, preview-club) are reachable via ?club= on prod — harmless, clean up
+before real go-live. Verified: /register renders live with real program data.
+
+
 Full plan: `C:\Users\alber\.claude\plans\mutable-spinning-kite.md` (approved 2026-07-20).
 Branch: `feature/registration-payments` (do NOT merge to main until a phase is preview-ready).
 
