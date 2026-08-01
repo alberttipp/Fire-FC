@@ -9,6 +9,7 @@ import PlayerAccessPage from './pages/PlayerAccessPage';
 import TryoutSignup from './pages/TryoutSignup';
 import About from './pages/About';
 import PrivateRoute from './components/PrivateRoute';
+import ClubSubscriptionGate from './components/billing/ClubSubscriptionGate';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './components/Toast';
 import { ConfirmDialogProvider } from './components/ConfirmDialog';
@@ -142,7 +143,9 @@ function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/dashboard" element={
                   <PrivateRoute>
-                    <Dashboard />
+                    <ClubSubscriptionGate>
+                      <Dashboard />
+                    </ClubSubscriptionGate>
                   </PrivateRoute>
                 } />
                 <Route path="/player-dashboard" element={

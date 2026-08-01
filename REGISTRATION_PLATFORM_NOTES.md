@@ -64,7 +64,21 @@ Runtime secrets needed in Supabase: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET_
 - Webhook reads its secret from `platform_settings.webhook_secret_platform` (env fallback).
 - Verified: checkout auth guard rejects no-session; setup idempotent. Stripe still TEST mode.
 
+### Phase 1 frontend + END-TO-END TEST — DONE (2026-07-20)
+- Comped the Raptors demo org (so the demo is never paywalled). Rockford + Raptors both comped+active.
+- Frontend: `useClubSubscription` hook (fails OPEN), `SubscribeGate` (monthly/annual → club-checkout),
+  `ClubSubscriptionGate` wraps the `/dashboard` route in App.jsx (staff-only; polls after ?billing=success).
+- Created a NON-comped test org "Test Club FC" (slug test-club-fc, org fcc991d7-...) + director
+  `test.director@firefcapp.com` / `TestDirector2026!` to exercise the gate.
+- **END-TO-END TEST PASSED**: signed in as the director → club-checkout returned a real Stripe
+  Checkout session → paid with 4242 on the hosted page → webhook flipped test org to
+  status=active, plan=annual, comped=false, sub+customer ids stored, org_is_active()=true.
+- Build passes. Frontend committed to feature branch (NOT on main/production yet).
+
+⚠️ CLEAN UP before go-live: the "Test Club FC" org + `test.director` account + its test-mode Stripe
+customer/subscription are throwaway test artifacts (identifiable by slug test-club-fc).
+
 ## NEXT SESSION
-Frontend (Phase 1): Subscribe screen + billing-portal button + **access gating** (comp the Raptors
-demo org first so it's never paywalled). Then real card-4242 end-to-end test (checkout → webhook →
-org_subscriptions active → gating unlocks). Then Phase 2 (Flow B: Connect onboarding + registration).
+Optional: push feature→main for a preview to eyeball the SubscribeGate UI. Then Phase 2
+(Flow B: Stripe Connect onboarding + the family registration page + registration → roster player).
+Production promotion of the whole platform waits until later phases + Albert's OK.
