@@ -36,9 +36,23 @@ discounts, dashboard, receipts, renewals).
   (platform-owner layer, org_subscriptions, org_stripe_accounts, per-org fee config). Paused for
   Albert's OK before applying to the DB and before the Stripe test-account setup.
 
+## Phase 1 (Flow A) — in progress
+Stripe test account created + Connect enabled (Albert, 2026-07-20).
+Edge functions written (NOT deployed): `club-checkout`, `club-billing-portal`,
+`stripe-webhook-platform` (deploy webhook with `--no-verify-jwt`).
+Runtime secrets needed in Supabase: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET_PLATFORM`.
+
+### To make Phase 1 testable — remaining
+- Albert: set `STRIPE_SECRET_KEY` (sk_test_…) in Supabase → Edge Functions → Secrets (NOT chat).
+- Create the club plan product + 2 prices (monthly/annual); store price ids in `platform_settings`
+  (`club_monthly_price_id`, `club_annual_price_id`). (Claude can auto-create via a setup fn once the
+  secret is set + Albert gives the $ amounts, OR Albert makes them in the dashboard and shares the
+  price ids — price ids are safe to share.)
+- Deploy the 3 functions; add the webhook URL as a Stripe endpoint (events: checkout.session.completed,
+  customer.subscription.created/updated/deleted); put its signing secret into
+  `STRIPE_WEBHOOK_SECRET_PLATFORM`.
+- Build frontend: Subscribe screen + billing portal button + access gating (comp Raptors demo org
+  first so the demo isn't paywalled). Test with card 4242 4242 4242 4242.
+
 ## NEXT SESSION
-1. Albert: create a NEW Stripe account, switch it to **Test mode**, and **enable Connect**
-   (Dashboard → Connect → Get started). Grab the **test** Publishable + Secret keys — but DO NOT paste
-   secrets in chat; we'll load them into Supabase secrets together.
-2. Apply the Phase 0 migration (after Albert reviews it).
-3. Then Phase 1 (Flow A): `club-checkout` + `stripe-webhook-platform` edge functions + access gating.
+Frontend gating + Subscribe UI (Phase 1), then Phase 2 (Flow B: Connect onboarding + registration).
