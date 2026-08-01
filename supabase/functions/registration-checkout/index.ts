@@ -1,6 +1,7 @@
 // Flow B — a family registers a player + pays. PUBLIC (anon): creates a pending
 // registration and a Stripe Checkout Session ON THE CLUB'S CONNECTED ACCOUNT
 // (direct charge) with the platform fee (Albert's configurable/zeroable cut).
+// Supports discount codes, capacity/waitlist, and free (fully-discounted) regs.
 // On payment, stripe-webhook-connect marks the registration paid/active.
 // DEPLOY WITH --no-verify-jwt. Secrets: STRIPE_SECRET_KEY.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -14,6 +15,20 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2024-06-20', httpClient: Stripe.createFetchHttpClient(),
 })
 
+const regRow = (b: any, program: any, extra: Record<string, unknown>) => ({
+  org_id: program.org_id, program_id: program.id,
+  family_user_id: b.familyUserId || null,
+  player_first_name: b.playerFirstName, player_last_name: b.playerLastName,
+  player_dob: b.playerDob || null, player_gender: b.playerGender || null,
+  jersey_size: b.jerseySize || null, grade: b.grade || null, school: b.school || null,
+  guardian_name: b.guardianName, guardian_email: b.guardianEmail, guardian_phone: b.guardianPhone || null,
+  emergency_name: b.emergencyName || null, emergency_phone: b.emergencyPhone || null,
+  medical_notes: b.medicalNotes || null,
+  waiver_signed_at: b.waiverSignature ? new Date().toISOString() : null,
+  waiver_signature: b.waiverSignature || null,
+  ...extra,
+})
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
@@ -24,7 +39,6 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-    // Program must exist, be active, and in its open window.
     const { data: program } = await admin.from('registration_programs').select('*').eq('id', b.programId).single()
     if (!program || !program.active) throw new Error('This program is not available')
     const now = Date.now()
@@ -35,6 +49,46 @@ Deno.serve(async (req) => {
       .select('id, slug, platform_fee_enabled, platform_fee_percent, platform_fee_flat_cents')
       .eq('id', program.org_id).single()
 
+    // Capacity / waitlist.
+    if (program.capacity != null) {
+      const { count } = await admin.from('registrations').select('*', { count: 'exact', head: true })
+        .eq('program_id', program.id).in('status', ['paid', 'active', 'approved'])
+      if ((count ?? 0) >= program.capacity) {
+        if (program.waitlist_enabled) {
+          await admin.from('registrations').insert(regRow(b, program, { status: 'waitlisted', amount_cents: program.price_cents }))
+          return new Response(JSON.stringify({ waitlisted: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        throw new Error('This program is full')
+      }
+    }
+
+    // Discount code (server-authoritative).
+    let discountCents = 0
+    let appliedCode: string | null = null
+    if (b.discountCode) {
+      const { data: dc } = await admin.from('discount_codes').select('*')
+        .eq('org_id', program.org_id).ilike('code', b.discountCode).maybeSingle()
+      const valid = dc && dc.active
+        && (!dc.expires_at || new Date(dc.expires_at).getTime() > now)
+        && (dc.max_uses == null || dc.used_count < dc.max_uses)
+        && (!dc.program_id || dc.program_id === program.id)
+      if (valid) {
+        discountCents = dc.kind === 'percent' ? Math.floor(program.price_cents * dc.value / 100) : dc.value
+        discountCents = Math.min(discountCents, program.price_cents)
+        appliedCode = dc.code
+        await admin.from('discount_codes').update({ used_count: dc.used_count + 1 }).eq('id', dc.id)
+      }
+    }
+    const finalCents = Math.max(0, program.price_cents - discountCents)
+
+    // Fully discounted -> free, mark paid, no Stripe.
+    if (finalCents === 0) {
+      const { data: reg } = await admin.from('registrations')
+        .insert(regRow(b, program, { status: 'paid', amount_cents: 0, discount_code: appliedCode, discount_cents: discountCents, platform_fee_cents: 0 }))
+        .select('id').single()
+      return new Response(JSON.stringify({ free: true, registrationId: reg.id }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     // Club must have a payout-ready connected account.
     const { data: acct } = await admin.from('org_stripe_accounts')
       .select('connect_account_id, charges_enabled').eq('org_id', program.org_id).maybeSingle()
@@ -42,30 +96,18 @@ Deno.serve(async (req) => {
       throw new Error('This club is not set up to accept payments yet')
     }
 
-    // Create the pending registration.
-    const { data: reg, error: regErr } = await admin.from('registrations').insert({
-      org_id: program.org_id, program_id: program.id,
-      family_user_id: b.familyUserId || null,
-      player_first_name: b.playerFirstName, player_last_name: b.playerLastName,
-      player_dob: b.playerDob || null, player_gender: b.playerGender || null,
-      jersey_size: b.jerseySize || null, grade: b.grade || null, school: b.school || null,
-      guardian_name: b.guardianName, guardian_email: b.guardianEmail, guardian_phone: b.guardianPhone || null,
-      emergency_name: b.emergencyName || null, emergency_phone: b.emergencyPhone || null,
-      medical_notes: b.medicalNotes || null,
-      waiver_signed_at: b.waiverSignature ? new Date().toISOString() : null,
-      waiver_signature: b.waiverSignature || null,
-      amount_cents: program.price_cents,
-      status: 'pending',
-    }).select('id').single()
-    if (regErr) throw regErr
-
-    // Platform fee (Albert's cut) — per-club config, falls back to platform default.
+    // Platform fee on the (discounted) amount.
     const { data: ps } = await admin.from('platform_settings')
       .select('default_platform_fee_percent, default_platform_fee_flat_cents').eq('id', true).single()
     const feeEnabled = org.platform_fee_enabled ?? true
     const feePct = Number(org.platform_fee_percent ?? ps?.default_platform_fee_percent ?? 0)
     const feeFlat = org.platform_fee_flat_cents ?? ps?.default_platform_fee_flat_cents ?? 0
-    const feeCents = feeEnabled ? Math.floor(program.price_cents * feePct / 100) + feeFlat : 0
+    const feeCents = feeEnabled ? Math.floor(finalCents * feePct / 100) + feeFlat : 0
+
+    const { data: reg, error: regErr } = await admin.from('registrations')
+      .insert(regRow(b, program, { status: 'pending', amount_cents: finalCents, discount_code: appliedCode, discount_cents: discountCents }))
+      .select('id').single()
+    if (regErr) throw regErr
 
     const mode = program.billing_type === 'one_time' ? 'payment' : 'subscription'
     const interval = program.billing_type === 'annual' ? 'year' : 'month'
@@ -78,7 +120,7 @@ Deno.serve(async (req) => {
         quantity: 1,
         price_data: {
           currency: program.currency || 'usd',
-          unit_amount: program.price_cents,
+          unit_amount: finalCents,
           product_data: { name: program.name },
           ...(mode === 'subscription' ? { recurring: { interval } } : {}),
         },
@@ -89,6 +131,7 @@ Deno.serve(async (req) => {
     }
     if (mode === 'payment') {
       params.payment_intent_data = {
+        receipt_email: b.guardianEmail,
         metadata: { registration_id: reg.id },
         ...(feeCents > 0 ? { application_fee_amount: feeCents } : {}),
       }
@@ -99,7 +142,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Direct charge on the club's connected account.
     const session = await stripe.checkout.sessions.create(params as any, { stripeAccount: acct.connect_account_id })
 
     await admin.from('registrations').update({

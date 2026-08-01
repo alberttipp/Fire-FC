@@ -22,8 +22,10 @@ export default function Register() {
     const [form, setForm] = useState({
         playerFirstName: '', playerLastName: '', playerDob: '', playerGender: '', jerseySize: '', grade: '', school: '',
         guardianName: '', guardianEmail: '', guardianPhone: '', emergencyName: '', emergencyPhone: '', medicalNotes: '',
-        waiverSignature: '',
+        waiverSignature: '', discountCode: '',
     });
+    const [discount, setDiscount] = useState(null); // { kind, value } once applied
+    const [waitlisted, setWaitlisted] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
 
@@ -37,6 +39,18 @@ export default function Register() {
 
     const program = programs?.find((p) => p.id === programId);
     const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+    const discountedCents = program
+        ? Math.max(0, program.price_cents - (discount ? (discount.kind === 'percent' ? Math.floor(program.price_cents * discount.value / 100) : discount.value) : 0))
+        : 0;
+
+    const applyCode = async () => {
+        setError(''); setDiscount(null);
+        if (!form.discountCode || !program) return;
+        const { data } = await supabase.rpc('validate_discount_code', { p_slug: brand.slug, p_code: form.discountCode.trim(), p_program_id: programId });
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row) setDiscount(row); else setError('That code isn\'t valid for this program.');
+    };
 
     const submit = async () => {
         setError('');
@@ -55,6 +69,8 @@ export default function Register() {
                 throw new Error(msg || 'Could not start checkout.');
             }
             if (data?.error) throw new Error(data.error);
+            if (data?.waitlisted) { setWaitlisted(true); setBusy(false); return; }
+            if (data?.free) { window.location.href = `${window.location.pathname}?club=${brand.slug}&status=success`; return; }
             if (data?.url) { window.location.href = data.url; return; }
             throw new Error('No checkout URL returned.');
         } catch (e) {
@@ -150,10 +166,20 @@ export default function Register() {
                         </Section>
                     )}
 
+                    <Section title="Discount code">
+                        <div className="flex gap-2">
+                            <input className={FIELD} placeholder="Have a code?" value={form.discountCode} onChange={set('discountCode')} />
+                            <button onClick={applyCode} type="button" className="px-4 rounded bg-white/10 hover:bg-white/20 text-sm shrink-0">Apply</button>
+                        </div>
+                        {discount && <div className="text-xs text-green-400 mt-1">Code applied — {discount.kind === 'percent' ? `${discount.value}% off` : `${money(discount.value)} off`}. New total: {money(discountedCents, program?.currency)}</div>}
+                    </Section>
+
+                    {waitlisted && <div className="text-sm text-brand-gold bg-brand-gold/10 border border-brand-gold/30 rounded-lg px-4 py-2">This program is full — you've been added to the waitlist. The club will reach out if a spot opens.</div>}
+
                     {error && <div className="text-sm text-red-400">{error}</div>}
 
-                    <button onClick={submit} disabled={busy || !program} className="btn-primary w-full disabled:opacity-60">
-                        {busy ? 'Starting checkout…' : program ? `Register & Pay ${money(program.price_cents, program.currency)}` : 'Select a program'}
+                    <button onClick={submit} disabled={busy || !program || waitlisted} className="btn-primary w-full disabled:opacity-60">
+                        {busy ? 'Starting checkout…' : program ? `Register & Pay ${money(discountedCents, program.currency)}` : 'Select a program'}
                     </button>
                     <p className="text-[11px] text-gray-500 text-center">Payments are processed securely by Stripe. {brand.name} receives your registration once payment completes.</p>
                 </div>

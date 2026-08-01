@@ -21,18 +21,28 @@ export default function ClubBilling() {
     const [connect, setConnect] = useState(null);
     const [programs, setPrograms] = useState([]);
     const [regs, setRegs] = useState([]);
+    const [codes, setCodes] = useState([]);
     const [busy, setBusy] = useState('');
     const [error, setError] = useState('');
 
     const load = useCallback(async () => {
         if (!orgId) return;
-        const [{ data: cs }, { data: progs }, { data: rs }] = await Promise.all([
+        const [{ data: cs }, { data: progs }, { data: rs }, { data: dcs }] = await Promise.all([
             supabase.functions.invoke('connect-status', { body: { orgId } }).then((r) => ({ data: r.data })).catch(() => ({ data: null })),
             supabase.from('registration_programs').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
-            supabase.from('registrations').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(100),
+            supabase.from('registrations').select('*').eq('org_id', orgId).order('created_at', { ascending: false }).limit(500),
+            supabase.from('discount_codes').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
         ]);
-        setConnect(cs); setPrograms(progs || []); setRegs(rs || []);
+        setConnect(cs); setPrograms(progs || []); setRegs(rs || []); setCodes(dcs || []);
     }, [orgId]);
+
+    const exportCsv = () => {
+        const cols = ['player_first_name', 'player_last_name', 'player_dob', 'guardian_name', 'guardian_email', 'guardian_phone', 'status', 'amount_cents', 'discount_code', 'created_at'];
+        const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const rows = [cols.join(','), ...regs.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n');
+        const url = URL.createObjectURL(new Blob([rows], { type: 'text/csv' }));
+        const a = document.createElement('a'); a.href = url; a.download = 'registrations.csv'; a.click(); URL.revokeObjectURL(url);
+    };
     useEffect(() => { load(); }, [load]);
 
     const call = async (fn, label) => {
@@ -115,8 +125,25 @@ export default function ClubBilling() {
                     )}
                 </Card>
 
+                {/* Discount codes */}
+                <Card title="Discount codes">
+                    <DiscountForm orgId={orgId} onCreated={load} />
+                    <div className="mt-3 space-y-1">
+                        {codes.length === 0 && <p className="text-sm text-gray-500">No codes yet.</p>}
+                        {codes.map((c) => (
+                            <div key={c.id} className="flex justify-between items-center bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
+                                <span className="font-mono font-semibold">{c.code}</span>
+                                <span className="text-gray-400">{c.kind === 'percent' ? `${c.value}% off` : `${money(c.value)} off`} · used {c.used_count}{c.max_uses ? `/${c.max_uses}` : ''}</span>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+
                 {/* Registrations */}
                 <Card title={`Registrations (${regs.length})`}>
+                    {regs.length > 0 && (
+                        <button onClick={exportCsv} className="mb-3 text-xs px-3 py-1.5 rounded bg-white/10 hover:bg-white/20">⬇ Export CSV</button>
+                    )}
                     {regs.length === 0 && <p className="text-sm text-gray-500">No registrations yet.</p>}
                     {regs.length > 0 && (
                         <div className="space-y-1">
@@ -183,6 +210,41 @@ function ProgramForm({ orgId, onCreated, disabled }) {
             <button onClick={create} disabled={saving} className="mt-2 text-sm px-4 py-2 rounded bg-brand-green text-brand-dark font-bold disabled:opacity-60">
                 {saving ? 'Saving…' : 'Create program'}
             </button>
+        </div>
+    );
+}
+
+function DiscountForm({ orgId, onCreated }) {
+    const [f, setF] = useState({ code: '', kind: 'percent', value: '', max_uses: '' });
+    const [saving, setSaving] = useState(false);
+    const [err, setErr] = useState('');
+    const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+    const create = async () => {
+        setErr('');
+        if (!f.code || !f.value) return setErr('Code and value are required.');
+        setSaving(true);
+        const value = f.kind === 'amount' ? Math.round(parseFloat(f.value) * 100) : parseInt(f.value, 10);
+        const { error } = await supabase.from('discount_codes').insert({
+            org_id: orgId, code: f.code.trim().toUpperCase(), kind: f.kind, value,
+            max_uses: f.max_uses ? parseInt(f.max_uses, 10) : null,
+        });
+        setSaving(false);
+        if (error) return setErr(error.message);
+        setF({ code: '', kind: 'percent', value: '', max_uses: '' });
+        onCreated();
+    };
+    return (
+        <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+            <div className="grid grid-cols-2 gap-2">
+                <input className={FIELD} placeholder="CODE (e.g. EARLYBIRD)" value={f.code} onChange={set('code')} />
+                <select className={FIELD} value={f.kind} onChange={set('kind')}>
+                    <option value="percent">% off</option><option value="amount">$ off</option>
+                </select>
+                <input className={FIELD} placeholder={f.kind === 'percent' ? 'Percent (e.g. 10)' : 'Dollars off'} value={f.value} onChange={set('value')} />
+                <input className={FIELD} placeholder="Max uses (optional)" value={f.max_uses} onChange={set('max_uses')} />
+            </div>
+            {err && <div className="text-xs text-red-400 mt-1">{err}</div>}
+            <button onClick={create} disabled={saving} className="mt-2 text-sm px-4 py-2 rounded bg-brand-green text-brand-dark font-bold disabled:opacity-60">{saving ? 'Saving…' : 'Add code'}</button>
         </div>
     );
 }

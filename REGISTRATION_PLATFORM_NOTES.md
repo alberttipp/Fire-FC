@@ -112,9 +112,20 @@ customer/subscription are throwaway test artifacts (identifiable by slug test-cl
 - VERIFIED: seeded a paid registration for Test Club → approve → player "Jordan T." #1 created on the
   test club's team, org-scoped correctly, on player_teams + team_membership; Rockford untouched (23).
 
-## LATER (Phase 3+)
-- Phase 3: discounts (sibling/early-bird/coupons), waitlists/capacity, multi-child, doc upload, dues
-  reminders/dunning, refunds UI, renewals, receipts/emails, registrations CSV export.
+### Phase 3 chunk 1 — DONE + verified (2026-07-20)
+- `discount_codes` table (+ unique idx on (org_id, upper(code))) + `validate_discount_code(slug,code,program)`
+  anon RPC; `registrations.discount_code/discount_cents`.
+- registration-checkout upgraded: applies discount (server-authoritative, increments used_count),
+  100%-off → FREE path (marks paid, no Stripe), capacity check → waitlist (if enabled) or "full",
+  fee computed on discounted amount, receipt_email set (Stripe emails a receipt).
+- ClubBilling: discount-code create/list + **CSV export** of registrations.
+- Register.jsx: discount code field + apply/preview + waitlist message + discounted total.
+- VERIFIED (no Connect needed): FREE100 → free reg (amount 0, used_count 1); full+waitlist → waitlisted;
+  full+no-waitlist → "This program is full"; anon validate RPC returns the discount.
+
+## LATER (Phase 3 chunk 2+)
+- sibling/early-bird auto-discounts (need multi-child registration), doc upload, dues reminders/dunning
+  (need cron + email infra — Albert has no Resend creds yet), refunds UI, renewals.
 - Still OPEN from Phase 2: the live Flow B card-payment test (blocked on Stripe hosted Connect
   onboarding freezing in automation; option 3 chosen — do it when a real club onboards).
 - Cleanup before go-live: Test Club FC + test.director + Jordan Tester player + test-mode Stripe
