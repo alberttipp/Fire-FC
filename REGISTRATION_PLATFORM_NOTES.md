@@ -78,7 +78,24 @@ Runtime secrets needed in Supabase: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET_
 ⚠️ CLEAN UP before go-live: the "Test Club FC" org + `test.director` account + its test-mode Stripe
 customer/subscription are throwaway test artifacts (identifiable by slug test-club-fc).
 
-## NEXT SESSION
-Optional: push feature→main for a preview to eyeball the SubscribeGate UI. Then Phase 2
-(Flow B: Stripe Connect onboarding + the family registration page + registration → roster player).
-Production promotion of the whole platform waits until later phases + Albert's OK.
+### Phase 2 (Flow B) backend — DONE + deployed (2026-07-20)
+- Data model: `registration_programs` + `registrations` (+ RLS), `get_org_programs(slug)` anon RPC,
+  `org_platform_fee_cents(org,amount)` helper, `platform_settings.webhook_secret_connect`.
+- Edge fns deployed: `connect-onboard`, `connect-status` (JWT), `registration-checkout` +
+  `stripe-webhook-connect` (--no-verify-jwt). admin-stripe-setup extended to also create the
+  Connect webhook (`connect: true`) → re-ran → connectConfigured=true. Both webhook secrets present.
+- registration-checkout = PUBLIC: creates a pending registration + a Checkout Session ON the club's
+  connected account (direct charge) with the configurable platform fee (payment→application_fee_amount,
+  subscription→application_fee_percent; 0/off supported). Webhook marks registration paid/active.
+- DESIGN NOTE: on payment the registration is marked paid/active; turning it into a ROSTER PLAYER
+  happens at "approve/place" in the club dashboard (Phase 2e), not in the webhook.
+- Verified: registration-checkout guard rejects a bad program. Backend committed (feature branch).
+
+## NEXT SESSION (Phase 2 frontend — the part Albert sees)
+- `/club/billing` hub: subscription status + Connect Stripe (connect-onboard/status) + create/list
+  programs + registrations list (approve/place → create roster player) + fee display.
+- `/register` PUBLIC page (?club=): get_org_programs → pick program → player/guardian/medical/
+  emergency form + waiver e-sign → registration-checkout → Stripe. Success/cancel handling.
+- Then test end-to-end (Connect onboard a test club → create program → register a player → pay 4242 →
+  webhook → registration paid). Then Phase 3.
+Production promotion waits until later phases + Albert's OK.

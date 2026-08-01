@@ -74,16 +74,37 @@ Deno.serve(async (req) => {
       webhookConfigured = !!webhookSecret
     }
 
+    // Connect webhook endpoint (Flow B) -> stripe-webhook-connect. `connect: true`
+    // receives events from ALL of this platform's connected accounts.
+    let connectConfigured = !!ps.webhook_secret_connect
+    let connectSecret = ps.webhook_secret_connect
+    if (!connectSecret) {
+      const endpoint = await stripe.webhookEndpoints.create({
+        url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/stripe-webhook-connect`,
+        enabled_events: [
+          'account.updated',
+          'checkout.session.completed',
+          'customer.subscription.deleted',
+          'customer.subscription.updated',
+        ],
+        connect: true,
+        description: 'Fire FC Connect (Flow B) registrations sync',
+      })
+      connectSecret = endpoint.secret ?? null
+      connectConfigured = !!connectSecret
+    }
+
     await admin.from('platform_settings').update({
       stripe_product_id: productId,
       club_monthly_price_id: monthly,
       club_annual_price_id: annual,
       webhook_secret_platform: webhookSecret,
+      webhook_secret_connect: connectSecret,
       updated_at: new Date().toISOString(),
     }).eq('id', true)
 
     return new Response(JSON.stringify({
-      ok: true, productId, monthlyPriceId: monthly, annualPriceId: annual, webhookConfigured,
+      ok: true, productId, monthlyPriceId: monthly, annualPriceId: annual, webhookConfigured, connectConfigured,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
     console.error('[admin-stripe-setup]', error)
