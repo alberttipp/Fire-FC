@@ -104,10 +104,21 @@ customer/subscription are throwaway test artifacts (identifiable by slug test-cl
   (like Flow A) with card 4242 → verify stripe-webhook-connect marks the registration paid.
   Test club org fcc991d7-…, director test.director@firefcapp.com / TestDirector2026!.
 
-## LATER (Phase 2e + Phase 3)
-- Phase 2e: "approve/place" a paid registration → create the roster player (players + player_teams).
-- Phase 3: discounts, waitlists, dues reminders/dunning, refunds UI, renewals.
-- Cleanup before go-live: Test Club FC + test.director + test-mode Stripe artifacts.
+### Phase 2e — DONE + verified (2026-07-20)
+- `approve-registration` edge function (deployed): paid registration → creates roster player
+  (players + player_teams + team_membership; guardian link if family_user_id). Auth = club_director/
+  owner/platform. Resolves team from program.team_id or the org's single team. org_id set to the
+  registration's org (NOT Rockford). "Add to roster" button in ClubBilling on paid/active regs.
+- VERIFIED: seeded a paid registration for Test Club → approve → player "Jordan T." #1 created on the
+  test club's team, org-scoped correctly, on player_teams + team_membership; Rockford untouched (23).
+
+## LATER (Phase 3+)
+- Phase 3: discounts (sibling/early-bird/coupons), waitlists/capacity, multi-child, doc upload, dues
+  reminders/dunning, refunds UI, renewals, receipts/emails, registrations CSV export.
+- Still OPEN from Phase 2: the live Flow B card-payment test (blocked on Stripe hosted Connect
+  onboarding freezing in automation; option 3 chosen — do it when a real club onboards).
+- Cleanup before go-live: Test Club FC + test.director + Jordan Tester player + test-mode Stripe
+  artifacts (all under org fcc991d7-…, easy to remove).
 
 ## PRIOR NEXT-SESSION NOTE (superseded — kept for history)
 - `/club/billing` hub: subscription status + Connect Stripe (connect-onboard/status) + create/list

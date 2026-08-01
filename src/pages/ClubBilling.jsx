@@ -46,6 +46,17 @@ export default function ClubBilling() {
         setBusy('');
     };
 
+    const approve = async (id) => {
+        setBusy('approve-' + id); setError('');
+        try {
+            const { data, error } = await supabase.functions.invoke('approve-registration', { body: { registrationId: id } });
+            if (error) { let m = error.message; try { const c = await error.context?.json?.(); if (c?.error) m = c.error; } catch { /* ignore */ } throw new Error(m); }
+            if (data?.error) throw new Error(data.error);
+            await load();
+        } catch (e) { setError(e.message); }
+        setBusy('');
+    };
+
     if (!isStaff) return <div className="min-h-screen bg-brand-dark flex items-center justify-center text-gray-400">Staff only.</div>;
 
     const chargesReady = connect?.charges_enabled;
@@ -110,10 +121,18 @@ export default function ClubBilling() {
                     {regs.length > 0 && (
                         <div className="space-y-1">
                             {regs.map((r) => (
-                                <div key={r.id} className="flex justify-between items-center bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm">
-                                    <div><span className="font-semibold">{r.player_first_name} {r.player_last_name}</span>
+                                <div key={r.id} className="flex justify-between items-center bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm gap-2">
+                                    <div className="min-w-0"><span className="font-semibold">{r.player_first_name} {r.player_last_name}</span>
                                         <span className="text-gray-400 text-xs ml-2">{r.guardian_name} · {r.guardian_email}</span></div>
-                                    <span className={`text-[10px] uppercase px-2 py-0.5 rounded ${['paid', 'active', 'approved'].includes(r.status) ? 'bg-green-500/20 text-green-300' : r.status === 'pending' ? 'bg-white/10 text-gray-400' : 'bg-brand-gold/20 text-brand-gold'}`}>{r.status}</span>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {['paid', 'active'].includes(r.status) && !r.player_id && (
+                                            <button onClick={() => approve(r.id)} disabled={busy === `approve-${r.id}`}
+                                                className="text-[11px] px-2 py-1 rounded bg-brand-green text-brand-dark font-bold disabled:opacity-60">
+                                                {busy === `approve-${r.id}` ? '…' : 'Add to roster'}
+                                            </button>
+                                        )}
+                                        <span className={`text-[10px] uppercase px-2 py-0.5 rounded ${['paid', 'active', 'approved'].includes(r.status) ? 'bg-green-500/20 text-green-300' : r.status === 'pending' ? 'bg-white/10 text-gray-400' : 'bg-brand-gold/20 text-brand-gold'}`}>{r.player_id ? 'on roster' : r.status}</span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
