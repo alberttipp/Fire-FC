@@ -21,10 +21,16 @@ Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature')
   const body = await req.text()
 
+  // Signing secret: prefer the one the setup function stored in platform_settings,
+  // fall back to a Supabase env secret if set manually.
+  const { data: ps } = await admin.from('platform_settings')
+    .select('webhook_secret_platform').eq('id', true).single()
+  const whSecret = ps?.webhook_secret_platform || Deno.env.get('STRIPE_WEBHOOK_SECRET_PLATFORM') || ''
+
   let event: Stripe.Event
   try {
     event = await stripe.webhooks.constructEventAsync(
-      body, signature!, Deno.env.get('STRIPE_WEBHOOK_SECRET_PLATFORM')!, undefined, cryptoProvider,
+      body, signature!, whSecret, undefined, cryptoProvider,
     )
   } catch (err) {
     console.error('[stripe-webhook-platform] signature check failed:', err.message)

@@ -54,5 +54,17 @@ Runtime secrets needed in Supabase: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET_
 - Build frontend: Subscribe screen + billing portal button + access gating (comp Raptors demo org
   first so the demo isn't paywalled). Test with card 4242 4242 4242 4242.
 
+### Phase 1 backend — DONE + verified (2026-07-20)
+- `STRIPE_SECRET_KEY` set in Supabase (first value was wrong `mk_…`; fixed to `sk_test_…`).
+- 4 functions deployed: `club-checkout`, `club-billing-portal` (JWT-verified),
+  `stripe-webhook-platform` + `admin-stripe-setup` (`--no-verify-jwt`).
+- `admin-stripe-setup` ran → created Stripe product `prod_Uzkk9XJtnK5Qem`, monthly
+  `price_1TzlF3Q7eOQswlif9UJD71Ny` ($49), annual `price_1TzlF3Q7eOQswlifJuiZNGAR` ($490),
+  and the platform webhook endpoint. Stored in `platform_settings` (+ webhook secret; verified present).
+- Webhook reads its secret from `platform_settings.webhook_secret_platform` (env fallback).
+- Verified: checkout auth guard rejects no-session; setup idempotent. Stripe still TEST mode.
+
 ## NEXT SESSION
-Frontend gating + Subscribe UI (Phase 1), then Phase 2 (Flow B: Connect onboarding + registration).
+Frontend (Phase 1): Subscribe screen + billing-portal button + **access gating** (comp the Raptors
+demo org first so it's never paywalled). Then real card-4242 end-to-end test (checkout → webhook →
+org_subscriptions active → gating unlocks). Then Phase 2 (Flow B: Connect onboarding + registration).
