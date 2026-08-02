@@ -28,6 +28,7 @@ import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
+import WeeklyProgressCard from '../components/WeeklyProgressCard';
 
 // Heavy modals — only loaded when the user opens them.
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
@@ -786,6 +787,9 @@ const PlayerDashboard = () => {
                         </div>
                         <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-brand-green transition-colors" />
                     </button>
+
+                    {/* Weekly progress snapshot — renders nothing until there's data */}
+                    <WeeklyProgressCard playerId={playerRecord?.id} className="mb-4" />
 
                     {/* My Training shelf — saved routines + custom drills, manage + one-tap start */}
                     {playerRecord?.id && (

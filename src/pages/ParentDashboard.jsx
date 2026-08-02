@@ -33,6 +33,7 @@ import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
+import WeeklyProgressCard from '../components/WeeklyProgressCard';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -830,6 +831,9 @@ const ParentDashboard = () => {
                                 ))}
                             </div>
                         )}
+
+                        {/* Weekly progress snapshot for the selected child — renders nothing until there's data */}
+                        <WeeklyProgressCard playerId={selectedChild?.id} className="mb-4" />
 
                         {/* 2. Upcoming Events */}
                         <div className="glass-panel p-5">
