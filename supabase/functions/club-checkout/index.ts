@@ -57,11 +57,14 @@ Deno.serve(async (req) => {
       throw new Error('Not authorized to manage billing for this club')
     }
 
-    // 3) Price for the chosen plan (configured in platform_settings).
+    // 3) Per-team price + quantity = number of teams (min applies).
     const { data: settings } = await admin.from('platform_settings')
-      .select('club_monthly_price_id, club_annual_price_id').eq('id', true).single()
-    const priceId = plan === 'monthly' ? settings?.club_monthly_price_id : settings?.club_annual_price_id
-    if (!priceId) throw new Error(`No ${plan} plan price configured yet (set it in platform_settings)`)
+      .select('club_team_monthly_price_id, club_team_annual_price_id, min_teams').eq('id', true).single()
+    const priceId = plan === 'monthly' ? settings?.club_team_monthly_price_id : settings?.club_team_annual_price_id
+    if (!priceId) throw new Error(`No ${plan} plan price configured yet (run admin-stripe-setup)`)
+    const { count: teamCount } = await admin.from('teams')
+      .select('*', { count: 'exact', head: true }).eq('org_id', targetOrg)
+    const quantity = Math.max(teamCount ?? 1, settings?.min_teams ?? 1)
 
     // 4) Get or create the org's Stripe customer.
     const { data: sub } = await admin.from('org_subscriptions')
@@ -83,7 +86,7 @@ Deno.serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: priceId, quantity }],
       success_url: `${origin}/dashboard?billing=success`,
       cancel_url: `${origin}/dashboard?billing=cancelled`,
       allow_promotion_codes: true,

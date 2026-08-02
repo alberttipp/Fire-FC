@@ -84,27 +84,33 @@ function GlobalSettings({ settings, onSave }) {
     const [pct, setPct] = useState(String(settings.default_fee_percent ?? ''));
     const [flat, setFlat] = useState(String(((settings.default_fee_flat_cents ?? 0) / 100)));
     const [trial, setTrial] = useState(String(settings.trial_days ?? ''));
+    const [minTeams, setMinTeams] = useState(String(settings.min_teams ?? 1));
     const [saving, setSaving] = useState(false);
     const save = async () => {
         setSaving(true);
-        await onSave({ p_fee_percent: parseFloat(pct) || 0, p_fee_flat_cents: Math.round((parseFloat(flat) || 0) * 100), p_trial_days: parseInt(trial, 10) || 0 });
+        await onSave({ p_fee_percent: parseFloat(pct) || 0, p_fee_flat_cents: Math.round((parseFloat(flat) || 0) * 100), p_trial_days: parseInt(trial, 10) || 0, p_min_teams: parseInt(minTeams, 10) || 1 });
         setSaving(false);
     };
     return (
         <div className="glass-panel p-4">
             <div className="text-sm font-display uppercase tracking-wider text-brand-green mb-3">Global defaults</div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <label className="text-xs text-gray-400">Default platform fee %
+            <div className="mb-3 text-xs text-gray-400 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                Software plan: <span className="text-white">{money(settings.per_team_cents)}/team/month</span> (annual = {money((settings.per_team_cents || 0) * 10)}/team, 2 months free). Change the amount in Stripe; adjust the team minimum below.
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <label className="text-xs text-gray-400">Default fee %
                     <input className={`${FIELD} w-full mt-1`} value={pct} onChange={(e) => setPct(e.target.value)} /></label>
                 <label className="text-xs text-gray-400">+ flat fee ($)
                     <input className={`${FIELD} w-full mt-1`} value={flat} onChange={(e) => setFlat(e.target.value)} /></label>
+                <label className="text-xs text-gray-400">Team minimum
+                    <input className={`${FIELD} w-full mt-1`} value={minTeams} onChange={(e) => setMinTeams(e.target.value)} /></label>
                 <label className="text-xs text-gray-400">Free trial (days)
                     <input className={`${FIELD} w-full mt-1`} value={trial} onChange={(e) => setTrial(e.target.value)} /></label>
             </div>
             <button onClick={save} disabled={saving} className="mt-3 text-sm px-4 py-2 rounded bg-brand-green text-brand-dark font-bold disabled:opacity-60">
                 {saving ? 'Saving…' : 'Save defaults'}
             </button>
-            <p className="text-[11px] text-gray-500 mt-2">Applies to any club without its own fee override below. Club plan prices: monthly {settings.club_monthly_price_id ? '✓' : '—'} · annual {settings.club_annual_price_id ? '✓' : '—'} (edit amounts in Stripe).</p>
+            <p className="text-[11px] text-gray-500 mt-2">Fee/flat apply to any club without its own override below. Team minimum = the fewest teams a club is billed for.</p>
         </div>
     );
 }

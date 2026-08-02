@@ -55,6 +55,29 @@ Deno.serve(async (req) => {
       annual = p.id
     }
 
+    // Per-team prices (the live model): quantity = number of teams.
+    let teamMonthly = ps.club_team_monthly_price_id
+    let teamAnnual = ps.club_team_annual_price_id
+    if (!teamMonthly || !teamAnnual) {
+      const perTeam = ps.per_team_cents ?? 1000
+      const teamProduct = await stripe.products.create({
+        name: 'Fire FC Platform — per team',
+        description: 'Per-team monthly/annual platform subscription (quantity = # of teams)',
+      })
+      if (!teamMonthly) {
+        teamMonthly = (await stripe.prices.create({
+          product: teamProduct.id, unit_amount: perTeam, currency: 'usd',
+          recurring: { interval: 'month' }, nickname: 'Per team — Monthly',
+        })).id
+      }
+      if (!teamAnnual) {
+        teamAnnual = (await stripe.prices.create({
+          product: teamProduct.id, unit_amount: perTeam * 10, currency: 'usd',
+          recurring: { interval: 'year' }, nickname: 'Per team — Annual (2 months free)',
+        })).id
+      }
+    }
+
     // Platform webhook endpoint -> the deployed stripe-webhook-platform function.
     let webhookConfigured = !!ps.webhook_secret_platform
     let webhookSecret = ps.webhook_secret_platform
@@ -98,13 +121,16 @@ Deno.serve(async (req) => {
       stripe_product_id: productId,
       club_monthly_price_id: monthly,
       club_annual_price_id: annual,
+      club_team_monthly_price_id: teamMonthly,
+      club_team_annual_price_id: teamAnnual,
       webhook_secret_platform: webhookSecret,
       webhook_secret_connect: connectSecret,
       updated_at: new Date().toISOString(),
     }).eq('id', true)
 
     return new Response(JSON.stringify({
-      ok: true, productId, monthlyPriceId: monthly, annualPriceId: annual, webhookConfigured, connectConfigured,
+      ok: true, productId, monthlyPriceId: monthly, annualPriceId: annual,
+      teamMonthly, teamAnnual, webhookConfigured, connectConfigured,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
     console.error('[admin-stripe-setup]', error)

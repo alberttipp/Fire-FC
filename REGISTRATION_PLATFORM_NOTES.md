@@ -1,5 +1,17 @@
 # Registration & Payments Platform — Build Notes
 
+## PRICING MODEL (locked 8/2)
+- **Software subscription = per TEAM.** $10/team/month ($100/team/year = 2 mo free), **3-team minimum**
+  (~$30/mo floor). Stripe per-unit price, quantity = # of teams. `reconcile-team-billing` edge fn +
+  daily cron (9:00 UTC) keep quantity synced as clubs add/drop teams (prorated).
+- **Registration fee = 5%** default (per player registration; covers Stripe ~2.9%+30¢ + margin).
+  Per-club override in the owner /admin. NOTE: destination charges → platform absorbs Stripe's fee,
+  so keep fee ≥ ~3.5% or lose money (or pass Stripe's cut to families as a processing line).
+- Two levers each cover one dimension: TEAM count → subscription; PLAYERS per team → the % fee (auto).
+- Per-team amount lives in Stripe (platform_settings.per_team_cents = display/quote). Prices:
+  team monthly `price_1U00cuQ7eOQswlifVNh6TiDt`, team annual `price_1U00cuQ7eOQswlifkfNOtfpi`.
+
+
 ## TEST LOGINS (simplified 8/2 — all password `252525`)
 - `coach@firefcapp.com` — Raptors demo, coach/manager (open via `?club=rockford-raptors`)
 - `parent@firefcapp.com` — Raptors demo, parent (Marco's dad)
