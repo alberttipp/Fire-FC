@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
@@ -43,6 +44,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
     const [showDrills, setShowDrills] = useState(false);
     const [showEvalGrid, setShowEvalGrid] = useState(false);
     const [showEvalViews, setShowEvalViews] = useState(false);
+    const navigate = useNavigate();
     const [showSponsors, setShowSponsors] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
@@ -240,6 +242,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 <Star className="w-5 h-5 text-brand-gold shrink-0" />
                 <span className="flex-1 text-left text-white text-sm font-medium">
                     Sponsors — add your club's sponsors (Title / Premier / Community)
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+
+            {/* Billing & Registration — subscription, Stripe Connect, programs, registrations */}
+            <button
+                type="button"
+                onClick={() => navigate('/club/billing')}
+                className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors"
+            >
+                <CreditCard className="w-5 h-5 text-brand-green shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Billing & Registration — subscription, payments, programs & sign-ups
                 </span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
