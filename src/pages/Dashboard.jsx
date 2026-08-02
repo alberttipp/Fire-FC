@@ -12,6 +12,7 @@ import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
 
 const PreviewPickerModal = lazy(() => import('../components/dashboard/PreviewPickerModal'));
+const OnboardingWizard = lazy(() => import('../components/onboarding/OnboardingWizard'));
 
 // Lazy-load every tab view so the initial Dashboard bundle is small.
 // Each view is its own chunk; users only download the ones they actually
@@ -41,7 +42,7 @@ const ViewLoader = () => (
 );
 
 const Dashboard = () => {
-    const { user, profile, signOut } = useAuth(); // Added profile
+    const { user, profile, session, signOut } = useAuth(); // Added profile
     const navigate = useNavigate();
     const brand = useBranding();
     const [currentView, setCurrentView] = useState('club');
@@ -55,6 +56,7 @@ const Dashboard = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showPreviewPicker, setShowPreviewPicker] = useState(false);
+    const [showOnboarding, setShowOnboarding] = useState(false);
 
     // Lock the body's scroll while a top-level overlay is open so the
     // dashboard behind it doesn't drift when the user interacts with it.
@@ -239,6 +241,21 @@ const Dashboard = () => {
         setCurrentView(deepLink.view || 'coach_hq');
         setHasPickedView(true);
     }, [effectiveRole, isStaff, hasPickedView]);
+
+    // Self-serve onboarding wizard — auto-opens ONLY for a brand-new club:
+    // a real signed-in staff account with NO team in scope. profile.team_id is
+    // the existing signal AuthContext resolves from team_memberships, so any
+    // established club's staff (e.g. Rockford) always has one and NEVER sees
+    // this. Requiring a real Supabase session also excludes demo/kid-mode
+    // virtual users. Dismissable; TeamView's empty state re-opens it manually.
+    useEffect(() => {
+        if (!session?.user || !isStaff) return;
+        if (profile?.team_id) return; // has a team — established club
+        try {
+            if (localStorage.getItem('ff_onboarding_dismissed') === '1') return;
+        } catch (_) { /* localStorage blocked — don't auto-open */ return; }
+        setShowOnboarding(true);
+    }, [session?.user, isStaff, profile?.team_id]);
     return (
         <div className="min-h-screen bg-brand-dark pb-20 overflow-x-hidden">
             {/* Top Navigation Bar */}
@@ -471,6 +488,14 @@ const Dashboard = () => {
             {showPreviewPicker && (
                 <Suspense fallback={null}>
                     <PreviewPickerModal onClose={() => setShowPreviewPicker(false)} />
+                </Suspense>
+            )}
+
+            {/* Self-serve club onboarding wizard (new clubs only; portals to
+                document.body internally, so it's never trapped by an ancestor). */}
+            {showOnboarding && (
+                <Suspense fallback={null}>
+                    <OnboardingWizard onClose={() => setShowOnboarding(false)} />
                 </Suspense>
             )}
         </div>

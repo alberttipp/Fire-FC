@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check } from 'lucide-react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check, Rocket } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import PlayerEvaluationModal from './PlayerEvaluationModal';
@@ -14,6 +14,9 @@ import FamilyInviteModal from './FamilyInviteModal';
 import UpcomingWeek from './UpcomingWeek';
 import { getPlayerAvatarPath } from '../../utils/playerAvatar';
 
+// Lazy — only new clubs with zero teams ever load the onboarding wizard chunk.
+const OnboardingWizard = lazy(() => import('../onboarding/OnboardingWizard'));
+
 const TeamView = () => {
     const { user, profile } = useAuth();
     const [myTeam, setMyTeam] = useState(null);
@@ -25,6 +28,7 @@ const TeamView = () => {
     const [showPlayerModal, setShowPlayerModal] = useState(false);
     const [showAddExisting, setShowAddExisting] = useState(false);
     const [showBulkInvite, setShowBulkInvite] = useState(false);
+    const [showSetupWizard, setShowSetupWizard] = useState(false);
 
     // UI State
     const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -313,12 +317,39 @@ const TeamView = () => {
                 <p className="text-gray-400 max-w-md text-center mb-8">
                     You haven't created a team yet. Set up your team roster, generate invite codes, and start tracking player progress.
                 </p>
+                {isManager && (
+                    <button
+                        onClick={() => {
+                            // Re-entry point for the guided setup: clear the
+                            // dismissed flag so the wizard opens fresh.
+                            try { localStorage.removeItem('ff_onboarding_dismissed'); } catch (_) { /* ignore */ }
+                            setShowSetupWizard(true);
+                        }}
+                        className="btn-primary py-3 px-8 flex items-center gap-2 group mb-3"
+                    >
+                        <Rocket className="w-5 h-5 group-hover:scale-110 transition-transform" /> Set up your club
+                    </button>
+                )}
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="btn-primary py-3 px-8 flex items-center gap-2 group"
+                    className={isManager
+                        ? 'py-2.5 px-6 rounded-lg border border-white/15 text-gray-300 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2 text-sm font-bold uppercase tracking-wider'
+                        : 'btn-primary py-3 px-8 flex items-center gap-2 group'}
                 >
-                    <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" /> Create New Team
+                    <Plus className="w-5 h-5" /> Create New Team
                 </button>
+
+                {/* Guided club setup — portals to document.body internally */}
+                {showSetupWizard && (
+                    <Suspense fallback={null}>
+                        <OnboardingWizard
+                            onClose={() => {
+                                setShowSetupWizard(false);
+                                fetchTeamData(); // pick up the team the wizard created
+                            }}
+                        />
+                    </Suspense>
+                )}
             </div>
         );
     }
