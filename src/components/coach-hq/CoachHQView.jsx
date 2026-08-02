@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard } from 'lucide-react';
+import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
@@ -45,6 +45,12 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
     const [showEvalGrid, setShowEvalGrid] = useState(false);
     const [showEvalViews, setShowEvalViews] = useState(false);
     const navigate = useNavigate();
+    const [isOwner, setIsOwner] = useState(false);
+    useEffect(() => {
+        let alive = true;
+        supabase.rpc('is_platform_owner').then(({ data }) => { if (alive && data === true) setIsOwner(true); }).catch(() => {});
+        return () => { alive = false; };
+    }, []);
     const [showSponsors, setShowSponsors] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
@@ -258,6 +264,21 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 </span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
+
+            {/* Platform Admin — owner only: all clubs, fees, comps, global settings */}
+            {isOwner && (
+                <button
+                    type="button"
+                    onClick={() => navigate('/admin')}
+                    className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+                >
+                    <ShieldCheck className="w-5 h-5 text-brand-gold shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Platform Admin — all clubs, subscriptions, fees & global settings
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Send this week's solo challenge to the whole team */}
             <button
