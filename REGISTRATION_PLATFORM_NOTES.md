@@ -1,5 +1,12 @@
 # Registration & Payments Platform — Build Notes
 
+## TEST LOGINS (simplified 8/2 — all password `252525`)
+- `coach@firefcapp.com` — Raptors demo, coach/manager (open via `?club=rockford-raptors`)
+- `parent@firefcapp.com` — Raptors demo, parent (Marco's dad)
+- `director@firefcapp.com` — Test Club FC, registration + payments (Stripe Connect done)
+- `demo@firefcapp.com` — Preview Club, the Subscribe paywall (unsubscribed)
+Public registration page (no login): `firefcapp.com/register?club=test-club-fc` (discount `FREE100`).
+
 ## ✅ FLOW B FAMILY PAYMENT VERIFIED 2026-08-02 (commit 3ff502d)
 Fixed the "not set up to accept payments" 400: connected Express accounts lacked the
 `card_payments` capability (direct charges failed; requesting it triggers heavy KYC + disables the
