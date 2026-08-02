@@ -23,6 +23,30 @@ const SponsorsDrilldown = ({ teamId, onClose }) => {
     const [rows, setRows] = useState(null);
     const [editing, setEditing] = useState(null); // sponsor object (existing or BLANK) | null
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [showUrl, setShowUrl] = useState(false);
+
+    // Upload a logo image to storage (reliable) instead of relying on a pasted URL
+    // (external URLs often fail to render — hotlink/CORS/not-a-direct-image).
+    const uploadLogo = async (file) => {
+        if (!file) return;
+        if (!orgId) { toast.error('No club found for this team.'); return; }
+        const okTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+        if (!okTypes.includes(file.type)) { toast.error('Use a PNG, JPG, WEBP or SVG image.'); return; }
+        if (file.size > 1024 * 1024) { toast.error('Logo must be under 1MB.'); return; }
+        setUploading(true);
+        try {
+            const ext = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/svg+xml' ? 'svg' : file.type.split('/')[1];
+            const path = `sponsors/${orgId}/${crypto.randomUUID()}.${ext}`;
+            const { error: upErr } = await supabase.storage.from('media').upload(path, file, { contentType: file.type, upsert: true });
+            if (upErr) throw upErr;
+            const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path);
+            setEditing((e) => ({ ...e, logo_url: publicUrl }));
+            toast.success('Logo uploaded.');
+        } catch (e) {
+            toast.error(`Upload failed: ${e.message}`);
+        } finally { setUploading(false); }
+    };
 
     const load = useCallback(async () => {
         if (!teamId) return;
@@ -102,10 +126,26 @@ const SponsorsDrilldown = ({ teamId, onClose }) => {
                                 <p className="mt-1.5 text-[11px] text-gray-500">{TIERS.find((t) => t.value === editing.tier)?.desc}</p>
                             </div>
                             <div>
-                                <label className="text-[11px] uppercase tracking-wider text-gray-400 font-bold">Logo URL</label>
-                                <input value={editing.logo_url} onChange={(e) => setEditing({ ...editing, logo_url: e.target.value })}
-                                    placeholder="https://…/logo.png"
-                                    className="mt-1 w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-gold outline-none" />
+                                <label className="text-[11px] uppercase tracking-wider text-gray-400 font-bold">Logo</label>
+                                <div className="mt-1 flex items-center gap-3">
+                                    {editing.logo_url
+                                        ? <img src={editing.logo_url} alt="logo" className="h-10 w-10 object-contain rounded bg-white/10 p-1" />
+                                        : <div className="h-10 w-10 rounded bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 text-lg">{(editing.name || '?').charAt(0).toUpperCase()}</div>}
+                                    <label className="cursor-pointer text-sm bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                        {editing.logo_url ? 'Replace logo' : 'Upload logo'}
+                                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden"
+                                            onChange={(e) => { uploadLogo(e.target.files?.[0]); e.target.value = ''; }} />
+                                    </label>
+                                    {editing.logo_url && <button type="button" onClick={() => setEditing({ ...editing, logo_url: '' })} className="text-xs text-gray-400 hover:text-red-400 underline">Remove</button>}
+                                </div>
+                                <button type="button" onClick={() => setShowUrl(!showUrl)} className="mt-1 text-[11px] text-gray-500 hover:text-gray-300 underline">{showUrl ? 'Hide URL field' : 'or paste an image URL'}</button>
+                                {showUrl && (
+                                    <input value={editing.logo_url} onChange={(e) => setEditing({ ...editing, logo_url: e.target.value })}
+                                        placeholder="https://…/logo.png"
+                                        className="mt-1 w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm text-white focus:border-brand-gold outline-none" />
+                                )}
+                                <p className="mt-1 text-[11px] text-gray-500">PNG, JPG, WEBP or SVG, under 1MB. Uploading is more reliable than a pasted URL.</p>
                             </div>
                             <div>
                                 <label className="text-[11px] uppercase tracking-wider text-gray-400 font-bold">Website link (optional)</label>
