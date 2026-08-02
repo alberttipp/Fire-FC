@@ -9,12 +9,14 @@ import { useSponsors } from '../../context/SponsorContext';
 //   <SponsorSlot tier="title" placement="login" />
 //   <SponsorSlot tier="community" placement="footer" />
 
-// Session-level dedupe so we log at most one impression per sponsor per load.
+// Session-level dedupe so we log at most one impression per sponsor+placement per load.
 const impressed = new Set();
-function logImpression(id) {
-    if (!id || impressed.has(id)) return;
-    impressed.add(id);
-    supabase.rpc('log_sponsor_impression', { p_sponsor_id: id }).catch(() => {});
+function logImpression(id, placement = 'unknown') {
+    if (!id) return;
+    const key = `${id}:${placement}`;
+    if (impressed.has(key)) return;
+    impressed.add(key);
+    supabase.rpc('log_sponsor_impression', { p_sponsor_id: id, p_placement: placement }).catch(() => {});
 }
 
 const TIER_LABEL = { premier: 'Premier sponsors', community: 'Proud community sponsors' };
@@ -23,7 +25,7 @@ const SponsorSlot = ({ tier = 'title', placement = 'dashboard', className = '' }
     const { byTier } = useSponsors();
     const sponsors = byTier[tier] || [];
 
-    useEffect(() => { sponsors.forEach((s) => logImpression(s.id)); }, [sponsors]);
+    useEffect(() => { sponsors.forEach((s) => logImpression(s.id, placement)); }, [sponsors, placement]);
 
     if (sponsors.length === 0) return null;
 
@@ -35,7 +37,7 @@ const SponsorSlot = ({ tier = 'title', placement = 'dashboard', className = '' }
                 href={s.link_url || undefined}
                 target="_blank"
                 rel="noreferrer"
-                onClick={() => logImpression(s.id)}
+                onClick={() => logImpression(s.id, placement)}
                 className={`inline-flex items-center gap-2 ${className}`}
             >
                 <span className="uppercase tracking-wider text-[10px] text-gray-500 shrink-0">Presented by</span>
@@ -60,7 +62,7 @@ const SponsorSlot = ({ tier = 'title', placement = 'dashboard', className = '' }
                     target="_blank"
                     rel="noreferrer"
                     title={s.name}
-                    onClick={() => logImpression(s.id)}
+                    onClick={() => logImpression(s.id, placement)}
                     className="inline-flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity"
                 >
                     {s.logo_url

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SupportTeamCard from '../components/SupportTeamCard';
 import { useBranding } from '../context/BrandingContext';
+import SponsorSlot from '../components/sponsors/SponsorSlot';
 import {
     Flame,
     Target,
@@ -433,6 +434,8 @@ const About = () => {
                 >
                     Open the App <ArrowRight className="w-4 h-4" />
                 </Link>
+                {/* Community sponsors — renders nothing until a sponsor exists */}
+                <SponsorSlot tier="community" placement="about" className="justify-center my-6" />
             </section>
 
             {/* Footer */}

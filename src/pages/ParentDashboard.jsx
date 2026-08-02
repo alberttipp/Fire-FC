@@ -32,6 +32,7 @@ import TeamGoalBar from '../components/TeamGoalBar';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 import { useBranding } from '../context/BrandingContext';
+import SponsorSlot from '../components/sponsors/SponsorSlot';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -1096,6 +1097,9 @@ const ParentDashboard = () => {
                         {/* Support / sponsor — opens the hosted Zeffy form (815YouthSports 501c3). */}
                         <SupportTeamCard />
 
+                        {/* Premier sponsor row — renders nothing until a sponsor exists */}
+                        <SponsorSlot tier="premier" placement="parent_dashboard_feed" className="my-4" />
+
                         {/* 8. Coach Challenge */}
                         <div className="glass-panel p-5 border-l-4 border-l-blue-500">
                             <div className="flex items-center justify-between mb-4">
@@ -1508,10 +1512,14 @@ const ParentDashboard = () => {
             )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
+                {/* Title sponsor "presented by" strip — renders nothing until a sponsor exists */}
+                <SponsorSlot tier="title" placement="parent_dashboard" className="mb-4" />
                 {currentView !== 'live' && <LiveGameBanner onOpen={() => setCurrentView('live')} />}
                 <Suspense fallback={<ViewLoader />}>
                     {renderView()}
                 </Suspense>
+                {/* Community sponsor footer strip */}
+                <SponsorSlot tier="community" placement="parent_dashboard_footer" className="mt-6 justify-center" />
             </main>
 
             {/* Mobile bottom nav — matches the manager dashboard pattern.

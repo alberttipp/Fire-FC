@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { CheckCircle, Mail, Phone, User, Calendar, FileText, Send, Loader2, AlertCircle, Users, Target } from 'lucide-react';
+import SponsorSlot from '../components/sponsors/SponsorSlot';
 
 // Public-facing tryout signup form. No auth required.
 //
@@ -104,6 +105,8 @@ const TryoutSignup = () => {
                     <Link to="/login" className="text-brand-green text-sm uppercase tracking-wider hover:text-white">
                         Already a member? Log in →
                     </Link>
+                    {/* Community sponsors — renders nothing until a sponsor exists */}
+                    <SponsorSlot tier="community" placement="tryout" className="justify-center mt-6" />
                 </div>
             </div>
         );

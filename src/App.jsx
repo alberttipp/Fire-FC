@@ -8,6 +8,7 @@ import ResetPassword from './pages/ResetPassword';
 import PlayerAccessPage from './pages/PlayerAccessPage';
 import TryoutSignup from './pages/TryoutSignup';
 import Register from './pages/Register';
+import SponsorUs from './pages/SponsorUs';
 import ClubBilling from './pages/ClubBilling';
 import PlatformAdmin from './pages/PlatformAdmin';
 import About from './pages/About';
@@ -144,6 +145,7 @@ function App() {
                 <Route path="/player-access/:token" element={<PlayerAccessPage />} />
                 <Route path="/tryout-signup" element={<TryoutSignup />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/sponsor" element={<SponsorUs />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/dashboard" element={
                   <PrivateRoute>

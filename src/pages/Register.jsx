@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useBranding } from '../context/BrandingContext';
+import SponsorSlot from '../components/sponsors/SponsorSlot';
 
 // Public, branded family registration page (Flow B). Resolves the club from
 // ?club=slug (via BrandingContext), lists open programs, collects player + guardian
@@ -98,6 +99,7 @@ export default function Register() {
                     <div className="text-5xl mb-3">🎉</div>
                     <h2 className="text-2xl font-display font-bold uppercase tracking-wider mb-2">Registration received!</h2>
                     <p className="text-gray-400">Thanks for registering with {brand.name}. A receipt is on its way to your email.</p>
+                    <SponsorSlot tier="premier" placement="register_success" className="mt-6 justify-center" />
                 </div>
             </Shell>
         );
@@ -208,6 +210,7 @@ const Shell = ({ brand, children }) => (
                 <span className="text-xl font-display font-bold uppercase tracking-wider">{brand.name}</span>
             </div>
             <div className="glass-panel p-6">{children}</div>
+            <div className="mt-6 flex justify-center"><SponsorSlot tier="community" placement="register_footer" /></div>
         </div>
     </div>
 );

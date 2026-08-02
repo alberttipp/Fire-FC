@@ -9,6 +9,7 @@ import MobileBottomNav from '../components/MobileBottomNav';
 import { supabase } from '../supabaseClient';
 import { isStaff as isStaffRole } from '../constants/roles';
 import { useBranding } from '../context/BrandingContext';
+import SponsorSlot from '../components/sponsors/SponsorSlot';
 
 const PreviewPickerModal = lazy(() => import('../components/dashboard/PreviewPickerModal'));
 
@@ -424,10 +425,14 @@ const Dashboard = () => {
 
             {/* Main Content Area */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] md:pb-8">
+                {/* Title sponsor "presented by" strip — renders nothing until a sponsor exists */}
+                <SponsorSlot tier="title" placement="coach_dashboard" className="mb-4" />
                 {currentView !== 'live' && <LiveGameBanner onOpen={() => pickView('live')} />}
                 <Suspense fallback={<ViewLoader />}>
                     {renderView()}
                 </Suspense>
+                {/* Community sponsor footer strip */}
+                <SponsorSlot tier="community" placement="coach_dashboard_footer" className="mt-6 justify-center" />
             </main>
 
             {/* Mobile Bottom Nav */}

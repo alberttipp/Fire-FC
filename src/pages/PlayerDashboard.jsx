@@ -27,6 +27,7 @@ import TeamGoalBar from '../components/TeamGoalBar';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 import { useBranding } from '../context/BrandingContext';
+import SponsorSlot from '../components/sponsors/SponsorSlot';
 
 // Heavy modals — only loaded when the user opens them.
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
@@ -606,6 +607,11 @@ const PlayerDashboard = () => {
                     />
                 </div>
             )}
+
+            {/* Title sponsor "presented by" strip — renders nothing until a sponsor exists */}
+            <div className="max-w-5xl mx-auto px-4 pt-4">
+                <SponsorSlot tier="title" placement="player_dashboard" />
+            </div>
 
             <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-12 gap-8">
                 {/* Left Column: Player Card (Sticky on Desktop) */}

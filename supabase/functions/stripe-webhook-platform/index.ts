@@ -63,6 +63,27 @@ Deno.serve(async (req) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
+        // Flow C: a sponsorship payment (destination charge on the platform).
+        if (session.metadata?.sponsor_id) {
+          const sponsorId = session.metadata.sponsor_id
+          const { data: sp } = await admin.from('sponsors').select('package_id').eq('id', sponsorId).single()
+          let durationDays = 365
+          if (sp?.package_id) {
+            const { data: pkg } = await admin.from('sponsorship_packages').select('duration_days').eq('id', sp.package_id).single()
+            durationDays = pkg?.duration_days ?? 365
+          }
+          const start = new Date()
+          const end = new Date(start.getTime() + durationDays * 86400000)
+          await admin.from('sponsors').update({
+            status: 'active', active: true,
+            starts_on: start.toISOString().slice(0, 10),
+            ends_on: end.toISOString().slice(0, 10),
+            stripe_payment_intent_id: (session.payment_intent as string) ?? null,
+            stripe_subscription_id: (session.subscription as string) ?? null,
+          }).eq('id', sponsorId)
+          console.log(`[stripe-webhook-platform] sponsor ${sponsorId} activated`)
+          break
+        }
         // Flow B: a family registration payment (destination charge on the platform).
         if (session.metadata?.registration_id) {
           await admin.from('registrations').update({
@@ -85,6 +106,14 @@ Deno.serve(async (req) => {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
+        // Flow C: an annual sponsorship — reflect cancellation.
+        if (subscription.metadata?.sponsor_id) {
+          if (event.type === 'customer.subscription.deleted') {
+            await admin.from('sponsors').update({ status: 'canceled', active: false })
+              .eq('id', subscription.metadata.sponsor_id)
+          }
+          break
+        }
         // Flow B: a family dues subscription — status handled at checkout; only
         // reflect cancellation here.
         if (subscription.metadata?.registration_id) {
