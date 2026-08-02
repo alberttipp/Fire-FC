@@ -1,5 +1,16 @@
 # Registration & Payments Platform — Build Notes
 
+## ✅ FLOW B FAMILY PAYMENT VERIFIED 2026-08-02 (commit 3ff502d)
+Fixed the "not set up to accept payments" 400: connected Express accounts lacked the
+`card_payments` capability (direct charges failed; requesting it triggers heavy KYC + disables the
+account). Switched to DESTINATION charges — charge on the platform, transfer net to the club's
+connected account, platform keeps the fee; clubs need only `transfers` (light onboarding). Refactored
+stripe-webhook-platform to also handle registration events (they now fire on the platform), keyed by
+metadata.registration_id vs org subscriptions. VERIFIED with a real test payment: family reg → 4242 →
+paid, 3% fee ($1.50) applied, webhook marked paid. Both flows now fully work end-to-end.
+Trade-off: destination-charge checkout shows the PLATFORM name, not the club (club-branded checkout
+would need direct charges + card_payments KYC per club — a future option).
+
 ## 🚀 SHIPPED TO PRODUCTION 2026-07-20 (commit da4a092)
 Phases 0/1/2/2e/3-chunk-1 live on firefcapp.com. SAFE for real families: Rockford + Raptors are
 comped (gate_lets_in=true — verified), gate fails open, parents/players not gated, new routes additive.
