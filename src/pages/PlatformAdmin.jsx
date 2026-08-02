@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LogOut, LayoutDashboard } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
 
 // Platform Owner dashboard — ALL clubs + global settings + per-club fee/comp
 // controls. Data + mutations come from is_platform_owner()-gated RPCs, so this is
@@ -10,6 +12,7 @@ const money = (c) => `$${((c || 0) / 100).toFixed(2)}`;
 
 export default function PlatformAdmin() {
     const navigate = useNavigate();
+    const { signOut } = useAuth();
     const [clubs, setClubs] = useState(null);
     const [settings, setSettings] = useState(null);
     const [authorized, setAuthorized] = useState(true);
@@ -34,8 +37,29 @@ export default function PlatformAdmin() {
         await load();
     };
 
+    const logout = async () => {
+        try { await signOut(); } catch { /* ignore */ }
+        navigate('/login');
+    };
+
     if (!authorized) {
-        return <Center>Not authorized. This area is for the platform owner only.</Center>;
+        return (
+            <Center>
+                <div className="space-y-4">
+                    <p>Not authorized. This area is for the platform owner only.</p>
+                    <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => navigate('/dashboard')}
+                            className="flex items-center gap-1.5 text-sm font-semibold bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 py-2">
+                            <LayoutDashboard className="w-4 h-4" /> Exit to app
+                        </button>
+                        <button onClick={logout}
+                            className="flex items-center gap-1.5 text-sm font-semibold bg-red-500/15 hover:bg-red-500/25 text-red-300 rounded-lg px-3 py-2">
+                            <LogOut className="w-4 h-4" /> Log out
+                        </button>
+                    </div>
+                </div>
+            </Center>
+        );
     }
     if (clubs === null) return <Center>Loading…</Center>;
 
@@ -46,9 +70,18 @@ export default function PlatformAdmin() {
     return (
         <div className="min-h-screen bg-brand-dark text-white py-6 px-4">
             <div className="max-w-5xl mx-auto space-y-5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                     <h1 className="text-2xl font-display font-bold uppercase tracking-wider">Platform Admin</h1>
-                    <button onClick={() => navigate('/dashboard')} className="text-sm text-gray-400 hover:text-white underline">← Dashboard</button>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => navigate('/dashboard')}
+                            className="flex items-center gap-1.5 text-sm font-semibold bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2">
+                            <LayoutDashboard className="w-4 h-4" /> Exit to app
+                        </button>
+                        <button onClick={logout}
+                            className="flex items-center gap-1.5 text-sm font-semibold bg-red-500/15 hover:bg-red-500/25 text-red-300 rounded-lg px-3 py-2">
+                            <LogOut className="w-4 h-4" /> Log out
+                        </button>
+                    </div>
                 </div>
                 {error && <div className="text-sm text-red-400">{error}</div>}
 
