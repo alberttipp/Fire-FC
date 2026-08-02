@@ -13,6 +13,17 @@ const billingLabel = { one_time: 'one-time', monthly: '/month', annual: '/year' 
 const FIELD = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:border-brand-green focus:outline-none';
 const LABEL = 'block text-xs uppercase tracking-wider text-gray-400 mb-1';
 
+const GENDERS = ['Male', 'Female', 'Other'];
+const JERSEY_SIZES = ['YXS', 'YS', 'YM', 'YL', 'YXL', 'Adult S', 'Adult M', 'Adult L', 'Adult XL'];
+const GRADES = ['Pre-K', 'Kindergarten', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
+
+const Select = ({ value, onChange, options, placeholder = 'Select…' }) => (
+    <select className={FIELD} value={value} onChange={onChange}>
+        <option value="">{placeholder}</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+);
+
 export default function Register() {
     const brand = useBranding();
     const status = new URLSearchParams(window.location.search).get('status');
@@ -139,9 +150,10 @@ export default function Register() {
                         <Row><Field label="First name *"><input className={FIELD} value={form.playerFirstName} onChange={set('playerFirstName')} /></Field>
                             <Field label="Last name *"><input className={FIELD} value={form.playerLastName} onChange={set('playerLastName')} /></Field></Row>
                         <Row><Field label="Date of birth"><input type="date" className={FIELD} value={form.playerDob} onChange={set('playerDob')} /></Field>
-                            <Field label="Gender"><input className={FIELD} value={form.playerGender} onChange={set('playerGender')} placeholder="e.g. Male / Female" /></Field></Row>
-                        <Row><Field label="Jersey size"><input className={FIELD} value={form.jerseySize} onChange={set('jerseySize')} placeholder="YM, YL, S…" /></Field>
-                            <Field label="Grade / School"><input className={FIELD} value={form.school} onChange={set('school')} /></Field></Row>
+                            <Field label="Gender"><Select value={form.playerGender} onChange={set('playerGender')} options={GENDERS} /></Field></Row>
+                        <Row><Field label="Jersey size"><Select value={form.jerseySize} onChange={set('jerseySize')} options={JERSEY_SIZES} /></Field>
+                            <Field label="Grade"><Select value={form.grade} onChange={set('grade')} options={GRADES} /></Field></Row>
+                        <Field label="School (optional)"><input className={FIELD} value={form.school} onChange={set('school')} /></Field>
                     </Section>
 
                     {/* Parent / guardian */}
