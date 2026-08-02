@@ -27,14 +27,11 @@ create table if not exists public.player_weekly_reports (
 );
 create index if not exists player_weekly_reports_player_idx on public.player_weekly_reports (player_id, week_start desc);
 
--- Locked: no client policies. Reads go through the SECURITY DEFINER RPC below;
--- writes only via service role / the SECURITY DEFINER roundup. (A kid's weakest
--- skill is softer than open player_stats, so we don't expose the table directly.)
+-- Locked: no client policies. Reads via the SECURITY DEFINER RPC; writes only via
+-- service role / the roundup. (A kid's weakest skill is softer than open player_stats.)
 alter table public.player_weekly_reports enable row level security;
 
--- 2) Read RPC — returns a player's latest weekly report to any signed-in user
---    (mirrors the app's existing player-stats read posture; centralized here so
---    it can be tightened to org-scope later without touching the UI).
+-- 2) Read RPC — a player's latest weekly report, to any signed-in user.
 create or replace function public.get_player_weekly_report(p_player_id uuid)
 returns public.player_weekly_reports
 language sql stable security definer set search_path to 'public', 'pg_temp'
@@ -63,6 +60,8 @@ declare
     v_next_due   timestamptz := (v_week_start + 14)::timestamptz;  -- end of next week
     r record;
     v_focus text;
+    v_label text;
+    v_tip text;
     v_category text;
     v_minutes int;
     v_done int;
@@ -77,6 +76,7 @@ declare
     v_notified int := 0;
     v_assigned int := 0;
     v_name text;
+    v_body text;
 begin
     for r in
         select p.id, p.user_id, p.team_id, p.org_id,
@@ -124,6 +124,13 @@ begin
             juggle_best = excluded.juggle_best, streak_weeks = excluded.streak_weeks, focus_area = excluded.focus_area;
         v_reports := v_reports + 1;
 
+        -- Human-friendly focus label + tip (mirrors WeeklyProgressCard).
+        v_label := case v_focus when 'pace' then 'Pace' when 'shooting' then 'Finishing' when 'passing' then 'Passing'
+                                when 'dribbling' then 'Dribbling' when 'defending' then 'Defending' when 'physical' then 'Strength' end;
+        v_tip := case v_focus when 'pace' then 'sprints & first-step speed' when 'shooting' then 'shooting reps on goal'
+                              when 'passing' then 'wall-passing & weak foot' when 'dribbling' then 'close control & 1v1 moves'
+                              when 'defending' then 'jockeying & tackling' when 'physical' then 'core & conditioning' end;
+
         -- Streak badges (2/4/8 weeks) — text badge_id, only when notifying.
         if p_notify and r.user_id is not null and v_streak in (2, 4, 8) then
             v_badge := 'streak_' || v_streak;
@@ -137,21 +144,15 @@ begin
         -- Auto-assign next week's focus drill (revives the home-training loop).
         if p_assign and v_focus is not null then
             v_category := case v_focus
-                when 'pace' then 'Speed & Agility'
-                when 'shooting' then 'Finishing & Shooting'
-                when 'passing' then 'Passing & Receiving'
-                when 'dribbling' then 'Dribbling & 1v1'
-                when 'defending' then 'Defending'
-                when 'physical' then 'Conditioning' end;
-            -- only if they don't already have an open autopilot assignment for next week
+                when 'pace' then 'Speed & Agility' when 'shooting' then 'Finishing & Shooting'
+                when 'passing' then 'Passing & Receiving' when 'dribbling' then 'Dribbling & 1v1'
+                when 'defending' then 'Defending' when 'physical' then 'Conditioning' end;
             if not exists (
                 select 1 from public.assignments a
-                where a.player_id = r.id and a.source = 'autopilot'
-                  and a.created_at >= v_week_end
+                where a.player_id = r.id and a.source = 'autopilot' and a.created_at >= v_week_end
             ) then
                 select d.id into v_drill from public.drills d
-                where d.category = v_category and coalesce(d.is_custom,false) = false
-                  and coalesce(d.hidden,false) = false
+                where d.category = v_category and coalesce(d.is_custom,false) = false and coalesce(d.hidden,false) = false
                 order by random() limit 1;
                 if v_drill is not null then
                     insert into public.assignments (drill_id, player_id, team_id, org_id, status, due_date, source, assigned_by)
@@ -161,14 +162,18 @@ begin
             end if;
         end if;
 
-        -- One family push summarizing the week (via the existing outbox).
+        -- Encouraging, forward-looking push. 0-min families get a mission, not a scolding.
         if p_notify and r.user_id is not null then
-            perform public.enqueue_notification(
-                r.user_id, 'progress',
-                v_name || '''s week',
-                v_name || ' trained ' || v_minutes || ' min this week'
-                    || case when v_streak >= 2 then ' (' || v_streak || '-week streak 🔥)' else '' end
-                    || case when v_focus is not null then '. Next focus: ' || v_focus else '' end || '.',
+            if v_minutes > 0 then
+                v_body := v_name || ' trained ' || v_minutes || ' min this week'
+                    || case when v_streak >= 2 then ' — ' || v_streak || '-week streak 🔥' else ' 💪' end
+                    || case when v_focus is not null then '. Next focus: ' || v_label || ' (' || v_tip || ').' else '. Keep it going!' end;
+            else
+                v_body := case when v_focus is not null
+                    then v_name || '''s mission this week: ' || v_label || ' — ' || v_tip || '. Log a session to start a streak 🔥'
+                    else 'New week, new mission for ' || v_name || ' — log a training session to start a streak 🔥' end;
+            end if;
+            perform public.enqueue_notification(r.user_id, 'progress', v_name || '''s week', v_body,
                 '/player-dashboard', 'weekly_report', r.org_id);
             v_notified := v_notified + 1;
         end if;
