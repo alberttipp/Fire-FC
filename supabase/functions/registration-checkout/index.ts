@@ -89,10 +89,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ free: true, registrationId: reg.id }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // Club must have a payout-ready connected account.
+    // Club must have a payout-ready connected account (transfers/destination model).
     const { data: acct } = await admin.from('org_stripe_accounts')
-      .select('connect_account_id, charges_enabled').eq('org_id', program.org_id).maybeSingle()
-    if (!acct?.connect_account_id || !acct.charges_enabled) {
+      .select('connect_account_id, payouts_enabled').eq('org_id', program.org_id).maybeSingle()
+    if (!acct?.connect_account_id || !acct.payouts_enabled) {
       throw new Error('This club is not set up to accept payments yet')
     }
 
@@ -129,20 +129,24 @@ Deno.serve(async (req) => {
       cancel_url: `${origin}/register?club=${org.slug}&status=cancelled`,
       metadata: { registration_id: reg.id, org_id: program.org_id },
     }
+    // Destination charge: charge on the platform, transfer net to the club's
+    // connected account, platform keeps the fee. Needs only `transfers` on the club.
     if (mode === 'payment') {
       params.payment_intent_data = {
         receipt_email: b.guardianEmail,
         metadata: { registration_id: reg.id },
+        transfer_data: { destination: acct.connect_account_id },
         ...(feeCents > 0 ? { application_fee_amount: feeCents } : {}),
       }
     } else {
       params.subscription_data = {
         metadata: { registration_id: reg.id },
+        transfer_data: { destination: acct.connect_account_id },
         ...(feeEnabled && feePct > 0 ? { application_fee_percent: feePct } : {}),
       }
     }
 
-    const session = await stripe.checkout.sessions.create(params as any, { stripeAccount: acct.connect_account_id })
+    const session = await stripe.checkout.sessions.create(params as any)
 
     await admin.from('registrations').update({
       stripe_checkout_session_id: session.id,

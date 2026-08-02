@@ -60,6 +60,10 @@ Deno.serve(async (req) => {
       charges_enabled: account.charges_enabled,
       payouts_enabled: account.payouts_enabled,
       details_submitted: account.details_submitted,
+      // Diagnostics (temporary):
+      capabilities: account.capabilities,
+      requirements_currently_due: account.requirements?.currently_due,
+      requirements_disabled_reason: account.requirements?.disabled_reason,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
     console.error('[connect-status]', error)

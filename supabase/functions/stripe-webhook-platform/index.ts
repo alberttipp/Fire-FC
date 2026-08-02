@@ -17,6 +17,28 @@ const admin = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+// Flow A: sync a club's platform subscription into org_subscriptions.
+async function syncOrgSub(subscription: Stripe.Subscription, isDeleted: boolean) {
+  const orgId = subscription.metadata?.org_id
+  const priceId = subscription.items.data[0]?.price?.id
+  const { data: settings } = await admin.from('platform_settings')
+    .select('club_monthly_price_id, club_annual_price_id').eq('id', true).single()
+  const plan = priceId === settings?.club_annual_price_id ? 'annual'
+    : priceId === settings?.club_monthly_price_id ? 'monthly' : null
+  const update: Record<string, unknown> = {
+    stripe_subscription_id: subscription.id,
+    stripe_customer_id: subscription.customer as string,
+    plan,
+    status: isDeleted ? 'canceled' : subscription.status,
+    current_period_end: subscription.current_period_end
+      ? new Date(subscription.current_period_end * 1000).toISOString() : null,
+    trial_ends_at: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+    updated_at: new Date().toISOString(),
+  }
+  if (orgId) await admin.from('org_subscriptions').upsert({ org_id: orgId, ...update }, { onConflict: 'org_id' })
+  else await admin.from('org_subscriptions').update(update).eq('stripe_customer_id', subscription.customer as string)
+}
+
 Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature')
   const body = await req.text()
@@ -39,49 +61,45 @@ Deno.serve(async (req) => {
 
   try {
     switch (event.type) {
-      case 'checkout.session.completed':
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session
+        // Flow B: a family registration payment (destination charge on the platform).
+        if (session.metadata?.registration_id) {
+          await admin.from('registrations').update({
+            status: session.mode === 'subscription' ? 'active' : 'paid',
+            stripe_payment_intent_id: (session.payment_intent as string) ?? null,
+            stripe_subscription_id: (session.subscription as string) ?? null,
+            updated_at: new Date().toISOString(),
+          }).eq('id', session.metadata.registration_id)
+          console.log(`[stripe-webhook-platform] registration ${session.metadata.registration_id} -> ${session.mode === 'subscription' ? 'active' : 'paid'}`)
+          break
+        }
+        // Flow A: a club platform subscription.
+        if (session.mode === 'subscription' && session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
+          await syncOrgSub(subscription, false)
+        }
+        break
+      }
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        // Normalize to a Subscription object.
-        let subscription: Stripe.Subscription
-        if (event.type === 'checkout.session.completed') {
-          const session = event.data.object as Stripe.Checkout.Session
-          if (session.mode !== 'subscription' || !session.subscription) break
-          subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-        } else {
-          subscription = event.data.object as Stripe.Subscription
+        const subscription = event.data.object as Stripe.Subscription
+        // Flow B: a family dues subscription — status handled at checkout; only
+        // reflect cancellation here.
+        if (subscription.metadata?.registration_id) {
+          if (event.type === 'customer.subscription.deleted') {
+            await admin.from('registrations')
+              .update({ status: 'canceled', updated_at: new Date().toISOString() })
+              .eq('id', subscription.metadata.registration_id)
+          }
+          break
         }
-
-        const orgId = subscription.metadata?.org_id
-        const priceId = subscription.items.data[0]?.price?.id
-        const { data: settings } = await admin.from('platform_settings')
-          .select('club_monthly_price_id, club_annual_price_id').eq('id', true).single()
-        const plan = priceId === settings?.club_annual_price_id ? 'annual'
-          : priceId === settings?.club_monthly_price_id ? 'monthly' : null
-
-        const update: Record<string, unknown> = {
-          stripe_subscription_id: subscription.id,
-          stripe_customer_id: subscription.customer as string,
-          plan,
-          status: event.type === 'customer.subscription.deleted' ? 'canceled' : subscription.status,
-          current_period_end: subscription.current_period_end
-            ? new Date(subscription.current_period_end * 1000).toISOString() : null,
-          trial_ends_at: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
-          updated_at: new Date().toISOString(),
-        }
-
-        // Prefer org_id from metadata; fall back to matching the customer.
-        if (orgId) {
-          await admin.from('org_subscriptions').upsert({ org_id: orgId, ...update }, { onConflict: 'org_id' })
-        } else {
-          await admin.from('org_subscriptions').update(update).eq('stripe_customer_id', subscription.customer as string)
-        }
-        console.log(`[stripe-webhook-platform] ${event.type} -> org ${orgId ?? '(by customer)'} status=${update.status}`)
+        // Flow A: a club platform subscription.
+        await syncOrgSub(subscription, event.type === 'customer.subscription.deleted')
         break
       }
       default:
-        // Ignore unrelated events.
         break
     }
     return new Response(JSON.stringify({ received: true }), {

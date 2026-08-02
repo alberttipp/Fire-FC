@@ -51,12 +51,22 @@ Deno.serve(async (req) => {
       const account = await stripe.accounts.create({
         type: 'express', email: caller.email,
         business_profile: { name: org.name },
+        // Destination-charge model: connected accounts only need `transfers`
+        // (light onboarding — no full card-processing KYC per club). The platform
+        // is merchant of record; funds are transferred to the club.
+        capabilities: { transfers: { requested: true } },
         metadata: { org_id: org.id },
       })
       accountId = account.id
       await admin.from('org_stripe_accounts').upsert(
         { org_id: org.id, connect_account_id: accountId, updated_at: new Date().toISOString() },
         { onConflict: 'org_id' })
+    } else {
+      // Keep accounts on the transfers-only model; drop any card_payments request
+      // (heavy KYC that would disable the account until completed).
+      await stripe.accounts.update(accountId, {
+        capabilities: { card_payments: { requested: false }, transfers: { requested: true } },
+      })
     }
 
     const origin = req.headers.get('origin') || Deno.env.get('APP_URL') || 'https://firefcapp.com'
