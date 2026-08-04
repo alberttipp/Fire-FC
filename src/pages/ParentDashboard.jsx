@@ -33,6 +33,7 @@ import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
+import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
 import WeeklyProgressCard from '../components/WeeklyProgressCard';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
@@ -1524,6 +1525,7 @@ const ParentDashboard = () => {
                 </Suspense>
                 {/* Community sponsor footer strip */}
                 <SponsorSlot tier="community" placement="parent_dashboard_footer" className="mt-6 justify-center" />
+                <NetworkSponsorSlot className="mt-4 justify-center" />
             </main>
 
             {/* Mobile bottom nav — matches the manager dashboard pattern.

@@ -8,6 +8,7 @@ import { Rocket, Shield, Users, User, ArrowRight, Lock, UserCircle, Mail } from 
 import { supabase } from '../supabaseClient';
 import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
+import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
 
 const Login = () => {
     const toast = useToast();
@@ -325,6 +326,7 @@ const Login = () => {
 
                     {/* Title sponsor — "presented by …" (renders nothing if the club has none) */}
                     <div className="flex justify-center mt-1 mb-1"><SponsorSlot tier="title" placement="login" /></div>
+                    <NetworkSponsorSlot className="mt-4" />
 
                     {/* Mode Switcher */}
                     <div className="flex justify-center mt-2 mb-4">

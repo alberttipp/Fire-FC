@@ -10,6 +10,7 @@ import { supabase } from '../supabaseClient';
 import { isStaff as isStaffRole } from '../constants/roles';
 import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
+import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
 
 const PreviewPickerModal = lazy(() => import('../components/dashboard/PreviewPickerModal'));
 const OnboardingWizard = lazy(() => import('../components/onboarding/OnboardingWizard'));
@@ -450,6 +451,7 @@ const Dashboard = () => {
                 </Suspense>
                 {/* Community sponsor footer strip */}
                 <SponsorSlot tier="community" placement="coach_dashboard_footer" className="mt-6 justify-center" />
+                <NetworkSponsorSlot className="mt-4 justify-center" />
             </main>
 
             {/* Mobile Bottom Nav */}
