@@ -8,6 +8,7 @@ import { supabase } from '../supabaseClient';
 // is config (a row + a logo), not code.
 export const DEFAULT_BRAND = {
     slug: 'rockford-fire-fc',
+    program: null,           // set when branding is resolved from a per-coach program (?p=slug)
     name: 'Rockford Fire FC',
     shortName: 'Fire',
     logoUrl: '/branding/logo.png',
@@ -37,20 +38,26 @@ function hexToRgbChannels(hex) {
     return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
 }
 
-// Where a club is identified pre-login: ?club=slug, /c/slug, or a subdomain.
-function resolveSlugFromUrl() {
+// What's identified pre-login, in priority order: a per-coach program (?p=slug),
+// then a club (?club=slug, /c/slug, or subdomain). A program re-brands to the
+// coach ("Coach Will's Player Lab") while still resolving to its club's slug for
+// club-scoped features. Returns {program} | {club} | null.
+function resolveContextFromUrl() {
     try {
         const url = new URL(window.location.href);
+        const p = url.searchParams.get('p');
+        if (p) { try { sessionStorage.setItem('ff_program', p); } catch { /* ignore */ } return { program: p }; }
         const q = url.searchParams.get('club');
-        if (q) { try { sessionStorage.setItem('ff_club', q); } catch { /* ignore */ } return q; }
+        if (q) { try { sessionStorage.setItem('ff_club', q); } catch { /* ignore */ } return { club: q }; }
         const path = url.pathname.match(/^\/c\/([^/]+)/);
-        if (path) { try { sessionStorage.setItem('ff_club', path[1]); } catch { /* ignore */ } return path[1]; }
+        if (path) { try { sessionStorage.setItem('ff_club', path[1]); } catch { /* ignore */ } return { club: path[1] }; }
         const parts = url.hostname.split('.');
-        if (parts.length > 2 && !['www', 'firefcapp', 'localhost'].includes(parts[0])) return parts[0];
-        // No club in the URL — within this tab session, keep the club the user
+        if (parts.length > 2 && !['www', 'firefcapp', 'localhost'].includes(parts[0])) return { club: parts[0] };
+        // No context in the URL — within this tab session, keep what the user
         // entered through (survives SPA nav + hard refresh; clears when the tab
-        // closes). A fresh tab with no ?club stays Rockford, so this is demo-only.
-        try { const s = sessionStorage.getItem('ff_club'); if (s) return s; } catch { /* ignore */ }
+        // closes). A fresh tab stays Rockford, so this is demo/link-driven only.
+        try { const sp = sessionStorage.getItem('ff_program'); if (sp) return { program: sp }; } catch { /* ignore */ }
+        try { const s = sessionStorage.getItem('ff_club'); if (s) return { club: s }; } catch { /* ignore */ }
     } catch { /* ignore */ }
     return null;
 }
@@ -61,17 +68,22 @@ export const BrandingProvider = ({ children }) => {
     // Resolve a club's branding (only when multi-org is enabled AND a non-default
     // club is identified from the URL). Any failure keeps Rockford — never breaks.
     useEffect(() => {
-        const slug = resolveSlugFromUrl();
-        if (!slug || slug === DEFAULT_BRAND.slug) return;
+        const ctx = resolveContextFromUrl();
+        if (!ctx) return;                                        // no context -> Rockford default
+        if (!ctx.program && ctx.club === DEFAULT_BRAND.slug) return;
         let cancelled = false;
         (async () => {
             try {
-                const { data, error } = await supabase.rpc('get_org_branding', { p_slug: slug });
+                const { data, error } = ctx.program
+                    ? await supabase.rpc('get_program_branding', { p_slug: ctx.program })
+                    : await supabase.rpc('get_org_branding', { p_slug: ctx.club });
                 if (cancelled || error || !data) return;
                 const row = Array.isArray(data) ? data[0] : data;
                 if (!row) return;
                 setBrand({
-                    slug,
+                    // A program keeps its club's slug for club-scoped features (sponsors, etc.).
+                    slug: ctx.program ? (row.org_slug || DEFAULT_BRAND.slug) : ctx.club,
+                    program: ctx.program || null,
                     name: row.display_name || DEFAULT_BRAND.name,
                     shortName: row.short_name || DEFAULT_BRAND.shortName,
                     logoUrl: row.logo_url || DEFAULT_BRAND.logoUrl,
