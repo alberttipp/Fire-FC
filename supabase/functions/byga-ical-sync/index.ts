@@ -94,8 +94,15 @@ async function syncProgram(prog: { id: string; byga_ical_url: string; owner_user
         await admin.from('events').delete().eq('team_id', t.id).eq('external_uid', e.uid)
         continue
       }
-      const { data: existing } = await admin.from('events')
-        .select('id').eq('team_id', t.id).eq('external_uid', e.uid).maybeSingle()
+      // Match by iCal UID first; fall back to (start_time, title) so a feed that
+      // lists the same event under two calendars (two UIDs, same slot) collapses
+      // to ONE event instead of duplicating.
+      let existing = (await admin.from('events')
+        .select('id').eq('team_id', t.id).eq('external_uid', e.uid).limit(1)).data?.[0] || null
+      if (!existing) {
+        existing = (await admin.from('events')
+          .select('id').eq('team_id', t.id).eq('start_time', e.start).eq('title', e.title).limit(1)).data?.[0] || null
+      }
       const row = {
         team_id: t.id, org_id: t.org_id, title: e.title, type: e.type,
         start_time: e.start, location_name: e.location,
