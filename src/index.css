@@ -29,6 +29,83 @@
   }
 }
 
+/* ============================================================
+   Broadcast XI — design tokens + holographic card material.
+   ADDITIVE and self-contained: these vars/classes are only consumed
+   by the player card (BroadcastCard + AttributeHexagon). They do NOT
+   restyle the app and do NOT touch --brand-primary/--brand-accent.
+   ============================================================ */
+:root{
+  --bx-bg-900:#0a0d0c; --bx-bg-800:#101513; --bx-bg-700:#161d1a; --bx-line:#ffffff14;
+  --bx-ink-0:#f4f7f5; --bx-ink-1:#a7b3ad; --bx-ink-2:#6b7772;
+  --bx-green-400:#3ddc84; --bx-green-600:#12a150; --bx-gold-400:#e8c15a;
+  --bx-font-display:'Archivo Variable',system-ui,sans-serif;
+  --bx-font-anton:'Anton','Archivo Variable',system-ui,sans-serif;
+  --bx-font-body:'Hanken Grotesk Variable',system-ui,sans-serif;
+  --bx-nums:"tnum" 1,"lnum" 1;
+  --bx-r-card:24px; --bx-r-md:14px;
+  --bx-sh-card:0 1px 0 #ffffff1f inset, 0 20px 50px #000000cc;
+  --bx-e-out:cubic-bezier(0.16,1,0.3,1); --bx-e-spring:cubic-bezier(0.34,1.56,0.64,1);
+  --bx-dur-mid:280ms; --bx-dur-slow:520ms;
+  /* live pointer position for the foil (0-100), written by the tilt handler */
+  --bx-px:50; --bx-py:50; --bx-foil-o:0;
+}
+@media (prefers-reduced-motion:reduce){:root{--bx-dur-mid:0ms;--bx-dur-slow:0ms;}}
+
+/* typographic helpers used ON the card only */
+.bx-nums{ font-variant-numeric:tabular-nums lining-nums; font-feature-settings:var(--bx-nums); }
+.bx-display{ font-family:var(--bx-font-display); }
+.bx-anton{ font-family:var(--bx-font-anton); letter-spacing:.01em; }
+.bx-body{ font-family:var(--bx-font-body); }
+
+/* matte surface: hairline top light edge + soft directional shadow (not glass) */
+.bx-surface{ box-shadow:var(--bx-sh-card); }
+
+/* faint radial "stadium" glow — applied on the card only, opt-in via .bx-glow */
+.bx-glow::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:radial-gradient(120% 80% at 50% -10%, #ffffff14, transparent 60%);
+  z-index:1;
+}
+/* optional film grain — opt-in via .bx-grain, never global */
+.bx-grain::after{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  opacity:.05; mix-blend-mode:overlay; z-index:2;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ---- Holographic foil. Technique adapted from simeydotme/pokemon-cards-css
+   and re-authored here (NOT a dependency). Driven by --bx-px/--bx-py pointer
+   vars that the tilt handler writes onto the card element. ---- */
+.bx-foil{
+  position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  z-index:30; overflow:hidden; opacity:var(--bx-foil-o);
+  transition:opacity var(--bx-dur-mid) var(--bx-e-out);
+}
+.bx-foil__color{
+  position:absolute; inset:-25%;
+  background:repeating-linear-gradient(115deg,
+    #ff6b6b33 0%, #ffd16b33 12%, #6bff9b33 24%, #6bd1ff33 36%,
+    #b06bff33 48%, #ff6bd133 60%, #ff6b6b33 72%);
+  background-size:200% 200%;
+  background-position:calc(var(--bx-px) * 1%) calc(var(--bx-py) * 1%);
+  mix-blend-mode:color-dodge; filter:saturate(1.35) contrast(1.05);
+}
+.bx-foil__sheen{
+  position:absolute; inset:0;
+  background:radial-gradient(42% 60% at calc(var(--bx-px) * 1%) calc(var(--bx-py) * 1%),
+    #ffffffcc, #ffffff00 60%);
+  mix-blend-mode:overlay;
+}
+@media (prefers-reduced-motion:reduce){ .bx-foil{ opacity:0 !important; } }
+
+/* attribute-hexagon stroke draw-on (gated by JS: class only added when animating) */
+.bx-hex-draw{ animation:bx-hex-draw var(--bx-dur-slow) var(--bx-e-out) forwards; }
+@keyframes bx-hex-draw{
+  from{ stroke-dashoffset:var(--bx-hex-len,600); }
+  to{ stroke-dashoffset:0; }
+}
+
 @layer components {
     .glass-panel {
         @apply bg-glass backdrop-blur-md border border-white/10 rounded-xl shadow-lg;

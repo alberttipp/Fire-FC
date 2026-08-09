@@ -1,6 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
+// Broadcast XI card faces. Imported globally so the faces are AVAILABLE, but the
+// app's body font is intentionally NOT swapped yet — these are only applied on
+// the player card via the --bx-font-* tokens (see index.css / BroadcastCard).
+import '@fontsource-variable/archivo'
+import '@fontsource-variable/hanken-grotesk'
+import '@fontsource/anton'
 import './index.css'
 import './buildInfo.js'
 import App from './App.jsx'
