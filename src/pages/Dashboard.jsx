@@ -353,26 +353,8 @@ const Dashboard = () => {
                             >
                                 <FileText className="w-3 h-3" /> Rules
                             </button>
-                            <button
-                                onClick={() => pickView('notifications')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'notifications' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                                title="Push notifications + device management"
-                            >
-                                <Bell className="w-3 h-3" /> Alerts
-                            </button>
-                            {/* Live / Carpool still hidden until tested with real team. */}
-
-                            {/* Manager Only Tabs */}
-                            {isManager && (
-                                <>
-                                    <button
-                                        onClick={() => pickView('tryouts')}
-                                        className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'tryouts' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold hover:text-white'}`}
-                                    >
-                                        <ClipboardCheck className="w-3 h-3" /> Tryouts
-                                    </button>
-                                </>
-                            )}
+                            {/* Alerts removed from nav (the top-right bell covers it);
+                                Tryouts hidden (season passed; the club uses BYGA for it). */}
                         </div>
 
                         <button
@@ -416,11 +398,6 @@ const Dashboard = () => {
                                                 {tab.label}
                                             </button>
                                         ))}
-                                        {isManager && (
-                                            <>
-                                                <button onClick={() => { pickView('tryouts'); setMobileMenuOpen(false); }} className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === 'tryouts' ? 'text-brand-gold bg-brand-gold/10 font-bold' : 'text-brand-gold hover:bg-white/5'}`}>Tryouts</button>
-                                            </>
-                                        )}
                                     </div>
                                 </>
                             )}
@@ -469,10 +446,9 @@ const Dashboard = () => {
                 onLogout={handleLogout}
                 extraItems={[
                     ...(isStaff ? [{ id: 'coach_hq', label: 'Coach HQ', icon: LayoutDashboard }] : []),
+                    // Alerts kept here for phones (the top-right bell hides on small screens);
+                    // Tryouts hidden (season passed; club uses BYGA).
                     { id: 'notifications', label: 'Alerts', icon: Bell },
-                    ...(isManager ? [
-                        { id: 'tryouts', label: 'Tryouts', icon: ClipboardCheck },
-                    ] : []),
                 ]}
             />
 
