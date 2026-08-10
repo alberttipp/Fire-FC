@@ -93,9 +93,9 @@
 }
 .bx-foil__sheen{
   position:absolute; inset:0;
-  background:radial-gradient(42% 60% at calc(var(--bx-px) * 1%) calc(var(--bx-py) * 1%),
-    #ffffffcc, #ffffff00 60%);
-  mix-blend-mode:overlay;
+  background:radial-gradient(38% 52% at calc(var(--bx-px) * 1%) calc(var(--bx-py) * 1%),
+    #ffffff8c, #ffffff00 62%);
+  mix-blend-mode:soft-light;
 }
 @media (prefers-reduced-motion:reduce){ .bx-foil{ opacity:0 !important; } }
 

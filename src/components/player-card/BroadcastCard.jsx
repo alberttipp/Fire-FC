@@ -33,11 +33,17 @@ function TiltShell({ reduced, cardRef, children }) {
   const onMove = (_tiltX, _tiltY, tiltXPct, tiltYPct) => {
     const el = cardRef.current;
     if (!el) return;
-    const px = Math.max(0, Math.min(100, 50 + (tiltYPct ?? 0) / 2));
-    const py = Math.max(0, Math.min(100, 50 + (tiltXPct ?? 0) / 2));
+    const xPct = tiltYPct ?? 0;
+    const yPct = tiltXPct ?? 0;
+    const px = Math.max(0, Math.min(100, 50 + xPct / 2));
+    const py = Math.max(0, Math.min(100, 50 + yPct / 2));
+    // Fade the foil in with tilt distance instead of forcing it fully on.
+    // A phone resting near-flat sits at center (0 tilt) → foil ~0, so there's
+    // no bright oval parked in the middle; tilting blooms the sheen in.
+    const mag = Math.min(1, Math.hypot(xPct, yPct) / 55);
     el.style.setProperty('--bx-px', px.toFixed(1));
     el.style.setProperty('--bx-py', py.toFixed(1));
-    el.style.setProperty('--bx-foil-o', '1');
+    el.style.setProperty('--bx-foil-o', mag.toFixed(3));
   };
   const onLeave = () => {
     const el = cardRef.current;
@@ -53,9 +59,9 @@ function TiltShell({ reduced, cardRef, children }) {
       transitionSpeed={1400}
       gyroscope
       glareEnable
-      glareMaxOpacity={0.22}
+      glareMaxOpacity={0.14}
       glareColor="#ffffff"
-      glarePosition="all"
+      glarePosition="top"
       glareBorderRadius="24px"
       onMove={onMove}
       onLeave={onLeave}
