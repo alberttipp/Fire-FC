@@ -66,6 +66,8 @@ async function removeBg(bytes: Uint8Array, contentType: string): Promise<Uint8Ar
   fd.append('image_file', new Blob([bytes], { type: contentType }), 'photo')
   fd.append('size', 'preview')   // free tier resolution — fine for a card avatar
   fd.append('type', 'person')
+  fd.append('crop', 'true')      // trim transparent margins so the cutout fills the card image box
+  fd.append('crop_margin', '3%') // a hair of breathing room around the subject
   const res = await fetch('https://api.remove.bg/v1.0/removebg', {
     method: 'POST', headers: { 'X-Api-Key': REMOVEBG_KEY }, body: fd,
   })

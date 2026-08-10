@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check, Rocket } from 'lucide-react';
+import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check, Rocket, Phone } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import PlayerEvaluationModal from './PlayerEvaluationModal';
@@ -11,6 +11,7 @@ import CreatePlayerModal from './CreatePlayerModal';
 import AddExistingPlayerModal from './AddExistingPlayerModal';
 import BulkInviteModal from './BulkInviteModal';
 import FamilyInviteModal from './FamilyInviteModal';
+import PlayerContactsModal from './PlayerContactsModal';
 import UpcomingWeek from './UpcomingWeek';
 import { getPlayerAvatarPath } from '../../utils/playerAvatar';
 
@@ -33,6 +34,7 @@ const TeamView = () => {
     // UI State
     const [selectedPlayer, setSelectedPlayer] = useState(null);
     const [invitePlayer, setInvitePlayer] = useState(null); // For Family Invite Modal
+    const [contactsPlayer, setContactsPlayer] = useState(null); // For Player Contacts Modal
     const [feedbackPlayer, setFeedbackPlayer] = useState(null);
     const [copied, setCopied] = useState(false);
     const [showTeamSettings, setShowTeamSettings] = useState(false);
@@ -532,6 +534,13 @@ const TeamView = () => {
                 />
             )}
 
+            {contactsPlayer && (
+                <PlayerContactsModal
+                    player={contactsPlayer}
+                    onClose={() => setContactsPlayer(null)}
+                />
+            )}
+
             {/* Upcoming Week Calendar */}
             <div className="mb-6">
                 <UpcomingWeek teamId={myTeam.id} />
@@ -619,6 +628,13 @@ const TeamView = () => {
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setContactsPlayer(player); }}
+                                                className="p-2 rounded-full bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30 transition-colors"
+                                                title="Contacts"
+                                            >
+                                                <Phone className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setInvitePlayer(player); }}
                                                 className="p-2 rounded-full bg-brand-green/10 text-brand-green hover:bg-brand-green/20 border border-brand-green/30 transition-colors"
