@@ -336,18 +336,6 @@ const Dashboard = () => {
                                 <Dumbbell className="w-3 h-3" /> Development
                             </button>
                             <button
-                                onClick={() => pickView('idp')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'idp' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold/80 hover:text-brand-gold'}`}
-                            >
-                                <Target className="w-3 h-3" /> Player Plans
-                            </button>
-                            <button
-                                onClick={() => pickView('private')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'private' ? 'bg-brand-gold text-brand-dark font-bold shadow-lg' : 'text-brand-gold/70 hover:text-brand-gold'}`}
-                            >
-                                <Briefcase className="w-3 h-3" /> Private
-                            </button>
-                            <button
                                 onClick={() => pickView('chat')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'chat' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
@@ -360,22 +348,10 @@ const Dashboard = () => {
                                 Schedule
                             </button>
                             <button
-                                onClick={() => pickView('live')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'live' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                <Trophy className="w-3 h-3" /> Live
-                            </button>
-                            <button
                                 onClick={() => pickView('rules')}
                                 className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'rules' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 <FileText className="w-3 h-3" /> Rules
-                            </button>
-                            <button
-                                onClick={() => pickView('gallery')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'gallery' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                <Camera className="w-3 h-3" /> Gallery
                             </button>
                             <button
                                 onClick={() => pickView('notifications')}
@@ -426,14 +402,11 @@ const Dashboard = () => {
                                             { id: 'club', label: 'Club' },
                                             { id: 'team', label: 'Team' },
                                             { id: 'practice', label: 'Development' },
-                                            { id: 'idp', label: 'Player Plans' },
-                                            { id: 'private', label: 'Private Training' },
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
-                                            { id: 'live', label: 'Live' },
                                             { id: 'rules', label: 'Rules' },
-                                            { id: 'gallery', label: 'Gallery' },
-                                            // carpool still hidden — re-add when tested
+                                            // Player Plans / Private / Live / Gallery pruned from nav
+                                            // (0-usage per the Aug audit); routes still exist.
                                         ].map(tab => (
                                             <button
                                                 key={tab.id}
