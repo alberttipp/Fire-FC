@@ -80,6 +80,7 @@ const TeamEvalGrid = ({ teamId, onClose }) => {
                 .from('evaluations')
                 .select('player_id, pace, shooting, passing, dribbling, defending, physical, card_type, created_at')
                 .in('player_id', ids)
+                .eq('team_id', teamId)
                 .order('created_at', { ascending: false });
             (evals || []).forEach((e) => { if (!latestByPlayer[e.player_id]) latestByPlayer[e.player_id] = e; });
         }
@@ -161,6 +162,7 @@ const TeamEvalGrid = ({ teamId, onClose }) => {
                 const { error } = await supabase.from('evaluations').insert([{
                     player_id: r.id,
                     coach_id: user.id,
+                    team_id: teamId,
                     season: SEASON,
                     card_type: r.cardType,
                     eval_mode: 'youth',

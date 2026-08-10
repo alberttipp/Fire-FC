@@ -189,14 +189,19 @@ const PlayerDashboard = () => {
             const playerId = playerData.id;
             console.log('[PlayerDashboard] Using player_id:', playerId, 'from playerData:', !!playerData);
 
-            // 1. Fetch Player Evaluation (coach ratings from evaluations table)
-            const { data: evalData, error: evalError } = await supabase
+            // 1. Fetch Player Evaluation (coach ratings from evaluations table).
+            // Scoped to THIS player's team so each team shows its own card. The
+            // team filter only applies when we know the team (all evals were
+            // backfilled to the player's team, so for a one-team kid this is the
+            // same latest row — never blanks an existing card).
+            let evalQuery = supabase
                 .from('evaluations')
                 .select('*')
                 .eq('player_id', playerId)
                 .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .limit(1);
+            if (playerData.team_id) evalQuery = evalQuery.eq('team_id', playerData.team_id);
+            const { data: evalData, error: evalError } = await evalQuery.maybeSingle();
 
             if (evalError && evalError.code !== 'PGRST116') {
                 console.error('[PlayerDashboard] Evaluation fetch error:', evalError);

@@ -153,8 +153,10 @@ const TeamView = () => {
                 let evaluationsMap = {};
                 let statsMap = {};
                 if (playerIds.length > 0) {
+                    // Evals scoped to THIS team so a coach sees their team's own
+                    // ratings (no-op today; each kid is on one team).
                     const [{ data: evaluations }, { data: playerStatsData }] = await Promise.all([
-                        supabase.from('evaluations').select('*').in('player_id', playerIds).order('created_at', { ascending: false }),
+                        supabase.from('evaluations').select('*').in('player_id', playerIds).eq('team_id', currentTeamId).order('created_at', { ascending: false }),
                         supabase.from('player_stats').select('player_id, weekly_minutes, training_minutes, career_touches').in('player_id', playerIds),
                     ]);
 
@@ -226,8 +228,9 @@ const TeamView = () => {
         let evaluationsMap = {};
         let statsMap = {};
         if (playerIds.length > 0) {
+            // Evals scoped to the team being viewed (no-op today; one team per kid).
             const [{ data: evaluations }, { data: playerStatsData }] = await Promise.all([
-                supabase.from('evaluations').select('*').in('player_id', playerIds).order('created_at', { ascending: false }),
+                supabase.from('evaluations').select('*').in('player_id', playerIds).eq('team_id', teamId).order('created_at', { ascending: false }),
                 supabase.from('player_stats').select('player_id, weekly_minutes, training_minutes, career_touches').in('player_id', playerIds),
             ]);
 

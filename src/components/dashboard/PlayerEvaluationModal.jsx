@@ -176,12 +176,16 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
             setAllBadges(badgeDefs || []);
 
             if (player?.id) {
-                // 2. Get ALL Evaluations for this player (for history + baseline)
-                const { data: allEvals, error: evalError } = await supabase
+                // 2. Get ALL Evaluations for this player (for history + baseline),
+                // scoped to the team being evaluated so each team has its own
+                // card history (no-op today; one team per kid).
+                let evalHistQuery = supabase
                     .from('evaluations')
                     .select('*')
                     .eq('player_id', player.id)
                     .order('created_at', { ascending: true });
+                if (player.team_id) evalHistQuery = evalHistQuery.eq('team_id', player.team_id);
+                const { data: allEvals, error: evalError } = await evalHistQuery;
 
                 if (evalError && evalError.code !== 'PGRST116') {
                     console.error("Error fetching evaluations:", evalError);
@@ -458,6 +462,10 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
             const evaluationData = {
                 player_id: player.id,
                 coach_id: user.id,
+                // Tag the eval with the team it was authored for so each team
+                // keeps its own card. (Trigger backfills from the player's team
+                // if this is ever null.)
+                team_id: player.team_id || null,
                 season,
                 notes: coachNotes,
                 card_type: effCardType,

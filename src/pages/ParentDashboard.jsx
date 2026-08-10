@@ -315,15 +315,19 @@ const ParentDashboard = () => {
                 careerTouches: stats?.career_touches || 0,
             }));
 
-            // Fetch player evaluation (coach ratings - same as PlayerDashboard)
+            // Fetch player evaluation (coach ratings - same as PlayerDashboard).
+            // Scoped to the selected child's team so each team shows its own card
+            // (no-op for a one-team kid — evals were backfilled to their team).
             console.log('[ParentDashboard] Fetching evaluation for player_id:', playerId);
-            const { data: evalData, error: evalError } = await supabase
+            const childTeamId = selectedChild?.team_id || null;
+            let evalQuery = supabase
                 .from('evaluations')
                 .select('*')
                 .eq('player_id', playerId)
                 .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .limit(1);
+            if (childTeamId) evalQuery = evalQuery.eq('team_id', childTeamId);
+            const { data: evalData, error: evalError } = await evalQuery.maybeSingle();
 
             console.log('[ParentDashboard] Evaluation result:', evalData, 'Error:', evalError);
 
