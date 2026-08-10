@@ -1101,8 +1101,8 @@ const ParentDashboard = () => {
                             />
                         )}
 
-                        {/* 7. Leaderboard — always shown, no toggle. */}
-                        <Leaderboard />
+                        {/* 7. Leaderboard — scoped to the selected child's team. */}
+                        <Leaderboard teamId={selectedChild?.team_id || null} teamName={selectedChild?.teams?.name || null} />
 
                         {/* Support / sponsor — opens the hosted Zeffy form (815YouthSports 501c3). */}
                         <SupportTeamCard />

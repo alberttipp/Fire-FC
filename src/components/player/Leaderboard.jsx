@@ -3,10 +3,18 @@ import { Crown, Trophy, Medal, Clock } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
-const Leaderboard = () => {
+// `teamId` scopes the board to one team's active roster (join player_teams).
+// Each kid's number stays GLOBAL — their full training total across every team
+// + solo home sessions (player_stats is per-kid) — so the ranking is "our
+// team, ranked by each player's total effort everywhere." Omit teamId for the
+// legacy club-wide board.
+const Leaderboard = ({ teamId = null, teamName = null }) => {
     const { user } = useAuth();
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
+    // Resolve the team name from teamId when the caller didn't pass one, so
+    // every mount can just pass teamId and still get a labeled header.
+    const [resolvedName, setResolvedName] = useState(teamName);
     // Default to Career so the big cumulative totals (incl. 90-min practice
     // credits) show first — weekly alone looked deceptively small. Toggle still
     // cycles Weekly / Career / Touches.
@@ -44,7 +52,18 @@ const Leaderboard = () => {
             supabase.removeChannel(channel);
             window.removeEventListener('drill-completed', handleDrillCompleted);
         };
-    }, [viewMode]);
+    }, [viewMode, teamId]);
+
+    useEffect(() => {
+        if (teamName) { setResolvedName(teamName); return; }
+        if (!teamId) { setResolvedName(null); return; }
+        let cancelled = false;
+        (async () => {
+            const { data } = await supabase.from('teams').select('name').eq('id', teamId).maybeSingle();
+            if (!cancelled) setResolvedName(data?.name || null);
+        })();
+        return () => { cancelled = true; };
+    }, [teamId, teamName]);
 
     const fetchLeaderboard = async () => {
         setLoading(true);
@@ -52,13 +71,28 @@ const Leaderboard = () => {
             const colMap = { weekly: 'weekly_minutes', career: 'training_minutes', touches: 'career_touches' };
             const sortCol = colMap[viewMode] || 'weekly_minutes';
 
+            // When scoped to a team, restrict to that team's ACTIVE roster.
+            // (The per-kid value stays global — see component note.)
+            let rosterIds = null;
+            if (teamId) {
+                const { data: pt } = await supabase
+                    .from('player_teams')
+                    .select('player_id')
+                    .eq('team_id', teamId)
+                    .eq('status', 'active');
+                rosterIds = (pt || []).map((r) => r.player_id);
+                if (rosterIds.length === 0) { setPlayers([]); setLoading(false); return; }
+            }
+
             // Step 1: Fetch player_stats (no join - avoids RLS issues)
-            const { data: statsData, error: statsError } = await supabase
+            let statsQuery = supabase
                 .from('player_stats')
                 .select(`player_id, ${sortCol}`)
                 .gt(sortCol, 0)
                 .order(sortCol, { ascending: false })
-                .limit(10);
+                .limit(rosterIds ? 100 : 10);
+            if (rosterIds) statsQuery = statsQuery.in('player_id', rosterIds);
+            const { data: statsData, error: statsError } = await statsQuery;
 
             if (statsError) {
                 console.error('[Leaderboard] Stats fetch error:', statsError);
@@ -99,7 +133,7 @@ const Leaderboard = () => {
                     rank: index + 1,
                     name: player ? `${player.first_name} ${player.last_name?.charAt(0) || ''}.` : 'Unknown',
                     minutes: stat[sortCol] || 0,
-                    team: 'Team',
+                    team: resolvedName || 'Club',
                     isUser: player?.id === user?.id || player?.user_id === user?.id,
                     playerId: stat.player_id
                 };
@@ -125,7 +159,7 @@ const Leaderboard = () => {
 
     return (
         <div className="glass-panel p-6 animate-fade-in-up delay-100">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xl text-white font-display uppercase font-bold flex items-center gap-2">
                     <Trophy className="w-6 h-6 text-brand-gold" /> Leaderboard
                 </h3>
@@ -136,6 +170,15 @@ const Leaderboard = () => {
                     {viewMode === 'weekly' ? 'Weekly' : viewMode === 'career' ? 'Career' : 'Touches'}
                 </button>
             </div>
+
+            <p className="text-[11px] text-gray-500 mb-5 leading-snug">
+                {resolvedName ? <span className="text-gray-300 font-semibold">{resolvedName}</span> : 'Club'}
+                {viewMode === 'touches'
+                    ? ' · ranked by total career touches'
+                    : viewMode === 'weekly'
+                        ? ' · ranked by this week’s training minutes'
+                        : ' · ranked by total training minutes (all teams + solo)'}
+            </p>
 
             <div className="space-y-4">
                 {/* Table Header */}

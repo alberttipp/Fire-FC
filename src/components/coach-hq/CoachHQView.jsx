@@ -7,6 +7,7 @@ import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import CoachHQTile from './CoachHQTile';
 import UpcomingWeek from '../dashboard/UpcomingWeek';
+import Leaderboard from '../player/Leaderboard';
 import { COMPETITION_NAME } from '../../constants/competition';
 import SetupHealthPanel from './SetupHealthPanel';
 import EvalNudgeBanner from './EvalNudgeBanner';
@@ -351,6 +352,9 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
 
             {/* Upcoming events — UpcomingWeek already shows live attendance + tap-to-modal */}
             <UpcomingWeek teamId={teamId} />
+
+            {/* Team training leaderboard — each player's total effort (all teams + solo) */}
+            <Leaderboard teamId={teamId} />
 
             {/* Drilldowns */}
             <Suspense fallback={null}>

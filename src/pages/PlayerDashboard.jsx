@@ -801,7 +801,7 @@ const PlayerDashboard = () => {
                         />
                     )}
 
-                    <Leaderboard />
+                    <Leaderboard teamId={playerRecord?.team_id || playerProfile?.team_id || null} />
 
                     {/* Training stats — same component the parent dashboard uses.
                         Single source of truth from player_stats. */}
