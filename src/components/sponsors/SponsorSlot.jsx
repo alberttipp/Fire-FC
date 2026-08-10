@@ -16,7 +16,8 @@ function logImpression(id, placement = 'unknown') {
     const key = `${id}:${placement}`;
     if (impressed.has(key)) return;
     impressed.add(key);
-    supabase.rpc('log_sponsor_impression', { p_sponsor_id: id, p_placement: placement }).catch(() => {});
+    // .rpc() returns a thenable (not a real Promise) — use then(onOk, onErr), NOT .catch().
+    supabase.rpc('log_sponsor_impression', { p_sponsor_id: id, p_placement: placement }).then(undefined, () => {});
 }
 
 const TIER_LABEL = { premier: 'Premier sponsors', community: 'Proud community sponsors' };

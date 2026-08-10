@@ -12,7 +12,8 @@ const impressed = new Set();
 function logImpression(id) {
     if (!id || impressed.has(id)) return;
     impressed.add(id);
-    supabase.rpc('log_network_sponsor_impression', { p_id: id }).catch(() => {});
+    // .rpc() returns a thenable (not a real Promise) — use then(onOk, onErr), NOT .catch().
+    supabase.rpc('log_network_sponsor_impression', { p_id: id }).then(undefined, () => {});
 }
 
 const NetworkSponsorSlot = ({ className = '' }) => {
