@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Loader2, Trophy, Pencil, Check, Crown } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
+import { COMPETITION_NAME } from '../../constants/competition';
 
-// Coach/manager view of the June Juggling Competition: team standings,
+// Coach/manager view of the juggling competition: team standings,
 // baseline review (fix obvious sandbags), and the live Juggle-Off recorder.
 const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
     const toast = useToast();
@@ -97,7 +98,7 @@ const JuggleCompetitionDrilldown = ({ teamId, onClose }) => {
             <div className="bg-brand-dark border border-white/10 w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col" style={{ maxHeight: 'min(90vh, 90dvh)' }} onClick={(e) => e.stopPropagation()}>
                 <div className="shrink-0 border-b border-white/10 p-4 flex items-center gap-3">
                     <Trophy className="w-5 h-5 text-brand-gold" />
-                    <h3 className="text-white font-bold flex-1">June Juggling Competition</h3>
+                    <h3 className="text-white font-bold flex-1">{COMPETITION_NAME}</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
                 </div>
 

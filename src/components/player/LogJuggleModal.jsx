@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Loader2, Trophy, Sparkles, Video } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
+import { COMPETITION_NAME } from '../../constants/competition';
 
 // Defined at MODULE scope (not inside the component) on purpose: a component
 // declared inside another is a brand-new type on every render, so React
@@ -155,7 +156,7 @@ const LogJuggleModal = ({ mode = 'session', playerId, teamId, playerName, curren
                     <div className="w-11 h-11 rounded-full bg-brand-green/15 border-2 border-brand-green/40 flex items-center justify-center text-xl">⚽</div>
                     <div className="min-w-0">
                         <h3 className="text-white font-bold text-lg leading-tight">{isBaseline ? 'Set your starting score' : 'Log a juggling session'}</h3>
-                        <p className="text-gray-400 text-xs">{playerName ? `${playerName} · ` : ''}June Juggling Competition</p>
+                        <p className="text-gray-400 text-xs">{playerName ? `${playerName} · ` : ''}{COMPETITION_NAME}</p>
                     </div>
                     <button type="button" onClick={onClose} className="ml-auto text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
                 </div>

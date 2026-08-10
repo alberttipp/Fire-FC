@@ -924,7 +924,7 @@ const ParentDashboard = () => {
                             </div>
                             <PlayerCard player={formatPlayerForCard(selectedChild)} onClick={() => setShowDetails(true)} />
                         </div>
-                        <div className="text-center -mt-2 flex items-center justify-center gap-4 flex-wrap">
+                        <div className="text-center mt-4 flex items-center justify-center gap-4 flex-wrap">
                             {selectedChild?.id && (
                                 <PhotoUploadButton
                                     playerId={selectedChild.id}
@@ -1087,7 +1087,7 @@ const ParentDashboard = () => {
                         {selectedChild?.team_id && <TeamCelebrationBanner teamId={selectedChild.team_id} />}
                         {selectedChild?.team_id && <TeamGoalBar teamId={selectedChild.team_id} />}
 
-                        {/* June Juggling Competition */}
+                        {/* Juggling competition (see constants/competition) */}
                         {selectedChild?.id && (
                             <JuggleChallengeCard
                                 playerId={selectedChild.id}

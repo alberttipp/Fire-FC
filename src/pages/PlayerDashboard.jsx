@@ -640,7 +640,7 @@ const PlayerDashboard = () => {
                             />
                         </div>
                         {playerRecord?.id && (
-                            <div className="text-center -mt-2 flex items-center justify-center gap-4 flex-wrap">
+                            <div className="text-center mt-4 flex items-center justify-center gap-4 flex-wrap">
                                 <PhotoUploadButton
                                     playerId={playerRecord.id}
                                     onUploaded={(url) => setPlayerRecord(prev => prev ? { ...prev, avatar_url: url } : prev)}

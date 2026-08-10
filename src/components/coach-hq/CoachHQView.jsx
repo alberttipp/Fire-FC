@@ -7,6 +7,7 @@ import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import CoachHQTile from './CoachHQTile';
 import UpcomingWeek from '../dashboard/UpcomingWeek';
+import { COMPETITION_NAME } from '../../constants/competition';
 import SetupHealthPanel from './SetupHealthPanel';
 import EvalNudgeBanner from './EvalNudgeBanner';
 
@@ -296,7 +297,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
 
-            {/* June Juggling Competition — standings, baseline review, Juggle-Off */}
+            {/* Juggling competition — standings, baseline review, Juggle-Off */}
             <button
                 type="button"
                 onClick={() => setShowJuggle(true)}
@@ -304,7 +305,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
             >
                 <Trophy className="w-5 h-5 text-brand-gold shrink-0" />
                 <span className="flex-1 text-left text-white text-sm font-medium">
-                    June Juggling Competition — standings, baselines &amp; Juggle-Off
+                    {COMPETITION_NAME} — standings, baselines &amp; Juggle-Off
                 </span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>

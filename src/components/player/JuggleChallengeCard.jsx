@@ -3,9 +3,10 @@ import { supabase } from '../../supabaseClient';
 import { Trophy, TrendingUp, Clock, Flame, Loader2, PlayCircle, Target, Lock } from 'lucide-react';
 import LogJuggleModal from './LogJuggleModal';
 import FamilyJuggleOff from './FamilyJuggleOff';
+import { COMPETITION_NAME, COMPETITION_GOAL, COMPETITION_TAGLINE } from '../../constants/competition';
 
 const STAMP_LADDER = [20, 30, 40, 50, 60, 70, 80, 90, 100];
-const GOAL = 100;
+const GOAL = COMPETITION_GOAL;
 
 const daysLeft = (dateStr) => {
     if (!dateStr) return null;
@@ -13,7 +14,7 @@ const daysLeft = (dateStr) => {
     return d >= 0 ? d : 0;
 };
 
-// The June Juggling Competition widget — used on the player and parent
+// The juggling competition widget (see constants/competition) — used on the player and parent
 // dashboards. Shows the player's baseline → current best → progress to 100
 // with the stamp ladder, improvement, totals, a countdown, the team goal, a
 // log/baseline button, and the Top-Score + Most-Improved leaderboards.
@@ -92,9 +93,9 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
             <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                     <h3 className="text-white font-display uppercase font-bold text-lg flex items-center gap-2">
-                        <span className="text-xl">⚽</span> June Juggling Competition
+                        <span className="text-xl">⚽</span> {COMPETITION_NAME}
                     </h3>
-                    <p className="text-gray-400 text-xs mt-0.5">Get to {GOAL} juggles in a row by June 30!</p>
+                    <p className="text-gray-400 text-xs mt-0.5">{COMPETITION_TAGLINE}</p>
                 </div>
                 {endDays != null && (
                     <div className="text-right shrink-0">
