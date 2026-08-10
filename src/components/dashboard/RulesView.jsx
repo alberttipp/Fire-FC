@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FileText, Download, ExternalLink } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../supabaseClient';
+import EcnlU11Rules from './EcnlU11Rules';
 
-// Simple league-rules viewer. Kept dumb on purpose — the PDF lives in
-// /public/docs and is bundled with the deploy. To swap files, replace
-// the file in public/docs and redeploy.
+// League-rules viewer. Team-aware: U11 / ECNL teams get the native Pre-ECNL rules;
+// other teams get their bundled league PDF (swap the file in public/docs).
 const DOCS = [
     {
         id: 'international-summer-2026',
@@ -14,6 +16,21 @@ const DOCS = [
 ];
 
 const RulesView = () => {
+    const { profile } = useAuth();
+    const [team, setTeam] = useState(null); // null = loading
+
+    useEffect(() => {
+        let active = true;
+        if (!profile?.team_id) { setTeam({}); return; }
+        supabase.from('teams').select('name, age_group').eq('id', profile.team_id).maybeSingle()
+            .then(({ data }) => { if (active) setTeam(data || {}); });
+        return () => { active = false; };
+    }, [profile?.team_id]);
+
+    if (team === null) return null; // brief loading; avoids flashing the wrong ruleset
+    const isU11Ecnl = team.age_group === 'U11' || /ecnl/i.test(team.name || '');
+    if (isU11Ecnl) return <EcnlU11Rules />;
+
     return (
         <div className="max-w-5xl mx-auto px-4 md:px-6 pb-24 pt-6 space-y-6">
             <div>
