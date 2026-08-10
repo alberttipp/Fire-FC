@@ -6,6 +6,7 @@ import { LazyMotion, domAnimation, m } from 'framer-motion';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import confetti from 'canvas-confetti';
 import { flagUrl, countryName } from '../../constants/cardCountries';
+import { useBranding } from '../../context/BrandingContext';
 import AttributeHexagon from './AttributeHexagon';
 import HoloFoil from './HoloFoil';
 import useReducedMotion from './useReducedMotion';
@@ -84,6 +85,7 @@ export default function BroadcastCard({
 }) {
   const reduced = useReducedMotion();
   const cardRef = useRef(null);
+  const brand = useBranding();
 
   // When revealing we start face-down (back) and flip to the front; otherwise we
   // honor showBack exactly as the legacy card did.
@@ -184,7 +186,7 @@ export default function BroadcastCard({
                       </div>
 
                       <div className="w-12 h-12 flex items-center justify-center drop-shadow">
-                        <img src="/branding/logo.png" alt="RFC" className="w-full h-full object-contain" />
+                        <img src={brand?.logoUrl || '/branding/logo.png'} alt={brand?.shortName || 'Club'} className="w-full h-full object-contain" />
                       </div>
                     </div>
 

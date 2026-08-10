@@ -16,7 +16,7 @@ export const NOTIFICATION_CATEGORIES = [
 ];
 
 export const NOTIFICATION_CHANNELS = [
-    { id: 'in_app', label: 'In-App',     description: 'Bell badge inside Fire FC' },
+    { id: 'in_app', label: 'In-App',     description: 'Bell badge inside the app' },
     { id: 'push',   label: 'Phone Push', description: 'Phone banner when app is closed' },
     // 'email' reserved for v2
 ];

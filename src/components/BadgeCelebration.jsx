@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useBranding } from '../context/BrandingContext';
 
 const BadgeCelebration = ({ badge, onClose }) => {
+    const brand = useBranding();
     const [phase, setPhase] = useState('envelope'); // envelope -> opening -> reveal -> collect
     const [particles, setParticles] = useState([]);
 
@@ -94,9 +96,9 @@ const BadgeCelebration = ({ badge, onClose }) => {
                             </svg>
                         </div>
 
-                        {/* Fire FC Logo watermark */}
+                        {/* Club logo watermark */}
                         <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
-                            <img src="/branding/logo.png" alt="" className="w-24 h-24 object-contain" />
+                            <img src={brand.logoUrl} alt="" className="w-24 h-24 object-contain" />
                         </div>
 
                         {/* Sparkle particles */}

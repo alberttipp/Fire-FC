@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, Loader2, Smartphone, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 import { useToast } from '../Toast';
 import { getPushSupport, isIOSWithoutStandalone, enablePush, getPushStatus } from '../../utils/push';
 
@@ -17,6 +18,7 @@ import { getPushSupport, isIOSWithoutStandalone, enablePush, getPushStatus } fro
 
 const EnablePushBanner = () => {
     const { user } = useAuth();
+    const brand = useBranding();
     const toast = useToast();
     const [mode, setMode] = useState(null); // null | 'enable' | 'ios' | 'blocked'
     const [busy, setBusy] = useState(false);
@@ -72,14 +74,14 @@ const EnablePushBanner = () => {
                     <>
                         <Smartphone className="w-5 h-5 shrink-0" />
                         <p className="flex-1 text-xs sm:text-sm font-semibold leading-tight">
-                            Add Fire FC to your Home Screen (Share → "Add to Home Screen") to turn on notifications.
+                            Add {brand.name} to your Home Screen (Share → "Add to Home Screen") to turn on notifications.
                         </p>
                     </>
                 ) : mode === 'blocked' ? (
                     <>
                         <Bell className="w-5 h-5 shrink-0" />
                         <p className="flex-1 text-xs sm:text-sm font-semibold leading-tight">
-                            Notifications are blocked for this device. Allow them in your device Settings → Notifications → Fire FC (or your browser's site settings), then reopen the app.
+                            Notifications are blocked for this device. Allow them in your device Settings → Notifications → {brand.name} (or your browser's site settings), then reopen the app.
                         </p>
                     </>
                 ) : (

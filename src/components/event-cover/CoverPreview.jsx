@@ -1,6 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { COVER_WIDTH, COVER_HEIGHT, findBackground } from './templates';
+import { useBranding } from '../../context/BrandingContext';
 
 // CoverPreview ALWAYS renders at exact 1200×630 px (the OG / Twitter
 // card size). The caller is responsible for visual scaling — wrap
@@ -9,7 +10,12 @@ import { COVER_WIDTH, COVER_HEIGHT, findBackground } from './templates';
 //
 // ref is forwarded onto the 1200×630 outer div so html-to-image's
 // toBlob() captures it at native resolution.
-const CoverPreview = React.forwardRef(({ event, choice, crestUrl = '/branding/logo.png' }, ref) => {
+const CoverPreview = React.forwardRef(({ event, choice, crestUrl = null }, ref) => {
+    const brand = useBranding();
+    // Crest + club label default to the active club's branding (white-label
+    // safe); an explicit crestUrl prop still wins.
+    const crest = crestUrl || brand?.logoUrl || '/branding/logo.png';
+    const clubLabel = (brand?.name || 'Fire FC').toUpperCase();
     const bg = findBackground(choice?.bg);
     const tpl = choice?.template || 'match_day';
 
@@ -21,7 +27,7 @@ const CoverPreview = React.forwardRef(({ event, choice, crestUrl = '/branding/lo
     const kit = event?.kit_color || '';
     const kitShorts = event?.kit_shorts_color || '';
     const kitSocks  = event?.kit_socks_color  || '';
-    const teamName = event?.team_name || 'ROCKFORD FIRE';
+    const teamName = event?.team_name || clubLabel;
 
     // Custom uploaded bg overrides the gradient with a cover-fit image.
     const isCustomBg = choice?.bg === 'custom' && choice?.bgImage;
@@ -48,15 +54,15 @@ const CoverPreview = React.forwardRef(({ event, choice, crestUrl = '/branding/lo
             )}
             {tpl === 'match_day' && (
                 <MatchDay teamName={teamName} opponent={opponent}
-                    dateStr={dateStr} timeStr={timeStr} location={location} kit={kit} kitShorts={kitShorts} kitSocks={kitSocks} crestUrl={crestUrl} />
+                    dateStr={dateStr} timeStr={timeStr} location={location} kit={kit} kitShorts={kitShorts} kitSocks={kitSocks} crestUrl={crest} />
             )}
             {tpl === 'practice' && (
                 <Practice teamName={teamName}
-                    dateStr={dateStr} timeStr={timeStr} location={location} kit={kit} kitShorts={kitShorts} kitSocks={kitSocks} crestUrl={crestUrl} />
+                    dateStr={dateStr} timeStr={timeStr} location={location} kit={kit} kitShorts={kitShorts} kitSocks={kitSocks} crestUrl={crest} />
             )}
             {tpl === 'social' && (
-                <Social title={event?.title || 'TEAM HANGOUT'}
-                    dateStr={dateStr} timeStr={timeStr} location={location} crestUrl={crestUrl} />
+                <Social title={event?.title || 'TEAM HANGOUT'} clubLabel={clubLabel}
+                    dateStr={dateStr} timeStr={timeStr} location={location} crestUrl={crest} />
             )}
         </div>
     );
@@ -167,11 +173,11 @@ function Practice({ teamName, dateStr, timeStr, location, kit, kitShorts, kitSoc
     );
 }
 
-function Social({ title, dateStr, timeStr, location, crestUrl }) {
+function Social({ title, clubLabel = 'FIRE FC', dateStr, timeStr, location, crestUrl }) {
     return (
         <div style={{ position: 'absolute', inset: 0, padding: 60, color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 28 }}>
             <img src={crestUrl} alt="" crossOrigin="anonymous" style={{ width: 90, height: 90, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }} />
-            <div style={{ fontSize: 18, letterSpacing: 10, opacity: 0.8, fontWeight: 700 }}>FIRE FC</div>
+            <div style={{ fontSize: 18, letterSpacing: 10, opacity: 0.8, fontWeight: 700 }}>{clubLabel}</div>
             <div style={{ fontSize: 88, fontWeight: 900, lineHeight: 1, textAlign: 'center', textShadow: '0 4px 16px rgba(0,0,0,0.5)', textTransform: 'uppercase', maxWidth: 1000 }}>{title}</div>
             <div style={{ display: 'flex', gap: 30, fontSize: 22, fontWeight: 700, opacity: 0.95, marginTop: 12 }}>
                 <span>📅 {dateStr} · {timeStr}</span>

@@ -8,6 +8,7 @@ import { getEventConfig } from './constants';
 import RsvpSummary from './RsvpSummary';
 import ParentRsvpControls from './ParentRsvpControls';
 import { isStaff } from '../../../constants/roles';
+import { useBranding } from '../../../context/BrandingContext';
 import { kitSwatchColor } from '../../../constants/kits';
 const EventCoverDesigner = lazy(() => import('../../event-cover/EventCoverDesigner'));
 const CreateEventModal   = lazy(() => import('../CreateEventModal'));
@@ -28,6 +29,7 @@ const getYouTubeEmbedUrl = (url) => {
 const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEventChanged, onOpenLineup }) => {
     const { profile } = useAuth();
     const toast = useToast();
+    const brand = useBranding();
     const [event, setEvent] = useState(initialEvent);
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -205,7 +207,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                     {event.type === 'game' && event.game_status && event.game_status !== 'scheduled' && (
                         <div className="flex items-center justify-center gap-6 py-4 bg-white/5 rounded-xl">
                             <div className="text-center">
-                                <p className="text-xs text-gray-400 uppercase font-bold">Fire FC</p>
+                                <p className="text-xs text-gray-400 uppercase font-bold">{brand.shortName}</p>
                                 <p className="text-3xl font-mono font-bold text-white">{event.home_score || 0}</p>
                             </div>
                             <span className="text-xl text-gray-600">—</span>
@@ -307,7 +309,7 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                             location_name: event.location_name,
                             opponent_name: event.opponent_name,
                             kit_color: event.kit_color,
-                            team_name: 'ROCKFORD FIRE',
+                            team_name: (brand.name || 'Fire FC').toUpperCase(),
                         }}
                         initial={event.cover_template || undefined}
                         onSaved={handleCoverSaved}

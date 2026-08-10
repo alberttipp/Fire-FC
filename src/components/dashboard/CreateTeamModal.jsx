@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 import { X, Shield } from 'lucide-react';
 
 // Age-group options. Generated from two arrays so adding an age bracket
@@ -11,6 +12,7 @@ const GENDER_GROUPS = ['Boys', 'Girls', 'Coed'];
 
 const CreateTeamModal = ({ onClose, onTeamCreated }) => {
     const { user } = useAuth();
+    const brand = useBranding();
     const [name, setName] = useState('');
     const [ageGroup, setAgeGroup] = useState('U12 Coed');
     const [loading, setLoading] = useState(false);
@@ -154,7 +156,7 @@ const CreateTeamModal = ({ onClose, onTeamCreated }) => {
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="e.g. Rockford Fire FC"
+                                placeholder={`e.g. ${brand.shortName} U11 Red`}
                                 className="w-full bg-black/50 border border-white/10 rounded p-3 text-white focus:border-brand-green focus:ring-1 focus:ring-brand-green transition-all outline-none"
                                 required
                             />

@@ -577,11 +577,11 @@ const PlayerDashboard = () => {
 
             {/* Navbar */}
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur px-6 py-4 flex justify-between items-center border-b border-white/10">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]">
-                        <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center filter drop-shadow-[0_0_8px_rgba(59,130,246,0.3)]">
+                        <img src={brand.logoUrl} alt={brand.shortName} className="max-h-full max-w-full object-contain" />
                     </div>
-                    <span className="text-white font-display uppercase font-bold tracking-widest text-sm md:text-base">{brand.name} <span className="text-brand-gold">Player</span></span>
+                    <span className="text-white font-display uppercase font-bold tracking-wide text-sm md:text-base leading-tight truncate min-w-0" title={brand.name}>{brand.name} <span className="text-brand-gold">Player</span></span>
                 </div>
                 <div className="flex items-center gap-4">
                     <button

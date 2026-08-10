@@ -4,6 +4,7 @@ import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { STAFF_ROLES } from '../../constants/roles';
+import { useBranding } from '../../context/BrandingContext';
 import GoalAttributionModal from './GoalAttributionModal';
 
 const STATUS_CONFIG = {
@@ -22,6 +23,7 @@ const NEXT_LABEL  = { scheduled: 'Start', live: 'Halftime', halftime: 'Resume 2n
 const LiveScoringView = () => {
     const { user, profile } = useAuth();
     const toast = useToast();
+    const brand = useBranding();
     const [games, setGames] = useState([]);
     const [skNames, setSkNames] = useState({});
     const [roster, setRoster] = useState([]);           // [{id, first_name, jersey_number, avatar_url}]
@@ -140,7 +142,7 @@ const LiveScoringView = () => {
         if (error) { toast.error('Could not record the goal.'); return; }
         if (data) setGames(prev => prev.map(g => g.id === game.id ? { ...g, home_score: data.home_score, away_score: data.away_score } : g));
         fetchGoals(games.map(g => g.id));
-        const who = scorerId ? nameOf(scorerId) : 'Fire FC';
+        const who = scorerId ? nameOf(scorerId) : brand.shortName;
         toast.success(assistId ? `⚽ ${who} (assist: ${nameOf(assistId)})!` : `⚽ ${who} scores!`);
     };
 
@@ -175,7 +177,7 @@ const LiveScoringView = () => {
     // End the game: set status -> finished, which sends the final-score push.
     // Deliberate + confirmed because it's the one-way action that closes scoring.
     const endGame = async (game) => {
-        if (!window.confirm(`End the game and send the final score (Fire FC ${game.home_score || 0}–${game.away_score || 0} ${game.opponent_name || ''}) to the team?`)) return;
+        if (!window.confirm(`End the game and send the final score (${brand.shortName} ${game.home_score || 0}–${game.away_score || 0} ${game.opponent_name || ''}) to the team?`)) return;
         const prevStatus = game.game_status || 'scheduled';
         setGames(prev => prev.map(g => g.id === game.id ? { ...g, game_status: 'finished' } : g));
         const { error } = await supabase.rpc('set_game_status', { p_event_id: game.id, p_status: 'finished' });
@@ -281,14 +283,14 @@ const LiveScoringView = () => {
                                 {/* Scoreboard */}
                                 <div className="flex items-center justify-center gap-4 sm:gap-8 py-4 bg-white/5 rounded-xl">
                                     <div className="text-center">
-                                        <p className="text-xs text-gray-400 uppercase font-bold mb-1">Fire FC</p>
+                                        <p className="text-xs text-gray-400 uppercase font-bold mb-1">{brand.shortName}</p>
                                         <div className="flex items-center gap-2">
                                             {iCanScore && (
                                                 <button onClick={() => removeLastGoal(game)} className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center justify-center transition-colors" title="Undo last goal"><Minus className="w-4 h-4" /></button>
                                             )}
                                             <span className="text-4xl sm:text-5xl font-mono font-bold text-white min-w-[3rem] text-center">{game.home_score || 0}</span>
                                             {iCanScore && (
-                                                <button onClick={() => setGoalModalGame(game)} className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center transition-colors" title="Add a Fire FC goal"><Plus className="w-4 h-4" /></button>
+                                                <button onClick={() => setGoalModalGame(game)} className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center transition-colors" title="Add a goal for us"><Plus className="w-4 h-4" /></button>
                                             )}
                                         </div>
                                     </div>

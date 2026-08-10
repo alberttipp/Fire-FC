@@ -58,6 +58,23 @@ const Dashboard = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showPreviewPicker, setShowPreviewPicker] = useState(false);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    // Active team (name + age group) for the header — a coach running U11 AND
+    // U12 squads must always see which team they're looking at.
+    const [activeTeam, setActiveTeam] = useState(null);
+
+    useEffect(() => {
+        if (!profile?.team_id) { setActiveTeam(null); return; }
+        let cancelled = false;
+        (async () => {
+            const { data } = await supabase
+                .from('teams')
+                .select('name, age_group')
+                .eq('id', profile.team_id)
+                .maybeSingle();
+            if (!cancelled && data) setActiveTeam(data);
+        })();
+        return () => { cancelled = true; };
+    }, [profile?.team_id]);
 
     // Lock the body's scroll while a top-level overlay is open so the
     // dashboard behind it doesn't drift when the user interacts with it.
@@ -262,18 +279,36 @@ const Dashboard = () => {
             {/* Top Navigation Bar */}
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-3 sm:px-6 py-3 sm:py-4">
                 <div className="max-w-7xl mx-auto flex justify-between items-center gap-2">
-                    <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center filter drop-shadow-[0_0_10px_rgba(59,130,246,0.4)] shrink-0">
-                            <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
+                    {/* Brand lockup: fixed-size crest + two-line identity that
+                        truncates instead of colliding with the nav. Line 1 = club
+                        name, line 2 = role + active team + age group so a coach
+                        running multiple squads always knows which team this is. */}
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center">
+                            <img src={brand.logoUrl} alt={brand.shortName} className="max-h-full max-w-full object-contain drop-shadow-[0_0_10px_rgba(59,130,246,0.4)]" />
                         </div>
-                        <h1 className="hidden md:block text-2xl text-white font-display uppercase font-bold tracking-wider">
-                            {brand.name} <span className="text-brand-green">{isManager ? 'Director' : 'Coach'}</span>
-                        </h1>
+                        <div className="min-w-0">
+                            <h1 className="text-sm sm:text-base lg:text-lg text-white font-display uppercase font-bold tracking-wide leading-tight truncate" title={brand.name}>
+                                {brand.name}
+                            </h1>
+                            <p className="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold leading-tight truncate">
+                                <span className="text-brand-green">{isManager ? 'Director' : 'Coach'}</span>
+                                {activeTeam && (
+                                    <>
+                                        <span className="text-gray-600"> · </span>
+                                        <span className="text-gray-300">{activeTeam.name}</span>
+                                        {activeTeam.age_group && <span className="text-brand-gold"> · {activeTeam.age_group}</span>}
+                                    </>
+                                )}
+                            </p>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 sm:gap-6 shrink-0">
-                        {/* View Switcher Dropdown (Styled as buttons for now for simplicity/touch) */}
-                        <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10">
+                    <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 shrink-0 max-w-[75%]">
+                        {/* View Switcher Dropdown (Styled as buttons for now for simplicity/touch).
+                            min-w-0 + overflow-x-auto: on narrower laptops the row scrolls
+                            instead of overlapping the brand lockup. */}
+                        <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10 min-w-0 overflow-x-auto no-scrollbar [&>button]:whitespace-nowrap [&>button]:shrink-0">
                             {isStaff && (
                                 <button
                                     onClick={() => pickView('coach_hq')}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Shield, Copy, Check, MessageSquare, Mail, Users, Link as LinkIcon } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
+import { useBranding } from '../../context/BrandingContext';
 import { buildInviteUrl } from '../../utils/pendingInvite';
 
 // Invite a player's family via a one-tap deep link (preferred) or the
@@ -14,6 +15,7 @@ import { buildInviteUrl } from '../../utils/pendingInvite';
 // code attached, we fetch it.
 const FamilyInviteModal = ({ player, onClose }) => {
     const toast = useToast();
+    const brand = useBranding();
     const [code, setCode] = useState(player?.guardian_code || '');
     const [copied, setCopied] = useState(false);
     const [copiedLink, setCopiedLink] = useState(false);
@@ -63,11 +65,11 @@ const FamilyInviteModal = ({ player, onClose }) => {
     // SMS / email body — lead with the tap-to-join link; code is the backup.
     const playerName = player?.name || `${player?.firstName || ''} ${player?.lastName || ''}`.trim() || 'your player';
     const smsBody = encodeURIComponent(
-        `Join ${playerName} on the Fire FC app — tap this link, sign up, and you're connected automatically:\n${inviteUrl}\n\n(If the link doesn't work, go to firefcapp.com, sign up, and enter code ${code}.)`
+        `Join ${playerName} on the ${brand.name} app — tap this link, sign up, and you're connected automatically:\n${inviteUrl}\n\n(If the link doesn't work, go to firefcapp.com, sign up, and enter code ${code}.)`
     );
-    const emailSubject = encodeURIComponent(`Fire FC parent invite for ${playerName}`);
+    const emailSubject = encodeURIComponent(`${brand.name} parent invite for ${playerName}`);
     const emailBody = encodeURIComponent(
-        `Hi,\n\nTap this link to connect to ${playerName} in the Fire FC app — just sign up and you'll be linked automatically:\n\n${inviteUrl}\n\nIf the link doesn't open, go to firefcapp.com, tap Sign Up, then enter this code when asked: ${code}\n\nThanks!\nCoach`
+        `Hi,\n\nTap this link to connect to ${playerName} in the ${brand.name} app — just sign up and you'll be linked automatically:\n\n${inviteUrl}\n\nIf the link doesn't open, go to firefcapp.com, tap Sign Up, then enter this code when asked: ${code}\n\nThanks!\nCoach`
     );
 
     return (

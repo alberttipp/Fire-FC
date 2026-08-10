@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Bell, BellOff, Loader2, Smartphone, X } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 import { useToast } from '../Toast';
 
 // EnablePushButton — Phase 2 of the notifications plan.
@@ -40,6 +41,7 @@ const isIOSWithoutStandalone = () => {
 
 const EnablePushButton = () => {
     const { user } = useAuth();
+    const brand = useBranding();
     const toast = useToast();
     const [subscribed, setSubscribed] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -216,7 +218,7 @@ const EnablePushButton = () => {
                 <Smartphone className="w-4 h-4 mt-0.5 shrink-0" />
                 <div>
                     <p className="font-bold mb-0.5">Push needs Add to Home Screen on iPhone.</p>
-                    <p className="text-blue-300/80">Tap the share icon in Safari → "Add to Home Screen", then open Fire FC from your home screen and come back here to enable.</p>
+                    <p className="text-blue-300/80">Tap the share icon in Safari → "Add to Home Screen", then open {brand.name} from your home screen and come back here to enable.</p>
                 </div>
             </div>
         );

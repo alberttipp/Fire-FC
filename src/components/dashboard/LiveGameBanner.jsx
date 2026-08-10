@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Radio, ChevronRight, Trophy } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 
 // Dashboard-wide game banner — shows for everyone on the team:
 //   * GAMEDAY (gold): a game is scheduled TODAY and not finished — kickoff time
@@ -11,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 // [TEST] games never banner the team. One tap opens Live Scoring.
 const LiveGameBanner = ({ onOpen }) => {
     const { user, profile } = useAuth();
+    const brand = useBranding();
     const [teamId, setTeamId] = useState(profile?.team_id || null);
     const [game, setGame] = useState(null);
     const [, setTick] = useState(0); // re-render for the live countdown
@@ -71,7 +73,7 @@ const LiveGameBanner = ({ onOpen }) => {
                 </span>
                 <Radio className="w-4 h-4 text-red-400 shrink-0" />
                 <span className="flex-1 text-left text-white text-sm font-bold truncate">
-                    LIVE · Fire FC {game.home_score || 0}–{game.away_score || 0} vs {game.opponent_name || 'opponent'}
+                    LIVE · {brand.shortName} {game.home_score || 0}–{game.away_score || 0} vs {game.opponent_name || 'opponent'}
                 </span>
                 <span className="text-[11px] text-red-300 font-bold uppercase tracking-wider hidden sm:inline">Follow</span>
                 <ChevronRight className="w-4 h-4 text-red-300 shrink-0" />
@@ -94,7 +96,7 @@ const LiveGameBanner = ({ onOpen }) => {
             <Trophy className="w-5 h-5 text-brand-gold shrink-0" />
             <div className="flex-1 min-w-0 text-left">
                 <div className="text-white text-sm font-bold truncate">
-                    ⚽ GAMEDAY · Fire FC vs {game.opponent_name || 'opponent'}
+                    ⚽ GAMEDAY · {brand.shortName} vs {game.opponent_name || 'opponent'}
                 </div>
                 <div className="text-[11px] text-brand-gold font-bold uppercase tracking-wider">{timeStr} · {when}</div>
             </div>

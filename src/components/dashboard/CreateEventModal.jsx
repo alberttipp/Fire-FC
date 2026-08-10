@@ -3,6 +3,7 @@ import { X, Calendar, Clock, MapPin, Trophy, Users, Coffee, Sparkles, Upload } f
 import { toBlob } from 'html-to-image';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 import CoverPreview from '../event-cover/CoverPreview';
 import { TEMPLATES, BACKGROUNDS, defaultTemplateForEvent } from '../event-cover/templates';
 import { KIT_PRESETS, KIT_PRESET_LABELS } from '../../constants/kits';
@@ -126,6 +127,7 @@ function parseInlineCss(cssString) {
 // CREATE flow.
 const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', defaultDate = null, existingEvent = null }) => {
     const { user, profile } = useAuth();
+    const brand = useBranding();
     const isEditMode = !!existingEvent;
     const [eventType, setEventType] = useState(existingEvent?.type || defaultType);
     const [coverChoice, setCoverChoice] = useState(() => existingEvent?.cover_template || defaultTemplateForEvent(existingEvent?.type || defaultType));
@@ -199,7 +201,7 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
     const previewEvent = useMemo(() => ({
         type: eventType,
         title: eventType === 'game'
-            ? `Fire Vs ${(formData.opponentName || 'TBD').trim()}`
+            ? `${brand.shortName} Vs ${(formData.opponentName || 'TBD').trim()}`
             : (formData.title || 'TEAM EVENT'),
         start_time: formData.date && formData.startTime
             ? new Date(`${formData.date}T${formData.startTime}:00`).toISOString()
@@ -211,8 +213,8 @@ const CreateEventModal = ({ onClose, onEventCreated, defaultType = 'practice', d
         kit_color: formData.kitColor,
         kit_shorts_color: formData.kitShortsColor,
         kit_socks_color: formData.kitSocksColor,
-        team_name: 'ROCKFORD FIRE',
-    }), [formData, eventType]);
+        team_name: (brand.name || 'Fire FC').toUpperCase(),
+    }), [formData, eventType, brand.name, brand.shortName]);
 
     // Apply custom uploaded bg into the cover choice object so CoverPreview
     // picks it up. coverChoice.bg='custom' + coverChoice.bgImage=dataURL.

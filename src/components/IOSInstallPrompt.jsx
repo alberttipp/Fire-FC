@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Share, Plus, X, Smartphone } from 'lucide-react';
+import { useBranding } from '../context/BrandingContext';
 
 // IOSInstallPrompt — surfaces "Add to Home Screen" instructions to iOS
 // Safari users who aren't installed yet.
@@ -35,6 +36,7 @@ const readDismissed = () => {
 };
 
 const IOSInstallPrompt = () => {
+    const brand = useBranding();
     const [show, setShow] = useState(false);
 
     useEffect(() => {
@@ -73,7 +75,7 @@ const IOSInstallPrompt = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <h4 className="text-white font-bold text-sm mb-1">
-                            Install Fire FC on your iPhone
+                            Install {brand.name} on your iPhone
                         </h4>
                         <p className="text-gray-300 text-xs leading-relaxed mb-2">
                             Push notifications and home-screen access need the app installed first. It's free and takes 10 seconds:
@@ -81,7 +83,7 @@ const IOSInstallPrompt = () => {
                         <ol className="text-xs text-gray-400 space-y-1.5 list-decimal pl-4">
                             <li>Tap the <Share className="inline w-3 h-3 mb-0.5" /> Share button at the bottom of Safari</li>
                             <li>Scroll and pick <span className="text-white">Add to Home Screen</span> <Plus className="inline w-3 h-3 mb-0.5" /></li>
-                            <li>Open Fire FC from your Home Screen and enable notifications</li>
+                            <li>Open {brand.name} from your Home Screen and enable notifications</li>
                         </ol>
                         <button
                             onClick={dismiss}

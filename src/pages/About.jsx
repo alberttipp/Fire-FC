@@ -447,7 +447,7 @@ const About = () => {
                             alt=""
                             className="w-6 h-6 rounded opacity-80"
                         />
-                        <span>{brand.name} · Rockford, IL</span>
+                        <span>{brand.name}{brand.slug === 'rockford-fire-fc' && !brand.program ? ' · Rockford, IL' : ''}</span>
                     </div>
                     <div className="flex items-center gap-4">
                         <Link to="/login" className="hover:text-white transition-colors">

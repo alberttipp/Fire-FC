@@ -54,7 +54,7 @@ export function useVersionDrift({ toast, intervalMs = 5 * 60 * 1000 } = {}) {
                     if (triedFor !== target) {
                         handled.current = true;
                         try { sessionStorage.setItem('fcAutoUpdatedFor', target); } catch { /* ignore */ }
-                        try { toast?.info?.('Updating Fire FC to the latest version…', 4000); } catch { /* ignore */ }
+                        try { toast?.info?.('Updating the app to the latest version…', 4000); } catch { /* ignore */ }
                         forceUpdate();
                         return;
                     }
@@ -64,7 +64,7 @@ export function useVersionDrift({ toast, intervalMs = 5 * 60 * 1000 } = {}) {
 
                 handled.current = true;
                 if (toast?.info) {
-                    toast.info('A new version of Fire FC is available.', 30000, {
+                    toast.info('A new version of the app is available.', 30000, {
                         label: 'Update now',
                         onClick: forceUpdate,
                     });

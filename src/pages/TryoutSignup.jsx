@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { CheckCircle, Mail, Phone, User, Calendar, FileText, Send, Loader2, AlertCircle, Users, Target } from 'lucide-react';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
+import { useBranding } from '../context/BrandingContext';
 
 // Public-facing tryout signup form. No auth required.
 //
@@ -25,6 +26,7 @@ const POSITIONS = [
 ];
 
 const TryoutSignup = () => {
+    const brand = useBranding();
     const [form, setForm] = useState({
         name: '',
         parent_name: '',
@@ -100,7 +102,7 @@ const TryoutSignup = () => {
                         You're on the list
                     </h1>
                     <p className="text-gray-400 text-sm leading-relaxed mb-6">
-                        Thanks for signing up for the Rockford Fire FC tryout waitlist. A coach will reach out to {form.email || form.phone} with the next steps.
+                        Thanks for signing up for the {brand.name} tryout waitlist. A coach will reach out to {form.email || form.phone} with the next steps.
                     </p>
                     <Link to="/login" className="text-brand-green text-sm uppercase tracking-wider hover:text-white">
                         Already a member? Log in →
@@ -122,14 +124,14 @@ const TryoutSignup = () => {
                 {/* Header */}
                 <div className="max-w-md w-full text-center mb-6">
                     <div className="inline-flex items-center justify-center w-20 h-20 mb-3 filter drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                        <img src="/branding/logo.png" alt="Rockford Fire FC" className="w-full h-full object-contain" />
+                        <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-widest uppercase">
-                        Rockford Fire FC
+                        {brand.name}
                     </h1>
                     <p className="text-brand-green text-xs uppercase tracking-wider mt-1">Tryout Waitlist</p>
                     <p className="text-gray-400 text-sm mt-4 leading-relaxed">
-                        Interested in joining a Fire FC team? Drop your info and a coach will reach out with tryout dates.
+                        Interested in joining a {brand.name} team? Drop your info and a coach will reach out with tryout dates.
                     </p>
                 </div>
 
@@ -303,7 +305,7 @@ const TryoutSignup = () => {
                     </button>
 
                     <p className="text-[10px] text-gray-600 text-center pt-2">
-                        Already a Fire FC family? <Link to="/login" className="text-brand-green hover:text-white">Log in here</Link>
+                        Already a {brand.shortName} family? <Link to="/login" className="text-brand-green hover:text-white">Log in here</Link>
                     </p>
                 </form>
             </div>

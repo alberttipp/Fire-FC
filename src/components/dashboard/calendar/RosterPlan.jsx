@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, Plane, MinusCircle, ChevronDown, Copy, Check, Lo
 import { format } from 'date-fns';
 import { supabase } from '../../../supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
+import { useBranding } from '../../../context/BrandingContext';
 import { useToast } from '../../Toast';
 
 const STAFF_ROLES = new Set(['coach', 'manager', 'head_coach', 'assistant_coach', 'team_manager']);
@@ -21,6 +22,7 @@ const STATUS_CELL = {
 
 const RosterPlan = () => {
     const { user, profile } = useAuth();
+    const brand = useBranding();
     const toast = useToast();
     const [mode, setMode] = useState('tile'); // 'tile' | 'matrix'
     const [loading, setLoading] = useState(true);
@@ -124,7 +126,7 @@ const RosterPlan = () => {
 
     const handleCopy = async () => {
         const lines = [];
-        lines.push(`Fire FC Roster Plan — ${teamName}`);
+        lines.push(`${brand.name} Roster Plan — ${teamName}`);
         lines.push('─'.repeat(40));
         events.forEach(e => {
             const d = new Date(e.start_time);

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trophy, Timer, Zap, Target, X, Play } from 'lucide-react';
 import { triggerMessiMode } from '../../utils/messiMode';
+import { useBranding } from '../../context/BrandingContext';
 
 const FutsalArena = ({ onClose }) => {
+    const brand = useBranding();
     const [gameState, setGameState] = useState('start'); // start, playing, goal, gameover
     const [score, setScore] = useState({ us: 0, them: 0 });
     const [timeLeft, setTimeLeft] = useState(60);
@@ -85,7 +87,7 @@ const FutsalArena = ({ onClose }) => {
                     <div className="glass-panel px-6 py-3 rounded-full flex gap-8">
                         <div className="flex flex-col items-center">
                             <span className="text-brand-green font-black text-2xl leading-none">{score.us}</span>
-                            <span className="text-xs text-gray-500 font-bold">FIRE FC</span>
+                            <span className="text-xs text-gray-500 font-bold uppercase">{brand.shortName}</span>
                         </div>
                         <div className="text-white font-mono text-xl opacity-50">:</div>
                         <div className="flex flex-col items-center">

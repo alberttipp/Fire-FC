@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Users, UserCheck, Activity, ChevronDown, ChevronUp, Copy, Check, MessageSquare, Link as LinkIcon } from 'lucide-react';
 import { buildInviteUrl } from '../../utils/pendingInvite';
+import { useBranding } from '../../context/BrandingContext';
 
 // Rollout-period "Setup Health" panel for the manager/coach landing.
 // Shows how many players have a parent connected, how many parents are
@@ -25,6 +26,7 @@ const Stat = ({ label, value, icon: Icon, accent }) => (
 );
 
 const SetupHealthPanel = () => {
+    const brand = useBranding();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState(false);
@@ -68,7 +70,7 @@ const SetupHealthPanel = () => {
     // Pre-filled SMS body with the tap-to-join link (code as backup).
     const inviteSmsHref = (p) =>
         `sms:?&body=${encodeURIComponent(
-            `Join ${p.name} on the Fire FC app — tap to sign up and you're connected automatically:\n${buildInviteUrl(p.code)}\n\n(Backup: go to firefcapp.com and enter code ${p.code}.)`
+            `Join ${p.name} on the ${brand.name} app — tap to sign up and you're connected automatically:\n${buildInviteUrl(p.code)}\n\n(Backup: go to firefcapp.com and enter code ${p.code}.)`
         )}`;
 
     return (

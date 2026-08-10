@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Lock, Check, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
+import { useBranding } from '../../context/BrandingContext';
 import { HERO_THEMES } from './PlayerCard';
 
 // Hero Mode picker — unlockable card themes earned through play. Shows each
@@ -14,6 +15,7 @@ const META = {
 
 const HeroModeModal = ({ playerId, playerName = '', onSaved, onClose }) => {
     const toast = useToast();
+    const brand = useBranding();
     const [data, setData] = useState(null);
     const [saving, setSaving] = useState(null); // mode being saved
 
@@ -62,7 +64,7 @@ const HeroModeModal = ({ playerId, playerName = '', onSaved, onClose }) => {
                                 <span className="text-2xl">⚽</span>
                                 <div className="flex-1">
                                     <div className="text-white font-bold text-sm">Classic</div>
-                                    <div className="text-gray-400 text-xs">The standard Fire FC card.</div>
+                                    <div className="text-gray-400 text-xs">The standard {brand.shortName} card.</div>
                                 </div>
                                 {saving === 'default' ? <Loader2 className="w-4 h-4 animate-spin text-brand-gold" /> : selected === 'default' && <Check className="w-4 h-4 text-brand-gold" />}
                             </button>

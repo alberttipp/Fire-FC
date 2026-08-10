@@ -1404,23 +1404,23 @@ const ParentDashboard = () => {
 
             {/* Navbar */}
             <div className="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur border-b border-white/10 px-6 py-4">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 flex items-center justify-center filter drop-shadow-md">
-                            <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
+                <div className="max-w-7xl mx-auto flex justify-between items-center gap-2">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center filter drop-shadow-md">
+                            <img src={brand.logoUrl} alt={brand.shortName} className="max-h-full max-w-full object-contain" />
                         </div>
-                        <div>
-                            <h1 className="text-xl text-white font-display uppercase font-bold tracking-wider leading-none">
+                        <div className="min-w-0">
+                            <h1 className="text-sm sm:text-base lg:text-lg text-white font-display uppercase font-bold tracking-wide leading-tight truncate" title={brand.name}>
                                 {brand.name} <span className="text-blue-500">Family</span>
                             </h1>
-                            <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">
+                            <span className="block text-[10px] sm:text-xs text-gray-500 uppercase tracking-widest font-bold leading-tight truncate">
                                 {selectedChild ? `${selectedChild.first_name}'s Dashboard` : `${brand.name} App`}
                             </span>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-6">
-                        <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10">
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0 shrink-0 max-w-[75%]">
+                        <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10 min-w-0 overflow-x-auto no-scrollbar [&>button]:whitespace-nowrap [&>button]:shrink-0">
                             {[
                                 { id: 'overview',      label: 'Overview', icon: LayoutDashboard },
                                 { id: 'schedule',      label: 'Schedule', icon: Calendar },
