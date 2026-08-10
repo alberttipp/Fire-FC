@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import useCalendarEvents from '../../hooks/useCalendarEvents';
 import CreateEventModal from './CreateEventModal';
 import UpcomingWeek from './UpcomingWeek';
+import LeagueCentral from './LeagueCentral';
 import MonthGrid from './calendar/MonthGrid';
 import AgendaList from './calendar/AgendaList';
 import EventDetailModal from './calendar/EventDetailModal';
@@ -79,6 +80,8 @@ const CalendarHub = ({ initialEventId = null }) => {
 
     return (
         <div className="space-y-6 animate-fade-in-up">
+            {/* Official league schedule/standings deep-links (renders only if set) */}
+            <LeagueCentral />
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div>
