@@ -12,6 +12,7 @@ import { LogOut, Flame, Zap, AlertTriangle, Dumbbell, ChevronRight } from 'lucid
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
+import CardCompareModal from '../components/player/CardCompareModal';
 import TrainingStatsCard from '../components/player/TrainingStatsCard';
 import FireBall from '../game/FireBall';
 import BadgeCelebration from '../components/BadgeCelebration';
@@ -65,6 +66,8 @@ const PlayerDashboard = () => {
     const [customizeOpen, setCustomizeOpen] = useState(false);
     const [heroOpen, setHeroOpen] = useState(false);
     const [heroRefresh, setHeroRefresh] = useState(0);
+    const [teamCount, setTeamCount] = useState(1); // active teams (gates "Compare teams")
+    const [compareOpen, setCompareOpen] = useState(false);
     const [showSessionBuilder, setShowSessionBuilder] = useState(false);
     const [builderPreload, setBuilderPreload] = useState(null);
 
@@ -221,6 +224,11 @@ const PlayerDashboard = () => {
             } else {
                 console.log('[PlayerDashboard] No evaluation found for player');
             }
+
+            // How many teams is this kid actively on? Gates the "Compare teams" entry.
+            const { data: activeTeams } = await supabase
+                .from('player_teams').select('team_id').eq('player_id', playerId).eq('status', 'active');
+            setTeamCount(activeTeams?.length || 1);
 
             // 1b. Fetch Training Streak from player_stats
             await refetchPlayerStats(playerId);
@@ -662,7 +670,18 @@ const PlayerDashboard = () => {
                                 >
                                     ✨ Hero Mode
                                 </button>
+                                {teamCount > 1 && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCompareOpen(true); }}
+                                        className="text-xs text-brand-green hover:text-white font-bold uppercase tracking-wider transition-colors"
+                                    >
+                                        ⚖️ Compare teams
+                                    </button>
+                                )}
                             </div>
+                        )}
+                        {compareOpen && playerRecord && (
+                            <CardCompareModal player={playerRecord} onClose={() => setCompareOpen(false)} />
                         )}
                         {playerRecord?.id && <HeroProgress playerId={playerRecord.id} refreshKey={heroRefresh} />}
                         {heroOpen && playerRecord?.id && (

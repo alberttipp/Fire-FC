@@ -6,6 +6,7 @@ import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loa
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
+import CardCompareModal from '../components/player/CardCompareModal';
 import CardCustomizeModal from '../components/player/CardCustomizeModal';
 import HeroModeModal from '../components/player/HeroModeModal';
 import HeroProgress from '../components/player/HeroProgress';
@@ -115,6 +116,8 @@ const ParentDashboard = () => {
     // Real data state
     const [children, setChildren] = useState([]);
     const [selectedChild, setSelectedChild] = useState(null);
+    const [childTeamCount, setChildTeamCount] = useState(1); // active teams for the selected kid (gates "Compare teams")
+    const [compareOpen, setCompareOpen] = useState(false);
     const [playerStats, setPlayerStats] = useState(null);
     const [playerEvaluation, setPlayerEvaluation] = useState(null); // Coach ratings from evaluations table
     const [playerBadges, setPlayerBadges] = useState([]);
@@ -376,6 +379,7 @@ const ParentDashboard = () => {
             const kidTeamIds = (activeTeams?.length
                 ? activeTeams.map(r => r.team_id)
                 : [selectedChild?.team_id]).filter(Boolean);
+            setChildTeamCount(kidTeamIds.length || 1);
 
             if (kidTeamIds.length > 0) {
                 const { data: events } = await supabase
@@ -955,6 +959,14 @@ const ParentDashboard = () => {
                             >
                                 ✨ Hero Mode
                             </button>
+                            {childTeamCount > 1 && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setCompareOpen(true); }}
+                                    className="text-xs text-brand-green hover:text-white font-bold uppercase tracking-wider transition-colors"
+                                >
+                                    ⚖️ Compare teams
+                                </button>
+                            )}
                         </div>
                         {selectedChild?.id && <HeroProgress playerId={selectedChild.id} refreshKey={heroRefresh} />}
 
@@ -1525,6 +1537,10 @@ const ParentDashboard = () => {
                     }}
                     onClose={() => setInviteOpen(false)}
                 />
+            )}
+
+            {compareOpen && selectedChild && (
+                <CardCompareModal player={selectedChild} onClose={() => setCompareOpen(false)} />
             )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-8">
