@@ -816,18 +816,23 @@ const ParentDashboard = () => {
                     <div className="space-y-6">
                         {/* 1. Child selector if multiple children */}
                         {children.length > 1 && (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                                 {children.map(child => (
                                     <button
                                         key={child.id}
                                         onClick={() => setSelectedChild(child)}
-                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all text-left ${
                                             selectedChild?.id === child.id
                                                 ? 'bg-blue-600 text-white shadow-lg'
                                                 : 'bg-white/10 text-gray-400 hover:bg-white/20'
                                         }`}
                                     >
-                                        {child.first_name}
+                                        <span className="block leading-tight">{child.first_name}</span>
+                                        {child.teams?.name && (
+                                            <span className={`block text-[10px] font-semibold uppercase tracking-wider leading-tight ${selectedChild?.id === child.id ? 'text-blue-200' : 'text-gray-500'}`}>
+                                                {child.teams.name}
+                                            </span>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -1414,7 +1419,9 @@ const ParentDashboard = () => {
                                 {brand.name} <span className="text-blue-500">Family</span>
                             </h1>
                             <span className="block text-[10px] sm:text-xs text-gray-500 uppercase tracking-widest font-bold leading-tight truncate">
-                                {selectedChild ? `${selectedChild.first_name}'s Dashboard` : `${brand.name} App`}
+                                {selectedChild
+                                    ? `${selectedChild.first_name}'s Dashboard${selectedChild.teams?.name ? ` · ${selectedChild.teams.name}` : ''}`
+                                    : `${brand.name} App`}
                             </span>
                         </div>
                     </div>

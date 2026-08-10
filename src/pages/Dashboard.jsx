@@ -6,6 +6,7 @@ import useBackGuard from '../hooks/useBackGuard';
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
+import TeamSwitcher from '../components/TeamSwitcher';
 import { supabase } from '../supabaseClient';
 import { isStaff as isStaffRole } from '../constants/roles';
 import { useBranding } from '../context/BrandingContext';
@@ -293,13 +294,7 @@ const Dashboard = () => {
                             </h1>
                             <p className="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold leading-tight truncate">
                                 <span className="text-brand-green">{isManager ? 'Director' : 'Coach'}</span>
-                                {activeTeam && (
-                                    <>
-                                        <span className="text-gray-600"> · </span>
-                                        <span className="text-gray-300">{activeTeam.name}</span>
-                                        {activeTeam.age_group && <span className="text-brand-gold"> · {activeTeam.age_group}</span>}
-                                    </>
-                                )}
+                                <TeamSwitcher fallbackName={activeTeam?.name} fallbackAge={activeTeam?.age_group} />
                             </p>
                         </div>
                     </div>

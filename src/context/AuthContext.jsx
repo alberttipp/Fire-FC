@@ -79,6 +79,19 @@ const resolveMembershipContext = (memberships = [], profile = null) => {
         return bTime - aTime;
     });
 
+    // Honor a user-chosen active team (the team switcher) — but ONLY when they
+    // still hold a membership on it. This is additive: if active_team_id is
+    // unset or stale (team left/deleted), we fall straight through to the
+    // original heuristic below, so single-team users and the load-bearing
+    // manager/coach resolution are untouched.
+    const activeId = profile?.active_team_id;
+    if (activeId) {
+        const active = ordered.find((m) => m?.team_id === activeId);
+        if (active) {
+            return { role: active.role, team_id: active.team_id };
+        }
+    }
+
     const staffMembership = ordered.find((m) => isStaff(m?.role));
     if (staffMembership) {
         return {
@@ -108,6 +121,9 @@ export const AuthProvider = ({ children }) => {
     const [session, setSession] = useState(null);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    // Full team_memberships list for the current user — kept (not discarded)
+    // so a team switcher can offer every staff team the user belongs to.
+    const [memberships, setMemberships] = useState([]);
 
     const [demoUser, setDemoUser] = useState(null);
     // Last user id we SUCCESSFULLY fetched profile + memberships for, so the
@@ -216,6 +232,9 @@ export const AuthProvider = ({ children }) => {
 
             const membershipContext = resolveMembershipContext(memberships || [], data);
             const resolvedRole = membershipContext.role || data?.role || null;
+            // Keep the full list for the team switcher (only matters for users
+            // on >1 team; harmless otherwise).
+            setMemberships(memberships || []);
 
             // CRITICAL: a REAL authenticated user (fetchProfile only ever runs
             // for Supabase sessions, never virtual users) resolving to NO role
@@ -274,9 +293,29 @@ export const AuthProvider = ({ children }) => {
         clearVirtualUser();
         setUser(null);
         setProfile(null);
+        setMemberships([]);
         lastProfileUserId.current = null;
         inFlightUserId.current = null;
         return supabase.auth.signOut();
+    };
+
+    // Team switcher: point the app at another team the user belongs to. Updates
+    // in-state context immediately (every surface reads profile.team_id, so they
+    // all re-scope) and persists the choice to profiles.active_team_id so it
+    // sticks across reloads/devices. Fire-and-forget the DB write — the UI is
+    // already correct locally and a failed write just means the old fallback
+    // heuristic applies next login.
+    const switchTeam = (teamId) => {
+        if (!teamId || !user?.id) return;
+        const target = memberships.find((m) => m?.team_id === teamId);
+        setProfile((prev) => prev ? {
+            ...prev,
+            team_id: teamId,
+            role: target?.role || prev.role,
+            active_team_id: teamId,
+        } : prev);
+        // .update() returns a thenable, not a Promise — use then(ok, err), never .catch().
+        supabase.from('profiles').update({ active_team_id: teamId }).eq('id', user.id).then(undefined, () => {});
     };
 
     const signUp = async (email, password, metadata = {}) => {
@@ -423,6 +462,8 @@ export const AuthProvider = ({ children }) => {
         user: demoUser || user,
         session,
         profile,
+        memberships,
+        switchTeam,
         signIn,
         signOut,
         signUp,
