@@ -7,6 +7,7 @@ import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
 import PlayerCard from '../components/player/PlayerCard';
 import CardCompareModal from '../components/player/CardCompareModal';
+import PlaybookView from '../components/playbook/PlaybookView';
 import CardCustomizeModal from '../components/player/CardCustomizeModal';
 import HeroModeModal from '../components/player/HeroModeModal';
 import HeroProgress from '../components/player/HeroProgress';
@@ -1116,6 +1117,14 @@ const ParentDashboard = () => {
                                 playerName={selectedChild.first_name}
                             />
                         )}
+
+                        {/* Playbook — learn your position in the team's shape (renders
+                            nothing unless the team has a published playbook). */}
+                        <PlaybookView
+                            teamId={selectedChild?.team_id || null}
+                            playerId={selectedChild?.id || null}
+                            position={selectedChild?.position || null}
+                        />
 
                         {/* 7. Leaderboard — scoped to the selected child's team. */}
                         <Leaderboard teamId={selectedChild?.team_id || null} teamName={selectedChild?.teams?.name || null} />

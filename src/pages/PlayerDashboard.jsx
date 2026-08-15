@@ -13,6 +13,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { triggerMessiMode } from '../utils/messiMode';
 import Leaderboard from '../components/player/Leaderboard';
 import CardCompareModal from '../components/player/CardCompareModal';
+import PlaybookView from '../components/playbook/PlaybookView';
 import TrainingStatsCard from '../components/player/TrainingStatsCard';
 import FireBall from '../game/FireBall';
 import BadgeCelebration from '../components/BadgeCelebration';
@@ -824,6 +825,14 @@ const PlayerDashboard = () => {
                             onStartRoutine={(r) => { setBuilderPreload(r); setShowSessionBuilder(true); }}
                         />
                     )}
+
+                    {/* The Playbook — learn your position in the team's shape. Renders
+                        nothing unless the team has a published playbook. */}
+                    <PlaybookView
+                        teamId={playerRecord?.team_id || playerProfile?.team_id || null}
+                        playerId={playerRecord?.id || null}
+                        position={playerRecord?.position || null}
+                    />
 
                     <Leaderboard teamId={playerRecord?.team_id || playerProfile?.team_id || null} />
 
