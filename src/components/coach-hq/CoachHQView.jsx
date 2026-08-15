@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck, BookOpen } from 'lucide-react';
+import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck, BookOpen, FileText } from 'lucide-react';
+
+// Teams with an in-app "About your app" overview page in /public. Keyed by team
+// so a white-label coach sees their own overview and others see nothing.
+const TEAM_OVERVIEWS = {
+    'e2dea251-57ff-4e65-8588-efeabed40093': '/coach-will-overview.html', // Coach Will's Raptors
+};
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
@@ -364,6 +370,21 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 </span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
+
+            {/* About your app — the one-pager overview to review or share with families */}
+            {TEAM_OVERVIEWS[teamId] && (
+                <button
+                    type="button"
+                    onClick={() => window.open(TEAM_OVERVIEWS[teamId], '_blank', 'noopener')}
+                    className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+                >
+                    <FileText className="w-5 h-5 text-brand-gold shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        About your app — what your team gets (review &amp; share with families)
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Upcoming events — UpcomingWeek already shows live attendance + tap-to-modal */}
             <UpcomingWeek teamId={teamId} />
