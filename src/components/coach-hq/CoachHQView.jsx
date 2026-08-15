@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck, BookOpen } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
@@ -22,6 +22,7 @@ const CoachDrillsDrilldown  = lazy(() => import('./CoachDrillsDrilldown'));
 const TeamEvalGrid          = lazy(() => import('./TeamEvalGrid'));
 const EvalViewsDrilldown    = lazy(() => import('./EvalViewsDrilldown'));
 const SponsorsDrilldown     = lazy(() => import('./SponsorsDrilldown'));
+const PlaybookAuthoring     = lazy(() => import('./PlaybookAuthoring'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -54,6 +55,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
         return () => { alive = false; };
     }, []);
     const [showSponsors, setShowSponsors] = useState(false);
+    const [showPlaybook, setShowPlaybook] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -350,6 +352,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
 
+            {/* The Playbook — AI-built, per-position lessons for your formation */}
+            <button
+                type="button"
+                onClick={() => setShowPlaybook(true)}
+                className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors"
+            >
+                <BookOpen className="w-5 h-5 text-brand-green shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    The Playbook — AI watches your videos &amp; writes a lesson for every position
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+
             {/* Upcoming events — UpcomingWeek already shows live attendance + tap-to-modal */}
             <UpcomingWeek teamId={teamId} />
 
@@ -370,6 +385,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
                 {showEvalGrid             && <TeamEvalGrid teamId={teamId} onClose={() => setShowEvalGrid(false)} />}
                 {showEvalViews            && <EvalViewsDrilldown teamId={teamId} onClose={() => setShowEvalViews(false)} />}
                 {showSponsors             && <SponsorsDrilldown teamId={teamId} onClose={() => setShowSponsors(false)} />}
+                {showPlaybook             && <PlaybookAuthoring teamId={teamId} onClose={() => setShowPlaybook(false)} />}
             </Suspense>
         </div>
     );
