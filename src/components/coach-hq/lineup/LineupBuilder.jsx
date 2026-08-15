@@ -77,7 +77,7 @@ const LineupBuilder = ({ event, onClose }) => {
         let cancelled = false;
         (async () => {
             setLoading(true);
-            const [rosterRes, lineupRes] = await Promise.all([
+            const [rosterRes, lineupRes, teamRes] = await Promise.all([
                 supabase
                     .from('player_teams')
                     .select('player_id, players!inner(id,first_name,last_name,jersey_number,practice_only)')
@@ -86,6 +86,11 @@ const LineupBuilder = ({ event, onClose }) => {
                     .from('event_lineups')
                     .select('formation, lineup')
                     .eq('event_id', event.id)
+                    .maybeSingle(),
+                supabase
+                    .from('teams')
+                    .select('default_formation')
+                    .eq('id', event.team_id)
                     .maybeSingle(),
             ]);
             if (cancelled) return;
@@ -96,7 +101,9 @@ const LineupBuilder = ({ event, onClose }) => {
             roster.sort((a, b) => (a.jersey_number ?? 999) - (b.jersey_number ?? 999) || (a.last_name || '').localeCompare(b.last_name || ''));
             setPlayers(roster);
 
-            const fmt = lineupRes.data?.formation || '4-4-2';
+            // A saved lineup wins; otherwise fall back to the team's preferred
+            // formation (e.g. Coach Will's 4-3-1), then the app default.
+            const fmt = lineupRes.data?.formation || teamRes.data?.default_formation || '4-4-2';
             setFormation(fmt);
 
             const next = {};

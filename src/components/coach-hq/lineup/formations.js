@@ -8,6 +8,22 @@
 // table is simpler than a layout engine and reads like a tactics board.
 
 export const FORMATIONS = {
+    // 9v9 (GK + 8) — the U11 format. Listed first so it's the leftmost pill and
+    // the natural default for 9v9 teams (e.g. Coach Will's Raptors run a 4-3-1).
+    '4-3-1': {
+        label: '4-3-1',
+        slots: [
+            { id: 'GK',  x: 50, y: 92 },
+            { id: 'LB',  x: 15, y: 74 },
+            { id: 'LCB', x: 38, y: 78 },
+            { id: 'RCB', x: 62, y: 78 },
+            { id: 'RB',  x: 85, y: 74 },
+            { id: 'LCM', x: 28, y: 50 },
+            { id: 'CM',  x: 50, y: 52 },
+            { id: 'RCM', x: 72, y: 50 },
+            { id: 'ST',  x: 50, y: 24 },
+        ],
+    },
     '4-4-2': {
         label: '4-4-2',
         slots: [
