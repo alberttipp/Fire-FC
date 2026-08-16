@@ -9,6 +9,7 @@ import MobileBottomNav from '../components/MobileBottomNav';
 import TeamSwitcher from '../components/TeamSwitcher';
 import { supabase } from '../supabaseClient';
 import { isStaff as isStaffRole } from '../constants/roles';
+import { trackScreen } from '../utils/analytics';
 import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
 import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
@@ -94,6 +95,14 @@ const Dashboard = () => {
         setShowPreviewPicker(false);
         setMobileMenuOpen(false);
     }, [currentView]);
+
+    // Record which screen the user is on. Nearly all of this dashboard lives at
+    // /dashboard and switches views in local state, so route-level page_views
+    // say almost nothing — this is the signal that shows what someone actually
+    // opened and how far they explored.
+    useEffect(() => {
+        trackScreen(currentView, { teamId: activeTeam?.id || profile?.team_id || null, role: profile?.role || null });
+    }, [currentView, activeTeam?.id, profile?.team_id, profile?.role]);
 
     // Track a wrapper so a button click prevents the staff default from
     // overriding the user's pick after profile loads late.

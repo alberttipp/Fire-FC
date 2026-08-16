@@ -18,6 +18,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './components/Toast';
 import { ConfirmDialogProvider } from './components/ConfirmDialog';
 import { useVersionDrift } from './hooks/useVersionDrift';
+import { useTrackPageView } from './hooks/useTrackPageView';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
 import { SponsorProvider } from './context/SponsorContext';
@@ -35,6 +36,14 @@ import { logBuildInfo } from './utils/buildInfo';
 const VersionDriftWatcher = () => {
   const toast = useToast();
   useVersionDrift({ toast });
+  return null;
+};
+
+// Records a page_view on every route change. Lives inside <Router> so it can
+// read the location; trackEvent() no-ops when nobody is signed in, so this is
+// silent on /login and the other public routes.
+const PageViewTracker = () => {
+  useTrackPageView();
   return null;
 };
 
@@ -135,6 +144,7 @@ function App() {
         <ConfirmDialogProvider>
         <VersionDriftWatcher />
         <Router>
+          <PageViewTracker />
           <BrandingProvider>
           <SponsorProvider>
           <AuthProvider>
