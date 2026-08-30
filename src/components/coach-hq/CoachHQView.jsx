@@ -8,6 +8,7 @@ const TEAM_OVERVIEWS = {
     'e2dea251-57ff-4e65-8588-efeabed40093': '/coach-will-overview.html', // Coach Will's Raptors
 };
 import { supabase } from '../../supabaseClient';
+import { trackEvent } from '../../utils/analytics';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
@@ -375,7 +376,10 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
             {TEAM_OVERVIEWS[teamId] && (
                 <button
                     type="button"
-                    onClick={() => window.open(TEAM_OVERVIEWS[teamId], '_blank', 'noopener')}
+                    onClick={() => {
+                        trackEvent('open_overview', { overview: TEAM_OVERVIEWS[teamId] }, { teamId });
+                        window.open(TEAM_OVERVIEWS[teamId], '_blank', 'noopener');
+                    }}
                     className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
                 >
                     <FileText className="w-5 h-5 text-brand-gold shrink-0" />

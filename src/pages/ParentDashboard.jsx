@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell, Trophy } from 'lucide-react';
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
+import { trackScreen } from '../utils/analytics';
 import PlayerCard from '../components/player/PlayerCard';
 import CardCompareModal from '../components/player/CardCompareModal';
 import PlaybookView from '../components/playbook/PlaybookView';
@@ -113,6 +114,13 @@ const ParentDashboard = () => {
         if (map[v]) setCurrentView(map[v]);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Record which screen the parent is on — same reasoning as the coach
+    // Dashboard: this view lives entirely at /parent-dashboard and switches in
+    // local state, so route-level page_views can't show what they opened.
+    useEffect(() => {
+        trackScreen(currentView, { teamId: profile?.team_id || null, role: profile?.role || 'parent' });
+    }, [currentView, profile?.team_id, profile?.role]);
 
     // Real data state
     const [children, setChildren] = useState([]);
