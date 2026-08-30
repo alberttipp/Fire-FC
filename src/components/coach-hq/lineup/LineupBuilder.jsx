@@ -5,7 +5,7 @@ import { supabase } from '../../../supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../Toast';
 import { STAFF_ROLES } from '../../../constants/roles';
-import { FORMATIONS } from './formations';
+import { FORMATIONS, formationSizeForAgeGroup } from './formations';
 import SoccerPitch from './SoccerPitch';
 import AvailablePlayers from './AvailablePlayers';
 import FormationPicker from './FormationPicker';
@@ -32,6 +32,7 @@ const LineupBuilder = ({ event, onClose }) => {
     const readOnly = !isStaff;
 
     const [formation, setFormation] = useState('4-4-2');
+    const [teamSize, setTeamSize] = useState(11); // 9v9 vs 11v11 → which formations to offer
     // assignments shape: { [slotId]: { player_id, name, jersey } | null }
     const [assignments, setAssignments] = useState({});
     const [players, setPlayers] = useState([]);
@@ -89,11 +90,14 @@ const LineupBuilder = ({ event, onClose }) => {
                     .maybeSingle(),
                 supabase
                     .from('teams')
-                    .select('default_formation')
+                    .select('default_formation, age_group')
                     .eq('id', event.team_id)
                     .maybeSingle(),
             ]);
             if (cancelled) return;
+
+            // 9v9 vs 11v11 → limits the formation options to the team's format.
+            setTeamSize(formationSizeForAgeGroup(teamRes.data?.age_group));
 
             // Practice-only players don't play games — keep them out of game lineups.
             const roster = (rosterRes.data || []).map(r => r.players).filter(p => !p.practice_only);
@@ -259,7 +263,7 @@ const LineupBuilder = ({ event, onClose }) => {
 
                 {/* Compact toolbar — formation pills + count + save in one row */}
                 <div className="px-2 py-1.5 border-b border-white/10 flex items-center gap-2 shrink-0">
-                    <FormationPicker value={formation} onChange={handleFormationChange} readOnly={readOnly} />
+                    <FormationPicker value={formation} onChange={handleFormationChange} readOnly={readOnly} size={teamSize} />
                     <span className={`text-[11px] font-bold shrink-0 tabular-nums px-1.5 py-0.5 rounded
                         ${allOnField ? 'bg-brand-green/20 text-brand-green' : 'text-gray-300'}`}>
                         {filledCount}/{slots.length}

@@ -1,15 +1,19 @@
 import React from 'react';
-import { FORMATION_IDS } from './formations';
+import { FORMATION_IDS, formationIdsForSize } from './formations';
 
-// Four-button row for switching formations. Switching does NOT reset
-// assignments — slot ids that exist in both formations carry over;
-// players whose slot disappears go back to the bench automatically
-// (LineupBuilder reconciles).
-const FormationPicker = ({ value, onChange, readOnly }) => (
+// Row of formation buttons. Switching does NOT reset assignments — slot ids that
+// exist in both formations carry over; players whose slot disappears go back to
+// the bench (LineupBuilder reconciles).
+//
+// `size` (9 or 11) limits the options to that format — a 9v9 team sees the 4-3-1,
+// an 11v11 team sees the common 11v11 shapes. Omit `size` to show all.
+const FormationPicker = ({ value, onChange, readOnly, size = null }) => {
+    const ids = size ? formationIdsForSize(size, value) : FORMATION_IDS;
+    return (
     <div className="flex items-center gap-1.5 min-w-0 flex-1">
         <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold shrink-0 hidden sm:inline">Formation</span>
         <div className="flex bg-white/5 rounded-lg p-1 border border-white/10 overflow-x-auto no-scrollbar">
-            {FORMATION_IDS.map(id => (
+            {ids.map(id => (
                 <button
                     key={id}
                     type="button"
@@ -24,6 +28,7 @@ const FormationPicker = ({ value, onChange, readOnly }) => (
             ))}
         </div>
     </div>
-);
+    );
+};
 
 export default FormationPicker;

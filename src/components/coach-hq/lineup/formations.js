@@ -4,14 +4,17 @@
 // half. Slot ids must be unique within a formation; the same id (e.g.
 // 'ST') is used in the lineup jsonb so changing a formation re-keys.
 //
+// `size` = players on the field for that format (9 = 9v9, 11 = 11v11). The
+// FormationPicker filters by the team's format so a 9v9 team (e.g. U11) sees
+// the 4-3-1 and an 11v11 team (U13+) sees the common 11v11 shapes.
+//
 // Why hard-coded coords: kids' formations don't change often; a static
 // table is simpler than a layout engine and reads like a tactics board.
 
 export const FORMATIONS = {
-    // 9v9 (GK + 8) — the U11 format. Listed first so it's the leftmost pill and
-    // the natural default for 9v9 teams (e.g. Coach Will's Raptors run a 4-3-1).
+    // ---- 9v9 (GK + 8) — U11/U12 ----
     '4-3-1': {
-        label: '4-3-1',
+        label: '4-3-1', size: 9,
         slots: [
             { id: 'GK',  x: 50, y: 92 },
             { id: 'LB',  x: 15, y: 74 },
@@ -24,24 +27,10 @@ export const FORMATIONS = {
             { id: 'ST',  x: 50, y: 24 },
         ],
     },
-    '4-4-2': {
-        label: '4-4-2',
-        slots: [
-            { id: 'GK',  x: 50, y: 92 },
-            { id: 'LB',  x: 15, y: 72 },
-            { id: 'LCB', x: 38, y: 76 },
-            { id: 'RCB', x: 62, y: 76 },
-            { id: 'RB',  x: 85, y: 72 },
-            { id: 'LM',  x: 15, y: 50 },
-            { id: 'LCM', x: 38, y: 52 },
-            { id: 'RCM', x: 62, y: 52 },
-            { id: 'RM',  x: 85, y: 50 },
-            { id: 'ST',  x: 38, y: 25 },
-            { id: 'ST2', x: 62, y: 25 },
-        ],
-    },
+
+    // ---- 11v11 (GK + 10) — U13+ ----
     '4-3-3': {
-        label: '4-3-3',
+        label: '4-3-3', size: 11,
         slots: [
             { id: 'GK',  x: 50, y: 92 },
             { id: 'LB',  x: 15, y: 72 },
@@ -56,8 +45,24 @@ export const FORMATIONS = {
             { id: 'RW',  x: 82, y: 22 },
         ],
     },
+    '4-4-2': {
+        label: '4-4-2', size: 11,
+        slots: [
+            { id: 'GK',  x: 50, y: 92 },
+            { id: 'LB',  x: 15, y: 72 },
+            { id: 'LCB', x: 38, y: 76 },
+            { id: 'RCB', x: 62, y: 76 },
+            { id: 'RB',  x: 85, y: 72 },
+            { id: 'LM',  x: 15, y: 50 },
+            { id: 'LCM', x: 38, y: 52 },
+            { id: 'RCM', x: 62, y: 52 },
+            { id: 'RM',  x: 85, y: 50 },
+            { id: 'ST',  x: 38, y: 25 },
+            { id: 'ST2', x: 62, y: 25 },
+        ],
+    },
     '4-2-3-1': {
-        label: '4-2-3-1',
+        label: '4-2-3-1', size: 11,
         slots: [
             { id: 'GK',  x: 50, y: 92 },
             { id: 'LB',  x: 15, y: 72 },
@@ -72,8 +77,40 @@ export const FORMATIONS = {
             { id: 'ST',  x: 50, y: 18 },
         ],
     },
+    '4-1-4-1': {
+        label: '4-1-4-1', size: 11,
+        slots: [
+            { id: 'GK',  x: 50, y: 92 },
+            { id: 'LB',  x: 15, y: 72 },
+            { id: 'LCB', x: 38, y: 76 },
+            { id: 'RCB', x: 62, y: 76 },
+            { id: 'RB',  x: 85, y: 72 },
+            { id: 'CDM', x: 50, y: 60 },
+            { id: 'LM',  x: 15, y: 44 },
+            { id: 'LCM', x: 38, y: 46 },
+            { id: 'RCM', x: 62, y: 46 },
+            { id: 'RM',  x: 85, y: 44 },
+            { id: 'ST',  x: 50, y: 18 },
+        ],
+    },
+    '4-5-1': {
+        label: '4-5-1', size: 11,
+        slots: [
+            { id: 'GK',  x: 50, y: 92 },
+            { id: 'LB',  x: 15, y: 72 },
+            { id: 'LCB', x: 38, y: 76 },
+            { id: 'RCB', x: 62, y: 76 },
+            { id: 'RB',  x: 85, y: 72 },
+            { id: 'LM',  x: 12, y: 50 },
+            { id: 'LCM', x: 32, y: 50 },
+            { id: 'CM',  x: 50, y: 52 },
+            { id: 'RCM', x: 68, y: 50 },
+            { id: 'RM',  x: 88, y: 50 },
+            { id: 'ST',  x: 50, y: 20 },
+        ],
+    },
     '3-5-2': {
-        label: '3-5-2',
+        label: '3-5-2', size: 11,
         slots: [
             { id: 'GK',  x: 50, y: 92 },
             { id: 'LCB', x: 25, y: 76 },
@@ -88,8 +125,24 @@ export const FORMATIONS = {
             { id: 'ST2', x: 62, y: 22 },
         ],
     },
+    '5-3-2': {
+        label: '5-3-2', size: 11,
+        slots: [
+            { id: 'GK',  x: 50, y: 92 },
+            { id: 'LWB', x: 12, y: 68 },
+            { id: 'LCB', x: 30, y: 78 },
+            { id: 'CB',  x: 50, y: 80 },
+            { id: 'RCB', x: 70, y: 78 },
+            { id: 'RWB', x: 88, y: 68 },
+            { id: 'LCM', x: 32, y: 50 },
+            { id: 'CM',  x: 50, y: 52 },
+            { id: 'RCM', x: 68, y: 50 },
+            { id: 'ST',  x: 38, y: 22 },
+            { id: 'ST2', x: 62, y: 22 },
+        ],
+    },
     '3-4-3': {
-        label: '3-4-3',
+        label: '3-4-3', size: 11,
         slots: [
             { id: 'GK',  x: 50, y: 92 },
             { id: 'LCB', x: 25, y: 76 },
@@ -105,7 +158,7 @@ export const FORMATIONS = {
         ],
     },
     '3-4-1-2': {
-        label: '3-4-1-2',
+        label: '3-4-1-2', size: 11,
         slots: [
             { id: 'GK',  x: 50, y: 92 },
             { id: 'LCB', x: 25, y: 76 },
@@ -120,24 +173,8 @@ export const FORMATIONS = {
             { id: 'ST2', x: 62, y: 16 },
         ],
     },
-    '3-3-3-1': {
-        label: '3-3-3-1',
-        slots: [
-            { id: 'GK',  x: 50, y: 92 },
-            { id: 'LCB', x: 25, y: 76 },
-            { id: 'CB',  x: 50, y: 78 },
-            { id: 'RCB', x: 75, y: 76 },
-            { id: 'LDM', x: 30, y: 60 },
-            { id: 'CDM', x: 50, y: 60 },
-            { id: 'RDM', x: 70, y: 60 },
-            { id: 'LAM', x: 22, y: 36 },
-            { id: 'CAM', x: 50, y: 36 },
-            { id: 'RAM', x: 78, y: 36 },
-            { id: 'ST',  x: 50, y: 14 },
-        ],
-    },
     '3-1-4-2': {
-        label: '3-1-4-2',
+        label: '3-1-4-2', size: 11,
         slots: [
             { id: 'GK',  x: 50, y: 92 },
             { id: 'LCB', x: 25, y: 76 },
@@ -152,13 +189,43 @@ export const FORMATIONS = {
             { id: 'ST2', x: 62, y: 18 },
         ],
     },
+    '3-3-3-1': {
+        label: '3-3-3-1', size: 11,
+        slots: [
+            { id: 'GK',  x: 50, y: 92 },
+            { id: 'LCB', x: 25, y: 76 },
+            { id: 'CB',  x: 50, y: 78 },
+            { id: 'RCB', x: 75, y: 76 },
+            { id: 'LDM', x: 30, y: 60 },
+            { id: 'CDM', x: 50, y: 60 },
+            { id: 'RDM', x: 70, y: 60 },
+            { id: 'LAM', x: 22, y: 36 },
+            { id: 'CAM', x: 50, y: 36 },
+            { id: 'RAM', x: 78, y: 36 },
+            { id: 'ST',  x: 50, y: 14 },
+        ],
+    },
 };
 
 export const FORMATION_IDS = Object.keys(FORMATIONS);
 
+// How many outfield+GK a team fields, inferred from its age group. US Soccer:
+// U11/U12 = 9v9, U13+ = 11v11 (U9/U10 7v7 isn't offered here → nearest is 9v9).
+// Parses the first number out of strings like "U11", "U19 Girls", "U12 Coed".
+export function formationSizeForAgeGroup(ageGroup) {
+    const m = String(ageGroup || '').match(/(\d{1,2})/);
+    if (!m) return 11;               // unknown → default to 11v11
+    return Number(m[1]) <= 12 ? 9 : 11;
+}
+
+// Formation ids valid for a given team size, keeping the current value even if
+// it doesn't match (so a saved lineup never loses its formation).
+export function formationIdsForSize(size, current) {
+    const ids = FORMATION_IDS.filter((id) => (FORMATIONS[id].size || 11) === size);
+    return current && !ids.includes(current) ? [current, ...ids] : ids;
+}
+
 // Friendly label per slot id, used in tooltips + per-row drilldowns.
-// Kept generic — coaches who care about specific tactics can rename in
-// their head; the slot id is the source of truth.
 export const SLOT_LABELS = {
     GK: 'Goalkeeper',
     LB: 'Left Back', RB: 'Right Back',
