@@ -11,7 +11,7 @@ export const DEFAULT_BRAND = {
     program: null,           // set when branding is resolved from a per-coach program (?p=slug)
     name: 'Rock City FC',
     shortName: 'Rock City',
-    logoUrl: '/branding/rockcity-crest.svg',
+    logoUrl: '/branding/rockcity-crest.png',
     primaryColor: '#3b82f6', // Tailwind brand-green (channels default in index.css / tailwind.config)
     accentColor: '#d4af37',  // Tailwind brand-gold
     aiPersona: '',
