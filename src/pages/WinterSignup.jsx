@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useBranding } from '../context/BrandingContext';
 import { useAuth } from '../context/AuthContext';
@@ -34,30 +34,18 @@ const suggestedU = (dob) => {
 export default function WinterSignup() {
     const brand = useBranding();
     const [teams, setTeams] = useState(null);      // null = loading
-    const [signupsByTeam, setSignupsByTeam] = useState({});
     const [modalTeam, setModalTeam] = useState(null); // team object when committing
     const [loadErr, setLoadErr] = useState('');
 
+    // Public view intentionally does NOT load or show who has committed / how
+    // many (Albert may re-enable later). Only the team list is fetched.
     const load = async () => {
-        const [tRes, sRes] = await Promise.all([
-            supabase.rpc('list_winter_teams', { p_org_slug: brand.slug }),
-            supabase.rpc('list_winter_signups', { p_org_slug: brand.slug }),
-        ]);
+        const tRes = await supabase.rpc('list_winter_teams', { p_org_slug: brand.slug });
         if (tRes.error) { setLoadErr("Couldn't load teams. Please refresh."); setTeams([]); return; }
         setTeams(tRes.data || []);
-        const grouped = {};
-        (sRes.data || []).forEach((s) => {
-            (grouped[s.team_id] = grouped[s.team_id] || []).push(s);
-        });
-        setSignupsByTeam(grouped);
     };
 
     useEffect(() => { if (brand?.slug) load(); /* eslint-disable-next-line */ }, [brand?.slug]);
-
-    const totalCommitted = useMemo(
-        () => Object.values(signupsByTeam).reduce((n, arr) => n + arr.filter(s => s.status === 'committed').length, 0),
-        [signupsByTeam]
-    );
 
     return (
         <div className="min-h-screen text-white" style={{ background: 'radial-gradient(120% 90% at 50% -10%, #16305c 0%, #0b1a33 55%)' }}>
@@ -103,12 +91,21 @@ export default function WinterSignup() {
                 </div>
             </div>
 
+            {/* The kit */}
+            <div className="px-4 max-w-3xl mx-auto mb-8">
+                <div className="glass-panel p-5">
+                    <div className="text-[#e6cd87] font-display uppercase tracking-wider text-sm mb-1">The kit</div>
+                    <p className="text-sm text-gray-300 mb-4">Represent your city. Navy &amp; gold — rock the pitch, blaze the trail.</p>
+                    <div className="flex items-end justify-center gap-6 md:gap-12 flex-wrap">
+                        <img src="/branding/rockcity-jersey.png" alt="Rock City FC jersey" className="h-44 md:h-60 object-contain drop-shadow-2xl" />
+                        <img src="/branding/rockcity-hoodie.png" alt="Rock City FC hoodie" className="h-44 md:h-60 object-contain drop-shadow-2xl" />
+                    </div>
+                </div>
+            </div>
+
             {/* Teams */}
             <div className="px-4 max-w-3xl mx-auto pb-24">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87]">Pick your team</h2>
-                    {totalCommitted > 0 && <span className="text-xs text-gray-400">{totalCommitted} committed so far</span>}
-                </div>
+                <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87] mb-3">Pick your team</h2>
 
                 {teams === null && <p className="text-gray-500">Loading teams…</p>}
                 {loadErr && <p className="text-red-400 text-sm">{loadErr}</p>}
@@ -117,43 +114,17 @@ export default function WinterSignup() {
                 )}
 
                 <div className="grid md:grid-cols-2 gap-4">
-                    {(teams || []).map((t) => {
-                        const list = (signupsByTeam[t.team_id] || []).filter(s => s.status === 'committed');
-                        return (
-                            <div key={t.team_id} className="glass-panel p-5 flex flex-col">
-                                <div className="flex items-baseline justify-between">
-                                    <div className="text-xl font-display font-bold">{t.age_group}</div>
-                                    <div className="text-sm text-[#e6cd87] font-bold">{list.length} committed</div>
-                                </div>
-                                <div className="text-xs text-gray-400 mb-1">{t.name}</div>
-                                {t.coach_name && <div className="text-xs text-[#e6cd87] mb-3">Coach {t.coach_name}</div>}
-
-                                {/* Transparent roster-in-progress */}
-                                <div className="flex-1 mb-4">
-                                    {list.length === 0 ? (
-                                        <p className="text-sm text-gray-500 italic">Be the first to commit! 🚀</p>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {list.map((s, i) => (
-                                                <span key={i} className="text-xs bg-white/5 border border-white/10 rounded-full px-2.5 py-1">
-                                                    {s.first_name} {s.last_initial}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <button onClick={() => setModalTeam(t)} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
-                                    Commit to {t.age_group}
-                                </button>
-                            </div>
-                        );
-                    })}
+                    {(teams || []).map((t) => (
+                        <div key={t.team_id} className="glass-panel p-5 flex flex-col">
+                            <div className="text-xl font-display font-bold">{t.age_group}</div>
+                            <div className="text-xs text-gray-400 mb-1">{t.name}</div>
+                            {t.coach_name && <div className="text-xs text-[#e6cd87] mb-4">Coach {t.coach_name}</div>}
+                            <button onClick={() => setModalTeam(t)} className="mt-auto px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
+                                Commit to {t.age_group}
+                            </button>
+                        </div>
+                    ))}
                 </div>
-
-                <p className="text-[11px] text-gray-500 text-center mt-6">
-                    We show first name + last initial only — full commitment. Real transparency: see exactly who's in before you decide.
-                </p>
             </div>
 
             <QASection orgSlug={brand.slug} brandName={brand.name} />
