@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useBranding } from '../context/BrandingContext';
+import { useAuth } from '../context/AuthContext';
 
 // Public, branded WINTER SIGN-UP PORTAL. Resolves the club from ?club=slug
 // (via BrandingContext), lists the winter teams, and shows — in real time and
@@ -96,9 +97,9 @@ export default function WinterSignup() {
                     <Detail k="League" v="Winter International League — indoor" />
                     <Detail k="Format" v="8v8 indoor (confirming with the league)" />
                     <Detail k="Season" v="Start date & schedule being finalized — commit to hold your spot." />
-                    <Detail k="Coaches" v="U11 — Kevan Watkins · U12 — Jeremy Gunderson (parent coaches)." />
+                    <Detail k="Coaches" v="U11 — Kevan Watkins · U12 — Jeremy Gunderson." />
                     <Detail k="Practice" v="Both teams train together — at least 1 practice a week, plus a second day of competitive free play. Rock Valley College, with Elite Sports Center & Sports Core 2 as backups." />
-                    <Detail k="Cost" v="Kept as low as possible — parent coaches, college field time, and sponsors covering indoor time. Target ~$150–200/player; final fee confirmed soon." />
+                    <Detail k="Cost" v="Kept as low as possible — college field time and sponsors covering indoor time. Target $150–250/player depending on field costs; final fee confirmed soon." />
                 </div>
             </div>
 
@@ -155,6 +156,8 @@ export default function WinterSignup() {
                 </p>
             </div>
 
+            <QASection orgSlug={brand.slug} brandName={brand.name} />
+
             {modalTeam && (
                 <CommitModal
                     team={modalTeam}
@@ -163,6 +166,133 @@ export default function WinterSignup() {
                     onDone={async () => { setModalTeam(null); await load(); }}
                 />
             )}
+        </div>
+    );
+}
+
+// Live Q&A. Anyone can ask (notifies staff); club staff (manager/coach of the
+// org, detected via am_i_winter_staff) get inline answer controls right here.
+// Answered questions become a public FAQ.
+function QASection({ orgSlug, brandName }) {
+    const { user, profile } = useAuth();
+    const [qa, setQa] = useState([]);          // answered (public)
+    const [isStaff, setIsStaff] = useState(false);
+    const [adminQs, setAdminQs] = useState([]); // all (staff only)
+    const [q, setQ] = useState('');
+    const [askerName, setAskerName] = useState('');
+    const [askerContact, setAskerContact] = useState('');
+    const [asked, setAsked] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+
+    const load = async () => {
+        const pub = await supabase.rpc('list_winter_qa', { p_org_slug: orgSlug });
+        setQa(pub.data || []);
+        if (user?.id) {
+            const staffRes = await supabase.rpc('am_i_winter_staff', { p_org_slug: orgSlug });
+            const staff = staffRes.data === true;
+            setIsStaff(staff);
+            if (staff) {
+                const adm = await supabase.rpc('list_winter_questions_admin', { p_org_slug: orgSlug });
+                setAdminQs(adm.data || []);
+            }
+        }
+    };
+    useEffect(() => { if (orgSlug) load(); /* eslint-disable-next-line */ }, [orgSlug, user?.id]);
+
+    const submit = async () => {
+        setErr('');
+        if (!q.trim()) { setErr('Please type your question.'); return; }
+        setBusy(true);
+        const { data, error } = await supabase.rpc('submit_winter_question', {
+            p_org_slug: orgSlug, p_question: q, p_asker_name: askerName, p_asker_contact: askerContact,
+        });
+        setBusy(false);
+        if (error || (data && data.success === false)) { setErr((data && data.message) || 'Could not send — please try again.'); return; }
+        setAsked(true); setQ(''); setAskerName(''); setAskerContact('');
+    };
+
+    const pending = adminQs.filter((x) => x.status === 'pending');
+
+    return (
+        <div className="px-4 max-w-3xl mx-auto pb-24">
+            <h2 className="text-lg font-display uppercase tracking-wider text-brand-green mb-3">Questions &amp; Answers</h2>
+
+            {/* Ask box */}
+            <div className="glass-panel p-5 mb-5">
+                {asked ? (
+                    <div className="text-center py-2">
+                        <div className="text-3xl mb-1">✅</div>
+                        <p className="text-sm text-gray-300">Thanks! Your question was sent to {brandName} — we'll post the answer right here.</p>
+                        <button onClick={() => setAsked(false)} className="text-xs text-brand-green mt-2">Ask another</button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="text-sm font-bold mb-2">Ask a question</div>
+                        <textarea className={FIELD} rows={2} placeholder="e.g. What days is practice? Do we need indoor shoes?" value={q} onChange={(e) => setQ(e.target.value)} />
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                            <input className={FIELD} placeholder="Your name (optional)" value={askerName} onChange={(e) => setAskerName(e.target.value)} />
+                            <input className={FIELD} placeholder="Email/phone (optional, private)" value={askerContact} onChange={(e) => setAskerContact(e.target.value)} />
+                        </div>
+                        {err && <div className="text-sm text-red-400 mt-2">{err}</div>}
+                        <button onClick={submit} disabled={busy} className="btn-primary w-full mt-3 disabled:opacity-60">{busy ? 'Sending…' : 'Send question'}</button>
+                        <p className="text-[11px] text-gray-500 text-center mt-2">Your contact info stays private — only the question &amp; answer are posted.</p>
+                    </>
+                )}
+            </div>
+
+            {/* Staff answering panel */}
+            {isStaff && pending.length > 0 && (
+                <div className="mb-5">
+                    <div className="text-xs uppercase tracking-wider text-brand-gold font-bold mb-2">Pending — needs an answer ({pending.length})</div>
+                    <div className="space-y-3">
+                        {pending.map((x) => (
+                            <PendingCard key={x.id} q={x} defaultName={profile?.full_name || ''} onDone={load} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Public answered FAQ */}
+            {qa.length === 0 ? (
+                <p className="text-sm text-gray-500">No questions answered yet — be the first to ask!</p>
+            ) : (
+                <div className="space-y-3">
+                    {qa.map((x) => (
+                        <div key={x.id} className="glass-panel p-4">
+                            <div className="text-sm font-semibold text-white">Q: {x.question}</div>
+                            {x.asker_name && <div className="text-[11px] text-gray-500 mt-0.5">— asked by {x.asker_name}</div>}
+                            <div className="text-sm text-gray-300 mt-2 whitespace-pre-wrap">A: {x.answer}</div>
+                            {x.answered_by_name && <div className="text-[11px] text-brand-green mt-1">— {x.answered_by_name}</div>}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function PendingCard({ q, defaultName, onDone }) {
+    const [ans, setAns] = useState('');
+    const [name, setName] = useState(defaultName || '');
+    const [busy, setBusy] = useState(false);
+    const post = async () => {
+        if (!ans.trim()) return;
+        setBusy(true);
+        await supabase.rpc('answer_winter_question', { p_question_id: q.id, p_answer: ans, p_answered_by_name: name });
+        setBusy(false); onDone();
+    };
+    const hide = async () => { setBusy(true); await supabase.rpc('hide_winter_question', { p_question_id: q.id }); setBusy(false); onDone(); };
+    return (
+        <div className="glass-panel p-4 border border-brand-gold/30">
+            <div className="text-sm font-semibold">Q: {q.question}</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">{q.asker_name || 'Anonymous'}{q.asker_contact ? ` · ${q.asker_contact}` : ''}</div>
+            <textarea className={`${FIELD} mt-2`} rows={2} placeholder="Type your answer…" value={ans} onChange={(e) => setAns(e.target.value)} />
+            <div className="flex items-center gap-2 mt-2">
+                <input className={FIELD} placeholder="Answered by" value={name} onChange={(e) => setName(e.target.value)} />
+                <button onClick={post} disabled={busy} className="btn-primary shrink-0 disabled:opacity-60">Post</button>
+                <button onClick={hide} disabled={busy} className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs shrink-0" title="Hide spam">Hide</button>
+            </div>
         </div>
     );
 }
