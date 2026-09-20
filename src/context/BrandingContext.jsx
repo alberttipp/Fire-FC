@@ -1,17 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 
-// White-label branding. DEFAULT_BRAND = Rockford Fire FC; EVERYTHING falls back
-// to it, so the app renders identically to today whenever no org branding is
-// resolved (multi-org flag off, offline, unknown club, or a failed fetch).
-// White-label = an org's branding row overriding these values — so a NEW club
-// is config (a row + a logo), not code.
+// White-label branding. DEFAULT_BRAND = Rock City FC (rebranded from Rockford
+// Fire FC, 2026-09); EVERYTHING falls back to it, so the app renders with the
+// club identity whenever no other org branding is resolved (offline, unknown
+// club, or a failed fetch). White-label = an org's branding row overriding
+// these values — so a NEW club is config (a row + a logo), not code.
 export const DEFAULT_BRAND = {
-    slug: 'rockford-fire-fc',
+    slug: 'rock-city-fc',
     program: null,           // set when branding is resolved from a per-coach program (?p=slug)
-    name: 'Rockford Fire FC',
-    shortName: 'Fire',
-    logoUrl: '/branding/logo.png',
+    name: 'Rock City FC',
+    shortName: 'Rock City',
+    logoUrl: '/branding/rockcity-crest.svg',
     primaryColor: '#3b82f6', // Tailwind brand-green (channels default in index.css / tailwind.config)
     accentColor: '#d4af37',  // Tailwind brand-gold
     aiPersona: '',

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" role="img" aria-label="Rock City FC">
+  <defs>
+    <linearGradient id="rcNavy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#15294d"/>
+      <stop offset="1" stop-color="#0b1730"/>
+    </linearGradient>
+    <linearGradient id="rcGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0d47a"/>
+      <stop offset="1" stop-color="#c9a13c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shield -->
+  <path d="M120 6 L226 34 V150 C226 214 178 254 120 274 C62 254 14 214 14 150 V34 Z"
+        fill="url(#rcNavy)" stroke="url(#rcGold)" stroke-width="7"/>
+  <!-- inner hairline -->
+  <path d="M120 20 L214 44 V150 C214 206 172 242 120 260 C68 242 26 206 26 150 V44 Z"
+        fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.55"/>
+
+  <!-- top banner -->
+  <rect x="40" y="52" width="160" height="34" rx="6" fill="url(#rcGold)"/>
+  <text x="120" y="75" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
+        font-size="21" font-weight="900" letter-spacing="1" fill="#0b1730">ROCK CITY</text>
+
+  <!-- RC monogram -->
+  <text x="120" y="176" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
+        font-size="86" font-weight="900" fill="#ffffff" letter-spacing="-2">RC</text>
+
+  <!-- soccer ball -->
+  <g transform="translate(120,206)">
+    <circle r="17" fill="#ffffff" stroke="#0b1730" stroke-width="2"/>
+    <path d="M0,-11 L10,-3 L6,9 L-6,9 L-10,-3 Z" fill="#0b1730"/>
+  </g>
+
+  <!-- FC + est -->
+  <text x="120" y="252" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
+        font-size="18" font-weight="900" letter-spacing="6" fill="url(#rcGold)">F C</text>
+</svg>

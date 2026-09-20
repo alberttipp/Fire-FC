@@ -70,11 +70,11 @@ export default function WinterSignup() {
                     Winter Indoor <span className="text-brand-green">Sign-Up</span>
                 </h1>
                 <p className="text-gray-300 mt-3">
-                    7v7 indoor at Elite Sports Center · season kicks off mid-November. Small rosters,
-                    tons of touches, and every player developed in our app.
+                    Winter International League · 8v8 indoor. Small rosters, tons of touches, and every
+                    player developed in our app.
                 </p>
-                <p className="text-xs text-gray-500 mt-2">
-                    Approx. season fee ~$300/player (finalized at registration; fundraising &amp; sponsors can lower it).
+                <p className="text-xs text-brand-gold mt-2">
+                    Season dates &amp; final fee are being confirmed — commit now to hold your spot.
                 </p>
             </div>
 
@@ -87,6 +87,19 @@ export default function WinterSignup() {
                         <div className="text-[11px] text-gray-400 mt-1 leading-snug">{sub}</div>
                     </div>
                 ))}
+            </div>
+
+            {/* Season details */}
+            <div className="px-4 max-w-3xl mx-auto mb-8">
+                <div className="glass-panel p-5 space-y-2.5">
+                    <div className="text-brand-green font-display uppercase tracking-wider text-sm mb-1">The details</div>
+                    <Detail k="League" v="Winter International League — indoor" />
+                    <Detail k="Format" v="8v8 indoor (confirming with the league)" />
+                    <Detail k="Season" v="Start date & schedule being finalized — commit to hold your spot." />
+                    <Detail k="Coaches" v="U11 — Kevan Watkins · U12 — Jeremy Gunderson (parent coaches)." />
+                    <Detail k="Practice" v="Both teams train together — at least 1 practice a week, plus a second day of competitive free play. Rock Valley College, with Elite Sports Center & Sports Core 2 as backups." />
+                    <Detail k="Cost" v="Kept as low as possible — parent coaches, college field time, and sponsors covering indoor time. Target ~$150–200/player; final fee confirmed soon." />
+                </div>
             </div>
 
             {/* Teams */}
@@ -111,7 +124,8 @@ export default function WinterSignup() {
                                     <div className="text-xl font-display font-bold">{t.age_group}</div>
                                     <div className="text-sm text-brand-green font-bold">{list.length} committed</div>
                                 </div>
-                                <div className="text-xs text-gray-400 mb-3">{t.name}</div>
+                                <div className="text-xs text-gray-400 mb-1">{t.name}</div>
+                                {t.coach_name && <div className="text-xs text-brand-green mb-3">Coach {t.coach_name}</div>}
 
                                 {/* Transparent roster-in-progress */}
                                 <div className="flex-1 mb-4">
@@ -152,6 +166,13 @@ export default function WinterSignup() {
         </div>
     );
 }
+
+const Detail = ({ k, v }) => (
+    <div className="flex gap-3 text-sm">
+        <div className="w-20 shrink-0 text-xs uppercase tracking-wider text-gray-500 font-bold pt-0.5">{k}</div>
+        <div className="text-gray-200 flex-1 leading-snug">{v}</div>
+    </div>
+);
 
 function CommitModal({ team, brandName, onClose, onDone }) {
     const [form, setForm] = useState({ first: '', last: '', dob: '', guardianName: '', email: '', phone: '' });
