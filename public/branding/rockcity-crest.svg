@@ -1,38 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" role="img" aria-label="Rock City FC">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300" role="img" aria-label="Rock City FC">
   <defs>
     <linearGradient id="rcNavy" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#15294d"/>
-      <stop offset="1" stop-color="#0b1730"/>
+      <stop offset="0" stop-color="#16305c"/>
+      <stop offset="1" stop-color="#0a1730"/>
     </linearGradient>
     <linearGradient id="rcGold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f0d47a"/>
-      <stop offset="1" stop-color="#c9a13c"/>
+      <stop offset="0" stop-color="#f2dc94"/>
+      <stop offset="0.5" stop-color="#d8b458"/>
+      <stop offset="1" stop-color="#9c7a2e"/>
     </linearGradient>
   </defs>
 
   <!-- Shield -->
-  <path d="M120 6 L226 34 V150 C226 214 178 254 120 274 C62 254 14 214 14 150 V34 Z"
-        fill="url(#rcNavy)" stroke="url(#rcGold)" stroke-width="7"/>
-  <!-- inner hairline -->
-  <path d="M120 20 L214 44 V150 C214 206 172 242 120 260 C68 242 26 206 26 150 V44 Z"
-        fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.55"/>
+  <path d="M120 6 L226 34 V158 C226 224 178 266 120 288 C62 266 14 224 14 158 V34 Z"
+        fill="url(#rcNavy)" stroke="url(#rcGold)" stroke-width="8"/>
+  <path d="M120 20 L214 44 V158 C214 216 172 254 120 272 C68 254 26 216 26 158 V44 Z"
+        fill="none" stroke="#c9a24b" stroke-width="1.5" opacity="0.5"/>
 
   <!-- top banner -->
-  <rect x="40" y="52" width="160" height="34" rx="6" fill="url(#rcGold)"/>
-  <text x="120" y="75" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
-        font-size="21" font-weight="900" letter-spacing="1" fill="#0b1730">ROCK CITY</text>
+  <rect x="34" y="46" width="172" height="34" rx="5" fill="url(#rcGold)"/>
+  <text x="120" y="70" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
+        font-size="22" font-weight="900" letter-spacing="1" fill="#0a1730">ROCK CITY</text>
 
-  <!-- RC monogram -->
-  <text x="120" y="176" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
-        font-size="86" font-weight="900" fill="#ffffff" letter-spacing="-2">RC</text>
+  <!-- RC monogram (gold) -->
+  <text x="120" y="182" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
+        font-size="96" font-weight="900" fill="url(#rcGold)" letter-spacing="-3">RC</text>
 
-  <!-- soccer ball -->
-  <g transform="translate(120,206)">
-    <circle r="17" fill="#ffffff" stroke="#0b1730" stroke-width="2"/>
-    <path d="M0,-11 L10,-3 L6,9 L-6,9 L-10,-3 Z" fill="#0b1730"/>
+  <!-- ROCKFORD IL banner -->
+  <rect x="52" y="206" width="136" height="22" rx="4" fill="#0a1730" stroke="#c9a24b" stroke-width="1.5"/>
+  <text x="120" y="222" text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="13" font-weight="800" letter-spacing="3" fill="url(#rcGold)">ROCKFORD IL</text>
+
+  <!-- EST + FC -->
+  <text x="120" y="246" text-anchor="middle" font-family="Arial, sans-serif"
+        font-size="11" font-weight="700" letter-spacing="2" fill="#cbd5e1">EST. 2024</text>
+  <g transform="translate(120,266)">
+    <circle r="15" fill="url(#rcGold)"/>
+    <text x="0" y="5" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
+          font-size="14" font-weight="900" fill="#0a1730">FC</text>
   </g>
-
-  <!-- FC + est -->
-  <text x="120" y="252" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
-        font-size="18" font-weight="900" letter-spacing="6" fill="url(#rcGold)">F C</text>
 </svg>

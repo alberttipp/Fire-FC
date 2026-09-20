@@ -60,7 +60,7 @@ export default function WinterSignup() {
     );
 
     return (
-        <div className="min-h-screen bg-brand-dark text-white">
+        <div className="min-h-screen text-white" style={{ background: 'radial-gradient(120% 90% at 50% -10%, #16305c 0%, #0b1a33 55%)' }}>
             {/* Hero */}
             <div className="px-4 pt-10 pb-6 text-center max-w-3xl mx-auto">
                 <div className="flex items-center gap-3 justify-center mb-4">
@@ -68,13 +68,13 @@ export default function WinterSignup() {
                     <span className="text-2xl font-display font-bold uppercase tracking-wider">{brand.name}</span>
                 </div>
                 <h1 className="text-3xl md:text-4xl font-display font-bold uppercase tracking-wide leading-tight">
-                    Winter Indoor <span className="text-brand-green">Sign-Up</span>
+                    Winter Indoor <span className="text-[#e6cd87]">Sign-Up</span>
                 </h1>
                 <p className="text-gray-300 mt-3">
                     Winter International League · 8v8 indoor. Small rosters, tons of touches, and every
                     player developed in our app.
                 </p>
-                <p className="text-xs text-brand-gold mt-2">
+                <p className="text-xs text-[#e6cd87] mt-2">
                     Season dates &amp; final fee are being confirmed — commit now to hold your spot.
                 </p>
             </div>
@@ -93,7 +93,7 @@ export default function WinterSignup() {
             {/* Season details */}
             <div className="px-4 max-w-3xl mx-auto mb-8">
                 <div className="glass-panel p-5 space-y-2.5">
-                    <div className="text-brand-green font-display uppercase tracking-wider text-sm mb-1">The details</div>
+                    <div className="text-[#e6cd87] font-display uppercase tracking-wider text-sm mb-1">The details</div>
                     <Detail k="League" v="Winter International League — indoor" />
                     <Detail k="Format" v="8v8 indoor (confirming with the league)" />
                     <Detail k="Season" v="Start date & schedule being finalized — commit to hold your spot." />
@@ -106,7 +106,7 @@ export default function WinterSignup() {
             {/* Teams */}
             <div className="px-4 max-w-3xl mx-auto pb-24">
                 <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-display uppercase tracking-wider text-brand-green">Pick your team</h2>
+                    <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87]">Pick your team</h2>
                     {totalCommitted > 0 && <span className="text-xs text-gray-400">{totalCommitted} committed so far</span>}
                 </div>
 
@@ -123,10 +123,10 @@ export default function WinterSignup() {
                             <div key={t.team_id} className="glass-panel p-5 flex flex-col">
                                 <div className="flex items-baseline justify-between">
                                     <div className="text-xl font-display font-bold">{t.age_group}</div>
-                                    <div className="text-sm text-brand-green font-bold">{list.length} committed</div>
+                                    <div className="text-sm text-[#e6cd87] font-bold">{list.length} committed</div>
                                 </div>
                                 <div className="text-xs text-gray-400 mb-1">{t.name}</div>
-                                {t.coach_name && <div className="text-xs text-brand-green mb-3">Coach {t.coach_name}</div>}
+                                {t.coach_name && <div className="text-xs text-[#e6cd87] mb-3">Coach {t.coach_name}</div>}
 
                                 {/* Transparent roster-in-progress */}
                                 <div className="flex-1 mb-4">
@@ -143,7 +143,7 @@ export default function WinterSignup() {
                                     )}
                                 </div>
 
-                                <button onClick={() => setModalTeam(t)} className="btn-primary w-full">
+                                <button onClick={() => setModalTeam(t)} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
                                     Commit to {t.age_group}
                                 </button>
                             </div>
@@ -216,7 +216,7 @@ function QASection({ orgSlug, brandName }) {
 
     return (
         <div className="px-4 max-w-3xl mx-auto pb-24">
-            <h2 className="text-lg font-display uppercase tracking-wider text-brand-green mb-3">Questions &amp; Answers</h2>
+            <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87] mb-3">Questions &amp; Answers</h2>
 
             {/* Ask box */}
             <div className="glass-panel p-5 mb-5">
@@ -224,7 +224,7 @@ function QASection({ orgSlug, brandName }) {
                     <div className="text-center py-2">
                         <div className="text-3xl mb-1">✅</div>
                         <p className="text-sm text-gray-300">Thanks! Your question was sent to {brandName} — we'll post the answer right here.</p>
-                        <button onClick={() => setAsked(false)} className="text-xs text-brand-green mt-2">Ask another</button>
+                        <button onClick={() => setAsked(false)} className="text-xs text-[#e6cd87] mt-2">Ask another</button>
                     </div>
                 ) : (
                     <>
@@ -235,7 +235,7 @@ function QASection({ orgSlug, brandName }) {
                             <input className={FIELD} placeholder="Email/phone (optional, private)" value={askerContact} onChange={(e) => setAskerContact(e.target.value)} />
                         </div>
                         {err && <div className="text-sm text-red-400 mt-2">{err}</div>}
-                        <button onClick={submit} disabled={busy} className="btn-primary w-full mt-3 disabled:opacity-60">{busy ? 'Sending…' : 'Send question'}</button>
+                        <button onClick={submit} disabled={busy} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-3 disabled:opacity-60">{busy ? 'Sending…' : 'Send question'}</button>
                         <p className="text-[11px] text-gray-500 text-center mt-2">Your contact info stays private — only the question &amp; answer are posted.</p>
                     </>
                 )}
@@ -244,7 +244,7 @@ function QASection({ orgSlug, brandName }) {
             {/* Staff answering panel */}
             {isStaff && pending.length > 0 && (
                 <div className="mb-5">
-                    <div className="text-xs uppercase tracking-wider text-brand-gold font-bold mb-2">Pending — needs an answer ({pending.length})</div>
+                    <div className="text-xs uppercase tracking-wider text-[#e6cd87] font-bold mb-2">Pending — needs an answer ({pending.length})</div>
                     <div className="space-y-3">
                         {pending.map((x) => (
                             <PendingCard key={x.id} q={x} defaultName={profile?.full_name || ''} onDone={load} />
@@ -263,7 +263,7 @@ function QASection({ orgSlug, brandName }) {
                             <div className="text-sm font-semibold text-white">Q: {x.question}</div>
                             {x.asker_name && <div className="text-[11px] text-gray-500 mt-0.5">— asked by {x.asker_name}</div>}
                             <div className="text-sm text-gray-300 mt-2 whitespace-pre-wrap">A: {x.answer}</div>
-                            {x.answered_by_name && <div className="text-[11px] text-brand-green mt-1">— {x.answered_by_name}</div>}
+                            {x.answered_by_name && <div className="text-[11px] text-[#e6cd87] mt-1">— {x.answered_by_name}</div>}
                         </div>
                     ))}
                 </div>
@@ -284,13 +284,13 @@ function PendingCard({ q, defaultName, onDone }) {
     };
     const hide = async () => { setBusy(true); await supabase.rpc('hide_winter_question', { p_question_id: q.id }); setBusy(false); onDone(); };
     return (
-        <div className="glass-panel p-4 border border-brand-gold/30">
+        <div className="glass-panel p-4 border border-[#c9a24b]/40">
             <div className="text-sm font-semibold">Q: {q.question}</div>
             <div className="text-[11px] text-gray-500 mt-0.5">{q.asker_name || 'Anonymous'}{q.asker_contact ? ` · ${q.asker_contact}` : ''}</div>
             <textarea className={`${FIELD} mt-2`} rows={2} placeholder="Type your answer…" value={ans} onChange={(e) => setAns(e.target.value)} />
             <div className="flex items-center gap-2 mt-2">
                 <input className={FIELD} placeholder="Answered by" value={name} onChange={(e) => setName(e.target.value)} />
-                <button onClick={post} disabled={busy} className="btn-primary shrink-0 disabled:opacity-60">Post</button>
+                <button onClick={post} disabled={busy} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition shrink-0 disabled:opacity-60">Post</button>
                 <button onClick={hide} disabled={busy} className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs shrink-0" title="Hide spam">Hide</button>
             </div>
         </div>
@@ -342,7 +342,7 @@ function CommitModal({ team, brandName, onClose, onDone }) {
 
     return (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-end md:items-center justify-center p-0 md:p-4" onClick={onClose}>
-            <div className="bg-brand-dark border border-white/10 rounded-t-2xl md:rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#0b1a33] border border-white/10 rounded-t-2xl md:rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                 {done ? (
                     <div className="text-center py-4">
                         <div className="text-5xl mb-3">🎉</div>
@@ -350,7 +350,7 @@ function CommitModal({ team, brandName, onClose, onDone }) {
                         <p className="text-gray-400 text-sm">
                             {form.first} is committed to {brandName} {team.age_group}. You'll see them on the list now — {brandName} will follow up with next steps.
                         </p>
-                        <button onClick={onDone} className="btn-primary w-full mt-5">See the team</button>
+                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">See the team</button>
                     </div>
                 ) : (
                     <>
@@ -365,7 +365,7 @@ function CommitModal({ team, brandName, onClose, onDone }) {
                                 <label className={LABEL}>Player date of birth</label>
                                 <input type="date" className={FIELD} value={form.dob} onChange={set('dob')} />
                                 {mismatch && (
-                                    <p className="text-[11px] text-brand-gold mt-1">
+                                    <p className="text-[11px] text-[#e6cd87] mt-1">
                                         Heads up: birth year suggests {hint}. You can still join {team.age_group}, or go back and pick {hint}.
                                     </p>
                                 )}
@@ -378,7 +378,7 @@ function CommitModal({ team, brandName, onClose, onDone }) {
                             {error && <div className="text-sm text-red-400">{error}</div>}
                             <div className="flex gap-2 pt-1">
                                 <button onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm">Cancel</button>
-                                <button onClick={submit} disabled={busy} className="btn-primary flex-1 disabled:opacity-60">
+                                <button onClick={submit} disabled={busy} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition flex-1 disabled:opacity-60">
                                     {busy ? 'Committing…' : 'Commit my player'}
                                 </button>
                             </div>
