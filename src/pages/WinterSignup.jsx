@@ -45,7 +45,17 @@ export default function WinterSignup() {
         setTeams(tRes.data || []);
     };
 
-    useEffect(() => { if (brand?.slug) load(); /* eslint-disable-next-line */ }, [brand?.slug]);
+    useEffect(() => {
+        if (!brand?.slug) return;
+        load();
+        // Anonymous open tracking — one visit id per browser, deduped server-side to once/day.
+        try {
+            let vid = localStorage.getItem('rc_visit_id');
+            if (!vid) { vid = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('rc_visit_id', vid); }
+            supabase.rpc('log_winter_visit', { p_org_slug: brand.slug, p_visit_id: vid, p_path: 'winter-signup' });
+        } catch { /* ignore */ }
+        /* eslint-disable-next-line */
+    }, [brand?.slug]);
 
     return (
         <div className="min-h-screen text-white" style={{ background: 'radial-gradient(120% 90% at 50% -10%, #16305c 0%, #0b1a33 55%)' }}>
@@ -66,6 +76,8 @@ export default function WinterSignup() {
                     Season dates &amp; final fee are being confirmed — commit now to hold your spot.
                 </p>
             </div>
+
+            <StaffPanel orgSlug={brand.slug} />
 
             {/* Pillars */}
             <div className="px-4 max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -267,6 +279,75 @@ function PendingCard({ q, defaultName, onDone }) {
         </div>
     );
 }
+
+// Coaches-only dashboard: link opens, commits, and the full committed roster
+// (names + contact). Renders only for org staff (Albert + the two coaches).
+function StaffPanel({ orgSlug }) {
+    const { user } = useAuth();
+    const [isStaff, setIsStaff] = useState(false);
+    const [stats, setStats] = useState(null);
+    const [roster, setRoster] = useState([]);
+    useEffect(() => {
+        if (!user?.id || !orgSlug) return;
+        (async () => {
+            const s = await supabase.rpc('am_i_winter_staff', { p_org_slug: orgSlug });
+            if (s.data !== true) return;
+            setIsStaff(true);
+            const [st, ros] = await Promise.all([
+                supabase.rpc('winter_stats_admin', { p_org_slug: orgSlug }),
+                supabase.rpc('list_winter_signups_admin', { p_org_slug: orgSlug }),
+            ]);
+            setStats(st.data || null);
+            setRoster(ros.data || []);
+        })();
+    }, [user?.id, orgSlug]);
+    if (!isStaff) return null;
+    return (
+        <div className="px-4 max-w-3xl mx-auto mb-8">
+            <div className="glass-panel p-5 border border-[#c9a24b]/40">
+                <div className="text-[#e6cd87] font-display uppercase tracking-wider text-sm mb-3">Coaches only · live numbers</div>
+                {stats && (
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                        <Stat label="Link opens" value={stats.opens_total} />
+                        <Stat label="Unique visitors" value={stats.unique_visitors} />
+                        <Stat label="Committed" value={stats.commits} />
+                    </div>
+                )}
+                {stats?.opens_by_day?.length > 0 && (
+                    <div className="mb-4">
+                        <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Opens by day</div>
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-300">
+                            {stats.opens_by_day.map((d) => <span key={d.day} className="bg-white/5 rounded px-2 py-1">{d.day}: {d.opens}</span>)}
+                        </div>
+                    </div>
+                )}
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Committed players ({roster.length})</div>
+                {roster.length === 0 ? (
+                    <p className="text-sm text-gray-500">No commits yet.</p>
+                ) : (
+                    <div className="space-y-1.5">
+                        {roster.map((r, i) => (
+                            <div key={i} className="text-sm flex flex-wrap gap-x-3 gap-y-0.5 border-b border-white/5 pb-1.5">
+                                <span className="font-semibold text-white">{r.player_first} {r.player_last}</span>
+                                <span className="text-[#e6cd87]">{r.age_group}</span>
+                                {r.guardian_name && <span className="text-gray-400">{r.guardian_name}</span>}
+                                {r.guardian_email && <span className="text-gray-400">{r.guardian_email}</span>}
+                                {r.guardian_phone && <span className="text-gray-400">{r.guardian_phone}</span>}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                <p className="text-[11px] text-gray-500 mt-3">Only you and your coaches see this panel — parents never do.</p>
+            </div>
+        </div>
+    );
+}
+const Stat = ({ label, value }) => (
+    <div className="bg-white/5 rounded-lg p-3 text-center">
+        <div className="text-2xl font-display font-bold text-[#e6cd87]">{value ?? 0}</div>
+        <div className="text-[10px] uppercase tracking-wider text-gray-400 mt-0.5">{label}</div>
+    </div>
+);
 
 const Detail = ({ k, v }) => (
     <div className="flex gap-3 text-sm">
