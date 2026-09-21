@@ -52,7 +52,9 @@ export default function WinterSignup() {
         try {
             let vid = localStorage.getItem('rc_visit_id');
             if (!vid) { vid = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('rc_visit_id', vid); }
-            supabase.rpc('log_winter_visit', { p_org_slug: brand.slug, p_visit_id: vid, p_path: 'winter-signup' });
+            // supabase query builders are lazy — MUST call .then() (or await) or the
+            // request never fires. Fire-and-forget with .then(ok, err), never .catch.
+            supabase.rpc('log_winter_visit', { p_org_slug: brand.slug, p_visit_id: vid, p_path: 'winter-signup' }).then(() => {}, () => {});
         } catch { /* ignore */ }
         /* eslint-disable-next-line */
     }, [brand?.slug]);
