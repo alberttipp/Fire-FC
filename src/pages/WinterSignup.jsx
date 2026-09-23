@@ -21,6 +21,16 @@ const PILLARS = [
     ['🎉', 'Lots of fun', 'Kids who love it show up, work hard, and get better.'],
 ];
 
+// App showcase (real screenshots — other kids' names blurred where present).
+const APP_SHOTS = [
+    ['/promo/app-card.jpg', 'FIFA-style player cards'],
+    ['/promo/app-passport.jpg', 'Personal development plans'],
+    ['/promo/app-leaderboard.jpg', 'Every training minute, tracked'],
+    ['/promo/app-challenges.jpg', 'Skill challenges'],
+    ['/promo/app-warmups.jpg', 'A full training library'],
+    ['/promo/app-builder.jpg', 'Coaches build practice by voice'],
+];
+
 // US Youth Soccer birth-year matrix: for the 2026-27 season the "U-number"
 // = 2027 - birthYear (e.g. born 2015 -> U12, born 2016 -> U11). Just a hint;
 // the parent picks the actual team.
@@ -90,6 +100,22 @@ export default function WinterSignup() {
                         <div className="text-[11px] text-gray-400 mt-1 leading-snug">{sub}</div>
                     </div>
                 ))}
+            </div>
+
+            {/* App showcase */}
+            <div className="px-4 max-w-3xl mx-auto mb-8">
+                <div className="text-center mb-4">
+                    <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87]">Inside the app</h2>
+                    <p className="text-sm text-gray-300 mt-1">Real development, tracked — every touch, minute &amp; rep.</p>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {APP_SHOTS.map(([src, cap]) => (
+                        <div key={src} className="glass-panel p-2">
+                            <img src={src} alt={cap} loading="lazy" className="w-full aspect-video object-cover rounded-md border border-white/10" />
+                            <div className="text-[11px] text-gray-300 text-center mt-2 leading-snug">{cap}</div>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Season details */}
