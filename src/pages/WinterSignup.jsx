@@ -77,7 +77,6 @@ export default function WinterSignup() {
                     <img src={brand.logoUrl} alt={brand.name} className="w-14 h-14 object-contain" />
                     <span className="text-2xl font-display font-bold uppercase tracking-wider">{brand.name}</span>
                 </div>
-                <p className="text-[#e6cd87] font-display uppercase tracking-[0.25em] text-xs md:text-sm mb-2">How Great Can YOU Be?</p>
                 <h1 className="text-3xl md:text-4xl font-display font-bold uppercase tracking-wide leading-tight">
                     Winter Indoor <span className="text-[#e6cd87]">Sign-Up</span>
                 </h1>
@@ -136,7 +135,7 @@ export default function WinterSignup() {
             <div className="px-4 max-w-3xl mx-auto mb-8">
                 <div className="glass-panel p-5">
                     <div className="text-[#e6cd87] font-display uppercase tracking-wider text-sm mb-1">The kit</div>
-                    <p className="text-sm text-gray-300 mb-4">Represent your city. Navy &amp; gold. How great can YOU be?</p>
+                    <p className="text-sm text-gray-300 mb-4">Represent your city. Navy &amp; gold, home and away.</p>
                     <div className="flex items-end justify-center gap-6 md:gap-12 flex-wrap">
                         <img src="/branding/rockcity-jersey.png" alt="Rock City FC jersey" className="h-44 md:h-60 object-contain drop-shadow-2xl" />
                         <img src="/branding/rockcity-hoodie.png" alt="Rock City FC hoodie" className="h-44 md:h-60 object-contain drop-shadow-2xl" />
