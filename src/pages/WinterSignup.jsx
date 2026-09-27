@@ -446,11 +446,11 @@ function CommitModal({ team, brandName, onClose, onDone }) {
                                 <div className="text-5xl mb-3">🎉</div>
                                 <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">You're in!</h3>
                                 <p className="text-gray-400 text-sm">
-                                    {form.first} is committed to {brandName} {team.age_group}. You'll see them on the list now — {brandName} will follow up with next steps.
+                                    {form.first} is committed to {brandName} {team.age_group}. {brandName} will be in touch with next steps — see you on the pitch! ⚽
                                 </p>
                             </>
                         )}
-                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">{FULL_TEAMS.includes(team.age_group) ? 'Close' : 'See the team'}</button>
+                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">{FULL_TEAMS.includes(team.age_group) ? 'Close' : 'Done'}</button>
                     </div>
                 ) : (
                     <>
