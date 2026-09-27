@@ -31,14 +31,18 @@ const APP_SHOTS = [
     ['/promo/app-builder.jpg', 'Coaches build practice by voice'],
 ];
 
-// US Youth Soccer birth-year matrix: for the 2026-27 season the "U-number"
-// = 2027 - birthYear (e.g. born 2015 -> U12, born 2016 -> U11). Just a hint;
-// the parent picks the actual team.
+// Age group under the AUGUST 1 cutoff (US Youth Soccer, 2026-27 season): the
+// cohort window runs Aug 1 – Jul 31, so a player born Aug–Dec drops a group vs
+// the old Jan-1 birth-year rule. Cohort-start year = birthYear if born Aug+,
+// else birthYear-1; U-number = 2026 - cohortStart. (e.g. Aug-Dec 2015 -> U11,
+// Jan-Jul 2015 -> U12, Aug-Dec 2014 -> U12.) Just a hint; the parent picks.
 const suggestedU = (dob) => {
     if (!dob) return null;
-    const y = new Date(dob).getFullYear();
+    const d = new Date(dob + 'T00:00:00'); // local midnight, avoids TZ day-shift
+    const y = d.getFullYear();
     if (!y) return null;
-    return `U${2027 - y}`;
+    const cohortStart = (d.getMonth() + 1) >= 8 ? y : y - 1;
+    return `U${2026 - cohortStart}`;
 };
 
 export default function WinterSignup() {
