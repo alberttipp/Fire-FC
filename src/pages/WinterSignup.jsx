@@ -384,6 +384,10 @@ const Detail = ({ k, v }) => (
     </div>
 );
 
+// Age groups that are full — after a commit, show a "full / we'll be in touch"
+// message instead of the normal confirmation (commit is still recorded).
+const FULL_TEAMS = ['U12'];
+
 function CommitModal({ team, brandName, onClose, onDone }) {
     const [form, setForm] = useState({ first: '', last: '', dob: '', guardianName: '', email: '', phone: '' });
     const [busy, setBusy] = useState(false);
@@ -425,12 +429,24 @@ function CommitModal({ team, brandName, onClose, onDone }) {
             <div className="bg-[#0b1a33] border border-white/10 rounded-t-2xl md:rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                 {done ? (
                     <div className="text-center py-4">
-                        <div className="text-5xl mb-3">🎉</div>
-                        <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">You're in!</h3>
-                        <p className="text-gray-400 text-sm">
-                            {form.first} is committed to {brandName} {team.age_group}. You'll see them on the list now — {brandName} will follow up with next steps.
-                        </p>
-                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">See the team</button>
+                        {FULL_TEAMS.includes(team.age_group) ? (
+                            <>
+                                <div className="text-5xl mb-3">✅</div>
+                                <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">Thanks — we've got {form.first}!</h3>
+                                <p className="text-gray-400 text-sm">
+                                    Our {team.age_group} team is currently full. We've saved your commitment and {brandName} will be in touch to discuss next steps.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-5xl mb-3">🎉</div>
+                                <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">You're in!</h3>
+                                <p className="text-gray-400 text-sm">
+                                    {form.first} is committed to {brandName} {team.age_group}. You'll see them on the list now — {brandName} will follow up with next steps.
+                                </p>
+                            </>
+                        )}
+                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">{FULL_TEAMS.includes(team.age_group) ? 'Close' : 'See the team'}</button>
                     </div>
                 ) : (
                     <>
