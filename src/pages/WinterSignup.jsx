@@ -47,10 +47,33 @@ const suggestedU = (dob) => {
 
 export default function WinterSignup() {
     const brand = useBranding();
+    const { user, signOut } = useAuth();
     const [teams, setTeams] = useState(null);      // null = loading
     const [modalTeam, setModalTeam] = useState(null); // card config when committing
     const [coachModal, setCoachModal] = useState(false); // "interested in coaching" capture
     const [loadErr, setLoadErr] = useState('');
+    const [shareMsg, setShareMsg] = useState('');
+
+    const shareUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/winter-signup?club=${brand.slug}`
+        : '';
+    const share = async () => {
+        const data = {
+            title: `${brand.name} Winter Sign-Up`,
+            text: `Sign up your player for ${brand.name} winter indoor soccer:`,
+            url: shareUrl,
+        };
+        try {
+            if (navigator.share) { await navigator.share(data); return; }
+        } catch { return; /* user cancelled the share sheet */ }
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setShareMsg('Link copied!');
+            setTimeout(() => setShareMsg(''), 2500);
+        } catch {
+            setShareMsg(shareUrl);
+        }
+    };
 
     // Public view intentionally does NOT load or show who has committed / how
     // many (Albert may re-enable later). Only the team list is fetched.
@@ -109,8 +132,27 @@ export default function WinterSignup() {
 
     return (
         <div className="min-h-screen text-white" style={{ background: 'radial-gradient(120% 90% at 50% -10%, #16305c 0%, #0b1a33 55%)' }}>
+            {/* Top bar: share the link (everyone) + sign out (when logged in) */}
+            <div className="px-4 pt-4 max-w-3xl mx-auto flex items-center justify-end gap-2">
+                {shareMsg && <span className="text-xs text-[#e6cd87] mr-1">{shareMsg}</span>}
+                <button
+                    onClick={share}
+                    className="text-xs font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition rounded px-3 py-1.5"
+                >
+                    🔗 Share sign-up
+                </button>
+                {user && (
+                    <button
+                        onClick={async () => { await signOut(); }}
+                        className="text-xs font-bold uppercase tracking-wider text-gray-300 border border-white/20 hover:bg-white/5 transition rounded px-3 py-1.5"
+                    >
+                        Sign out
+                    </button>
+                )}
+            </div>
+
             {/* Hero */}
-            <div className="px-4 pt-10 pb-6 text-center max-w-3xl mx-auto">
+            <div className="px-4 pt-6 pb-6 text-center max-w-3xl mx-auto">
                 <div className="flex items-center gap-3 justify-center mb-4">
                     <img src={brand.logoUrl} alt={brand.name} className="w-14 h-14 object-contain" />
                     <span className="text-2xl font-display font-bold uppercase tracking-wider">{brand.name}</span>
