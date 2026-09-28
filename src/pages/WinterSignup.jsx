@@ -48,7 +48,8 @@ const suggestedU = (dob) => {
 export default function WinterSignup() {
     const brand = useBranding();
     const [teams, setTeams] = useState(null);      // null = loading
-    const [modalTeam, setModalTeam] = useState(null); // team object when committing
+    const [modalTeam, setModalTeam] = useState(null); // card config when committing
+    const [coachModal, setCoachModal] = useState(false); // "interested in coaching" capture
     const [loadErr, setLoadErr] = useState('');
 
     // Public view intentionally does NOT load or show who has committed / how
@@ -103,6 +104,7 @@ export default function WinterSignup() {
         sub: 'Now forming',
         note: 'Players — and a coach — wanted. Get in from day one.',
         welcomesYounger: false,
+        coachCta: true,
     });
 
     return (
@@ -125,6 +127,7 @@ export default function WinterSignup() {
                 </p>
             </div>
 
+            <StaffLogin />
             <StaffPanel orgSlug={brand.slug} />
 
             {/* Pillars */}
@@ -207,11 +210,18 @@ export default function WinterSignup() {
                         <div key={c.team.team_id} className="glass-panel p-5 flex flex-col">
                             <div className="text-xl font-display font-bold">{c.title}</div>
                             <div className="text-xs text-[#e6cd87] mb-1">{c.sub}</div>
-                            {c.team.coach_name && <div className="text-xs text-gray-400">Coach {c.team.coach_name}</div>}
+                            {!c.welcomesYounger && c.team.coach_name && <div className="text-xs text-gray-400">Coach {c.team.coach_name}</div>}
                             <p className="text-sm text-gray-300 mt-2 mb-4 leading-snug">{c.note}</p>
-                            <button onClick={() => setModalTeam(c)} className="mt-auto px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
-                                Commit your player
-                            </button>
+                            <div className="mt-auto space-y-2">
+                                <button onClick={() => setModalTeam(c)} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
+                                    Commit your player
+                                </button>
+                                {c.coachCta && (
+                                    <button onClick={() => setCoachModal(true)} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#e6cd87] border border-[#c9a24b]/50 hover:bg-white/5 transition w-full">
+                                        I'm interested in coaching
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -225,6 +235,14 @@ export default function WinterSignup() {
                     brandName={brand.name}
                     onClose={() => setModalTeam(null)}
                     onDone={async () => { setModalTeam(null); await load(); }}
+                />
+            )}
+
+            {coachModal && (
+                <CoachInterestModal
+                    orgSlug={brand.slug}
+                    brandName={brand.name}
+                    onClose={() => setCoachModal(false)}
                 />
             )}
         </div>
@@ -358,6 +376,54 @@ function PendingCard({ q, defaultName, onDone }) {
     );
 }
 
+// Lets a coach/manager sign in right on this page (they all have existing app
+// logins). Only shows when logged out; once signed in, AuthContext updates and
+// the StaffPanel below reveals itself. Parents never need this to sign a kid up.
+function StaffLogin() {
+    const { user } = useAuth();
+    const [open, setOpen] = useState(false);
+    const [email, setEmail] = useState('');
+    const [pw, setPw] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    if (user) return null;
+    const signIn = async () => {
+        setErr(''); setBusy(true);
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
+        setBusy(false);
+        if (error) { setErr('Login failed — check your email & password.'); return; }
+        // AuthContext picks up the session; StaffPanel renders automatically.
+    };
+    return (
+        <div className="px-4 max-w-3xl mx-auto mb-8">
+            {!open ? (
+                <div className="text-right">
+                    <button onClick={() => setOpen(true)} className="text-xs text-[#e6cd87] hover:underline">
+                        Coach or manager? Log in to see sign-ups →
+                    </button>
+                </div>
+            ) : (
+                <div className="glass-panel p-5 border border-[#c9a24b]/40">
+                    <div className="text-[#e6cd87] font-display uppercase tracking-wider text-sm mb-3">Coach / Manager login</div>
+                    <div className="space-y-3">
+                        <input className={FIELD} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                        <input className={FIELD} type="password" placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') signIn(); }} />
+                        {err && <div className="text-sm text-red-400">{err}</div>}
+                        <div className="flex gap-2">
+                            <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm">Cancel</button>
+                            <button onClick={signIn} disabled={busy} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition flex-1 disabled:opacity-60">
+                                {busy ? 'Logging in…' : 'Log in'}
+                            </button>
+                        </div>
+                        <p className="text-[11px] text-gray-500">Use your existing {`Rock City FC`} login. Parents don't need to log in to sign a player up.</p>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // Coaches-only dashboard: link opens, commits, and the full committed roster
 // (names + contact). Renders only for org staff (Albert + the two coaches).
 function StaffPanel({ orgSlug }) {
@@ -433,6 +499,63 @@ const Detail = ({ k, v }) => (
         <div className="text-gray-200 flex-1 leading-snug">{v}</div>
     </div>
 );
+
+// "Interested in coaching" capture (U10). Reuses the winter Q&A pipe so it lands
+// in the coaches' Pending list (with private contact) and pushes a notification
+// to all winter staff — no separate table needed. Staff follow up, then Hide it.
+function CoachInterestModal({ orgSlug, brandName, onClose }) {
+    const [form, setForm] = useState({ name: '', contact: '', note: '' });
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    const [done, setDone] = useState(false);
+    const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+    const submit = async () => {
+        setErr('');
+        if (!form.name.trim() || !form.contact.trim()) return setErr('Your name and a way to reach you are required.');
+        setBusy(true);
+        const q = `🧑‍🏫 COACHING INTEREST (U10): ${form.note.trim() || 'Interested in helping coach the U10 team.'}`;
+        const { data, error } = await supabase.rpc('submit_winter_question', {
+            p_org_slug: orgSlug, p_question: q, p_asker_name: form.name, p_asker_contact: form.contact,
+        });
+        setBusy(false);
+        if (error || (data && data.success === false)) { setErr('Could not send — please try again.'); return; }
+        setDone(true);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-end md:items-center justify-center p-0 md:p-4" onClick={onClose}>
+            <div className="bg-[#0b1a33] border border-white/10 rounded-t-2xl md:rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                {done ? (
+                    <div className="text-center py-4">
+                        <div className="text-5xl mb-3">🙌</div>
+                        <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">Thank you!</h3>
+                        <p className="text-gray-400 text-sm">{brandName} will reach out about coaching the U10 team. Appreciate you stepping up!</p>
+                        <button onClick={onClose} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">Close</button>
+                    </div>
+                ) : (
+                    <>
+                        <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">Interested in coaching?</h3>
+                        <p className="text-gray-400 text-xs mb-4">We're looking for a U10 coach — tell us about yourself and we'll be in touch.</p>
+                        <div className="space-y-3">
+                            <div><label className={LABEL}>Your name *</label><input className={FIELD} value={form.name} onChange={set('name')} /></div>
+                            <div><label className={LABEL}>Email or phone *</label><input className={FIELD} value={form.contact} onChange={set('contact')} placeholder="you@email.com / (815) 555-0123" /></div>
+                            <div><label className={LABEL}>Anything to add? (experience, your player, etc.)</label><textarea className={FIELD} rows={3} value={form.note} onChange={set('note')} /></div>
+                            {err && <div className="text-sm text-red-400">{err}</div>}
+                            <div className="flex gap-2 pt-1">
+                                <button onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm">Cancel</button>
+                                <button onClick={submit} disabled={busy} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition flex-1 disabled:opacity-60">
+                                    {busy ? 'Sending…' : 'Send'}
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-gray-500 text-center">Your contact info stays private — it only goes to {brandName} staff.</p>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
 
 function CommitModal({ card, brandName, onClose, onDone }) {
     const team = card.team;
