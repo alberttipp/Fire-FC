@@ -397,11 +397,12 @@ function StaffLogin() {
     return (
         <div className="px-4 max-w-3xl mx-auto mb-8">
             {!open ? (
-                <div className="text-right">
-                    <button onClick={() => setOpen(true)} className="text-xs text-[#e6cd87] hover:underline">
-                        Coach or manager? Log in to see sign-ups →
-                    </button>
-                </div>
+                <button
+                    onClick={() => setOpen(true)}
+                    className="w-full glass-panel border border-[#c9a24b]/50 rounded-xl px-5 py-4 flex items-center justify-center gap-2 text-[#e6cd87] font-display font-bold uppercase tracking-wider text-sm md:text-base hover:bg-white/5 transition"
+                >
+                    🔑 Coaches &amp; Managers — Log in to see sign-ups →
+                </button>
             ) : (
                 <div className="glass-panel p-5 border border-[#c9a24b]/40">
                     <div className="text-[#e6cd87] font-display uppercase tracking-wider text-sm mb-3">Coach / Manager login</div>
