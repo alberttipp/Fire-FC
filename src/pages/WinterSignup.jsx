@@ -90,9 +90,14 @@ export default function WinterSignup() {
         try {
             let vid = localStorage.getItem('rc_visit_id');
             if (!vid) { vid = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('rc_visit_id', vid); }
+            // Per-channel attribution: ?src=fb-personal etc. First-touch is what
+            // matters, so persist the first src we ever see for this browser.
+            const urlSrc = new URLSearchParams(window.location.search).get('src');
+            let src = localStorage.getItem('rc_src');
+            if (urlSrc && !src) { src = urlSrc; localStorage.setItem('rc_src', src); }
             // supabase query builders are lazy — MUST call .then() (or await) or the
             // request never fires. Fire-and-forget with .then(ok, err), never .catch.
-            supabase.rpc('log_winter_visit', { p_org_slug: brand.slug, p_visit_id: vid, p_path: 'winter-signup' }).then(() => {}, () => {});
+            supabase.rpc('log_winter_visit', { p_org_slug: brand.slug, p_visit_id: vid, p_path: 'winter-signup', p_source: src || urlSrc || null }).then(() => {}, () => {});
         } catch { /* ignore */ }
         /* eslint-disable-next-line */
     }, [brand?.slug]);
@@ -473,6 +478,14 @@ function StaffLogin() {
 // goes where before drafting. Renders only for org staff (Albert + the coaches).
 const shortTeamName = (n) => (n || '').replace(/^.*?—\s*/, '') || n;
 
+// Friendly names for the ?src= channel codes used in shared links.
+const SOURCE_LABELS = {
+    'fb-personal': 'FB — Albert',
+    'fb-rockcity': 'FB — Rock City FC',
+    'fb-815': 'FB — 815YouthSports',
+    'direct / other': 'Direct / other',
+};
+
 function StaffPanel({ orgSlug, teams }) {
     const { user } = useAuth();
     const [isStaff, setIsStaff] = useState(false);
@@ -527,6 +540,18 @@ function StaffPanel({ orgSlug, teams }) {
                         <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Opens by day</div>
                         <div className="flex flex-wrap gap-2 text-xs text-gray-300">
                             {stats.opens_by_day.map((d) => <span key={d.day} className="bg-white/5 rounded px-2 py-1">{d.day}: {d.opens}</span>)}
+                        </div>
+                    </div>
+                )}
+                {stats?.opens_by_source?.length > 0 && (
+                    <div className="mb-4">
+                        <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Where traffic came from</div>
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-300">
+                            {stats.opens_by_source.map((s) => (
+                                <span key={s.source} className="bg-white/5 rounded px-2 py-1">
+                                    {SOURCE_LABELS[s.source] || s.source}: <span className="text-[#e6cd87] font-bold">{s.visitors}</span>
+                                </span>
+                            ))}
                         </div>
                     </div>
                 )}
