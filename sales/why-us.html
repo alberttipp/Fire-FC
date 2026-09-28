@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Why Us vs. Everyone Else — Club Player-Development Platform</title>
+<style>
+  :root{
+    --navy:#0b1f3a; --ink:#11233b; --slate:#5b6b7f; --line:#e3e8ee;
+    --blue:#2f6df6; --blue-soft:#eaf1ff; --gold:#c79a2e; --gold-soft:#fbf3dd;
+    --good:#1f9d57; --mid:#d8930f; --no:#c2cbd6; --bg:#f6f8fb; --card:#fff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 22px 60px;}
+
+  header.hero{background:linear-gradient(135deg,#0b1f3a 0%,#143a6b 100%);color:#fff;padding:36px 0 30px;margin-bottom:30px;}
+  .hero .wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding-bottom:0;}
+  .logo-slot{width:62px;height:62px;border-radius:14px;background:rgba(255,255,255,.12);
+    border:1px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;
+    font-size:10px;text-align:center;color:rgba(255,255,255,.7);flex-shrink:0;padding:6px;}
+  .pill{display:inline-block;background:var(--gold);color:#1a1300;font-weight:800;font-size:11px;
+    letter-spacing:.6px;text-transform:uppercase;padding:4px 10px;border-radius:999px;margin-bottom:9px;}
+  .hero h1{font-size:26px;margin:0;font-weight:800;letter-spacing:-.3px;}
+  .hero p{margin:6px 0 0;color:#bcd0ee;font-size:14.5px;max-width:660px;}
+
+  h2.section{font-size:13px;letter-spacing:1.4px;text-transform:uppercase;color:var(--blue);margin:34px 0 6px;font-weight:800;}
+  .lead{color:var(--slate);font-size:14px;margin:0 0 18px;max-width:780px;}
+
+  /* Thesis banner */
+  .thesis{background:var(--navy);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:8px;}
+  .thesis b{color:#fff;}
+  .thesis .tg{color:#9ec1ff;}
+  .thesis .ty{color:var(--gold);}
+
+  /* Positioning map */
+  .map-wrap{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;
+    box-shadow:0 8px 30px rgba(11,31,58,.06);}
+  .map{position:relative;width:100%;max-width:640px;margin:6px auto 0;aspect-ratio:1.35/1;
+    border-left:2px solid #cdd6e2;border-bottom:2px solid #cdd6e2;}
+  .map .grid-v{position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed #e6ebf1;}
+  .map .grid-h{position:absolute;top:50%;left:0;right:0;border-top:1px dashed #e6ebf1;}
+  .axis-x{position:absolute;bottom:-30px;width:100%;text-align:center;font-size:11.5px;font-weight:700;color:var(--slate);}
+  .axis-y{position:absolute;top:50%;left:-12px;transform:rotate(-90deg) translateX(50%);transform-origin:left top;
+    font-size:11.5px;font-weight:700;color:var(--slate);white-space:nowrap;}
+  .axis-end{position:absolute;font-size:10px;color:#9aa7b6;}
+  .dot{position:absolute;transform:translate(-50%,50%);text-align:center;}
+  .dot .b{display:inline-block;background:#eef2f7;border:1px solid #d6dee8;border-radius:999px;
+    padding:5px 11px;font-size:11.5px;font-weight:700;color:#41526a;white-space:nowrap;}
+  .dot .s{display:block;font-size:9.5px;color:#9aa7b6;margin-top:2px;}
+  .dot.you .b{background:var(--blue);border-color:var(--blue);color:#fff;font-size:13px;box-shadow:0 6px 18px rgba(47,109,246,.4);}
+  .dot.you .b::before{content:"★ ";}
+
+  /* Matrix */
+  .matrix{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;overflow:hidden;font-size:12.5px;margin-top:4px;}
+  .matrix th,.matrix td{padding:9px 8px;text-align:center;border-bottom:1px solid var(--line);}
+  .matrix thead th{background:#0f2747;color:#fff;font-size:11px;line-height:1.25;vertical-align:bottom;padding:10px 7px;}
+  .matrix thead th .ex{display:block;font-weight:500;color:#9bb4d6;font-size:9px;margin-top:3px;}
+  .matrix th.feat,.matrix td.feat{text-align:left;font-weight:600;color:var(--ink);width:30%;}
+  .matrix col.youcol,.matrix td.you,.matrix th.you{background:var(--blue-soft);}
+  .matrix th.you{background:var(--blue);}
+  .matrix tbody tr:last-child td{border-bottom:0;}
+  .grp td{background:#f0f3f8;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;
+    font-weight:800;color:var(--slate);text-align:left;padding:7px 8px;}
+  .yes{color:var(--good);font-weight:800;font-size:14px;}
+  .mid{color:var(--mid);font-weight:800;}
+  .no{color:var(--no);font-weight:800;}
+  .legend{font-size:11.5px;color:var(--slate);margin:10px 2px 0;}
+  .legend b{color:var(--ink);}
+
+  /* Differentiators */
+  .diffs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px;}
+  .diff{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:17px 16px;border-top:3px solid var(--blue);}
+  .diff:nth-child(2){border-top-color:var(--gold);}
+  .diff:nth-child(3){border-top-color:var(--good);}
+  .diff h3{margin:2px 0 5px;font-size:15px;color:var(--navy);}
+  .diff p{margin:0;font-size:12.8px;color:#43536a;}
+
+  .honest{background:var(--gold-soft);border:1px solid #ecdcae;border-radius:12px;padding:15px 18px;margin-top:18px;}
+  .honest b{color:var(--navy);}
+  .honest p{margin:6px 0 0;font-size:13px;color:#5c5126;}
+
+  .btns{margin:24px 0 6px;display:flex;gap:10px;}
+  .btn{border:0;cursor:pointer;font-weight:700;font-size:13px;padding:11px 18px;border-radius:10px;}
+  .btn.primary{background:var(--blue);color:#fff;}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink);}
+  footer{margin-top:34px;border-top:1px solid var(--line);padding-top:16px;font-size:11.5px;color:var(--slate);
+    display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+
+  @media(max-width:720px){
+    .diffs{grid-template-columns:1fr;}
+    .hero h1{font-size:21px;}
+    .matrix{font-size:11px;}
+    .matrix thead th .ex{display:none;}
+  }
+  @media print{
+    body{background:#fff;}
+    .btns,.no-print{display:none !important;}
+    header.hero,.thesis,.matrix thead th,.dot.you .b{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .map-wrap,.matrix,.diff{box-shadow:none;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="logo-slot">YOUR<br>CLUB<br>LOGO</div>
+    <div>
+      <span class="pill">Why us vs. everyone else</span>
+      <h1>The only app that develops your players <em>and</em> runs your team — in one place.</h1>
+      <p>Training apps build skills. Admin platforms handle registration. We're the only one that does
+         both — coach-run evaluations, development plans, and gamified engagement, fully owned by your club.</p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- THESIS -->
+  <div class="thesis">
+    <span class="tg">The training apps</span> develop players but can't run a team.
+    <span class="ty">The corporate platforms</span> run the team but do nothing for player development.
+    <b>We're the only one that does both — built for the kid, owned by your club.</b>
+  </div>
+
+  <!-- POSITIONING MAP -->
+  <h2 class="section">Where everyone sits</h2>
+  <p class="lead">Two things a club actually needs from software: tools that <b>develop &amp; engage the player</b>,
+     and tools that <b>run the club</b>. Almost every product does one. We're built for the corner that does both.</p>
+
+  <div class="map-wrap">
+    <div class="map">
+      <div class="grid-v"></div>
+      <div class="grid-h"></div>
+
+      <!-- top-left: dev, not ops -->
+      <div class="dot" style="left:26%;top:16%;"><span class="b">Techne · TOCA</span><span class="s">player training</span></div>
+      <div class="dot" style="left:31%;top:34%;"><span class="b">TeamGenius · iSport360 · PlayerUp</span><span class="s">evals &amp; IDPs</span></div>
+      <div class="dot" style="left:40%;top:6%;"><span class="b">TopYa / Soccer Sphere</span><span class="s">challenges</span></div>
+
+      <!-- bottom-right: ops, not dev -->
+      <div class="dot" style="left:74%;top:80%;"><span class="b">Byga · PlayMetrics · TeamSnap</span><span class="s">registration &amp; admin</span></div>
+
+      <!-- top-right: YOU -->
+      <div class="dot you" style="left:80%;top:16%;"><span class="b">YOUR CLUB'S APP</span><span class="s">does both</span></div>
+
+      <div class="axis-x">Runs the club &nbsp;→&nbsp; (roster, events, comms, registration)</div>
+      <div class="axis-y">Develops &amp; engages the player &nbsp;→</div>
+      <div class="axis-end" style="left:2px;bottom:2px;">low / low</div>
+    </div>
+  </div>
+
+  <!-- FEATURE MATRIX -->
+  <h2 class="section">Feature-by-feature</h2>
+  <p class="lead">An honest comparison. Every individual feature exists <em>somewhere</em> — but only one column
+     is filled top to bottom.</p>
+
+  <table class="matrix">
+    <colgroup><col/><col class="youcol"/><col/><col/><col/><col/></colgroup>
+    <thead>
+      <tr>
+        <th class="feat">Capability</th>
+        <th class="you">YOUR<br>CLUB APP</th>
+        <th>Training apps<span class="ex">Techne, TOCA</span></th>
+        <th>Eval / IDP tools<span class="ex">TeamGenius, iSport360, PlayerUp</span></th>
+        <th>Engagement<span class="ex">TopYa / Sphere</span></th>
+        <th>Admin platforms<span class="ex">Byga, PlayMetrics</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="grp"><td colspan="6">Player development &amp; engagement</td></tr>
+      <tr><td class="feat">Coach-run player evaluations</td><td class="you"><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td></tr>
+      <tr><td class="feat">Gamified FIFA-style player <b>card</b> (kid-facing)</td><td class="you"><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="no">—</span></td><td><span class="mid">◐</span></td><td><span class="no">—</span></td></tr>
+      <tr><td class="feat">Individual Development Plans (IDP)</td><td class="you"><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="mid">◐</span></td></tr>
+      <tr><td class="feat">Touch tracking</td><td class="you"><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="mid">◐</span></td><td><span class="no">—</span></td></tr>
+      <tr><td class="feat">Juggling competition</td><td class="you"><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="yes">✓</span></td><td><span class="no">—</span></td></tr>
+      <tr><td class="feat">Weekly homework / solo challenges</td><td class="you"><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td><td><span class="no">—</span></td></tr>
+      <tr><td class="feat">Drill / training video library</td><td class="you"><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td><td><span class="mid">◐</span></td></tr>
+      <tr><td class="feat"><b>AI-generated</b> practice sessions</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td></tr>
+      <tr><td class="feat">Leaderboards &amp; badges</td><td class="you"><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="yes">✓</span></td><td><span class="no">—</span></td></tr>
+
+      <tr class="grp"><td colspan="6">Team &amp; club operations</td></tr>
+      <tr><td class="feat">Roster management</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="mid">◐</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td></tr>
+      <tr><td class="feat">Events / calendar / RSVP / attendance</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="yes">✓</span></td></tr>
+      <tr><td class="feat">Lineup / formation builder</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="mid">◐</span></td></tr>
+      <tr><td class="feat">Team chat &amp; push notifications</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td></tr>
+      <tr><td class="feat">Photo / video gallery</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="mid">◐</span></td></tr>
+      <tr><td class="feat">Coach admin dashboard</td><td class="you"><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td></tr>
+
+      <tr class="grp"><td colspan="6">Club &amp; business model</td></tr>
+      <tr><td class="feat">Registration &amp; payment processing</td><td class="you"><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="yes">✓</span></td></tr>
+      <tr><td class="feat">White-labeled to your club</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="mid">◐</span></td><td><span class="mid">◐</span></td><td><span class="mid">◐</span></td></tr>
+      <tr><td class="feat">Run by <b>your</b> coach (not a vendor / parent)</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="yes">✓</span></td><td><span class="mid">◐</span></td><td><span class="yes">✓</span></td></tr>
+      <tr><td class="feat"><b>All-in-one</b> — one app, not four subscriptions</td><td class="you"><span class="yes">✓</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td><td><span class="no">—</span></td></tr>
+    </tbody>
+  </table>
+  <p class="legend"><b><span class="yes">✓</span></b> full &nbsp;·&nbsp; <b><span class="mid">◐</span></b> partial / limited &nbsp;·&nbsp; <b><span class="no">—</span></b> none. &nbsp; Competitor data from public information; verify before quoting.</p>
+
+  <!-- DIFFERENTIATORS -->
+  <h2 class="section">What actually makes us different</h2>
+  <div class="diffs">
+    <div class="diff">
+      <h3>One app, not four</h3>
+      <p>Replace a training app, an evaluation tool, a development-plan tool, and a team-comms app with a single
+         platform your club owns. Less cost, less login fatigue, one source of truth.</p>
+    </div>
+    <div class="diff">
+      <h3>Built for the kid</h3>
+      <p>Everyone else builds report cards for adults. We build a FIFA-style player card the kid <em>wants</em> to
+         level up — tied to juggling, touches, badges and challenges. Engagement is the point, not a feature.</p>
+    </div>
+    <div class="diff">
+      <h3>Complements what you have</h3>
+      <p>Keep your registration &amp; payments platform — we don't touch the money. We're the development and
+         engagement layer it will never build. No rip-and-replace, easy yes.</p>
+    </div>
+  </div>
+
+  <div class="honest">
+    <b>The honest version</b>
+    <p>Every single feature here exists somewhere else — evals, IDPs, juggling, cards, all of it. What no one else has
+       is the <b>combination</b>: development + engagement + full team management, in one club-owned, kid-facing app,
+       driven by your real coach. That's the whole pitch — the integration, not any one feature.</p>
+  </div>
+
+  <div class="btns no-print">
+    <button class="btn primary" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <footer>
+    <span>White-labeled to your club — drop in your logo &amp; colors. Comparison for discussion; competitor features from public info, mid-2026.</span>
+    <span>Develops players · Runs the team · Owned by your club</span>
+  </footer>
+</div>
+</body>
+</html>

@@ -73,6 +73,38 @@ export default function WinterSignup() {
         /* eslint-disable-next-line */
     }, [brand?.slug]);
 
+    // Build the public picker. We run TWO U12 squads (open to U11 & U12 players),
+    // so all U12 team rows collapse into ONE public card — parents join one growing
+    // list and we draft them into the two squads in-app. U11-age kids are welcome on
+    // that same U12 card, so the standalone U11 team isn't shown publicly. U10 is its
+    // own recruiting card. Momentum = total committed across every winter team (a
+    // count only — never names — as social proof to keep the list growing).
+    const list = teams || [];
+    const u12s = list
+        .filter((t) => t.age_group === 'U12')
+        .sort((a, b) => Number(b.committed_count || 0) - Number(a.committed_count || 0));
+    const u12Intake = u12s[0] || null;
+    const u10 = list.find((t) => t.age_group === 'U10') || null;
+    const totalCommitted = list.reduce((s, t) => s + Number(t.committed_count || 0), 0);
+
+    const cards = [];
+    if (u12Intake) cards.push({
+        team: u12Intake,
+        label: 'U12',
+        title: 'U12 · Winter Squads',
+        sub: 'U11 & U12 players welcome',
+        note: "We're forming two U12 squads — grab your spot and we'll place your player.",
+        welcomesYounger: true,
+    });
+    if (u10) cards.push({
+        team: u10,
+        label: 'U10',
+        title: 'U10',
+        sub: 'Now forming',
+        note: 'Players — and a coach — wanted. Get in from day one.',
+        welcomesYounger: false,
+    });
+
     return (
         <div className="min-h-screen text-white" style={{ background: 'radial-gradient(120% 90% at 50% -10%, #16305c 0%, #0b1a33 55%)' }}>
             {/* Hero */}
@@ -129,7 +161,7 @@ export default function WinterSignup() {
                     <Detail k="League" v="Winter International League — indoor" />
                     <Detail k="Format" v="8v8 indoor (confirming with the league)" />
                     <Detail k="Season" v="Start date & schedule being finalized — commit to hold your spot." />
-                    <Detail k="Coaches" v="U11 — Kevan Watkins · U12 — Jeremy Gunderson." />
+                    <Detail k="Coaches" v="Jeremy Gunderson & Kevan Watkins lead the U12 squads together." />
                     <Detail k="Practice" v="Both teams train together — at least 1 practice a week, plus a second day of competitive free play. Rock Valley College, with Elite Sports Center & Sports Core 2 as backups." />
                     <Detail k="Cost" v="Kept as low as possible — college field time and sponsors covering indoor time. Target $150–250/player depending on field costs; final fee confirmed soon." />
                 </div>
@@ -149,22 +181,36 @@ export default function WinterSignup() {
 
             {/* Teams */}
             <div className="px-4 max-w-3xl mx-auto pb-24">
-                <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87] mb-3">Pick your team</h2>
+                <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87] mb-3">Claim your spot</h2>
+
+                {/* Momentum — social proof (count only, never names) to keep the list growing */}
+                {totalCommitted > 0 && (
+                    <div className="glass-panel p-4 mb-4 flex items-center gap-3 border border-[#c9a24b]/40">
+                        <div className="text-3xl">🔥</div>
+                        <div>
+                            <div className="text-lg font-display font-bold text-[#e6cd87] leading-none">
+                                {totalCommitted} players committed <span className="text-white">and growing</span>
+                            </div>
+                            <div className="text-xs text-gray-300 mt-1">Two U12 squads forming — the more that join, the better we build. Come be part of it.</div>
+                        </div>
+                    </div>
+                )}
 
                 {teams === null && <p className="text-gray-500">Loading teams…</p>}
                 {loadErr && <p className="text-red-400 text-sm">{loadErr}</p>}
-                {teams && teams.length === 0 && !loadErr && (
+                {teams && cards.length === 0 && !loadErr && (
                     <p className="text-gray-400">Sign-up isn't open yet — check back soon.</p>
                 )}
 
                 <div className="grid md:grid-cols-2 gap-4">
-                    {(teams || []).map((t) => (
-                        <div key={t.team_id} className="glass-panel p-5 flex flex-col">
-                            <div className="text-xl font-display font-bold">{t.age_group}</div>
-                            <div className="text-xs text-gray-400 mb-1">{t.name}</div>
-                            {t.coach_name && <div className="text-xs text-[#e6cd87] mb-4">Coach {t.coach_name}</div>}
-                            <button onClick={() => setModalTeam(t)} className="mt-auto px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
-                                Commit to {t.age_group}
+                    {cards.map((c) => (
+                        <div key={c.team.team_id} className="glass-panel p-5 flex flex-col">
+                            <div className="text-xl font-display font-bold">{c.title}</div>
+                            <div className="text-xs text-[#e6cd87] mb-1">{c.sub}</div>
+                            {c.team.coach_name && <div className="text-xs text-gray-400">Coach {c.team.coach_name}</div>}
+                            <p className="text-sm text-gray-300 mt-2 mb-4 leading-snug">{c.note}</p>
+                            <button onClick={() => setModalTeam(c)} className="mt-auto px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
+                                Commit your player
                             </button>
                         </div>
                     ))}
@@ -175,7 +221,7 @@ export default function WinterSignup() {
 
             {modalTeam && (
                 <CommitModal
-                    team={modalTeam}
+                    card={modalTeam}
                     brandName={brand.name}
                     onClose={() => setModalTeam(null)}
                     onDone={async () => { setModalTeam(null); await load(); }}
@@ -388,11 +434,8 @@ const Detail = ({ k, v }) => (
     </div>
 );
 
-// Age groups that are full — after a commit, show a "full / we'll be in touch"
-// message instead of the normal confirmation (commit is still recorded).
-const FULL_TEAMS = ['U12'];
-
-function CommitModal({ team, brandName, onClose, onDone }) {
+function CommitModal({ card, brandName, onClose, onDone }) {
+    const team = card.team;
     const [form, setForm] = useState({ first: '', last: '', dob: '', guardianName: '', email: '', phone: '' });
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -400,7 +443,10 @@ function CommitModal({ team, brandName, onClose, onDone }) {
     const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
     const hint = suggestedU(form.dob);
-    const mismatch = hint && hint !== team.age_group;
+    // On the U12 card both U11 & U12 players are welcome, so a younger birth year
+    // is reassured, not redirected. Elsewhere, a genuine mismatch nudges the parent.
+    const welcomeYounger = card.welcomesYounger && (hint === 'U11' || hint === 'U12');
+    const mismatch = hint && hint !== card.label && !welcomeYounger;
 
     const submit = async () => {
         setError('');
@@ -433,29 +479,17 @@ function CommitModal({ team, brandName, onClose, onDone }) {
             <div className="bg-[#0b1a33] border border-white/10 rounded-t-2xl md:rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                 {done ? (
                     <div className="text-center py-4">
-                        {FULL_TEAMS.includes(team.age_group) ? (
-                            <>
-                                <div className="text-5xl mb-3">✅</div>
-                                <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">Thanks — we've got {form.first}!</h3>
-                                <p className="text-gray-400 text-sm">
-                                    Our {team.age_group} team is currently full. We've saved your commitment and {brandName} will be in touch to discuss next steps.
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-5xl mb-3">🎉</div>
-                                <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">You're in!</h3>
-                                <p className="text-gray-400 text-sm">
-                                    {form.first} is committed to {brandName} {team.age_group}. {brandName} will be in touch with next steps — see you on the pitch! ⚽
-                                </p>
-                            </>
-                        )}
-                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">{FULL_TEAMS.includes(team.age_group) ? 'Close' : 'Done'}</button>
+                        <div className="text-5xl mb-3">🎉</div>
+                        <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">You're in!</h3>
+                        <p className="text-gray-400 text-sm">
+                            {form.first} is committed to {brandName} {card.label}. {brandName} will be in touch with next steps — see you on the pitch! ⚽
+                        </p>
+                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">Done</button>
                     </div>
                 ) : (
                     <>
-                        <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">Commit to {team.age_group}</h3>
-                        <p className="text-gray-400 text-xs mb-4">{team.name} · Winter indoor</p>
+                        <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">Commit to {card.label}</h3>
+                        <p className="text-gray-400 text-xs mb-4">{card.sub} · Winter indoor</p>
                         <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-3">
                                 <div><label className={LABEL}>Player first *</label><input className={FIELD} value={form.first} onChange={set('first')} /></div>
@@ -464,9 +498,14 @@ function CommitModal({ team, brandName, onClose, onDone }) {
                             <div>
                                 <label className={LABEL}>Player date of birth</label>
                                 <input type="date" className={FIELD} value={form.dob} onChange={set('dob')} />
+                                {welcomeYounger && form.dob && (
+                                    <p className="text-[11px] text-[#e6cd87] mt-1">
+                                        {hint} age — perfect. U11 &amp; U12 players train and compete together this winter.
+                                    </p>
+                                )}
                                 {mismatch && (
                                     <p className="text-[11px] text-[#e6cd87] mt-1">
-                                        Heads up: birth year suggests {hint}. You can still join {team.age_group}, or go back and pick {hint}.
+                                        Heads up: birth year suggests {hint}. You can still join {card.label}, or go back and pick {hint}.
                                     </p>
                                 )}
                             </div>

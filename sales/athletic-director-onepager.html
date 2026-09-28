@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Player Development Platform — One-Pager for Athletic Directors</title>
+<style>
+  :root{
+    --navy:#0b1f3a; --ink:#11233b; --slate:#5b6b7f; --line:#e3e8ee;
+    --blue:#2f6df6; --blue-soft:#eaf1ff; --gold:#c79a2e; --gold-soft:#fbf3dd;
+    --good:#1f9d57; --bg:#f6f8fb; --card:#fff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 22px 40px;}
+
+  header.hero{background:linear-gradient(135deg,#0b1f3a 0%,#143a6b 100%);color:#fff;padding:30px 0 26px;}
+  .hero .wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-bottom:0;}
+  .logo-slot{width:58px;height:58px;border-radius:13px;background:rgba(255,255,255,.12);
+    border:1px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;
+    font-size:9px;text-align:center;color:rgba(255,255,255,.7);flex-shrink:0;padding:6px;}
+  .pill{display:inline-block;background:var(--gold);color:#1a1300;font-weight:800;font-size:10.5px;
+    letter-spacing:.6px;text-transform:uppercase;padding:4px 10px;border-radius:999px;margin-bottom:8px;}
+  .hero h1{font-size:25px;margin:0;font-weight:800;letter-spacing:-.3px;}
+  .hero p{margin:6px 0 0;color:#bcd0ee;font-size:14px;max-width:640px;}
+
+  h2.section{font-size:12px;letter-spacing:1.3px;text-transform:uppercase;color:var(--blue);
+    margin:26px 0 10px;font-weight:800;}
+
+  /* problem strip */
+  .problem{background:var(--navy);color:#dce7f6;border-radius:13px;padding:16px 20px;margin-top:22px;font-size:14px;}
+  .problem b{color:#fff;}
+
+  /* feature grid */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .feat{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px;
+    box-shadow:0 6px 20px rgba(11,31,58,.05);}
+  .feat .ic{font-size:20px;line-height:1;}
+  .feat h3{margin:8px 0 3px;font-size:14px;font-weight:800;}
+  .feat p{margin:0;font-size:12.5px;color:var(--slate);}
+
+  /* proof metrics */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .metric{background:var(--gold-soft);border:1px solid #ecdcae;border-radius:13px;padding:14px;text-align:center;}
+  .metric .n{font-size:26px;font-weight:800;color:var(--navy);line-height:1;}
+  .metric .l{font-size:11px;color:#7a6a3f;margin-top:6px;font-weight:600;}
+
+  /* screenshot slots */
+  .shots{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px;}
+  .shot{border:1px dashed #c2cdd9;border-radius:12px;background:#fff;aspect-ratio:9/16;
+    display:flex;align-items:center;justify-content:center;text-align:center;color:#9aa7b6;font-size:11px;padding:10px;}
+  .shot b{color:#5b6b7f;}
+
+  /* why different */
+  .why{display:grid;grid-template-columns:1fr 1fr;gap:8px 26px;font-size:13.5px;}
+  .why div{padding-left:20px;position:relative;}
+  .why div::before{content:"✓";position:absolute;left:0;color:var(--good);font-weight:800;}
+
+  /* CTA */
+  .cta{background:linear-gradient(135deg,#2f6df6,#1f54d6);color:#fff;border-radius:14px;
+    padding:20px 24px;margin-top:24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+  .cta h3{margin:0 0 4px;font-size:18px;}
+  .cta p{margin:0;color:#dbe6ff;font-size:13px;}
+  .cta .btn{background:#fff;color:#1f54d6;font-weight:800;padding:11px 20px;border-radius:10px;
+    font-size:14px;white-space:nowrap;}
+  .foot{color:var(--slate);font-size:11px;margin-top:14px;text-align:center;}
+
+  @media (max-width:760px){ .grid,.metrics,.shots,.why{grid-template-columns:1fr 1fr;} }
+  @media print{
+    body{background:#fff;} .feat,.metric{box-shadow:none;}
+    header.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .pill,.problem,.metric,.cta,.metric .n{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .shots{display:none;} /* drop empty slots when printing without images */
+  }
+</style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="logo-slot">YOUR<br>LOGO</div>
+      <div>
+        <span class="pill">Live pilot · Rockford, IL</span>
+        <h1>One app for your whole athletic program</h1>
+        <p>Scheduling, parent communication, live game scoring, and real player
+        development — in a single app that families actually open every day.</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="problem">
+      Right now most programs run on a patchwork of <b>group texts, spreadsheets, and paper</b> —
+      and nothing that actually <b>develops the athlete</b>. Parents miss updates, coaches chase RSVPs,
+      and there's no record of a kid's growth. This replaces all of it with one tool built
+      <b>for youth sports, by a coach</b>.
+    </div>
+
+    <h2 class="section">What it does</h2>
+    <div class="grid">
+      <div class="feat"><div class="ic">📅</div><h3>Schedule & RSVP</h3><p>One-tap availability per player. Coaches see a live headcount for every practice and game.</p></div>
+      <div class="feat"><div class="ic">💬</div><h3>Team chat + push</h3><p>Announcements and reminders that reach every parent's phone — no more "I didn't see the text."</p></div>
+      <div class="feat"><div class="ic">⚽</div><h3>Live game scoring</h3><p>A sideline parent taps the score; goals & assists are tracked and the whole team follows live.</p></div>
+      <div class="feat"><div class="ic">🃏</div><h3>Player development cards</h3><p>FIFA-style player ratings coaches update over the season — kids and parents see growth over time.</p></div>
+      <div class="feat"><div class="ic">🎯</div><h3>At-home training</h3><p>Drills, challenges, and streaks that get kids practicing on their own — and log it automatically.</p></div>
+      <div class="feat"><div class="ic">📊</div><h3>Director dashboard</h3><p>Attendance and engagement across every team at a glance, plus a nightly summary in your inbox.</p></div>
+    </div>
+
+    <h2 class="section">Proof — from our live team this season</h2>
+    <div class="metrics">
+      <div class="metric"><div class="n">100%</div><div class="l">of rostered players active every week</div></div>
+      <div class="metric"><div class="n">100+</div><div class="l">at-home training sessions logged weekly</div></div>
+      <div class="metric"><div class="n">1-tap</div><div class="l">push reaches every family instantly</div></div>
+      <div class="metric"><div class="n">Live</div><div class="l">in production since May 2026</div></div>
+    </div>
+
+    <div class="shots">
+      <div class="shot"><span><b>Screenshot 1</b><br>Player development card</span></div>
+      <div class="shot"><span><b>Screenshot 2</b><br>Live scoreboard + goal feed</span></div>
+      <div class="shot"><span><b>Screenshot 3</b><br>Schedule / RSVP view</span></div>
+    </div>
+
+    <h2 class="section">Why a school chooses this</h2>
+    <div class="why">
+      <div>Built by a local coach &amp; parent — not a faceless SaaS company</div>
+      <div>Development-first: it grows players, not just calendars</div>
+      <div>Works on any phone — no app-store download needed</div>
+      <div>Private &amp; safe: closed to your program, no public data</div>
+      <div>One tool replaces 3–4 apps your families already ignore</div>
+      <div>Free pilot — I'll set up your first team at no cost</div>
+    </div>
+
+    <div class="cta">
+      <div>
+        <h3>See it in 15 minutes</h3>
+        <p>I'll walk you through it live and set up one of your teams free, so you can try it with real families.</p>
+      </div>
+      <div class="btn">Reply to book a demo →</div>
+    </div>
+
+    <div class="foot">
+      Albert Tipp · Rockford Fire FC · [your email] · [your phone] · [app link]
+    </div>
+  </div>
+</body>
+</html>
