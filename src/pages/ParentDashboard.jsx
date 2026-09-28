@@ -38,6 +38,7 @@ import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
 import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
 import WeeklyProgressCard from '../components/WeeklyProgressCard';
+import { STAFF_ROLES } from '../constants/roles';
 
 // Lazy-load tab views and heavy modals so the parent dashboard's first
 // paint is small. Same chunks are shared with /dashboard.
@@ -65,8 +66,10 @@ const ViewLoader = () => (
 // dismiss the celebration before the kid sees it.
 
 const ParentDashboard = () => {
-    const { user, profile, signOut } = useAuth();
+    const { user, profile, signOut, memberships } = useAuth();
     const navigate = useNavigate();
+    // Staff who are also parents can flip back to their coach/manager dashboard.
+    const isAlsoStaff = (memberships || []).some((m) => STAFF_ROLES.has(m.role));
     const toast = useToast();
     const brand = useBranding();
     const voiceCommand = useVoiceCommand();
@@ -1501,6 +1504,17 @@ const ParentDashboard = () => {
                             >
                                 <Link2 className="w-4 h-4" />
                                 <span className="text-xs font-bold uppercase tracking-wider">Invite</span>
+                            </button>
+                        )}
+
+                        {isAlsoStaff && !isPreview && (
+                            <button
+                                onClick={() => navigate('/dashboard')}
+                                className="flex items-center gap-1.5 text-brand-green hover:bg-brand-green/10 transition-colors px-2 py-1.5 rounded"
+                                title="Switch back to your coach / manager dashboard"
+                            >
+                                <LayoutDashboard className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wider">Coach view</span>
                             </button>
                         )}
 

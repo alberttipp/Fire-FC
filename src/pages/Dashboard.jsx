@@ -4,7 +4,7 @@ import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
 import useBackGuard from '../hooks/useBackGuard';
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
-import { LayoutDashboard, Users, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy } from 'lucide-react';
+import { LayoutDashboard, Users, User, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import TeamSwitcher from '../components/TeamSwitcher';
 import { supabase } from '../supabaseClient';
@@ -58,6 +58,10 @@ const Dashboard = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    // Does this staff user also have a family/parent side? Drives the
+    // "Parent view" toggle so a coach who's also a parent can flip to their
+    // own family dashboard (and managers always get it — see below).
+    const [hasFamily, setHasFamily] = useState(false);
     const [showPreviewPicker, setShowPreviewPicker] = useState(false);
     const [showOnboarding, setShowOnboarding] = useState(false);
     // Active team (name + age group) for the header — a coach running U11 AND
@@ -270,6 +274,18 @@ const Dashboard = () => {
         setHasPickedView(true);
     }, [effectiveRole, isStaff, hasPickedView]);
 
+    // Detect a family/parent side (linked child) for the "Parent view" toggle.
+    useEffect(() => {
+        const uid = session?.user?.id;
+        if (!uid) { setHasFamily(false); return; }
+        supabase
+            .from('family_members')
+            .select('player_id', { count: 'exact', head: true })
+            .eq('user_id', uid)
+            .in('relationship', ['guardian', 'parent', 'fan'])
+            .then(({ count }) => setHasFamily((count || 0) > 0), () => {});
+    }, [session?.user?.id]);
+
     // Self-serve onboarding wizard — auto-opens ONLY for a brand-new club:
     // a real signed-in staff account with NO team in scope. profile.team_id is
     // the existing signal AuthContext resolves from team_memberships, so any
@@ -360,6 +376,17 @@ const Dashboard = () => {
                             {/* Alerts removed from nav (the top-right bell covers it);
                                 Tryouts hidden (season passed; the club uses BYGA for it). */}
                         </div>
+
+                        {(isManager || hasFamily) && (
+                            <button
+                                onClick={() => navigate('/parent-dashboard')}
+                                className="text-xs text-blue-400 border border-blue-400/30 px-2 sm:px-3 py-1.5 rounded hover:bg-blue-400/10 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 shrink-0"
+                                title="Switch to your own family / parent view"
+                            >
+                                <User className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Parent view</span>
+                            </button>
+                        )}
 
                         <button
                             onClick={() => setShowPreviewPicker(true)}
