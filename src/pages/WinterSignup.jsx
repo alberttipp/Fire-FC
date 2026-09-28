@@ -128,7 +128,7 @@ export default function WinterSignup() {
             </div>
 
             <StaffLogin />
-            <StaffPanel orgSlug={brand.slug} />
+            <StaffPanel orgSlug={brand.slug} teams={teams || []} />
 
             {/* Pillars */}
             <div className="px-4 max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -424,13 +424,18 @@ function StaffLogin() {
     );
 }
 
-// Coaches-only dashboard: link opens, commits, and the full committed roster
-// (names + contact). Renders only for org staff (Albert + the two coaches).
-function StaffPanel({ orgSlug }) {
+// Coaches-only dashboard: link opens, commits, and a SQUAD PLANNER — a tentative
+// tagging board (Unassigned / each squad) that lives entirely in winter_signups.
+// It does NOT create rosters or notify anyone; it's just how staff decide who
+// goes where before drafting. Renders only for org staff (Albert + the coaches).
+const shortTeamName = (n) => (n || '').replace(/^.*?—\s*/, '') || n;
+
+function StaffPanel({ orgSlug, teams }) {
     const { user } = useAuth();
     const [isStaff, setIsStaff] = useState(false);
     const [stats, setStats] = useState(null);
     const [roster, setRoster] = useState([]);
+    const [savingId, setSavingId] = useState(null);
     useEffect(() => {
         if (!user?.id || !orgSlug) return;
         (async () => {
@@ -446,6 +451,23 @@ function StaffPanel({ orgSlug }) {
         })();
     }, [user?.id, orgSlug]);
     if (!isStaff) return null;
+
+    const squads = teams || [];
+    const assign = async (signupId, teamId) => {
+        setSavingId(signupId);
+        setRoster((prev) => prev.map((r) => (r.id === signupId ? { ...r, assigned_team_id: teamId || null } : r)));
+        await supabase
+            .rpc('assign_winter_signup', { p_org_slug: orgSlug, p_signup_id: signupId, p_team_id: teamId || null })
+            .then(() => {}, () => {});
+        setSavingId(null);
+    };
+
+    // One bucket per squad (in team order) + Unassigned last.
+    const buckets = [
+        ...squads.map((s) => ({ key: s.team_id, label: shortTeamName(s.name), kids: roster.filter((r) => r.assigned_team_id === s.team_id) })),
+        { key: 'unassigned', label: 'Unassigned', kids: roster.filter((r) => !r.assigned_team_id) },
+    ];
+
     return (
         <div className="px-4 max-w-3xl mx-auto mb-8">
             <div className="glass-panel p-5 border border-[#c9a24b]/40">
@@ -465,23 +487,55 @@ function StaffPanel({ orgSlug }) {
                         </div>
                     </div>
                 )}
-                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Committed players ({roster.length})</div>
+
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Squad planner ({roster.length} committed)</div>
                 {roster.length === 0 ? (
                     <p className="text-sm text-gray-500">No commits yet.</p>
                 ) : (
-                    <div className="space-y-1.5">
-                        {roster.map((r, i) => (
-                            <div key={i} className="text-sm flex flex-wrap gap-x-3 gap-y-0.5 border-b border-white/5 pb-1.5">
-                                <span className="font-semibold text-white">{r.player_first} {r.player_last}</span>
-                                <span className="text-[#e6cd87]">{r.age_group}</span>
-                                {r.guardian_name && <span className="text-gray-400">{r.guardian_name}</span>}
-                                {r.guardian_email && <span className="text-gray-400">{r.guardian_email}</span>}
-                                {r.guardian_phone && <span className="text-gray-400">{r.guardian_phone}</span>}
-                            </div>
-                        ))}
-                    </div>
+                    <>
+                        <div className="flex flex-wrap gap-2 mb-4 text-xs">
+                            {buckets.map((b) => (
+                                <span key={b.key} className="bg-white/5 rounded px-2 py-1 text-gray-300">
+                                    {b.label}: <span className="text-[#e6cd87] font-bold">{b.kids.length}</span>
+                                </span>
+                            ))}
+                        </div>
+                        <div className="space-y-4">
+                            {buckets.map((b) => (
+                                <div key={b.key}>
+                                    <div className="text-xs font-bold text-white mb-1.5">{b.label} <span className="text-gray-500">· {b.kids.length}</span></div>
+                                    {b.kids.length === 0 ? (
+                                        <p className="text-[11px] text-gray-600 pl-1">—</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {b.kids.map((r) => (
+                                                <div key={r.id} className="border-b border-white/5 pb-2">
+                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                        <span className="font-semibold text-white text-sm">{r.player_first} {r.player_last}</span>
+                                                        <span className="text-[11px] text-[#e6cd87]">{suggestedU(r.dob) || r.age_group}</span>
+                                                        <select
+                                                            value={r.assigned_team_id || ''}
+                                                            onChange={(e) => assign(r.id, e.target.value)}
+                                                            disabled={savingId === r.id}
+                                                            className="ml-auto bg-[#0b1a33] border border-white/15 rounded px-2 py-1 text-xs text-white disabled:opacity-50"
+                                                        >
+                                                            <option value="">Unassigned</option>
+                                                            {squads.map((s) => <option key={s.team_id} value={s.team_id}>{shortTeamName(s.name)}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    {(r.guardian_name || r.guardian_phone || r.guardian_email) && (
+                                                        <div className="text-[11px] text-gray-500 mt-0.5">{[r.guardian_name, r.guardian_phone, r.guardian_email].filter(Boolean).join(' · ')}</div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 )}
-                <p className="text-[11px] text-gray-500 mt-3">Only you and your coaches see this panel — parents never do.</p>
+                <p className="text-[11px] text-gray-500 mt-3">Assignments are just a plan — they don't build rosters or notify anyone. Only you &amp; your coaches see this.</p>
             </div>
         </div>
     );
