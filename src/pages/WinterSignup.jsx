@@ -45,6 +45,9 @@ const suggestedU = (dob) => {
     return `U${2026 - cohortStart}`;
 };
 
+// Signups are CLOSED — the winter U12 team is full. Flip to true to reopen.
+const SIGNUPS_OPEN = false;
+
 export default function WinterSignup() {
     const brand = useBranding();
     const { user, signOut } = useAuth();
@@ -170,7 +173,7 @@ export default function WinterSignup() {
                     player developed in our app.
                 </p>
                 <p className="text-xs text-[#e6cd87] mt-2">
-                    Season dates &amp; final fee are being confirmed — commit now to hold your spot.
+                    Our winter U12 team is full — thank you! We'll be in touch with everyone soon.
                 </p>
             </div>
 
@@ -210,7 +213,7 @@ export default function WinterSignup() {
                     <div className="text-[#e6cd87] font-display uppercase tracking-wider text-sm mb-1">The details</div>
                     <Detail k="League" v="Winter International League — indoor" />
                     <Detail k="Format" v="8v8 indoor (confirming with the league)" />
-                    <Detail k="Season" v="Start date & schedule being finalized — commit to hold your spot." />
+                    <Detail k="Season" v="Start date & schedule being finalized — rostered families will be notified." />
                     <Detail k="Coaches" v="Jeremy Gunderson & Kevan Watkins lead the U12 squads together." />
                     <Detail k="Practice" v="Both teams train together — at least 1 practice a week, plus a second day of competitive free play. Rock Valley College, with Elite Sports Center & Sports Core 2 as backups." />
                     <Detail k="Cost" v="Kept as low as possible — college field time and sponsors covering indoor time. Target $150–250/player depending on field costs; final fee confirmed soon." />
@@ -229,49 +232,64 @@ export default function WinterSignup() {
                 </div>
             </div>
 
-            {/* Teams */}
+            {/* Teams / signup */}
             <div className="px-4 max-w-3xl mx-auto pb-24">
-                <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87] mb-3">Claim your spot</h2>
-
-                {/* Momentum — social proof (count only, never names) to keep the list growing */}
-                {totalCommitted > 0 && (
-                    <div className="glass-panel p-4 mb-4 flex items-center gap-3 border border-[#c9a24b]/40">
-                        <div className="text-3xl">🔥</div>
-                        <div>
-                            <div className="text-lg font-display font-bold text-[#e6cd87] leading-none">
-                                {totalCommitted} players committed <span className="text-white">and growing</span>
-                            </div>
-                            <div className="text-xs text-gray-300 mt-1">Two U12 squads forming — the more that join, the better we build. Come be part of it.</div>
-                        </div>
+                {!SIGNUPS_OPEN ? (
+                    <div className="glass-panel p-8 text-center border border-[#c9a24b]/40">
+                        <div className="text-5xl mb-3">🙏</div>
+                        <h2 className="text-2xl font-display font-bold uppercase tracking-wide text-[#e6cd87] mb-2">Our U12 team is full</h2>
+                        <p className="text-gray-200 leading-relaxed max-w-md mx-auto">
+                            Thank you for the incredible interest in {brand.name}! Our winter U12 team is now
+                            <span className="text-white font-semibold"> full</span>. If you've already signed up or reached out,
+                            we'll be in touch <span className="text-white font-semibold">soon to discuss options</span>.
+                        </p>
+                        <p className="text-xs text-gray-400 mt-4">Questions? Drop them below and a coach will reply here.</p>
                     </div>
-                )}
+                ) : (
+                    <>
+                        <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87] mb-3">Claim your spot</h2>
 
-                {teams === null && <p className="text-gray-500">Loading teams…</p>}
-                {loadErr && <p className="text-red-400 text-sm">{loadErr}</p>}
-                {teams && cards.length === 0 && !loadErr && (
-                    <p className="text-gray-400">Sign-up isn't open yet — check back soon.</p>
-                )}
-
-                <div className="grid md:grid-cols-2 gap-4">
-                    {cards.map((c) => (
-                        <div key={c.team.team_id} className="glass-panel p-5 flex flex-col">
-                            <div className="text-xl font-display font-bold">{c.title}</div>
-                            <div className="text-xs text-[#e6cd87] mb-1">{c.sub}</div>
-                            {!c.welcomesYounger && c.team.coach_name && <div className="text-xs text-gray-400">Coach {c.team.coach_name}</div>}
-                            <p className="text-sm text-gray-300 mt-2 mb-4 leading-snug">{c.note}</p>
-                            <div className="mt-auto space-y-2">
-                                <button onClick={() => setModalTeam(c)} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
-                                    Commit your player
-                                </button>
-                                {c.coachCta && (
-                                    <button onClick={() => setCoachModal(true)} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#e6cd87] border border-[#c9a24b]/50 hover:bg-white/5 transition w-full">
-                                        I'm interested in coaching
-                                    </button>
-                                )}
+                        {/* Momentum — social proof (count only, never names) to keep the list growing */}
+                        {totalCommitted > 0 && (
+                            <div className="glass-panel p-4 mb-4 flex items-center gap-3 border border-[#c9a24b]/40">
+                                <div className="text-3xl">🔥</div>
+                                <div>
+                                    <div className="text-lg font-display font-bold text-[#e6cd87] leading-none">
+                                        {totalCommitted} players committed <span className="text-white">and growing</span>
+                                    </div>
+                                    <div className="text-xs text-gray-300 mt-1">The more that join, the better we build. Come be part of it.</div>
+                                </div>
                             </div>
+                        )}
+
+                        {teams === null && <p className="text-gray-500">Loading teams…</p>}
+                        {loadErr && <p className="text-red-400 text-sm">{loadErr}</p>}
+                        {teams && cards.length === 0 && !loadErr && (
+                            <p className="text-gray-400">Sign-up isn't open yet — check back soon.</p>
+                        )}
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                            {cards.map((c) => (
+                                <div key={c.team.team_id} className="glass-panel p-5 flex flex-col">
+                                    <div className="text-xl font-display font-bold">{c.title}</div>
+                                    <div className="text-xs text-[#e6cd87] mb-1">{c.sub}</div>
+                                    {!c.welcomesYounger && c.team.coach_name && <div className="text-xs text-gray-400">Coach {c.team.coach_name}</div>}
+                                    <p className="text-sm text-gray-300 mt-2 mb-4 leading-snug">{c.note}</p>
+                                    <div className="mt-auto space-y-2">
+                                        <button onClick={() => setModalTeam(c)} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full">
+                                            Commit your player
+                                        </button>
+                                        {c.coachCta && (
+                                            <button onClick={() => setCoachModal(true)} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#e6cd87] border border-[#c9a24b]/50 hover:bg-white/5 transition w-full">
+                                                I'm interested in coaching
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    </>
+                )}
             </div>
 
             <QASection orgSlug={brand.slug} brandName={brand.name} />
