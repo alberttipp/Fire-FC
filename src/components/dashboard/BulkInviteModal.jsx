@@ -49,8 +49,13 @@ const BulkInviteModal = ({ teamId, teamName, onClose }) => {
             .map(r => `  • ${r.first_name} ${r.last_name} — ${r.guardian_code}`)
             .join('\n');
 
+        const club = brand.name || 'Our Club';
+        const tn = teamName || 'Our Team';
+        // Avoid "Rock City FC — Rock City FC (Gold)" when the team name already
+        // contains the club name.
+        const title = tn.toLowerCase().includes(club.toLowerCase()) ? tn : `${club} — ${tn}`;
         return (
-`${(brand.name || 'Our Club').toUpperCase()} — ${teamName || 'Our Team'}: family app setup
+`${title.toUpperCase()}: family app setup
 
 Hi parents! Our team is now set up in the ${brand.name} app. Each player has a unique 6-character code below — find your kid, then:
 
@@ -84,7 +89,10 @@ Both parents/guardians can use the same code — each one signs up with their ow
 
     const encoded = encodeURIComponent(message);
     const smsHref = `sms:?body=${encoded}`;
-    const mailHref = `mailto:?subject=${encodeURIComponent(brand.name + ' app setup — ' + (teamName || 'our team'))}&body=${encoded}`;
+    const mailSubject = (teamName || '').toLowerCase().includes((brand.name || '').toLowerCase())
+        ? `${teamName} app setup`
+        : `${brand.name} app setup — ${teamName || 'our team'}`;
+    const mailHref = `mailto:?subject=${encodeURIComponent(mailSubject)}&body=${encoded}`;
 
     const missingCodes = roster.filter(r => !r.guardian_code).length;
 
