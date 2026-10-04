@@ -17,6 +17,7 @@ import MyTrainingShelf from '../components/player/MyTrainingShelf';
 import { DEFAULT_CARD_COUNTRY } from '../constants/cardCountries';
 import Leaderboard from '../components/player/Leaderboard';
 import GuardianCodeEntry from '../components/dashboard/GuardianCodeEntry';
+import { getPendingInvite, clearPendingInvite } from '../utils/pendingInvite';
 import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
@@ -128,6 +129,16 @@ const ParentDashboard = () => {
     // Real data state
     const [children, setChildren] = useState([]);
     const [selectedChild, setSelectedChild] = useState(null);
+    // Invite-link linking for a parent who ALREADY has a kid (so the inline
+    // onboarding gate never renders): auto-open the linking flow so the new kid
+    // actually links. New parents (no kids) still use the inline gate below.
+    const [showLinkFlow, setShowLinkFlow] = useState(false);
+    const [justLinkedName, setJustLinkedName] = useState('');
+    useEffect(() => {
+        // Existing parent (already has >=1 kid) who opened an invite link:
+        // the inline gate won't show, so open the linking flow explicitly.
+        if (!loading && children.length > 0 && getPendingInvite()) setShowLinkFlow(true);
+    }, [loading, children.length]);
     const [childTeamCount, setChildTeamCount] = useState(1); // active teams for the selected kid (gates "Compare teams")
     const [compareOpen, setCompareOpen] = useState(false);
     const [playerStats, setPlayerStats] = useState(null);
@@ -750,7 +761,8 @@ const ParentDashboard = () => {
             return (
                 <div className="max-w-md mx-auto">
                     <GuardianCodeEntry
-                        onSuccess={() => {
+                        onSuccess={(res) => {
+                            setJustLinkedName(res?.player_name || '');
                             fetchChildrenData();
                         }}
                     />
@@ -938,6 +950,20 @@ const ParentDashboard = () => {
                                 </div>
                             )}
                         </div>
+
+                        {/* Welcome moment for a freshly-linked family + a nudge to
+                             add the player's photo (the #1 thing that makes the
+                             card feel "theirs" on first login). */}
+                        {justLinkedName && (
+                            <div className="max-w-xl mx-auto mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-brand-green/20 to-brand-gold/10 border border-brand-green/40 text-center">
+                                <p className="text-brand-green font-bold">✨ You're all set — {justLinkedName} is connected! Add a photo below and tap the card to explore their report, training &amp; schedule.</p>
+                            </div>
+                        )}
+                        {selectedChild && !selectedChild.avatar_url && (
+                            <div className="max-w-xl mx-auto mb-3 px-4 py-2.5 rounded-xl bg-brand-green/10 border border-brand-green/40 text-center">
+                                <p className="text-sm text-brand-green font-bold">📸 Add a photo of {selectedChild.first_name} to bring their player card to life — tap “Photo” below.</p>
+                            </div>
+                        )}
 
                         {/* 3. Player Card. The "Invite another parent" action
                              moved to the More menu (mobile) + a small icon in
@@ -1428,6 +1454,19 @@ const ParentDashboard = () => {
                         }}
                     />
                 </Suspense>
+            )}
+
+            {/* Existing-parent invite-link linking flow (page root so the fixed
+                overlay isn't trapped by a backdrop-filter ancestor). */}
+            {showLinkFlow && (
+                <div className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="w-full max-w-md my-auto">
+                        <GuardianCodeEntry
+                            onSuccess={(res) => { setJustLinkedName(res?.player_name || ''); setShowLinkFlow(false); fetchChildrenData(); }}
+                            onClose={() => { clearPendingInvite(); setShowLinkFlow(false); }}
+                        />
+                    </div>
+                </div>
             )}
 
             {/* Coach Challenge "Read full description" — rendered here at the page
