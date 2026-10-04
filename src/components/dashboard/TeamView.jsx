@@ -38,6 +38,7 @@ const TeamView = () => {
     const [feedbackPlayer, setFeedbackPlayer] = useState(null);
     const [movePlayer, setMovePlayer] = useState(null); // player being moved to another team
     const [copied, setCopied] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
     const [showTeamSettings, setShowTeamSettings] = useState(false);
     const [savingEvalMode, setSavingEvalMode] = useState(false);
     const [trainCategory, setTrainCategory] = useState(null); // drill-library deep-link from an attribute
@@ -55,6 +56,23 @@ const TeamView = () => {
             setMyTeam((t) => ({ ...t, eval_mode: prev })); // revert
         }
         setSavingEvalMode(false);
+    };
+
+    // Share the winter recruiting sign-up link via the phone's native share
+    // sheet (falls back to copying the link to the clipboard on desktop).
+    const shareSignupLink = async () => {
+        const url = `${window.location.origin}/winter-signup?club=rock-city-fc&invite=1`;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: 'Rock City FC Winter Sign-Up', text: 'Join Rock City FC winter — sign up here:', url });
+                return;
+            }
+        } catch { return; /* user dismissed the share sheet */ }
+        try {
+            await navigator.clipboard.writeText(url);
+            setLinkCopied(true);
+            setTimeout(() => setLinkCopied(false), 2200);
+        } catch { /* ignore */ }
     };
 
     // Check if user is manager or coach (used for UI)
@@ -427,6 +445,13 @@ const TeamView = () => {
                             </button>
                         </div>
                     </div>
+                    <button
+                        onClick={shareSignupLink}
+                        className="px-4 py-2 rounded uppercase font-bold text-xs tracking-wider transition-all text-brand-dark bg-gradient-to-b from-brand-gold to-yellow-600 hover:brightness-110 flex items-center gap-1.5 whitespace-nowrap"
+                        title="Share the winter sign-up link to recruit a new family"
+                    >
+                        {linkCopied ? <><Check className="w-4 h-4" /> Link copied!</> : <>📲 Share Sign-Up Link</>}
+                    </button>
                     <button
                         onClick={() => setShowTeamSettings((s) => !s)}
                         className={`px-4 py-2 border rounded uppercase font-bold text-xs tracking-wider transition-colors ${showTeamSettings ? 'border-brand-green bg-brand-green/10 text-brand-green' : 'border-brand-green/30 text-brand-green hover:bg-brand-green/10'}`}
