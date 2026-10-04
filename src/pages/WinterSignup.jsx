@@ -185,6 +185,9 @@ export default function WinterSignup() {
                 </p>
             </div>
 
+            {/* Invited families get a stripped-down sign-up — hide the staff panel
+                + full marketing so it's just the form. */}
+            {!inviteBypass && (<>
             <StaffLogin />
             <StaffPanel orgSlug={brand.slug} teams={teams || []} />
 
@@ -239,6 +242,7 @@ export default function WinterSignup() {
                     </div>
                 </div>
             </div>
+            </>)}
 
             {/* Teams / signup */}
             <div className="px-4 max-w-3xl mx-auto pb-24">
@@ -258,7 +262,7 @@ export default function WinterSignup() {
                         <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87] mb-3">Claim your spot</h2>
 
                         {/* Momentum — social proof (count only, never names) to keep the list growing */}
-                        {totalCommitted > 0 && (
+                        {!inviteBypass && totalCommitted > 0 && (
                             <div className="glass-panel p-4 mb-4 flex items-center gap-3 border border-[#c9a24b]/40">
                                 <div className="text-3xl">🔥</div>
                                 <div>
@@ -300,7 +304,7 @@ export default function WinterSignup() {
                 )}
             </div>
 
-            <QASection orgSlug={brand.slug} brandName={brand.name} />
+            {!inviteBypass && <QASection orgSlug={brand.slug} brandName={brand.name} />}
 
             {modalTeam && (
                 <CommitModal
