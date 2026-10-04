@@ -57,6 +57,12 @@ export default function WinterSignup() {
     const [loadErr, setLoadErr] = useState('');
     const [shareMsg, setShareMsg] = useState('');
 
+    // Private invite bypass: ?invite=1 reopens the sign-up FORM for a specific
+    // family we're recruiting, even though the public page shows "team full".
+    const inviteBypass = typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('invite') === '1';
+    const signupOpen = SIGNUPS_OPEN || inviteBypass;
+
     const shareUrl = typeof window !== 'undefined'
         ? `${window.location.origin}/winter-signup?club=${brand.slug}`
         : '';
@@ -173,7 +179,9 @@ export default function WinterSignup() {
                     player developed in our app.
                 </p>
                 <p className="text-xs text-[#e6cd87] mt-2">
-                    Our winter U12 team is full — thank you! We'll be in touch with everyone soon.
+                    {signupOpen
+                        ? "You're invited to join Rock City FC — fill out the quick form below and you're in!"
+                        : "Our winter U12 team is full — thank you! We'll be in touch with everyone soon."}
                 </p>
             </div>
 
@@ -234,7 +242,7 @@ export default function WinterSignup() {
 
             {/* Teams / signup */}
             <div className="px-4 max-w-3xl mx-auto pb-24">
-                {!SIGNUPS_OPEN ? (
+                {!signupOpen ? (
                     <div className="glass-panel p-8 text-center border border-[#c9a24b]/40">
                         <div className="text-5xl mb-3">🙏</div>
                         <h2 className="text-2xl font-display font-bold uppercase tracking-wide text-[#e6cd87] mb-2">Our U12 team is full</h2>
