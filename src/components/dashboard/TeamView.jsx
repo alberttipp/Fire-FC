@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check, Rocket, Phone } from 'lucide-react';
+import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check, Rocket, Phone, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import PlayerEvaluationModal from './PlayerEvaluationModal';
@@ -36,6 +36,7 @@ const TeamView = () => {
     const [invitePlayer, setInvitePlayer] = useState(null); // For Family Invite Modal
     const [contactsPlayer, setContactsPlayer] = useState(null); // For Player Contacts Modal
     const [feedbackPlayer, setFeedbackPlayer] = useState(null);
+    const [movePlayer, setMovePlayer] = useState(null); // player being moved to another team
     const [copied, setCopied] = useState(false);
     const [showTeamSettings, setShowTeamSettings] = useState(false);
     const [savingEvalMode, setSavingEvalMode] = useState(false);
@@ -389,7 +390,7 @@ const TeamView = () => {
                                         : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
                                 }`}
                             >
-                                {team.age_group}
+                                {team.name ? team.name.replace(/^.*?—\s*/, '') : team.age_group}
                             </button>
                         ))}
                     </div>
@@ -544,6 +545,16 @@ const TeamView = () => {
                 />
             )}
 
+            {movePlayer && (
+                <MovePlayerModal
+                    player={movePlayer}
+                    fromTeamId={selectedTeamId}
+                    teams={allTeams.filter((t) => t.season === myTeam?.season)}
+                    onClose={() => setMovePlayer(null)}
+                    onMoved={async () => { setMovePlayer(null); await fetchTeamData(); }}
+                />
+            )}
+
             {/* Upcoming Week Calendar */}
             <div className="mb-6">
                 <UpcomingWeek teamId={myTeam.id} />
@@ -631,6 +642,15 @@ const TeamView = () => {
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
+                                            {allTeams.filter((t) => t.season === myTeam?.season && t.id !== selectedTeamId).length > 0 && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setMovePlayer(player); }}
+                                                    className="p-2 rounded-full bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border border-purple-500/30 transition-colors"
+                                                    title="Move to another team"
+                                                >
+                                                    <ArrowRightLeft className="w-4 h-4" />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setContactsPlayer(player); }}
                                                 className="p-2 rounded-full bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30 transition-colors"
@@ -689,5 +709,66 @@ const TeamView = () => {
         </div>
     );
 };
+
+// Move a player from the current team to another team in the same season.
+// Adds to the destination first (safe), then removes from the source, using the
+// player_teams RPCs (add_player_to_team / remove_player_from_team). Stats, evals,
+// and guardian links travel with the player — only the roster membership changes.
+function MovePlayerModal({ player, fromTeamId, teams, onClose, onMoved }) {
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+    const others = (teams || []).filter((t) => t.id !== fromTeamId);
+    const label = (t) => (t.name ? t.name.replace(/^.*?—\s*/, '') : t.age_group) || t.age_group;
+
+    const move = async (toTeamId) => {
+        setErr('');
+        setBusy(true);
+        try {
+            // Pick a free jersey on the destination (keep the player's number if open).
+            const { data: tgt } = await supabase.from('team_active_roster').select('jersey_number').eq('team_id', toTeamId);
+            const used = new Set((tgt || []).map((r) => r.jersey_number).filter((n) => n != null));
+            let jersey = player.number;
+            if (jersey == null || used.has(jersey)) { jersey = 1; while (used.has(jersey)) jersey++; }
+
+            const add = await supabase.rpc('add_player_to_team', { p_player_id: player.id, p_team_id: toTeamId, p_jersey_number: jersey, p_position: null });
+            if (add.error) throw new Error(add.error.message);
+            const rem = await supabase.rpc('remove_player_from_team', { p_player_id: player.id, p_team_id: fromTeamId });
+            if (rem.error) throw new Error(rem.error.message);
+            onMoved();
+        } catch (e) {
+            setErr(e.message || 'Could not move player.');
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-brand-dark border border-white/10 rounded-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-white font-display font-bold uppercase tracking-wider text-lg mb-1">Move {player.name}</h3>
+                <p className="text-gray-400 text-xs mb-4">Pick the team to move {player.name} to. Their stats, evaluations &amp; family link come with them — only the roster changes.</p>
+                {others.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No other team in this season to move to.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {others.map((t) => (
+                            <button
+                                key={t.id}
+                                disabled={busy}
+                                onClick={() => move(t.id)}
+                                className="w-full text-left px-4 py-3 rounded-lg bg-white/5 hover:bg-brand-green/10 border border-white/10 hover:border-brand-green/40 text-white font-bold disabled:opacity-50 transition-colors"
+                            >
+                                → {label(t)}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {err && <p className="text-red-400 text-sm mt-3">{err}</p>}
+                <button onClick={onClose} disabled={busy} className="mt-4 text-xs text-gray-400 hover:text-white disabled:opacity-50">
+                    {busy ? 'Moving…' : 'Cancel'}
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export default TeamView;
