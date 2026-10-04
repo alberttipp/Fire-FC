@@ -65,11 +65,11 @@ const FamilyInviteModal = ({ player, onClose }) => {
     // SMS / email body — lead with the tap-to-join link; code is the backup.
     const playerName = player?.name || `${player?.firstName || ''} ${player?.lastName || ''}`.trim() || 'your player';
     const smsBody = encodeURIComponent(
-        `Join ${playerName} on the ${brand.name} app — tap this link, sign up, and you're connected automatically:\n${inviteUrl}\n\n(If the link doesn't work, go to firefcapp.com, sign up, and enter code ${code}.)`
+        `⚽ ${playerName} just got called up to ${brand.name}! 💙💛\n\nTap to set up your family account and unlock their player card, training plan & season stats — you'll be linked automatically (takes ~30 sec):\n${inviteUrl}\n\nFirst thing inside: add a photo so their player card comes to life 📸\n\n(Backup: open firefcapp.com, sign up, and enter code ${code}.)\n\nSee you on the pitch — welcome to the family! 🔥`
     );
-    const emailSubject = encodeURIComponent(`${brand.name} parent invite for ${playerName}`);
+    const emailSubject = encodeURIComponent(`⚽ ${playerName} is in — welcome to ${brand.name}!`);
     const emailBody = encodeURIComponent(
-        `Hi,\n\nTap this link to connect to ${playerName} in the ${brand.name} app — just sign up and you'll be linked automatically:\n\n${inviteUrl}\n\nIf the link doesn't open, go to firefcapp.com, tap Sign Up, then enter this code when asked: ${code}\n\nThanks!\nCoach`
+        `Hi there! 👋\n\n${playerName} is officially part of ${brand.name} — and we do development a little differently. Every player gets their own FIFA-style player card, a personalized training plan, and real progress tracked all season long.\n\nTap here to set up your family account and meet ${playerName}'s profile — just sign up and you'll be linked automatically (about 30 seconds):\n\n${inviteUrl}\n\n⭐ First thing to do once you're in: add a photo of ${playerName} so their player card comes to life.\n\n(If the link doesn't open: go to firefcapp.com, tap Sign Up, then enter code ${code} when asked.)\n\nSee you on the pitch — welcome to the family! 💙💛\n${brand.name}`
     );
 
     return (
