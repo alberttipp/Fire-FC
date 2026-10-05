@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { isValidEmail, isValidPassword, isValidName, isValidPin } from '../utils/validation';
 import { friendlyAuthError } from '../utils/authErrors';
-import { Rocket, Shield, Users, User, ArrowRight, Lock, UserCircle, Mail } from 'lucide-react';
+import { Rocket, Shield, Users, User, ArrowRight, Lock, UserCircle, Mail, RefreshCw } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useBranding } from '../context/BrandingContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
@@ -590,7 +590,7 @@ const Login = () => {
                             phone is forced to pull fresh files. Documented as
                             "stuck? tap here" so parents can self-rescue without
                             uninstalling the app. */}
-                        <div className="text-center pt-1">
+                        <div className="text-center pt-2">
                             <button
                                 type="button"
                                 onClick={async () => {
@@ -612,10 +612,14 @@ const Login = () => {
                                         window.location.pathname + window.location.search + sep + '__r=' + Date.now()
                                     );
                                 }}
-                                className="text-gray-600 hover:text-gray-300 text-[11px] uppercase tracking-wider transition-colors"
+                                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-300 hover:border-brand-green/40 hover:text-brand-green transition-colors"
                             >
-                                App acting weird? Tap to reload fresh
+                                <RefreshCw className="w-4 h-4" />
+                                App running funny? Tap to reload fresh
                             </button>
+                            <p className="text-[11px] text-gray-500 mt-1.5">
+                                Fixes a stuck app without deleting &amp; reinstalling
+                            </p>
                         </div>
                     </form>
                 )}
