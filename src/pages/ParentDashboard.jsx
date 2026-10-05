@@ -1548,7 +1548,7 @@ const ParentDashboard = () => {
 
                         {isAlsoStaff && !isPreview && (
                             <button
-                                onClick={() => navigate('/dashboard')}
+                                onClick={() => { try { localStorage.setItem('rc_app_mode', 'coach'); } catch (_) {} navigate('/dashboard'); }}
                                 className="flex items-center gap-1.5 text-brand-green hover:bg-brand-green/10 transition-colors px-2 py-1.5 rounded"
                                 title="Switch back to your coach / manager dashboard"
                             >

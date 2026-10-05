@@ -62,6 +62,8 @@ const Dashboard = () => {
     // "Parent view" toggle so a coach who's also a parent can flip to their
     // own family dashboard (and managers always get it — see below).
     const [hasFamily, setHasFamily] = useState(false);
+    const [familyChecked, setFamilyChecked] = useState(false); // family lookup finished?
+    const [showModeChooser, setShowModeChooser] = useState(false); // coach-vs-parent chooser
     const [showPreviewPicker, setShowPreviewPicker] = useState(false);
     const [showOnboarding, setShowOnboarding] = useState(false);
     // Active team (name + age group) for the header — a coach running U11 AND
@@ -269,21 +271,42 @@ const Dashboard = () => {
             navigate(dest + window.location.search, { replace: true });
             return;
         }
+        // Staff: if this staffer is ALSO a parent (coach + dad), decide between
+        // Coach HQ and the family view. Wait for the family lookup first.
+        if (!familyChecked) return;
+        // A deep link (push notification) always wins — go where it points.
+        if (hasFamily && !deepLink.view) {
+            let mode = null;
+            try { mode = localStorage.getItem('rc_app_mode'); } catch (_) { /* ignore */ }
+            if (mode === 'parent') { navigate('/parent-dashboard' + window.location.search, { replace: true }); return; }
+            if (mode !== 'coach') { setShowModeChooser(true); return; } // first time → ask once
+            // mode === 'coach' → fall through to Coach HQ
+        }
         // Staff: honor the deep-linked view, else default to Coach HQ.
         setCurrentView(deepLink.view || 'coach_hq');
         setHasPickedView(true);
-    }, [effectiveRole, isStaff, hasPickedView]);
+    }, [effectiveRole, isStaff, hasPickedView, familyChecked, hasFamily]);
 
-    // Detect a family/parent side (linked child) for the "Parent view" toggle.
+    // Pick coach vs parent mode from the chooser (and remember it).
+    const chooseMode = (mode) => {
+        try { localStorage.setItem('rc_app_mode', mode); } catch (_) { /* ignore */ }
+        setShowModeChooser(false);
+        if (mode === 'parent') { navigate('/parent-dashboard', { replace: true }); return; }
+        setCurrentView(deepLink.view || 'coach_hq');
+        setHasPickedView(true);
+    };
+
+    // Detect a family/parent side (linked child) for the mode chooser + toggle.
     useEffect(() => {
         const uid = session?.user?.id;
-        if (!uid) { setHasFamily(false); return; }
+        if (!uid) { setHasFamily(false); setFamilyChecked(true); return; }
         supabase
             .from('family_members')
             .select('player_id', { count: 'exact', head: true })
             .eq('user_id', uid)
             .in('relationship', ['guardian', 'parent', 'fan'])
-            .then(({ count }) => setHasFamily((count || 0) > 0), () => {});
+            .then(({ count }) => { setHasFamily((count || 0) > 0); setFamilyChecked(true); },
+                  () => { setFamilyChecked(true); });
     }, [session?.user?.id]);
 
     // Self-serve onboarding wizard — auto-opens ONLY for a brand-new club:
@@ -300,6 +323,28 @@ const Dashboard = () => {
         } catch (_) { /* localStorage blocked — don't auto-open */ return; }
         setShowOnboarding(true);
     }, [session?.user, isStaff, profile?.team_id]);
+
+    // Coach-vs-parent mode chooser (shown once for staff who are also parents).
+    if (showModeChooser) {
+        const firstName = (profile?.full_name || '').split(' ')[0] || 'Coach';
+        return (
+            <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6 text-center">
+                <img src={brand.logoUrl} alt={brand.shortName} className="w-20 h-20 object-contain mb-4 drop-shadow-[0_0_14px_rgba(212,175,55,0.4)]" />
+                <h1 className="text-2xl font-display font-bold text-white uppercase tracking-wide">Welcome back, {firstName}</h1>
+                <p className="text-gray-400 mt-2 mb-8">How do you want to use the app right now?</p>
+                <div className="w-full max-w-sm space-y-3">
+                    <button onClick={() => chooseMode('coach')} className="w-full py-5 rounded-xl bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider text-lg flex items-center justify-center gap-3 hover:brightness-110 transition shadow-lg">
+                        <LayoutDashboard className="w-6 h-6" /> Coach HQ
+                    </button>
+                    <button onClick={() => chooseMode('parent')} className="w-full py-5 rounded-xl bg-white/5 border border-white/15 text-white font-display font-bold uppercase tracking-wider text-lg flex items-center justify-center gap-3 hover:bg-white/10 transition">
+                        <User className="w-6 h-6" /> My Family
+                    </button>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-6 max-w-xs">We'll remember your pick — switch anytime with the button at the top of the screen.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-brand-dark pb-20 overflow-x-hidden">
             {/* Top Navigation Bar */}
@@ -379,7 +424,7 @@ const Dashboard = () => {
 
                         {(isManager || hasFamily) && (
                             <button
-                                onClick={() => navigate('/parent-dashboard')}
+                                onClick={() => { try { localStorage.setItem('rc_app_mode', 'parent'); } catch (_) {} navigate('/parent-dashboard'); }}
                                 className="text-xs text-blue-400 border border-blue-400/30 px-2 sm:px-3 py-1.5 rounded hover:bg-blue-400/10 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 shrink-0"
                                 title="Switch to your own family / parent view"
                             >
