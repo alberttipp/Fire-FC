@@ -1,14 +1,14 @@
 {
-  "name": "Fire FC",
-  "short_name": "Fire FC",
+  "name": "Rock City FC",
+  "short_name": "Rock City FC",
   "description": "Youth-soccer team management, training tracking, and family communication.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0f0f10",
-  "theme_color": "#0f0f10",
+  "background_color": "#0b1a33",
+  "theme_color": "#0b1a33",
   "icons": [
     { "src": "/branding/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/branding/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
