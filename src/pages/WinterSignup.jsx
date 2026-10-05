@@ -310,6 +310,7 @@ export default function WinterSignup() {
                 <CommitModal
                     card={modalTeam}
                     brandName={brand.name}
+                    orgSlug={brand.slug}
                     onClose={() => setModalTeam(null)}
                     onDone={async () => { setModalTeam(null); await load(); }}
                 />
@@ -709,7 +710,7 @@ function CoachInterestModal({ orgSlug, brandName, onClose }) {
     );
 }
 
-function CommitModal({ card, brandName, onClose, onDone }) {
+function CommitModal({ card, brandName, orgSlug, onClose, onDone }) {
     const team = card.team;
     const [form, setForm] = useState({ first: '', last: '', dob: '', guardianName: '', email: '', phone: '' });
     const [busy, setBusy] = useState(false);
@@ -742,6 +743,11 @@ function CommitModal({ card, brandName, onClose, onDone }) {
             if (error) throw new Error(error.message);
             if (data && data.success === false) throw new Error(data.message || 'Could not submit.');
             setDone(true);
+            // Fire-and-forget confirmation email (no-ops server-side until Resend is
+            // configured). Never blocks or fails the sign-up.
+            supabase.functions
+                .invoke('winter-signup-confirmation', { body: { orgSlug, email: form.email, firstName: form.first } })
+                .then(() => {}, () => {});
         } catch (e) {
             setError(e.message || 'Something went wrong.');
         } finally {
