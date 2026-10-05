@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check, Rocket, Phone, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 import PlayerEvaluationModal from './PlayerEvaluationModal';
 import DrillLibraryModal from './DrillLibraryModal';
 import AIFeedbackModal from './AIFeedbackModal';
@@ -20,6 +21,7 @@ const OnboardingWizard = lazy(() => import('../onboarding/OnboardingWizard'));
 
 const TeamView = () => {
     const { user, profile } = useAuth();
+    const brand = useBranding();
     const [myTeam, setMyTeam] = useState(null);
     const [allTeams, setAllTeams] = useState([]);
     const [selectedTeamId, setSelectedTeamId] = useState(null);
@@ -61,7 +63,7 @@ const TeamView = () => {
     // Share the winter recruiting sign-up link via the phone's native share
     // sheet (falls back to copying the link to the clipboard on desktop).
     const shareSignupLink = async () => {
-        const url = `${window.location.origin}/winter-signup?club=rock-city-fc&invite=1`;
+        const url = `${window.location.origin}/winter-signup?club=${brand?.slug || 'rock-city-fc'}&invite=1`;
         try {
             if (navigator.share) {
                 await navigator.share({ title: 'Rock City FC Winter Sign-Up', text: 'Join Rock City FC winter — sign up here:', url });
@@ -717,18 +719,6 @@ const TeamView = () => {
                         </div>
                     </div>
 
-                    <div className="glass-panel p-6">
-                        <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Pending Training</h3>
-                        <div className="flex -space-x-3 mb-4 pl-2">
-                            {/* Placeholder for pending avatars */}
-                            <div className="w-8 h-8 rounded-full bg-gray-800 border border-brand-dark flex items-center justify-center text-[10px] text-gray-500">?</div>
-                            <div className="w-8 h-8 rounded-full bg-gray-800 border border-brand-dark flex items-center justify-center text-[10px] text-gray-500">?</div>
-                        </div>
-                        <p className="text-xs text-gray-500 mb-3">2 players missing challenges.</p>
-                        <button className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded uppercase text-[10px] font-bold tracking-wider text-white transition-colors">
-                            Send Reminder
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>

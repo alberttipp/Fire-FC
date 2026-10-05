@@ -21,7 +21,7 @@ const POSITIONS = [
     'Center Midfielder', 'Attacking Midfielder', 'Winger', 'Striker', 'Anywhere',
 ];
 
-const SEASON = 'Spring 2026'; // matches PlayerEvaluationModal
+const SEASON = 'Winter 2026-27'; // matches PlayerEvaluationModal default
 
 const clamp = (n) => Math.max(0, Math.min(99, Math.round(Number(n) || 0)));
 

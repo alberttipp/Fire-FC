@@ -63,7 +63,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
         return age >= 0 && age < 120 ? age : null;
     };
     const [coachNotes, setCoachNotes] = useState('');
-    const [season, setSeason] = useState('Spring 2026');
+    const [season, setSeason] = useState('Winter 2026-27');
     const [existingEvalId, setExistingEvalId] = useState(null);
     const [evalHistory, setEvalHistory] = useState([]);
 
@@ -860,6 +860,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
                                                 onChange={(e) => setSeason(e.target.value)}
                                                 className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white text-sm focus:border-brand-green outline-none"
                                             >
+                                                <option value="Winter 2026-27">Winter 2026-27</option>
                                                 <option value="Fall 2026">Fall 2026</option>
                                                 <option value="Summer 2026">Summer 2026</option>
                                                 <option value="Spring 2026">Spring 2026</option>

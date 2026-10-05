@@ -106,7 +106,7 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
             // Bad/expired invite — drop it and let them pick from the roster.
             clearPendingInvite();
             setError(err.message || "That invite link didn't match a player — pick your child below.");
-            setStep('children');
+            setStep('code');
         } finally {
             setLoading(false);
         }
@@ -329,7 +329,7 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
                         </div>
 
                         <p className="text-[11px] text-gray-500 leading-snug">
-                            After this, you’ll pick your child from the roster and link them to your family account.
+                            After this, enter your child's code (from your coach) to link them to your family account.
                         </p>
 
                         {error && <p className="text-red-400 text-sm text-center">{error}</p>}
@@ -340,7 +340,7 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
                             className="w-full btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {loading
-                                ? <><Loader2 className="w-5 h-5 animate-spin" /> Savingâ€¦</>
+                                ? <><Loader2 className="w-5 h-5 animate-spin" /> Saving…</>
                                 : <><CheckCircle className="w-5 h-5" /> Continue</>}
                         </button>
                     </form>
@@ -409,7 +409,7 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
                                     className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                     {loading
-                                        ? <><Loader2 className="w-5 h-5 animate-spin" /> Linkingâ€¦</>
+                                        ? <><Loader2 className="w-5 h-5 animate-spin" /> Linking…</>
                                         : <><Shield className="w-5 h-5" /> Link selected child{selectedKids.length === 1 ? '' : 'ren'}</>}
                                 </button>
                             </div>
@@ -454,7 +454,7 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
                         <div className="flex gap-2">
                             <button
                                 type="button"
-                                onClick={() => setStep('children')}
+                                onClick={() => setStep('profile')}
                                 className="px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-gray-400 text-sm font-bold uppercase tracking-wider hover:bg-white/10"
                             >
                                 Back
@@ -465,7 +465,7 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
                                 className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 {loading
-                                    ? <><Loader2 className="w-5 h-5 animate-spin" /> Checkingâ€¦</>
+                                    ? <><Loader2 className="w-5 h-5 animate-spin" /> Checking…</>
                                     : <><Shield className="w-5 h-5" /> Continue</>}
                             </button>
                         </div>

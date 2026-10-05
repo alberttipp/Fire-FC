@@ -1,72 +1,16 @@
-const slugify = (value) => {
-    if (!value) return '';
-    return String(value)
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
-};
+// Resolve a player's avatar image.
+//
+// RULE: an uploaded/cutout photo (avatarUrl) ALWAYS wins. We deliberately do NOT
+// guess a file by the player's name anymore — that old behavior (a hardcoded
+// override map + `/players/<firstname>.png` guessing) cross-assigned one kid's
+// face to another kid with the same first name, and even overrode real uploaded
+// photos. For a player with no photo yet we return a neutral silhouette so the
+// card is clean (and parents get nudged to add a photo).
+const DEFAULT_AVATAR = '/players/_default_avatar.png';
 
-const OVERRIDES = {
-    declan: 'declan.png',
-    isaac: 'isaac.png',
-    jameson: 'jameson_mccarthy_cutout_v2.png',
-    jaemson: 'jameson_mccarthy_cutout_v2.png',
-    jameson_mccarthy: 'jameson_mccarthy_cutout_v2.png',
-    jaemson_mccarthy: 'jameson_mccarthy_cutout_v2.png',
-    novie: 'novie.png',
-    tate: 'tate.png',
-    luca: 'luca.png',
-    santiago_a: 'santiago_a.png',
-};
-
-export const getPlayerAvatarPath = ({ avatarUrl = null, firstName = '', lastName = '', displayName = '' } = {}) => {
-    const first = slugify(firstName);
-    const last = slugify(lastName);
-    const full = slugify(displayName);
-
-    const isJameson =
-        first === 'jameson' ||
-        first === 'jaemson' ||
-        full === 'jameson_mccarthy' ||
-        full === 'jaemson_mccarthy' ||
-        `${first}_${last}` === 'jameson_mccarthy' ||
-        `${first}_${last}` === 'jaemson_mccarthy';
-
-    if (isJameson) {
-        return '/players/jameson_mccarthy_cutout_v2.png';
-    }
-
-    const overrideKeys = [full, first && last ? `${first}_${last}` : '', first].filter(Boolean);
-    for (const key of overrideKeys) {
-        if (OVERRIDES[key]) {
-            return `/players/${OVERRIDES[key]}`;
-        }
-    }
-
-    if (avatarUrl) return avatarUrl;
-
-    const candidates = [];
-
-    if (first) {
-        candidates.push(`/players/${first}.jpg`);
-        candidates.push(`/players/${first}.png`);
-    }
-
-    if (first && last) {
-        candidates.push(`/players/${first}_${last}.jpg`);
-        candidates.push(`/players/${first}_${last}.png`);
-    }
-
-    if (full && full !== first) {
-        candidates.push(`/players/${full}.jpg`);
-        candidates.push(`/players/${full}.png`);
-    }
-
-    candidates.push('/players/bo_official.png');
-    candidates.push('/players/roster/bo_official.png');
-
-    return candidates[0];
+export const getPlayerAvatarPath = ({ avatarUrl = null } = {}) => {
+    const url = (avatarUrl || '').trim();
+    return url || DEFAULT_AVATAR;
 };
 
 export default getPlayerAvatarPath;
