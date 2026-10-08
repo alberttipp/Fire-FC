@@ -12,8 +12,8 @@ export const DEFAULT_BRAND = {
     name: 'Rock City FC',
     shortName: 'Rock City',
     logoUrl: '/branding/rockcity-crest.png',
-    primaryColor: '#3b82f6', // Tailwind brand-green (channels default in index.css / tailwind.config)
-    accentColor: '#d4af37',  // Tailwind brand-gold
+    primaryColor: '#3b82f6', // Tailwind brand-green (interactive/action color)
+    accentColor: '#c9a24b',  // Tailwind brand-gold (Rock City gold)
     aiPersona: '',
     tagline: '',
 };
