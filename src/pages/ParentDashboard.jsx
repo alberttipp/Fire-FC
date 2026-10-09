@@ -21,6 +21,7 @@ import { getPendingInvite, clearPendingInvite } from '../utils/pendingInvite';
 import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
+import CompetitiveStandardCard from '../components/player/CompetitiveStandardCard';
 import FamilyInviteModal from '../components/dashboard/FamilyInviteModal';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { upsertRsvpForMany, namesList, statusLabel } from '../utils/rsvp';
@@ -1045,6 +1046,14 @@ const ParentDashboard = () => {
                                 playerId={selectedChild.id}
                                 teamId={selectedChild.team_id || null}
                                 playerName={`${selectedChild.first_name || ''} ${selectedChild.last_name || ''}`.trim()}
+                            />
+                        )}
+
+                        {/* Competitive Standard skills passport (rung ladders + coach-verify) */}
+                        {selectedChild?.id && (
+                            <CompetitiveStandardCard
+                                playerId={selectedChild.id}
+                                playerName={selectedChild.first_name || ''}
                             />
                         )}
 

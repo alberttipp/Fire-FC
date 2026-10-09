@@ -1,0 +1,9 @@
+-- Skills Passport RPCs (applied to prod via MCP 'skills_passport_rpcs' 2026-10-09;
+-- this file keeps the repo in sync). All SECURITY DEFINER, search_path=public.
+--   get_player_passport(player)            -> jsonb {standard, skills[{rungs[]}]}; authz: staff/family/self
+--   confirm_skill_rung(player, rung)       -> family/self confirms a self|parent-tier rung
+--   request_skill_check(player, rung)      -> family/self requests a coach check on a coach-tier rung
+--                                             (no "denied" state: status is 'requested' or 'achieved')
+--   verify_skill_rung(player, rung, ctx)   -> staff verifies any rung; ctx in practice|game|station_day
+-- Progress rows live in player_skill_rungs (unique player_id,rung_id). Full bodies
+-- are in the applied MCP migration of the same name.
