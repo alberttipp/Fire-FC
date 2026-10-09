@@ -1,0 +1,5 @@
+-- "Train this skill": build_skill_session(player, skill_key, count) — drops N
+-- skill-matched drills (from drill_skill_map) into the player's training shelf as
+-- pending assignments (source 'skills_passport'); they flow through the existing
+-- completion path that logs actual minutes + touches. Family/self or team staff.
+-- Applied to prod via MCP 'skills_passport_build_session' 2026-10-09.

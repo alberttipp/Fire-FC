@@ -41,6 +41,22 @@ const CompetitiveStandardCard = ({ playerId, playerName, onTrainSkill }) => {
         } finally { setBusy(null); }
     };
 
+    // "Train this" — drop skill-matched drills into the training shelf (logs mins/touches there).
+    const trainSkill = async (s) => {
+        const key = 'train:' + s.skill_key;
+        setBusy(key);
+        try {
+            const { data, error } = await supabase.rpc('build_skill_session', { p_player_id: playerId, p_skill_key: s.skill_key, p_count: 3 });
+            if (error) throw error;
+            const n = data?.created ?? 0;
+            toast.success(n > 0
+                ? `Added ${n} ${s.name} drill${n === 1 ? '' : 's'} to your training — go train! ⚽`
+                : `You already have ${s.name} drills waiting — check your training.`);
+        } catch (e) {
+            toast.error(e?.message || "Couldn't add drills — try again.");
+        } finally { setBusy(null); }
+    };
+
     if (loading) {
         return (
             <div className="glass-panel p-4 flex items-center gap-2 text-gray-400 text-sm">
@@ -144,10 +160,11 @@ const CompetitiveStandardCard = ({ playerId, playerName, onTrainSkill }) => {
                                                                 <Hourglass className="w-3.5 h-3.5" /> Coach will check at practice
                                                             </span>
                                                         )}
-                                                        {s.trainable_solo && onTrainSkill && (
-                                                            <button type="button" onClick={() => onTrainSkill(s)}
-                                                                className="text-xs text-brand-green hover:text-white flex items-center gap-1">
-                                                                <Dumbbell className="w-3.5 h-3.5" /> Train this
+                                                        {s.trainable_solo && (
+                                                            <button type="button" disabled={busy === 'train:' + s.skill_key}
+                                                                onClick={() => trainSkill(s)}
+                                                                className="text-xs text-brand-green hover:text-white flex items-center gap-1 disabled:opacity-60">
+                                                                <Dumbbell className="w-3.5 h-3.5" /> {busy === 'train:' + s.skill_key ? 'Adding…' : 'Train this'}
                                                             </button>
                                                         )}
                                                     </div>
