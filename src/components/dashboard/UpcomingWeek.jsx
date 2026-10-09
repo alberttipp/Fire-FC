@@ -1,7 +1,7 @@
 import {
     Calendar, MapPin, Clock, Users, ChevronLeft, ChevronRight,
     CheckCircle2, XCircle, Plane, Bell, BellOff, Shirt,
-    Trophy, Dumbbell, Coffee, Users2, AlertCircle, Plus
+    Trophy, Dumbbell, Coffee, Users2, AlertCircle, Plus, Swords
 } from 'lucide-react';
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '../../supabaseClient';
@@ -12,6 +12,7 @@ import { resolveWritablePlayers, upsertRsvpForMany, namesList, statusLabel } fro
 import CreateEventModal from './CreateEventModal';
 const EventDetailModal = lazy(() => import('./calendar/EventDetailModal'));
 const LineupBuilder    = lazy(() => import('../coach-hq/lineup/LineupBuilder'));
+const ScoutingReportModal = lazy(() => import('../scouting/ScoutingReportModal'));
 
 // Event type icons and colors
 const EVENT_STYLES = {
@@ -43,6 +44,7 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [weekOffset, setWeekOffset] = useState(0);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [scoutOpponent, setScoutOpponent] = useState(null); // { teamId, name }
 
     // Staff don't get personal RSVP buttons — they're not on the roster.
     // STAFF_ROLES is imported from constants/roles so this stays in sync with
@@ -409,6 +411,20 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
                                         </>
                                     )}
                                 </div>
+
+                                {event.type === 'game' && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const opp = event.opponent_name || (event.title && event.title.match(/vs\.?\s+(.+)$/i)?.[1]) || event.title;
+                                            setScoutOpponent({ teamId: event.team_id, name: opp });
+                                        }}
+                                        className="mt-2 w-full py-1.5 rounded-lg border border-brand-gold/40 bg-brand-gold/5 hover:bg-brand-gold/15 text-brand-gold text-[11px] font-display font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                                    >
+                                        <Swords className="w-3.5 h-3.5" /> Scouting Report
+                                    </button>
+                                )}
                             </div>
                         );
                     })
@@ -455,6 +471,11 @@ const UpcomingWeek = ({ teamId = null, showAllTeams = false, compact = false }) 
         {openLineupEvent && (
             <Suspense fallback={null}>
                 <LineupBuilder event={openLineupEvent} onClose={() => setOpenLineupEvent(null)} />
+            </Suspense>
+        )}
+        {scoutOpponent && (
+            <Suspense fallback={null}>
+                <ScoutingReportModal teamId={scoutOpponent.teamId} opponentName={scoutOpponent.name} onClose={() => setScoutOpponent(null)} />
             </Suspense>
         )}
         </>

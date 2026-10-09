@@ -1,0 +1,9 @@
+-- Opponent scouting reports from ECNL/TGS (api.athleteone.com, public JSON). Applied
+-- to prod via MCP (league_scouting_foundation, get_scouting_report) 2026-10-09 +
+-- edge function pull-league-standings + pg_cron 'pull-league-standings-nightly' (3am CT).
+--   * league_sources (team_id, event_id, flight_id, div_id, season) — what to pull.
+--   * league_standings — cached division table (record/GF/GA/points/rank), refreshed nightly.
+--   * get_scouting_report(team_id, opponent_text) — fuzzy-match opponent -> record +
+--     division position (by points) vs ours + the full table. Staff/family.
+-- Seeded Coach Will's U11: 2026-27 (event 4362, BU11 flight 22606 — empty until TGS fills)
+-- + 2025-26 (event 3916, flight 33976 — full). Standings-based v1; games/common-opponents TODO.
