@@ -97,6 +97,43 @@ export const BrandingProvider = ({ children }) => {
         return () => { cancelled = true; };
     }, []);
 
+    // Org-aware fallback: with NO club/program in the URL, a logged-in user still
+    // gets THEIR club's brand (resolved from their team/org via get_my_club_branding).
+    // URL context always wins (demos / white-label links); any failure or a signed-out
+    // user keeps DEFAULT_BRAND (Rock City). This is what makes a Raptors family see the
+    // Raptors crest after a plain login, without needing a ?club= link.
+    useEffect(() => {
+        if (resolveContextFromUrl()) return;        // explicit URL context wins — skip
+        let cancelled = false;
+        const applyFromUser = async () => {
+            try {
+                const { data, error } = await supabase.rpc('get_my_club_branding');
+                if (cancelled || error || !data) return;
+                const row = Array.isArray(data) ? data[0] : data;
+                if (!row || !row.org_slug) return;
+                setBrand({
+                    slug: row.org_slug,
+                    program: null,
+                    name: row.display_name || DEFAULT_BRAND.name,
+                    shortName: row.short_name || DEFAULT_BRAND.shortName,
+                    logoUrl: row.logo_url || DEFAULT_BRAND.logoUrl,
+                    primaryColor: row.primary_color || DEFAULT_BRAND.primaryColor,
+                    accentColor: row.accent_color || DEFAULT_BRAND.accentColor,
+                    aiPersona: row.ai_persona || '',
+                    tagline: row.tagline || '',
+                });
+            } catch { /* keep default */ }
+        };
+        // onAuthStateChange emits INITIAL_SESSION on subscribe, so this covers the
+        // already-logged-in case too. Use two-arg form (no .catch on thenables).
+        const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+            if (cancelled) return;
+            if (event === 'SIGNED_OUT') { setBrand(DEFAULT_BRAND); return; }
+            if (session?.user) applyFromUser();
+        });
+        return () => { cancelled = true; try { sub?.subscription?.unsubscribe?.(); } catch { /* ignore */ } };
+    }, []);
+
     // Apply the two swappable colors as CSS variables (RGB channels) on :root so
     // every Tailwind brand-green/brand-gold utility — including /opacity variants —
     // re-themes with ZERO component edits. index.css :root holds Rockford defaults.
