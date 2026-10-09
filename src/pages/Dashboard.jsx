@@ -248,7 +248,7 @@ const Dashboard = () => {
             case 'notifications': return <NotificationsView />;
             case 'financial': return <FinancialView />;
             case 'tryouts': return <TryoutHub />;
-            case 'coach_hq': return <CoachHQView onJumpToChat={() => pickView('chat')} onJumpToTeam={() => pickView('team')} />;
+            case 'coach_hq': return <CoachHQView onJumpToChat={() => pickView('chat')} onJumpToTeam={() => pickView('team')} onJumpToCalendar={() => pickView('calendar')} />;
             default: return <ClubView />;
         }
     }

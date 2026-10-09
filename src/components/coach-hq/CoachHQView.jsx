@@ -17,6 +17,7 @@ import UpcomingWeek from '../dashboard/UpcomingWeek';
 import Leaderboard from '../player/Leaderboard';
 import { COMPETITION_NAME } from '../../constants/competition';
 import SetupHealthPanel from './SetupHealthPanel';
+import SetupChecklist from './SetupChecklist';
 import EvalNudgeBanner from './EvalNudgeBanner';
 
 const AttendanceDrilldown   = lazy(() => import('./AttendanceDrilldown'));
@@ -40,7 +41,7 @@ const PlaybookAuthoring     = lazy(() => import('./PlaybookAuthoring'));
 //   onJumpToChat — () => void; called when user taps the unread banner
 //                   or the Unread Chat tile. Dashboard wires this to
 //                   setCurrentView('chat').
-const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
+const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
     const { user, profile } = useAuth();
     const toast = useToast();
     const confirm = useConfirm();
@@ -143,6 +144,16 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam }) => {
 
     return (
         <div className="space-y-5">
+            {/* Starter checklist — data-driven "get your club set up" card for new
+                coaches/clubs. Hides itself once the team is fully set up. */}
+            <SetupChecklist
+                teamId={teamId}
+                onAddRoster={onJumpToTeam}
+                onSetSchedule={onJumpToCalendar}
+                onInviteFamilies={onJumpToTeam}
+                onFirstTraining={handleSendChallenge}
+            />
+
             {/* Eval adoption nudge — marquee feature, get the cards built.
                 Hides itself once every player is rated. */}
             <EvalNudgeBanner teamId={teamId} onStart={() => setShowEvalGrid(true)} />

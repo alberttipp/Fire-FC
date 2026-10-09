@@ -51,8 +51,13 @@ function resolveContextFromUrl() {
         if (q) { try { sessionStorage.setItem('ff_club', q); } catch { /* ignore */ } return { club: q }; }
         const path = url.pathname.match(/^\/c\/([^/]+)/);
         if (path) { try { sessionStorage.setItem('ff_club', path[1]); } catch { /* ignore */ } return { club: path[1] }; }
-        const parts = url.hostname.split('.');
-        if (parts.length > 2 && !['www', 'firefcapp', 'localhost'].includes(parts[0])) return { club: parts[0] };
+        // Subdomain = club slug (e.g. raptors.firefcapp.com), but NEVER treat a raw
+        // IP host (127.0.0.1, 192.168.x.x) as a subdomain — its first octet would be
+        // read as a bogus club slug and suppress org-aware branding on local/IP builds.
+        const host = url.hostname;
+        const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+        const parts = host.split('.');
+        if (!isIp && parts.length > 2 && !['www', 'firefcapp', 'localhost'].includes(parts[0])) return { club: parts[0] };
         // No context in the URL — within this tab session, keep what the user
         // entered through (survives SPA nav + hard refresh; clears when the tab
         // closes). A fresh tab stays Rockford, so this is demo/link-driven only.
