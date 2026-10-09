@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell, Trophy } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell, Trophy, Swords } from 'lucide-react';
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
 import { trackScreen } from '../utils/analytics';
@@ -52,6 +52,7 @@ const DrillLibraryModal = lazy(() => import('../components/dashboard/DrillLibrar
 const ParentSessionBuilder = lazy(() => import('../components/dashboard/ParentSessionBuilder'));
 const PlayerEvaluationModal = lazy(() => import('../components/dashboard/PlayerEvaluationModal'));
 const EventDetailModal = lazy(() => import('../components/dashboard/calendar/EventDetailModal'));
+const ScoutingReportModal = lazy(() => import('../components/scouting/ScoutingReportModal'));
 const LineupBuilder    = lazy(() => import('../components/coach-hq/lineup/LineupBuilder'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
 const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
@@ -145,6 +146,7 @@ const ParentDashboard = () => {
     const [playerEvaluation, setPlayerEvaluation] = useState(null); // Coach ratings from evaluations table
     const [playerBadges, setPlayerBadges] = useState([]);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const [scoutOpponent, setScoutOpponent] = useState(null); // { teamId, name }
     const [upcomingCounts, setUpcomingCounts] = useState({}); // { eventId: { going, not_going, vacation, total } }
     const [coachAssignments, setCoachAssignments] = useState([]);
     const [parentAssignments, setParentAssignments] = useState([]);
@@ -923,6 +925,18 @@ const ParentDashboard = () => {
                                                         </div>
                                                     </div>
                                                 </button>
+                                                {event.type === 'game' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const opp = event.opponent_name || (event.title && event.title.match(/vs\.?\s+(.+)$/i)?.[1]) || event.title;
+                                                            setScoutOpponent({ teamId: event.team_id, name: opp });
+                                                        }}
+                                                        className="w-full py-1.5 rounded-lg border border-brand-gold/40 bg-brand-gold/5 hover:bg-brand-gold/15 text-brand-gold text-[11px] font-display font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                                                    >
+                                                        <Swords className="w-3.5 h-3.5" /> Scouting Report
+                                                    </button>
+                                                )}
                                                 <div className="flex gap-2">
                                                     {[
                                                         { status: 'going',     label: 'Going',    activeCls: 'bg-green-500 text-white',  idleCls: 'bg-green-500/20 text-green-400 hover:bg-green-500/40' },
@@ -1662,6 +1676,11 @@ const ParentDashboard = () => {
                         onClose={() => setOpenEvent(null)}
                         onOpenLineup={(e) => { setOpenEvent(null); setOpenLineupEvent(e); }}
                     />
+                </Suspense>
+            )}
+            {scoutOpponent && (
+                <Suspense fallback={null}>
+                    <ScoutingReportModal teamId={scoutOpponent.teamId} opponentName={scoutOpponent.name} onClose={() => setScoutOpponent(null)} />
                 </Suspense>
             )}
 
