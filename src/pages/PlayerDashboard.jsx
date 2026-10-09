@@ -784,7 +784,7 @@ const PlayerDashboard = () => {
 
                     <PersonalPlanCard assignments={personalPlanAssignments} onComplete={handleDrillComplete} />
 
-                    <HomeworkHub assignments={challengeAssignments} onComplete={handleDrillComplete} />
+                    <HomeworkHub assignments={challengeAssignments} onComplete={handleDrillComplete} playerId={playerRecord?.id} onRedo={refetchAssignments} />
 
                     {playerRecord?.team_id && <TeamCelebrationBanner teamId={playerRecord.team_id} />}
                     {playerRecord?.team_id && <TeamGoalBar teamId={playerRecord.team_id} />}

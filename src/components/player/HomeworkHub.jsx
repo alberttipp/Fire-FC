@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle, ChevronDown, ChevronUp, Clipboard, Star, Dumbbell, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { CheckCircle, ChevronDown, ChevronUp, Clipboard, Star, Dumbbell, ChevronsDown, ChevronsUp, RotateCcw } from 'lucide-react';
 import DrillDetailModal from './DrillDetailModal';
 import DrillMinutesStepper from './DrillMinutesStepper';
+import { supabase } from '../../supabaseClient';
+import { useToast } from '../Toast';
 
 // How many sessions to show in the collapsed default view. Keep small so
 // the player dashboard stays scannable; "See all" expands to the full list.
@@ -55,10 +57,27 @@ const formatDays = (dateStr) => {
     return { label: `${days}d left`, className: 'text-gray-400' };
 };
 
-const HomeworkHub = ({ assignments, onComplete }) => {
+const HomeworkHub = ({ assignments, onComplete, playerId, onRedo }) => {
+    const toast = useToast();
     const [selectedDrill, setSelectedDrill] = useState(null);
     const [expandedSessions, setExpandedSessions] = useState(() => new Set());
     const [showAll, setShowAll] = useState(false);
+    const [redoing, setRedoing] = useState(null);
+
+    // "Do it again" — clone a finished session's drills into fresh pending work.
+    const redoSession = async (s) => {
+        if (!playerId || redoing) return;
+        setRedoing(s.key);
+        try {
+            const ids = s.drills.map((d) => d.id);
+            const { error } = await supabase.rpc('redo_assignments', { p_player_id: playerId, p_assignment_ids: ids });
+            if (error) throw error;
+            toast.success('Fresh challenge added — go again! 💪');
+            onRedo?.();
+        } catch (e) {
+            toast.error(e?.message || "Couldn't restart — try again.");
+        } finally { setRedoing(null); }
+    };
     // Actual minutes trained per drill, adjustable inline before "Mark Done"
     // (defaults to the drill's set time) so credit reflects real time.
     const [editMins, setEditMins] = useState({});
@@ -265,6 +284,19 @@ const HomeworkHub = ({ assignments, onComplete }) => {
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+
+                {s.allCompleted && playerId && (
+                    <div className="px-3 pb-3">
+                        <button
+                            type="button"
+                            disabled={redoing === s.key}
+                            onClick={() => redoSession(s)}
+                            className="w-full py-2 rounded-lg border border-brand-green/40 bg-brand-green/5 hover:bg-brand-green/15 text-brand-green font-display font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" /> {redoing === s.key ? 'Adding…' : 'Do it again'}
+                        </button>
                     </div>
                 )}
             </div>

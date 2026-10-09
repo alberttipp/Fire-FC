@@ -1,0 +1,4 @@
+-- "Do it again": redo_assignments(player, assignment_ids[]) clones a finished
+-- session's drills into fresh pending assignments (same drill/source/duration, new
+-- due date); originals stay as history. Family/self or team staff. Consumed by
+-- HomeworkHub (coach challenge completion). Applied via MCP 'redo_assignments' 2026-10-09.
