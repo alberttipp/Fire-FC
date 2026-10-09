@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient';
 import { Trophy, TrendingUp, Clock, Flame, Loader2, PlayCircle, Target, Lock } from 'lucide-react';
 import LogJuggleModal from './LogJuggleModal';
 import FamilyJuggleOff from './FamilyJuggleOff';
-import { COMPETITION_NAME, COMPETITION_GOAL, COMPETITION_TAGLINE } from '../../constants/competition';
+import { COMPETITION_NAME, COMPETITION_GOAL, COMPETITION_TAGLINE, COMPETITION_TIERS } from '../../constants/competition';
 
 const STAMP_LADDER = [20, 30, 40, 50, 60, 70, 80, 90, 100];
 const GOAL = COMPETITION_GOAL;
@@ -139,6 +139,21 @@ const JuggleChallengeCard = ({ playerId, teamId, playerName }) => {
                                 <span className={`text-[8px] mt-0.5 ${best >= m ? 'text-brand-gold' : 'text-gray-600'}`}>{m}</span>
                             </div>
                         ))}
+                    </div>
+
+                    {/* Medal tiers — Bronze 50 · Silver 75 · Gold 100 */}
+                    <div className="flex items-stretch justify-center gap-2 mb-4">
+                        {COMPETITION_TIERS.map((t) => {
+                            const earned = best >= t.value;
+                            return (
+                                <div key={t.name}
+                                    className={`flex-1 rounded-lg p-2 text-center border ${earned ? 'border-brand-gold/50 bg-brand-gold/10' : 'border-white/10 bg-white/[0.02]'}`}>
+                                    <div className={`text-xl leading-none ${earned ? '' : 'grayscale opacity-40'}`}>{t.emoji}</div>
+                                    <div className={`text-[11px] font-display font-bold uppercase tracking-wider mt-1 ${earned ? 'text-brand-gold' : 'text-gray-500'}`}>{t.name}</div>
+                                    <div className="text-[9px] text-gray-500">{t.value} in a row</div>
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* Totals */}
