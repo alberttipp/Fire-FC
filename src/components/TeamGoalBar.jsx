@@ -30,12 +30,13 @@ const TeamGoalBar = ({ teamId }) => {
 
     return (
         <div className="glass-panel p-4 border-l-4 border-l-brand-green">
-            <div className="flex items-center gap-2 text-sm text-gray-300">
+            <div className="flex items-center gap-2 text-sm text-gray-300 flex-wrap">
                 <Flame className="w-4 h-4 text-brand-gold shrink-0" />
-                <span><span className="text-white font-bold">{logged_today}</span>/{roster} logged today</span>
+                <span><span className="text-white font-bold">{logged_today}</span> of {roster} teammates trained on their own today</span>
                 <span className="text-gray-600">·</span>
-                <span><span className="text-white font-bold">{logged_week}</span>/{roster} this week</span>
+                <span><span className="text-white font-bold">{logged_week}</span> this week</span>
             </div>
+            <p className="text-[11px] text-gray-500 mt-1">At-home sessions kids log themselves (juggling &amp; solo training). Practice &amp; games aren&apos;t counted here.</p>
 
             {goal ? (
                 <div className="mt-3">

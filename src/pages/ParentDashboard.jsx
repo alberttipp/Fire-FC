@@ -31,7 +31,6 @@ import DevelopmentPassportCard from '../components/player/DevelopmentPassportCar
 import PersonalPlanCard from '../components/player/PersonalPlanCard';
 import DrillMinutesStepper from '../components/player/DrillMinutesStepper';
 import JuggleChallengeCard from '../components/player/JuggleChallengeCard';
-import SupportTeamCard from '../components/SupportTeamCard';
 import TeamCelebrationBanner from '../components/TeamCelebrationBanner';
 import TeamGoalBar from '../components/TeamGoalBar';
 import useBackGuard from '../hooks/useBackGuard';
@@ -1174,9 +1173,6 @@ const ParentDashboard = () => {
 
                         {/* 7. Leaderboard — scoped to the selected child's team. */}
                         <Leaderboard teamId={selectedChild?.team_id || null} teamName={selectedChild?.teams?.name || null} />
-
-                        {/* Support / sponsor — opens the hosted Zeffy form (815YouthSports 501c3). */}
-                        <SupportTeamCard />
 
                         {/* Premier sponsor row — renders nothing until a sponsor exists */}
                         <SponsorSlot tier="premier" placement="parent_dashboard_feed" className="my-4" />
