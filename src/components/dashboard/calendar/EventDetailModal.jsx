@@ -26,7 +26,11 @@ const getYouTubeEmbedUrl = (url) => {
     return url;
 };
 
+import { Swords as ScoutIcon } from 'lucide-react';
+import ScoutingReportModal from '../../scouting/ScoutingReportModal';
+
 const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEventChanged, onOpenLineup }) => {
+    const [showScout, setShowScout] = useState(false);
     const { profile } = useAuth();
     const toast = useToast();
     const brand = useBranding();
@@ -179,6 +183,15 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                         <p className="text-sm text-gray-400">
                             {format(new Date(event.start_time), 'EEEE, MMMM d, yyyy')} at {format(new Date(event.start_time), 'h:mm a')}
                         </p>
+                        {isGame && (
+                            <button
+                                type="button"
+                                onClick={() => setShowScout(true)}
+                                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-gold/40 bg-brand-gold/5 hover:bg-brand-gold/15 text-brand-gold text-[11px] font-display font-bold uppercase tracking-wider"
+                            >
+                                <ScoutIcon className="w-3.5 h-3.5" /> Scouting Report
+                            </button>
+                        )}
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full">
                         <X className="w-5 h-5 text-gray-400" />
@@ -331,6 +344,14 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
                         }}
                     />
                 </Suspense>
+            )}
+
+            {showScout && (
+                <ScoutingReportModal
+                    teamId={event.team_id}
+                    opponentName={event.opponent_name || (event.title && event.title.match(/vs\.?\s+(.+)$/i)?.[1]) || event.title}
+                    onClose={() => setShowScout(false)}
+                />
             )}
 
         </div>

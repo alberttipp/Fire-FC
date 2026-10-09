@@ -1,0 +1,7 @@
+-- Scouting rebuilt on GAMES (current-season data lives here even when standings are
+-- empty). Applied via MCP (league_games_cache, get_scouting_report_from_games) 2026-10-09.
+--   * league_sources += schedule_group_id, our_external_team_id.
+--   * league_games cache (match_id, teams, scores, date) from get-schedules-by-flight/{event}/{group}/0.
+--   * get_scouting_report(team, opponent) now computes from games: standings (position by
+--     points), record, last-5 form, COMMON OPPONENTS (we vs shared teams), head-to-head.
+-- Will's U11: schedule group 40814, Raptors team 134323. Edge fn pull-league-standings pulls games.
