@@ -32,6 +32,7 @@ const EvalViewsDrilldown    = lazy(() => import('./EvalViewsDrilldown'));
 const SponsorsDrilldown     = lazy(() => import('./SponsorsDrilldown'));
 const PlaybookAuthoring     = lazy(() => import('./PlaybookAuthoring'));
 const SkillVerifyView       = lazy(() => import('./SkillVerifyView'));
+const GoldenTouchSetup      = lazy(() => import('./GoldenTouchSetup'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -66,6 +67,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
     const [showSponsors, setShowSponsors] = useState(false);
     const [showPlaybook, setShowPlaybook] = useState(false);
     const [showSkills, setShowSkills] = useState(false);
+    const [showGtSetup, setShowGtSetup] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -346,6 +348,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
 
+            {/* Golden Touch — coach sets the dates + sends it to the team */}
+            <button
+                type="button"
+                onClick={() => setShowGtSetup(true)}
+                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+            >
+                <Trophy className="w-5 h-5 text-brand-gold shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Set up the challenge — pick dates &amp; send to your team
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+
             {/* Team Pulse — engagement report + nightly insights & pointers */}
             <button
                 type="button"
@@ -438,6 +453,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 {showSponsors             && <SponsorsDrilldown teamId={teamId} onClose={() => setShowSponsors(false)} />}
                 {showPlaybook             && <PlaybookAuthoring teamId={teamId} onClose={() => setShowPlaybook(false)} />}
                 {showSkills               && <SkillVerifyView teamId={teamId} onClose={() => setShowSkills(false)} />}
+                {showGtSetup              && <GoldenTouchSetup teamId={teamId} onClose={() => setShowGtSetup(false)} />}
             </Suspense>
         </div>
     );
