@@ -31,6 +31,7 @@ const TeamEvalGrid          = lazy(() => import('./TeamEvalGrid'));
 const EvalViewsDrilldown    = lazy(() => import('./EvalViewsDrilldown'));
 const SponsorsDrilldown     = lazy(() => import('./SponsorsDrilldown'));
 const PlaybookAuthoring     = lazy(() => import('./PlaybookAuthoring'));
+const SkillVerifyView       = lazy(() => import('./SkillVerifyView'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -64,6 +65,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
     }, []);
     const [showSponsors, setShowSponsors] = useState(false);
     const [showPlaybook, setShowPlaybook] = useState(false);
+    const [showSkills, setShowSkills] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -318,6 +320,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
 
+            {/* Competitive Standard — coach batch-verify grid (Station Day) */}
+            <button
+                type="button"
+                onClick={() => setShowSkills(true)}
+                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+            >
+                <ShieldCheck className="w-5 h-5 text-brand-gold shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Competitive Standard — verify skills (Station Day)
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+
             {/* Juggling competition — standings, baseline review, Juggle-Off */}
             <button
                 type="button"
@@ -422,6 +437,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 {showEvalViews            && <EvalViewsDrilldown teamId={teamId} onClose={() => setShowEvalViews(false)} />}
                 {showSponsors             && <SponsorsDrilldown teamId={teamId} onClose={() => setShowSponsors(false)} />}
                 {showPlaybook             && <PlaybookAuthoring teamId={teamId} onClose={() => setShowPlaybook(false)} />}
+                {showSkills               && <SkillVerifyView teamId={teamId} onClose={() => setShowSkills(false)} />}
             </Suspense>
         </div>
     );

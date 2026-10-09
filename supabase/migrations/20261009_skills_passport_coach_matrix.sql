@@ -1,0 +1,6 @@
+-- Skills Passport coach side (applied to prod via MCP 'skills_passport_coach_matrix'
+-- 2026-10-09; repo-sync record).
+--   get_team_skill_matrix(team)            -> jsonb {standard, skills[{rungs}], players[{progress}]}; staff only
+--   verify_skill_rung(player, rung, ctx)   -> UPDATED: cascades DOWN (rung N implies 1..N-1); ctx practice|game|station_day
+--   create_station_day(team, when, notes)  -> optional Station Day record (coach-scheduled)
+-- Full bodies are in the applied MCP migration of the same name.
