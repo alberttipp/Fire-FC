@@ -1,0 +1,10 @@
+-- Competitive Standard "Skills Passport" — data model + seed (U11) + drill map.
+-- Applied to prod via MCP 2026-10-09; this file keeps the repo in sync.
+-- Rungs (3/skill), rubrics, verifier tiers (self->parent->coach); live 1v1 is
+-- coach-only + not solo-trainable. Coaches verify ANY rung anytime (practice/
+-- game/station_day); station days are coach-created. See the MCP migration
+-- 'skills_passport_foundation' for the full seed (8 skills x 3 rungs + drill map).
+--
+-- Tables: skill_standards, skill_standard_skills, skill_rungs, player_skill_rungs,
+--         station_days, drill_skill_map (all RLS-enabled; mutations via RPCs next step).
+-- NOTE: full DDL+seed body lives in the applied MCP migration of the same name.
