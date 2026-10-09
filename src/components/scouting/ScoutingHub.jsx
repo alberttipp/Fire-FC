@@ -38,6 +38,9 @@ const ScoutingHub = ({ teamId, onClose }) => {
 
     const table = data?.table || [];
     const ourName = data?.our_name;
+    const through = data?.data_through
+        ? new Date(data.data_through + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null;
 
     const overlay = (
         <div className="fixed inset-0 z-[70] bg-black/70 flex items-end md:items-center md:justify-center" onClick={onClose}>
@@ -70,6 +73,11 @@ const ScoutingHub = ({ teamId, onClose }) => {
                     <div className="p-8 text-center text-gray-400 text-sm">No league data yet — it fills in as the season's results post.</div>
                 ) : (
                     <div className="p-3 overflow-y-auto">
+                        {through && (
+                            <p className="px-2 pb-2 text-[10px] text-gray-500">
+                                Official league results posted through <span className="text-gray-300">{through}</span>. Updates automatically as the league reports scores.
+                            </p>
+                        )}
                         <div className="flex items-center gap-2 px-2 py-1 text-[9px] uppercase tracking-wider text-gray-500">
                             <span className="w-5 text-center">#</span>
                             <span className="flex-1">Team</span>

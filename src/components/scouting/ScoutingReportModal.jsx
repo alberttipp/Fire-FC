@@ -26,6 +26,9 @@ const ScoutingReportModal = ({ teamId, opponentName, sourceId = null, onClose })
     const h2h = data?.h2h || [];
     const season = data?.season;
     const lastSeason = data && data.is_current === false;
+    const through = data?.data_through
+        ? new Date(data.data_through + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null;
 
     const strength = (o) => {
         if (!o || !o.total) return null;
@@ -88,9 +91,13 @@ const ScoutingReportModal = ({ teamId, opponentName, sourceId = null, onClose })
                     </div>
                 ) : (
                     <div className="p-4 space-y-4 overflow-y-auto">
-                        {lastSeason && (
+                        {lastSeason ? (
                             <div className="rounded-lg bg-brand-gold/5 border border-brand-gold/20 p-2.5 text-[11px] text-gray-300">
                                 Based on <b className="text-brand-gold">{season}</b> (last season).
+                            </div>
+                        ) : through && (
+                            <div className="rounded-lg bg-white/[0.03] border border-white/10 p-2.5 text-[11px] text-gray-400">
+                                Official league results posted through <span className="text-gray-200">{through}</span>. The league enters scores on a delay, so recent games may not show yet — it updates automatically.
                             </div>
                         )}
 
