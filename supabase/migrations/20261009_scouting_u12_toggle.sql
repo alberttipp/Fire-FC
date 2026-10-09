@@ -1,0 +1,7 @@
+-- U12 (BU12) division as a view-only scouting source + division toggle. Applied via MCP
+-- (scouting_u12_division_toggle, get_scouting_report_with_source) 2026-10-09.
+--   * league_sources += division_label; U12 source on Will's team (event 4362, flight
+--     22607, schedule group 40815, Raptors U12 team 134325, is_current=false).
+--   * get_team_scouting_sources(team) -> divisions with games (for the toggle).
+--   * get_league_table(team, source_id?) + get_scouting_report(team, opp, source_id?)
+--     take an optional source so the hub can toggle U11/U12. Default = current U11.

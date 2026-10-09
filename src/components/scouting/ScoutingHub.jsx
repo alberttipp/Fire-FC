@@ -4,20 +4,37 @@ import { supabase } from '../../supabaseClient';
 import { X, Loader2, Swords, ChevronRight } from 'lucide-react';
 import ScoutingReportModal from './ScoutingReportModal';
 
-// League scouting hub: the division table (computed from cached games). Tap any team
-// to open its full scouting report. Opened from Coach HQ + available to parents.
+// League scouting hub: a division table (computed from cached games) with a U11/U12
+// (or season) toggle. Tap any team to open its full scouting report. Coach + parents.
 const ScoutingHub = ({ teamId, onClose }) => {
+    const [sources, setSources] = useState(null);
+    const [sourceId, setSourceId] = useState(null);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [scoutTeam, setScoutTeam] = useState(null);
 
+    // Load the available divisions (toggle) once.
+    useEffect(() => {
+        if (!teamId) return;
+        let cancelled = false;
+        (async () => {
+            const { data: list } = await supabase.rpc('get_team_scouting_sources', { p_team_id: teamId });
+            if (cancelled) return;
+            const arr = Array.isArray(list) ? list : [];
+            setSources(arr);
+            setSourceId(arr[0]?.source_id || null);
+        })();
+        return () => { cancelled = true; };
+    }, [teamId]);
+
     const load = useCallback(async () => {
-        if (!teamId) { setLoading(false); return; }
-        const { data: d } = await supabase.rpc('get_league_table', { p_team_id: teamId });
+        if (!teamId || sourceId === null) return;
+        setLoading(true);
+        const { data: d } = await supabase.rpc('get_league_table', { p_team_id: teamId, p_source_id: sourceId });
         setData(d || { found: false });
         setLoading(false);
-    }, [teamId]);
-    useEffect(() => { load(); }, [load]);
+    }, [teamId, sourceId]);
+    useEffect(() => { if (sourceId !== null) load(); }, [load, sourceId]);
 
     const table = data?.table || [];
     const ourName = data?.our_name;
@@ -35,12 +52,22 @@ const ScoutingHub = ({ teamId, onClose }) => {
                     <button type="button" onClick={onClose} className="text-gray-400 hover:text-white shrink-0"><X className="w-5 h-5" /></button>
                 </div>
 
-                {loading ? (
+                {/* Division toggle (U11 / U12 / Last season) */}
+                {sources && sources.length > 1 && (
+                    <div className="flex gap-2 px-4 pt-3 shrink-0">
+                        {sources.map((s) => (
+                            <button key={s.source_id} type="button" onClick={() => setSourceId(s.source_id)}
+                                className={`text-xs px-3 py-1.5 rounded-lg font-display uppercase tracking-wider ${sourceId === s.source_id ? 'bg-brand-green text-brand-dark font-bold' : 'bg-white/5 text-gray-400 hover:text-white'}`}>
+                                {s.division}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {loading || sources === null ? (
                     <div className="p-8 flex items-center justify-center text-gray-400 gap-2"><Loader2 className="w-5 h-5 animate-spin" /> Loading…</div>
                 ) : !data?.found || table.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400 text-sm">
-                        No league data yet — it fills in as the season's results post.
-                    </div>
+                    <div className="p-8 text-center text-gray-400 text-sm">No league data yet — it fills in as the season's results post.</div>
                 ) : (
                     <div className="p-3 overflow-y-auto">
                         <div className="flex items-center gap-2 px-2 py-1 text-[9px] uppercase tracking-wider text-gray-500">
@@ -71,7 +98,7 @@ const ScoutingHub = ({ teamId, onClose }) => {
             </div>
 
             {scoutTeam && (
-                <ScoutingReportModal teamId={teamId} opponentName={scoutTeam} onClose={() => setScoutTeam(null)} />
+                <ScoutingReportModal teamId={teamId} opponentName={scoutTeam} sourceId={sourceId} onClose={() => setScoutTeam(null)} />
             )}
         </div>
     );

@@ -6,16 +6,16 @@ import { X, Loader2, Shield, Swords, Users, History } from 'lucide-react';
 // Opponent scouting report, computed from cached league games: current-season standing,
 // record, last-5 form, COMMON OPPONENTS (how we each did vs shared teams), and
 // head-to-head. Open to coaches AND parents.
-const ScoutingReportModal = ({ teamId, opponentName, onClose }) => {
+const ScoutingReportModal = ({ teamId, opponentName, sourceId = null, onClose }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
         if (!teamId || !opponentName) { setLoading(false); return; }
-        const { data: d } = await supabase.rpc('get_scouting_report', { p_team_id: teamId, p_opponent: opponentName });
+        const { data: d } = await supabase.rpc('get_scouting_report', { p_team_id: teamId, p_opponent: opponentName, p_source_id: sourceId });
         setData(d || { found: false });
         setLoading(false);
-    }, [teamId, opponentName]);
+    }, [teamId, opponentName, sourceId]);
     useEffect(() => { load(); }, [load]);
 
     const opp = data?.opponent;
