@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck, BookOpen, FileText } from 'lucide-react';
+import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck, BookOpen, FileText, Swords } from 'lucide-react';
 
 // Teams with an in-app "About your app" overview page in /public. Keyed by team
 // so a white-label coach sees their own overview and others see nothing.
@@ -33,6 +33,7 @@ const SponsorsDrilldown     = lazy(() => import('./SponsorsDrilldown'));
 const PlaybookAuthoring     = lazy(() => import('./PlaybookAuthoring'));
 const SkillVerifyView       = lazy(() => import('./SkillVerifyView'));
 const GoldenTouchSetup      = lazy(() => import('./GoldenTouchSetup'));
+const ScoutingHub           = lazy(() => import('../scouting/ScoutingHub'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -68,6 +69,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
     const [showPlaybook, setShowPlaybook] = useState(false);
     const [showSkills, setShowSkills] = useState(false);
     const [showGtSetup, setShowGtSetup] = useState(false);
+    const [showScoutHub, setShowScoutHub] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -157,6 +159,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 onInviteFamilies={onJumpToTeam}
                 onFirstTraining={handleSendChallenge}
             />
+
+            {/* Scouting Reports — league table + tap any opponent to scout them */}
+            <button
+                type="button"
+                onClick={() => setShowScoutHub(true)}
+                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+            >
+                <Swords className="w-5 h-5 text-brand-gold shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Scouting Reports — league table &amp; opponent deep dives
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
 
             {/* Eval adoption nudge — marquee feature, get the cards built.
                 Hides itself once every player is rated. */}
@@ -454,6 +469,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 {showPlaybook             && <PlaybookAuthoring teamId={teamId} onClose={() => setShowPlaybook(false)} />}
                 {showSkills               && <SkillVerifyView teamId={teamId} onClose={() => setShowSkills(false)} />}
                 {showGtSetup              && <GoldenTouchSetup teamId={teamId} onClose={() => setShowGtSetup(false)} />}
+                {showScoutHub             && <ScoutingHub teamId={teamId} onClose={() => setShowScoutHub(false)} />}
             </Suspense>
         </div>
     );

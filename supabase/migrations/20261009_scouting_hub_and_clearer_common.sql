@@ -1,0 +1,3 @@
+-- Clearer common opponents (per-side W/L/D + net GD so the UI shows an edge marker +
+-- a summary) + get_league_table(team) for the Coach HQ scouting hub. Applied via MCP
+-- 'scouting_common_clearer_and_table' 2026-10-09.

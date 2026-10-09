@@ -51,6 +51,19 @@ const ScoutingReportModal = ({ teamId, opponentName, onClose }) => {
             {children}
         </div>
     );
+    // One side's result vs a common opponent: "W (+3)" for one game, "2-0-1 (+5)" for many.
+    const sideLabel = (w, l, d, gd) => {
+        const gp = (w || 0) + (l || 0) + (d || 0);
+        const r = gp === 1 ? (w ? 'W' : l ? 'L' : 'D') : `${w}-${l}-${d}`;
+        return { r, g: (gd > 0 ? '+' : '') + gd };
+    };
+    const edgeOf = (c) => {
+        const up = c.us_w * 3 + c.us_d, tp = c.them_w * 3 + c.them_d;
+        if (up > tp || (up === tp && c.us_gd > c.them_gd)) return 'you';
+        if (tp > up || (tp === up && c.them_gd > c.us_gd)) return 'them';
+        return 'even';
+    };
+    const edgeCount = common.filter((c) => edgeOf(c) === 'you').length;
 
     const overlay = (
         <div className="fixed inset-0 z-[70] bg-black/70 flex items-end md:items-center md:justify-center" onClick={onClose}>
@@ -128,18 +141,32 @@ const ScoutingReportModal = ({ teamId, opponentName, onClose }) => {
                             </div>
                         ))}
 
-                        {/* Common opponents — the gold */}
+                        {/* Common opponents — the gold. Shows how you each did vs shared teams. */}
                         {common.length > 0 && section(<Users className="w-3 h-3" />, 'Common opponents', (
-                            <div className="space-y-1">
-                                {common.map((c, i) => (
-                                    <div key={i} className="flex items-center gap-2 text-xs bg-white/[0.03] rounded px-2 py-1.5">
-                                        <span className="flex-1 truncate text-gray-300">{c.opponent}</span>
-                                        <span className="text-brand-green shrink-0">you {c.us}</span>
-                                        <span className="text-gray-600">·</span>
-                                        <span className="text-gray-400 shrink-0">them {c.them}</span>
-                                    </div>
-                                ))}
-                            </div>
+                            <>
+                                <p className="text-[11px] text-gray-400 mb-2">
+                                    Teams you&apos;ve <i>both</i> played. You did <b className="text-brand-green">better vs {edgeCount} of {common.length}</b>.
+                                </p>
+                                <div className="space-y-1">
+                                    {common.map((c, i) => {
+                                        const u = sideLabel(c.us_w, c.us_l, c.us_d, c.us_gd);
+                                        const t = sideLabel(c.them_w, c.them_l, c.them_d, c.them_gd);
+                                        const edge = edgeOf(c);
+                                        return (
+                                            <div key={i} className="bg-white/[0.03] rounded-lg px-2.5 py-2">
+                                                <div className="text-xs text-gray-300 truncate mb-1">{c.opponent}</div>
+                                                <div className="flex items-center gap-2 text-xs">
+                                                    <span className={`flex-1 ${edge === 'you' ? 'text-brand-green font-bold' : 'text-gray-400'}`}>You {u.r} <span className="text-[10px] text-gray-500">({u.g})</span></span>
+                                                    <span className={`shrink-0 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${edge === 'you' ? 'bg-brand-green/20 text-brand-green' : edge === 'them' ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-gray-400'}`}>
+                                                        {edge === 'you' ? 'Your edge' : edge === 'them' ? 'Their edge' : 'Even'}
+                                                    </span>
+                                                    <span className={`flex-1 text-right ${edge === 'them' ? 'text-red-400 font-bold' : 'text-gray-400'}`}>Them {t.r} <span className="text-[10px] text-gray-500">({t.g})</span></span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
                         ))}
 
                         {/* Full table */}
