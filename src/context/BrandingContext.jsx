@@ -150,5 +150,10 @@ export const BrandingProvider = ({ children }) => {
         if (a) root.style.setProperty('--brand-accent', a);
     }, [brand.primaryColor, brand.accentColor]);
 
+    // Keep the browser tab / PWA title in sync with the resolved club.
+    useEffect(() => {
+        if (brand.name) { try { document.title = brand.name; } catch { /* ignore */ } }
+    }, [brand.name]);
+
     return <BrandingContext.Provider value={brand}>{children}</BrandingContext.Provider>;
 };

@@ -373,48 +373,48 @@ const Dashboard = () => {
                         {/* View Switcher Dropdown (Styled as buttons for now for simplicity/touch).
                             min-w-0 + overflow-x-auto: on narrower laptops the row scrolls
                             instead of overlapping the brand lockup. */}
-                        <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10 min-w-0 overflow-x-auto no-scrollbar [&>button]:whitespace-nowrap [&>button]:shrink-0">
+                        <div className="hidden lg:flex bg-white/5 rounded-lg p-1 border border-white/10 min-w-0 overflow-x-auto no-scrollbar [&>button]:whitespace-nowrap [&>button]:shrink-0">
                             {isStaff && (
                                 <button
                                     onClick={() => pickView('coach_hq')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'coach_hq' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'coach_hq' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     <LayoutDashboard className="w-3 h-3" /> Coach HQ
                                 </button>
                             )}
                             <button
                                 onClick={() => pickView('club')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'club' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'club' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Club
                             </button>
                             <button
                                 onClick={() => pickView('team')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'team' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'team' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Team
                             </button>
                             <button
                                 onClick={() => pickView('practice')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'practice' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'practice' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 <Dumbbell className="w-3 h-3" /> Development
                             </button>
                             <button
                                 onClick={() => pickView('chat')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'chat' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'chat' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Chat
                             </button>
                             <button
                                 onClick={() => pickView('calendar')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'calendar' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'calendar' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 Schedule
                             </button>
                             <button
                                 onClick={() => pickView('rules')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'rules' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'rules' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
                                 <FileText className="w-3 h-3" /> Rules
                             </button>
@@ -442,8 +442,8 @@ const Dashboard = () => {
                             <span className="hidden sm:inline">Preview as…</span>
                         </button>
 
-                        {/* Mobile View Switcher — abbreviated when navbar is tight */}
-                        <div className="md:hidden relative shrink-0">
+                        {/* Compact View Switcher — used until there's room for the full row (lg) */}
+                        <div className="lg:hidden relative shrink-0">
                             <button
                                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                                 className="flex items-center gap-1 text-brand-green font-display font-bold uppercase border border-brand-green/30 px-2 py-1.5 rounded bg-brand-green/5 text-xs"

@@ -450,7 +450,7 @@ const Login = () => {
                                     value={email}
                                     onChange={(e) => { setEmail(e.target.value); if (authError) setAuthError(null); }}
                                     className={`${inputClass('email')} pl-10`}
-                                    placeholder="coach@firefc.com"
+                                    placeholder="you@email.com"
                                     autoComplete="username"
                                 />
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
