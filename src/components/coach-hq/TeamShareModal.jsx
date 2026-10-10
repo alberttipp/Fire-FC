@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Share2, Copy, Check, MessageSquare, Mail, Users, Smartphone, Download } from 'lucide-react';
+import { supabase } from '../../supabaseClient';
 import { useBranding } from '../../context/BrandingContext';
 import { useToast } from '../Toast';
 import BulkInviteModal from '../dashboard/BulkInviteModal';
@@ -18,17 +19,28 @@ const TeamShareModal = ({ teamId, teamName, onClose }) => {
     const toast = useToast();
     const [copied, setCopied] = useState(false);
     const [showBulk, setShowBulk] = useState(false);
+    // The link must point at THIS team's club, not the viewer's ambient brand
+    // (Albert's home brand is Rock City even while sharing the Raptors team).
+    const [club, setClub] = useState({ slug: brand.slug, name: brand.name, shortName: brand.shortName, logoUrl: brand.logoUrl });
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            if (!teamId) return;
+            const { data } = await supabase.rpc('get_team_share_info', { p_team_id: teamId });
+            if (cancelled || !data) return;
+            setClub({ slug: data.org_slug, name: data.display_name, shortName: data.short_name, logoUrl: data.logo_url });
+        })();
+        return () => { cancelled = true; };
+    }, [teamId]);
 
     const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://firefcapp.com';
-    const clubParam = brand.slug && brand.slug !== DEFAULT_CLUB_SLUG ? `?club=${encodeURIComponent(brand.slug)}` : '';
+    const clubParam = club.slug && club.slug !== DEFAULT_CLUB_SLUG ? `?club=${encodeURIComponent(club.slug)}` : '';
     const appUrl = `${origin}/login${clubParam}`;
-
-    const title = `Join ${brand.name} on the app`;
-    const message = `${brand.name} is on the app — your player's development hub: player card, training plan, schedule, team chat & stats, all in one place.\n\nOpen this link, then tap "Install app" to add it to your phone:\n${appUrl}`;
 
     const nativeShare = async () => {
         if (navigator.share) {
-            try { await navigator.share({ title, text: message, url: appUrl }); return; } catch (_) { /* cancelled */ }
+            try { await navigator.share({ url: appUrl }); return; } catch (_) { /* cancelled */ }
         }
         copyLink();
     };
@@ -36,8 +48,8 @@ const TeamShareModal = ({ teamId, teamName, onClose }) => {
         try { navigator.clipboard.writeText(appUrl); setCopied(true); toast.success('Link copied.'); setTimeout(() => setCopied(false), 2000); }
         catch (_) { toast.error("Couldn't copy — long-press the link to copy it."); }
     };
-    const smsHref = `sms:?body=${encodeURIComponent(message)}`;
-    const emailHref = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(message)}`;
+    const smsHref = `sms:?body=${encodeURIComponent(appUrl)}`;
+    const emailHref = `mailto:?subject=${encodeURIComponent(`Join ${club.name} on the app`)}&body=${encodeURIComponent(appUrl)}`;
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end md:items-center justify-center md:p-4 animate-fade-in" onClick={onClose}>
@@ -48,11 +60,11 @@ const TeamShareModal = ({ teamId, teamName, onClose }) => {
                 <div className="p-6 md:p-8 pb-[max(2rem,env(safe-area-inset-bottom)+1.5rem)]">
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 overflow-hidden shrink-0">
-                            {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="w-full h-full object-contain p-1" /> : <Share2 className="w-6 h-6 text-brand-green" />}
+                            {club.logoUrl ? <img src={club.logoUrl} alt="" className="w-full h-full object-contain p-1" /> : <Share2 className="w-6 h-6 text-brand-green" />}
                         </div>
                         <div className="min-w-0">
                             <h2 className="text-xl md:text-2xl font-display font-bold text-white uppercase tracking-wider truncate">Share the app</h2>
-                            <p className="text-brand-green font-bold text-xs uppercase tracking-widest mt-0.5">{brand.name}</p>
+                            <p className="text-brand-green font-bold text-xs uppercase tracking-widest mt-0.5">{club.name}</p>
                         </div>
                     </div>
 
@@ -67,7 +79,7 @@ const TeamShareModal = ({ teamId, teamName, onClose }) => {
                         </div>
                         <p className="text-[11px] text-gray-400 mt-3 leading-snug flex items-start gap-1.5">
                             <Smartphone className="w-3 h-3 mt-0.5 shrink-0" />
-                            Opens with the {brand.shortName || brand.name} crest and colors, and prompts them to install the app to their home screen.
+                            Opens the {club.shortName || club.name} login, and prompts them to install the app to their home screen.
                         </p>
                     </div>
 
