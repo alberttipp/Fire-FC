@@ -155,5 +155,53 @@ export const BrandingProvider = ({ children }) => {
         if (brand.name) { try { document.title = brand.name; } catch { /* ignore */ } }
     }, [brand.name]);
 
+    // Per-club PWA identity: rewrite the manifest + home-screen icons so an
+    // installed app wears the resolved club's crest and name (e.g. a Raptors
+    // user installs "Raptors" with the Raptors crest, not Rock City). We build
+    // the manifest as a Blob at runtime and swap <link rel="manifest">; iOS reads
+    // apple-touch-icon directly, so we update that (and the favicon) too. All
+    // best-effort — any failure leaves the static manifest/icons in place.
+    useEffect(() => {
+        try {
+            const isDefault = !brand.slug || brand.slug === DEFAULT_BRAND.slug;
+            // Default (Rock City) keeps the proven static /manifest.json + index.html
+            // icons untouched — only white-label clubs need a runtime override.
+            if (isDefault) return;
+            const abs = (u) => { try { return new URL(u, window.location.origin).href; } catch { return u; } };
+            const icon = abs(brand.logoUrl || DEFAULT_BRAND.logoUrl);
+            // A non-default club gets its own installed identity (distinct id +
+            // start_url) so it installs as a separate app that opens in-brand.
+            const startUrl = abs(isDefault ? '/' : `/?club=${encodeURIComponent(brand.slug)}`);
+            const manifest = {
+                name: brand.name || DEFAULT_BRAND.name,
+                short_name: brand.shortName || brand.name || DEFAULT_BRAND.shortName,
+                description: 'Youth-soccer team management, training tracking, and family communication.',
+                id: startUrl,
+                start_url: startUrl,
+                scope: abs('/'),
+                display: 'standalone',
+                orientation: 'portrait',
+                background_color: '#0b1a33',
+                theme_color: '#0b1a33',
+                icons: [
+                    { src: icon, sizes: '192x192', type: 'image/png', purpose: 'any' },
+                    { src: icon, sizes: '512x512', type: 'image/png', purpose: 'any' },
+                    { src: icon, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+                ],
+            };
+            const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+            const blobUrl = URL.createObjectURL(blob);
+            let link = document.querySelector('link[rel="manifest"]');
+            if (!link) { link = document.createElement('link'); link.rel = 'manifest'; document.head.appendChild(link); }
+            if (link.dataset.ffBlob === '1') { try { URL.revokeObjectURL(link.href); } catch { /* ignore */ } }
+            link.href = blobUrl;
+            link.dataset.ffBlob = '1';
+            // Home-screen / tab icons (iOS uses apple-touch-icon; it ignores the manifest).
+            document.querySelectorAll('link[rel="apple-touch-icon"], link[rel="icon"]').forEach((l) => { l.href = icon; });
+            const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+            if (appleTitle) appleTitle.content = manifest.short_name;
+        } catch { /* keep static manifest/icons */ }
+    }, [brand.slug, brand.name, brand.shortName, brand.logoUrl]);
+
     return <BrandingContext.Provider value={brand}>{children}</BrandingContext.Provider>;
 };

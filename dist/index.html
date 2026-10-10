@@ -31,6 +31,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
 
+    <!-- Capture the Android/desktop-Chrome install prompt as early as
+         possible — it can fire before React mounts. We stash the event
+         and let the in-app InstallPrompt component fire it on a tap. -->
+    <script>
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__ffInstallPrompt = e;
+        try { window.dispatchEvent(new Event('ff-install-available')); } catch (_) {}
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__ffInstallPrompt = null;
+        try { window.dispatchEvent(new Event('ff-app-installed')); } catch (_) {}
+      });
+    </script>
+
     <!-- ============================================================
          Boot guard: prevents the "white-screen-of-stale-cache" trap
          that hits PWA-installed Android Chrome (and sometimes iOS
@@ -160,8 +175,8 @@
         } catch (_) { /* defensive — never block boot */ }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-zhtn2kmr.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-obIiJ8mu.css">
+    <script type="module" crossorigin src="/assets/index-BydPz2iw.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-nINUBs-s.css">
   </head>
   <body>
     <div id="root"></div>

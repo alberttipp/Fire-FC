@@ -30,6 +30,7 @@ import BuildStamp from './components/BuildStamp';
 import JuggleCountdownBanner from './components/JuggleCountdownBanner';
 import EnablePushBanner from './components/notifications/EnablePushBanner';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
+import InstallPrompt from './components/InstallPrompt';
 import { logBuildInfo } from './utils/buildInfo';
 
 // Watches for a new deploy while the user has the app open. Lives inside
@@ -210,6 +211,11 @@ function App() {
                   that isn't installed to Home Screen yet. Auto-hides on
                   Android, on desktop, and after dismissal. */}
               <IOSInstallPrompt />
+
+              {/* Android / desktop Chrome install banner — fires the native
+                  install prompt. Auto-hides on iOS, when already installed,
+                  and after dismissal. */}
+              <InstallPrompt />
 
               {/* Build Stamp - visible indicator of deployed version */}
               <BuildStamp />
