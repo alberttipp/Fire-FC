@@ -90,7 +90,7 @@ const ScoutingReportModal = ({ teamId, opponentName, sourceId = null, onClose })
                         <p className="text-gray-600 text-xs mt-1">It fills in as the league's results post.</p>
                     </div>
                 ) : (
-                    <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
+                    <div className="p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-4 overflow-y-auto flex-1 min-h-0">
                         {lastSeason ? (
                             <div className="rounded-lg bg-brand-gold/5 border border-brand-gold/20 p-2.5 text-[11px] text-gray-300">
                                 Based on <b className="text-brand-gold">{season}</b> (last season).

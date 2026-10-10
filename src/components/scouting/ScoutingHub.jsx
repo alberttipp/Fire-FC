@@ -72,7 +72,7 @@ const ScoutingHub = ({ teamId, onClose }) => {
                 ) : !data?.found || table.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 text-sm">No league data yet — it fills in as the season's results post.</div>
                 ) : (
-                    <div className="p-3 overflow-y-auto flex-1 min-h-0">
+                    <div className="p-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] overflow-y-auto flex-1 min-h-0">
                         {through && (
                             <p className="px-2 pb-2 text-[10px] text-gray-500">
                                 Official league results posted through <span className="text-gray-300">{through}</span>. Updates automatically as the league reports scores.
