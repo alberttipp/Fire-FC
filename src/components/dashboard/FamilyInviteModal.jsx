@@ -44,7 +44,7 @@ const FamilyInviteModal = ({ player, onClose }) => {
         return () => { cancelled = true; };
     }, [player?.id, player?.guardian_code]);
 
-    const inviteUrl = buildInviteUrl(code);
+    const inviteUrl = buildInviteUrl(code, brand.slug);
 
     const handleCopy = () => {
         if (!code) return;

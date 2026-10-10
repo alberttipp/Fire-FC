@@ -52,11 +52,20 @@ export const clearPendingInvite = () => {
     }
 };
 
-// Build the shareable invite URL for a given guardian code.
-export const buildInviteUrl = (code) => {
+// Build the shareable invite URL for a given guardian code. Carries the club
+// slug (?club=) when the sharer is in a white-label context, so the recipient
+// opens the app already branded for that club (crest, colors, installable app
+// icon) instead of the default. Pass the resolved brand.slug; falls back to the
+// tab's stashed club (set by BrandingContext). The default club is omitted so
+// Rock City links stay clean.
+const DEFAULT_CLUB_SLUG = 'rock-city-fc';
+export const buildInviteUrl = (code, clubSlug) => {
     if (!code) return '';
     const origin = (typeof window !== 'undefined' && window.location?.origin)
         ? window.location.origin
         : 'https://firefcapp.com';
-    return `${origin}/login?join=${encodeURIComponent(code)}`;
+    let club = clubSlug;
+    if (!club) { try { club = sessionStorage.getItem('ff_club') || ''; } catch (_) { club = ''; } }
+    const clubParam = club && club !== DEFAULT_CLUB_SLUG ? `&club=${encodeURIComponent(club)}` : '';
+    return `${origin}/login?join=${encodeURIComponent(code)}${clubParam}`;
 };

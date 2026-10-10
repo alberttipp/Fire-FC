@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck, BookOpen, FileText, Swords } from 'lucide-react';
+import { MessageSquare, Calendar, Trophy, Clock, Activity, Target, ChevronRight, Bell, Dumbbell, Loader2, Star, CreditCard, ShieldCheck, BookOpen, FileText, Swords, Share2 } from 'lucide-react';
 
 // Teams with an in-app "About your app" overview page in /public. Keyed by team
 // so a white-label coach sees their own overview and others see nothing.
@@ -34,6 +34,7 @@ const PlaybookAuthoring     = lazy(() => import('./PlaybookAuthoring'));
 const SkillVerifyView       = lazy(() => import('./SkillVerifyView'));
 const GoldenTouchSetup      = lazy(() => import('./GoldenTouchSetup'));
 const ScoutingHub           = lazy(() => import('../scouting/ScoutingHub'));
+const TeamShareModal        = lazy(() => import('./TeamShareModal'));
 
 // Coach HQ — landing surface for coach + manager. Six live tiles + an
 // unread chat banner + the existing UpcomingWeek list. Each tile opens
@@ -70,6 +71,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
     const [showSkills, setShowSkills] = useState(false);
     const [showGtSetup, setShowGtSetup] = useState(false);
     const [showScoutHub, setShowScoutHub] = useState(false);
+    const [showShare, setShowShare] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
@@ -169,6 +171,20 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 <Swords className="w-5 h-5 text-brand-gold shrink-0" />
                 <span className="flex-1 text-left text-white text-sm font-medium">
                     Scouting Reports — league table &amp; opponent deep dives
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+
+            {/* Share the app — hand the club-branded app + install link to
+                coaches and parents; opens roster-wide family invites too. */}
+            <button
+                type="button"
+                onClick={() => setShowShare(true)}
+                className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors"
+            >
+                <Share2 className="w-5 h-5 text-brand-green shrink-0" />
+                <span className="flex-1 text-left text-white text-sm font-medium">
+                    Share the app — invite your coaches &amp; parents
                 </span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
             </button>
@@ -470,6 +486,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 {showSkills               && <SkillVerifyView teamId={teamId} onClose={() => setShowSkills(false)} />}
                 {showGtSetup              && <GoldenTouchSetup teamId={teamId} onClose={() => setShowGtSetup(false)} />}
                 {showScoutHub             && <ScoutingHub teamId={teamId} onClose={() => setShowScoutHub(false)} />}
+                {showShare                && <TeamShareModal teamId={teamId} onClose={() => setShowShare(false)} />}
             </Suspense>
         </div>
     );

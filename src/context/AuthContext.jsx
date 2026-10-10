@@ -262,12 +262,16 @@ export const AuthProvider = ({ children }) => {
                 team_id: membershipContext.team_id || data?.team_id || null,
             });
 
-            // Claim the dedupe ONLY after a clean, role-resolved fetch. If either
-            // query errors (transient DB / RLS / token hiccup), we must NOT lock
-            // in a role-less profile, or the manager gets bounced to the setup
-            // screen until a full reload. Leaving the ref unclaimed lets the
-            // retries above/below self-heal it.
-            lastProfileUserId.current = userId;
+            // Claim the dedupe ONLY after a clean, role-resolved fetch. If we
+            // exhausted the retries above and STILL have no role (the token-attach
+            // race returned empty reads every time), do NOT claim the ref — that
+            // would lock in a role-less profile and bounce an existing coach/manager
+            // to the "Welcome" setup screen until a full reload, with every later
+            // SIGNED_IN / TOKEN_REFRESHED event deduped out so it never self-heals.
+            // Leaving it unclaimed lets the next auth event re-fetch and resolve the
+            // real role once the JWT is attached. (This is exactly Will-the-coach
+            // seeing "no team" on login.)
+            if (resolvedRole) lastProfileUserId.current = userId;
             inFlightUserId.current = null;
             setLoading(false);
         } catch (err) {
