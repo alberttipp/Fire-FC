@@ -67,6 +67,24 @@ function resolveContextFromUrl() {
     return null;
 }
 
+// Is the club chosen EXPLICITLY by the current URL (?club / ?p / /c/ / subdomain)?
+// Distinct from resolveContextFromUrl(), which also honors a sticky sessionStorage
+// club. A logged-in user's OWN club (org-aware) must win over a stale sticky club —
+// otherwise a multi-club director who once opened a ?club= link gets that club's
+// brand + installed icon stuck on plain firefcapp.com. Only an explicit URL overrides.
+function hasExplicitUrlClub() {
+    try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('p') || url.searchParams.get('club')) return true;
+        if (/^\/c\/[^/]+/.test(url.pathname)) return true;
+        const host = url.hostname;
+        const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+        const parts = host.split('.');
+        if (!isIp && parts.length > 2 && !['www', 'firefcapp', 'localhost'].includes(parts[0])) return true;
+    } catch { /* ignore */ }
+    return false;
+}
+
 export const BrandingProvider = ({ children }) => {
     const [brand, setBrand] = useState(DEFAULT_BRAND);
 
@@ -108,7 +126,7 @@ export const BrandingProvider = ({ children }) => {
     // user keeps DEFAULT_BRAND (Rock City). This is what makes a Raptors family see the
     // Raptors crest after a plain login, without needing a ?club= link.
     useEffect(() => {
-        if (resolveContextFromUrl()) return;        // explicit URL context wins — skip
+        if (hasExplicitUrlClub()) return;           // only an EXPLICIT ?club/?p URL wins — a sticky session club does NOT
         let cancelled = false;
         const applyFromUser = async () => {
             try {
@@ -116,6 +134,9 @@ export const BrandingProvider = ({ children }) => {
                 if (cancelled || error || !data) return;
                 const row = Array.isArray(data) ? data[0] : data;
                 if (!row || !row.org_slug) return;
+                // Drop any stale sticky club so it can't keep re-poisoning branding /
+                // the installed icon on plain firefcapp.com for a multi-club director.
+                try { sessionStorage.removeItem('ff_club'); sessionStorage.removeItem('ff_program'); } catch { /* ignore */ }
                 setBrand({
                     slug: row.org_slug,
                     program: null,
@@ -163,15 +184,19 @@ export const BrandingProvider = ({ children }) => {
     // best-effort — any failure leaves the static manifest/icons in place.
     useEffect(() => {
         try {
-            const isDefault = !brand.slug || brand.slug === DEFAULT_BRAND.slug;
-            // Default (Rock City) keeps the proven static /manifest.json + index.html
-            // icons untouched — only white-label clubs need a runtime override.
-            if (isDefault) return;
+            // The INSTALLED identity (manifest + home-screen icon) follows the INSTALL
+            // URL ONLY — never the logged-in user's club or a sticky session. So
+            // firefcapp.com ALWAYS installs/stays as Rock City, and ONLY a ?club=<slug>
+            // link installs as that club. (This is the fix for Albert's Rock City install
+            // flipping to the Raptors icon after he'd opened a Raptors link.)
+            const urlClub = new URLSearchParams(window.location.search).get('club');
+            if (!urlClub || urlClub === DEFAULT_BRAND.slug) return;   // no explicit club → leave the static Rock City manifest
+            if (brand.slug !== urlClub) return;                       // wait until branding has resolved to that URL club
             const abs = (u) => { try { return new URL(u, window.location.origin).href; } catch { return u; } };
             const icon = abs(brand.logoUrl || DEFAULT_BRAND.logoUrl);
-            // A non-default club gets its own installed identity (distinct id +
-            // start_url) so it installs as a separate app that opens in-brand.
-            const startUrl = abs(isDefault ? '/' : `/?club=${encodeURIComponent(brand.slug)}`);
+            // This club gets its own installed identity (distinct id + start_url) so it
+            // installs as a separate home-screen app that opens in-brand.
+            const startUrl = abs(`/?club=${encodeURIComponent(urlClub)}`);
             const manifest = {
                 name: brand.name || DEFAULT_BRAND.name,
                 short_name: brand.shortName || brand.name || DEFAULT_BRAND.shortName,
