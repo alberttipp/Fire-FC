@@ -124,7 +124,6 @@ export default function WinterSignup() {
         .sort((a, b) => Number(b.committed_count || 0) - Number(a.committed_count || 0));
     const u12Intake = u12s[0] || null;
     const u10 = list.find((t) => t.age_group === 'U10') || null;
-    const totalCommitted = list.reduce((s, t) => s + Number(t.committed_count || 0), 0);
 
     const cards = [];
     if (u12Intake) cards.push({
@@ -261,19 +260,6 @@ export default function WinterSignup() {
                 ) : (
                     <>
                         <h2 className="text-lg font-display uppercase tracking-wider text-[#e6cd87] mb-3">Claim your spot</h2>
-
-                        {/* Momentum — social proof (count only, never names) to keep the list growing */}
-                        {!inviteBypass && totalCommitted > 0 && (
-                            <div className="glass-panel p-4 mb-4 flex items-center gap-3 border border-[#c9a24b]/40">
-                                <div className="text-3xl">🔥</div>
-                                <div>
-                                    <div className="text-lg font-display font-bold text-[#e6cd87] leading-none">
-                                        {totalCommitted} players committed <span className="text-white">and growing</span>
-                                    </div>
-                                    <div className="text-xs text-gray-300 mt-1">The more that join, the better we build. Come be part of it.</div>
-                                </div>
-                            </div>
-                        )}
 
                         {teams === null && <p className="text-gray-500">Loading teams…</p>}
                         {loadErr && <p className="text-red-400 text-sm">{loadErr}</p>}
