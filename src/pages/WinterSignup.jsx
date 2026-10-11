@@ -45,8 +45,9 @@ const suggestedU = (dob) => {
     return `U${2026 - cohortStart}`;
 };
 
-// Signups are CLOSED — the winter U12 team is full. Flip to true to reopen.
-const SIGNUPS_OPEN = false;
+// Signups are OPEN — first U12 squad filled, now recruiting for the second U12
+// squad. Flip to false to show the "team full" closed state again.
+const SIGNUPS_OPEN = true;
 
 export default function WinterSignup() {
     const brand = useBranding();
@@ -131,7 +132,7 @@ export default function WinterSignup() {
         label: 'U12',
         title: 'U12 · Winter Squads',
         sub: 'U11 & U12 players welcome',
-        note: "We're forming two U12 squads — grab your spot and we'll place your player.",
+        note: "Our first U12 squad filled fast — now building a second. Grab a spot and we'll place your player.",
         welcomesYounger: true,
     });
     if (u10) cards.push({
@@ -180,7 +181,7 @@ export default function WinterSignup() {
                 </p>
                 <p className="text-xs text-[#e6cd87] mt-2">
                     {signupOpen
-                        ? "You're invited to join Rock City FC — fill out the quick form below and you're in!"
+                        ? "Our first U12 squad filled up — so we're opening a second. A few U12 spots left. Fill out the quick form below and you're in!"
                         : "Our winter U12 team is full — thank you! We'll be in touch with everyone soon."}
                 </p>
             </div>
