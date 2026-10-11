@@ -226,8 +226,8 @@ export default function WinterSignup() {
                     <Detail k="Format" v="8v8 indoor (confirming with the league)" />
                     <Detail k="Season" v="Start date & schedule being finalized — rostered families will be notified." />
                     <Detail k="Coaches" v="Jeremy Gunderson & Kevan Watkins lead the U12 squads together." />
-                    <Detail k="Practice" v="Both teams train together — at least 1 practice a week, plus a second day of competitive free play. Rock Valley College, with Elite Sports Center & Sports Core 2 as backups." />
-                    <Detail k="Cost" v="Kept as low as possible — college field time and sponsors covering indoor time. Target $150–250/player depending on field costs; final fee confirmed soon." />
+                    <Detail k="Practice" v="Days & times are being finalized — rostered families will be notified. (Venues: Rock Valley College, with Elite Sports Center & Sports Core 2 as backups.)" />
+                    <Detail k="Cost" v="$200 for the winter season — $50 to secure your spot, then $150 over the next two weeks. Covers the league fee and your Rock City FC uniform." />
                 </div>
             </div>
 
