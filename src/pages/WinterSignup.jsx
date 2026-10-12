@@ -227,7 +227,7 @@ export default function WinterSignup() {
                     <Detail k="Season" v="Start date & schedule being finalized — rostered families will be notified." />
                     <Detail k="Coaches" v="Jeremy Gunderson & Kevan Watkins lead the U12 squads together." />
                     <Detail k="Practice" v="Days & times are being finalized — rostered families will be notified. (Venues: Rock Valley College, with Elite Sports Center & Sports Core 2 as backups.)" />
-                    <Detail k="Cost" v="$200 for the winter season — $50 to secure your spot, then $150 over the next two weeks. Covers the league fee and your Rock City FC uniform." />
+                    <Detail k="Cost" v="$200 for the winter season — a $50 deposit to secure your spot (Venmo @Albert-Tipp), then $150 over the next two weeks. Covers the league fee and your Rock City FC uniform." />
                 </div>
             </div>
 
@@ -750,9 +750,26 @@ function CommitModal({ card, brandName, orgSlug, onClose, onDone }) {
                         <div className="text-5xl mb-3">🎉</div>
                         <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">You're in!</h3>
                         <p className="text-gray-400 text-sm">
-                            {form.first} is committed to {brandName} {card.label}. {brandName} will be in touch with next steps — see you on the pitch! ⚽
+                            {form.first} is committed to {brandName} {card.label}. See you on the pitch! ⚽
                         </p>
-                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-5">Done</button>
+
+                        {/* Secure-your-spot deposit — Venmo (first $50). */}
+                        <div className="mt-5 rounded-xl border border-[#c9a24b]/40 bg-[#c9a24b]/10 p-4 text-left">
+                            <div className="text-[#e6cd87] font-display font-bold uppercase tracking-wider text-sm mb-1">Last step: secure the spot</div>
+                            <p className="text-gray-200 text-sm leading-relaxed mb-3">
+                                Send a <b>$50 deposit on Venmo to <span className="text-white">@Albert-Tipp</span></b> and put <b>{form.first} {form.last}</b> in the note. ($150 balance over the next two weeks — covers the league fee &amp; uniform.)
+                            </p>
+                            <a
+                                href={`https://venmo.com/?txn=pay&recipients=Albert-Tipp&amount=50&note=${encodeURIComponent(`Rock City FC winter deposit - ${form.first} ${form.last}`)}`}
+                                target="_blank" rel="noopener noreferrer"
+                                className="block text-center px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-white bg-[#008CFF] hover:brightness-110 transition w-full"
+                            >
+                                Pay $50 on Venmo →
+                            </a>
+                            <p className="text-[11px] text-gray-400 mt-2">Opens Venmo to @Albert-Tipp for $50. No Venmo? Send it to @Albert-Tipp any way you like.</p>
+                        </div>
+
+                        <button onClick={onDone} className="px-6 py-2.5 rounded font-display font-bold uppercase tracking-wider text-[#0b1a33] bg-gradient-to-b from-[#e6cd87] to-[#c29a3f] hover:brightness-110 transition w-full mt-3">Done</button>
                     </div>
                 ) : (
                     <>
