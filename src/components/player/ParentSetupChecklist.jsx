@@ -17,11 +17,12 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
     const checklist = player?.parent_setup_checklist || {};
     const name = player?.first_name || 'your player';
     const [savingJersey, setSavingJersey] = useState(false);
+    const [numberDraft, setNumberDraft] = useState(player?.jersey_number ?? '');
     const [collapsed, setCollapsed] = useState(false);
 
     const items = [
         { key: 'photo', icon: Camera, label: `Add ${name}'s photo`, done: !!player?.avatar_url, auto: true, hint: 'Tap “Photo” under the card below.' },
-        { key: 'jersey', icon: Shirt, label: 'Choose jersey size', done: !!player?.jersey_size, auto: true },
+        { key: 'jersey', icon: Shirt, label: 'Choose jersey size & number', done: !!player?.jersey_size, auto: true },
         { key: 'deposit', icon: DollarSign, label: 'Pay the $50 deposit', done: !!checklist.deposit },
         { key: 'waiver', icon: FileSignature, label: 'Sign the league waiver', done: !!checklist.waiver, hint: 'Required by the league before the first game — we’ll send it to complete.' },
     ];
@@ -35,6 +36,14 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
         try { await supabase.rpc('set_player_jersey_size', { p_player_id: player.id, p_size: size }); }
         catch (_) { /* optimistic; next load reconciles */ }
         setSavingJersey(false);
+    };
+
+    const saveNumber = async () => {
+        if (!player?.id) return;
+        const n = numberDraft === '' ? null : Math.max(0, Math.min(99, parseInt(numberDraft, 10) || 0));
+        onPlayerChange?.({ jersey_number: n });             // optimistic
+        try { await supabase.rpc('set_player_jersey_number', { p_player_id: player.id, p_number: n }); }
+        catch (_) { /* optimistic */ }
     };
 
     const toggleItem = async (key, next) => {
@@ -89,19 +98,29 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
                                     <span className={`flex-1 text-sm ${item.done ? 'text-gray-400 line-through' : 'text-white'}`}>{item.label}</span>
                                 </div>
 
-                                {/* Jersey size dropdown */}
+                                {/* Jersey size dropdown + preferred number */}
                                 {item.key === 'jersey' && (
-                                    <div className="mt-2 pl-9">
-                                        <select
-                                            value={player.jersey_size || ''}
-                                            onChange={(e) => setJersey(e.target.value)}
-                                            disabled={savingJersey}
-                                            className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-green focus:outline-none"
-                                        >
-                                            <option value="" className="bg-gray-800">Select a size…</option>
-                                            {JERSEY_SIZES.map((s) => <option key={s.v} value={s.v} className="bg-gray-800">{s.l}</option>)}
-                                        </select>
-                                        <p className="text-[11px] text-gray-500 mt-1">Use the same sizing as the Raptors jerseys.</p>
+                                    <div className="mt-2 pl-9 space-y-2">
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={player.jersey_size || ''}
+                                                onChange={(e) => setJersey(e.target.value)}
+                                                disabled={savingJersey}
+                                                className="flex-1 bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-green focus:outline-none"
+                                            >
+                                                <option value="" className="bg-gray-800">Select a size…</option>
+                                                {JERSEY_SIZES.map((s) => <option key={s.v} value={s.v} className="bg-gray-800">{s.l}</option>)}
+                                            </select>
+                                            <input
+                                                type="number" min="0" max="99" inputMode="numeric"
+                                                placeholder="#"
+                                                value={numberDraft}
+                                                onChange={(e) => setNumberDraft(e.target.value)}
+                                                onBlur={saveNumber}
+                                                className="w-20 bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm text-center focus:border-brand-green focus:outline-none"
+                                            />
+                                        </div>
+                                        <p className="text-[11px] text-gray-500">Use the same sizing as the Raptors jerseys. Number is a preference — the coach confirms if two players pick the same.</p>
                                     </div>
                                 )}
 
