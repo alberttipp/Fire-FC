@@ -22,6 +22,7 @@ import { useToast } from '../components/Toast';
 import PreviewBanner from '../components/PreviewBanner';
 import PlayerIDPCard from '../components/player/PlayerIDPCard';
 import CompetitiveStandardCard from '../components/player/CompetitiveStandardCard';
+import ParentSetupChecklist from '../components/player/ParentSetupChecklist';
 import FamilyInviteModal from '../components/dashboard/FamilyInviteModal';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { upsertRsvpForMany, namesList, statusLabel } from '../utils/rsvp';
@@ -977,6 +978,17 @@ const ParentDashboard = () => {
                             <div className="max-w-xl mx-auto mb-3 px-4 py-2.5 rounded-xl bg-brand-green/10 border border-brand-green/40 text-center">
                                 <p className="text-sm text-brand-green font-bold">📸 Add a photo of {selectedChild.first_name} to bring their player card to life — tap “Photo” below.</p>
                             </div>
+                        )}
+
+                        {/* Parent setup checklist — jersey size, deposit, photo, waiver. */}
+                        {selectedChild?.id && (
+                            <ParentSetupChecklist
+                                player={selectedChild}
+                                onPlayerChange={(patch) => {
+                                    setSelectedChild((prev) => prev ? { ...prev, ...patch } : prev);
+                                    setChildren((prev) => prev.map((c) => c.id === selectedChild.id ? { ...c, ...patch } : c));
+                                }}
+                            />
                         )}
 
                         {/* 3. Player Card. The "Invite another parent" action
