@@ -131,7 +131,7 @@ export default function WinterSignup() {
         label: 'U12',
         title: 'U12 · Winter Squads',
         sub: 'U11 & U12 players welcome',
-        note: "Our first U12 squad filled fast — now building a second. Grab a spot and we'll place your player.",
+        note: "Only a few spots left — grab yours and we'll place your player.",
         welcomesYounger: true,
     });
     if (u10) cards.push({
@@ -180,8 +180,8 @@ export default function WinterSignup() {
                 </p>
                 <p className="text-xs text-[#e6cd87] mt-2">
                     {signupOpen
-                        ? "Our first U12 squad filled up — so we're opening a second. A few U12 spots left. Fill out the quick form below and you're in!"
-                        : "Our winter U12 team is full — thank you! We'll be in touch with everyone soon."}
+                        ? "Only a few U12 spots left — fill out the quick form below and you're in!"
+                        : "Thanks for your interest in Rock City FC — we'll be in touch with next steps soon!"}
                 </p>
             </div>
 
@@ -249,11 +249,10 @@ export default function WinterSignup() {
                 {!signupOpen ? (
                     <div className="glass-panel p-8 text-center border border-[#c9a24b]/40">
                         <div className="text-5xl mb-3">🙏</div>
-                        <h2 className="text-2xl font-display font-bold uppercase tracking-wide text-[#e6cd87] mb-2">Our U12 team is full</h2>
+                        <h2 className="text-2xl font-display font-bold uppercase tracking-wide text-[#e6cd87] mb-2">Thanks for your interest!</h2>
                         <p className="text-gray-200 leading-relaxed max-w-md mx-auto">
-                            Thank you for the incredible interest in {brand.name}! Our winter U12 team is now
-                            <span className="text-white font-semibold"> full</span>. If you've already signed up or reached out,
-                            we'll be in touch <span className="text-white font-semibold">soon to discuss options</span>.
+                            Thank you for the incredible interest in {brand.name}! If you've already signed up or reached out,
+                            we'll be in touch <span className="text-white font-semibold">soon with next steps</span>.
                         </p>
                         <p className="text-xs text-gray-400 mt-4">Questions? Drop them below and a coach will reply here.</p>
                     </div>
