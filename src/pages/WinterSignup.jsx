@@ -227,7 +227,7 @@ export default function WinterSignup() {
                     <Detail k="Season" v="Games start Saturday, Nov 7 — Saturday indoor at the Rockford Park District. Full game schedule to follow." />
                     <Detail k="Coaches" v="Jeremy Gunderson & Kevan Watkins lead the U12 squads together." />
                     <Detail k="Practice" v="Days & times are being finalized — rostered families will be notified. (Venues: Rock Valley College, with Elite Sports Center & Sports Core 2 as backups.)" />
-                    <Detail k="Cost" v="$200 for the winter season — a $50 deposit to secure your spot (Venmo @Albert-Tipp), then $150 over the next two weeks. Covers the league fee and your Rock City FC uniform." />
+                    <Detail k="Initial fees" v="$200 to start — a $50 deposit to secure your spot (Venmo @Albert-Tipp), then $150 over the next two weeks. Covers the league fee and your Rock City FC uniform. We'll keep other costs as low as possible, but additional funds may be requested later for field time." />
                 </div>
             </div>
 
