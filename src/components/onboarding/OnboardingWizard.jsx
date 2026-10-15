@@ -368,10 +368,10 @@ const OnboardingWizard = ({ onClose }) => {
 
     const clubLabel = clubName.trim() || 'our team';
     const inviteMessage = (p) =>
-        `Join ${p.name} on the ${clubLabel} app — tap to sign up and you're connected automatically:\n${buildInviteUrl(p.code)}\n\n(Backup: go to firefcapp.com and enter code ${p.code}.)`;
+        `Join ${p.name} on the ${clubLabel} app — tap to sign up and you're connected automatically:\n${buildInviteUrl(p.code, org?.slug)}\n\n(Backup: go to firefcapp.com and enter code ${p.code}.)`;
     const allInvitesMessage = () =>
         `${clubLabel} is live on our team app! Tap YOUR player's link to sign up — you're connected automatically:\n\n` +
-        invitees.map((p) => `${p.name}: ${buildInviteUrl(p.code)}`).join('\n');
+        invitees.map((p) => `${p.name}: ${buildInviteUrl(p.code, org?.slug)}`).join('\n');
 
     const copyText = (key, text) => {
         try {
@@ -436,7 +436,7 @@ const OnboardingWizard = ({ onClose }) => {
     const goBack = () => { if (!busy && step > 1) setStep((s) => s - 1); };
     const skipEvent = () => { if (!busy) setStep(6); };
 
-    const firstInviteUrl = invitees[0]?.code ? buildInviteUrl(invitees[0].code) : '';
+    const firstInviteUrl = invitees[0]?.code ? buildInviteUrl(invitees[0].code, org?.slug) : '';
     const clubLoginUrl = org?.slug
         ? `${window.location.origin}/login?club=${encodeURIComponent(org.slug)}`
         : `${window.location.origin}/login`;
@@ -759,7 +759,7 @@ const OnboardingWizard = ({ onClose }) => {
                                                         <MessageSquare className="w-3.5 h-3.5" /> Text invite
                                                     </a>
                                                     <button
-                                                        onClick={() => copyText(p.code, buildInviteUrl(p.code))}
+                                                        onClick={() => copyText(p.code, buildInviteUrl(p.code, org?.slug))}
                                                         className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-gray-300 text-xs font-medium hover:bg-white/10 transition-colors"
                                                     >
                                                         {copiedKey === p.code

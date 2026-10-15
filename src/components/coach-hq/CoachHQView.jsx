@@ -208,7 +208,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
 
             {/* Rollout setup-health tracker — onboarding progress + chase
                 list. Renders nothing for non-staff (RPC self-checks). */}
-            <SetupHealthPanel />
+            <SetupHealthPanel teamId={teamId} />
 
             {/* Unread chat banner — only when unread > 0 */}
             {unread > 0 && (

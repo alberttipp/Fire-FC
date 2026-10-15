@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Shield, Copy, Check, MessageSquare, Mail, Users, Link as LinkIcon } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useToast } from '../Toast';
-import { useBranding } from '../../context/BrandingContext';
+import { useTeamClubInfo } from '../../hooks/useTeamClubInfo';
 import { buildInviteUrl } from '../../utils/pendingInvite';
 
 // Invite a player's family via a one-tap deep link (preferred) or the
@@ -15,7 +15,9 @@ import { buildInviteUrl } from '../../utils/pendingInvite';
 // code attached, we fetch it.
 const FamilyInviteModal = ({ player, onClose }) => {
     const toast = useToast();
-    const brand = useBranding();
+    // Club from the PLAYER's team (falls back to the viewer's brand) so the
+    // invite link carries the right ?club= even in cross-club/preview contexts.
+    const club = useTeamClubInfo(player?.team_id || null);
     const [code, setCode] = useState(player?.guardian_code || '');
     const [copied, setCopied] = useState(false);
     const [copiedLink, setCopiedLink] = useState(false);
@@ -44,7 +46,7 @@ const FamilyInviteModal = ({ player, onClose }) => {
         return () => { cancelled = true; };
     }, [player?.id, player?.guardian_code]);
 
-    const inviteUrl = buildInviteUrl(code, brand.slug);
+    const inviteUrl = buildInviteUrl(code, club.slug);
 
     const handleCopy = () => {
         if (!code) return;
@@ -65,11 +67,11 @@ const FamilyInviteModal = ({ player, onClose }) => {
     // SMS / email body — lead with the tap-to-join link; code is the backup.
     const playerName = player?.name || `${player?.firstName || ''} ${player?.lastName || ''}`.trim() || 'your player';
     const smsBody = encodeURIComponent(
-        `⚽ ${playerName} just got called up to ${brand.name}! 💙💛\n\nTap to set up your family account and unlock their player card, training plan & season stats — you'll be linked automatically (takes ~30 sec):\n${inviteUrl}\n\nFirst thing inside: add a photo so their player card comes to life 📸\n\n(Backup: open firefcapp.com, sign up, and enter code ${code}.)\n\nSee you on the pitch — welcome to the family! 🔥`
+        `⚽ ${playerName} just got called up to ${club.name}! 💙💛\n\nTap to set up your family account and unlock their player card, training plan & season stats — you'll be linked automatically (takes ~30 sec):\n${inviteUrl}\n\nFirst thing inside: add a photo so their player card comes to life 📸\n\n(Backup: open firefcapp.com, sign up, and enter code ${code}.)\n\nSee you on the pitch — welcome to the family! 🔥`
     );
-    const emailSubject = encodeURIComponent(`⚽ ${playerName} is in — welcome to ${brand.name}!`);
+    const emailSubject = encodeURIComponent(`⚽ ${playerName} is in — welcome to ${club.name}!`);
     const emailBody = encodeURIComponent(
-        `Hi there! 👋\n\n${playerName} is officially part of ${brand.name} — and we do development a little differently. Every player gets their own FIFA-style player card, a personalized training plan, and real progress tracked all season long.\n\nTap here to set up your family account and meet ${playerName}'s profile — just sign up and you'll be linked automatically (about 30 seconds):\n\n${inviteUrl}\n\n⭐ First thing to do once you're in: add a photo of ${playerName} so their player card comes to life.\n\n(If the link doesn't open: go to firefcapp.com, tap Sign Up, then enter code ${code} when asked.)\n\nSee you on the pitch — welcome to the family! 💙💛\n${brand.name}`
+        `Hi there! 👋\n\n${playerName} is officially part of ${club.name} — and we do development a little differently. Every player gets their own FIFA-style player card, a personalized training plan, and real progress tracked all season long.\n\nTap here to set up your family account and meet ${playerName}'s profile — just sign up and you'll be linked automatically (about 30 seconds):\n\n${inviteUrl}\n\n⭐ First thing to do once you're in: add a photo of ${playerName} so their player card comes to life.\n\n(If the link doesn't open: go to firefcapp.com, tap Sign Up, then enter code ${code} when asked.)\n\nSee you on the pitch — welcome to the family! 💙💛\n${club.name}`
     );
 
     return (

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Users, UserCheck, Activity, ChevronDown, ChevronUp, Copy, Check, MessageSquare, Link as LinkIcon } from 'lucide-react';
 import { buildInviteUrl } from '../../utils/pendingInvite';
-import { useBranding } from '../../context/BrandingContext';
+import { useTeamClubInfo } from '../../hooks/useTeamClubInfo';
 
 // Rollout-period "Setup Health" panel for the manager/coach landing.
 // Shows how many players have a parent connected, how many parents are
@@ -25,8 +25,10 @@ const Stat = ({ label, value, icon: Icon, accent }) => (
     </div>
 );
 
-const SetupHealthPanel = () => {
-    const brand = useBranding();
+const SetupHealthPanel = ({ teamId = null }) => {
+    // Club resolved from the TEAM so invite links carry the right ?club=
+    // (the viewer's ambient brand may be a different club's).
+    const club = useTeamClubInfo(teamId);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState(false);
@@ -61,7 +63,7 @@ const SetupHealthPanel = () => {
 
     const copyLink = (code) => {
         try {
-            navigator.clipboard?.writeText(buildInviteUrl(code));
+            navigator.clipboard?.writeText(buildInviteUrl(code, club.slug));
             setCopiedLink(code);
             setTimeout(() => setCopiedLink(null), 1500);
         } catch (_) { /* clipboard blocked — non-fatal */ }
@@ -70,7 +72,7 @@ const SetupHealthPanel = () => {
     // Pre-filled SMS body with the tap-to-join link (code as backup).
     const inviteSmsHref = (p) =>
         `sms:?&body=${encodeURIComponent(
-            `Join ${p.name} on the ${brand.name} app — tap to sign up and you're connected automatically:\n${buildInviteUrl(p.code)}\n\n(Backup: go to firefcapp.com and enter code ${p.code}.)`
+            `Join ${p.name} on the ${club.name} app — tap to sign up and you're connected automatically:\n${buildInviteUrl(p.code, club.slug)}\n\n(Backup: go to firefcapp.com and enter code ${p.code}.)`
         )}`;
 
     return (

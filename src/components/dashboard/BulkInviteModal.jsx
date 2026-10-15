@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X, Copy, Check, MessageSquare, Mail, Users, Loader2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
-import { useBranding } from '../../context/BrandingContext';
+import { useTeamClubInfo } from '../../hooks/useTeamClubInfo';
 import { useToast } from '../Toast';
 
 // One-tap roster-wide invite. Generates a single paste-ready message
@@ -9,7 +9,9 @@ import { useToast } from '../Toast';
 // drop it into the team's group chat once and every parent self-serves.
 const BulkInviteModal = ({ teamId, teamName, onClose }) => {
     const toast = useToast();
-    const brand = useBranding();
+    // Club resolved from the TEAM (not the viewer's ambient brand) so the
+    // message names the right club and the link opens in-brand.
+    const clubInfo = useTeamClubInfo(teamId);
     const [roster, setRoster] = useState([]);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
@@ -37,11 +39,14 @@ const BulkInviteModal = ({ teamId, teamName, onClose }) => {
         return () => { cancelled = true; };
     }, [teamId]);
 
-    // App URL: best-guess from the current origin. Albert can edit before
-    // sending if he wants a custom link.
-    const appUrl = (typeof window !== 'undefined' && window.location?.origin)
+    // App URL carries the team's club (?club=slug) so parents land on the
+    // right-branded login + install prompt; the default club stays clean.
+    const origin = (typeof window !== 'undefined' && window.location?.origin)
         ? window.location.origin
-        : 'https://your-fire-fc-app';
+        : 'https://firefcapp.com';
+    const appUrl = clubInfo.slug && clubInfo.slug !== 'rock-city-fc'
+        ? `${origin}/login?club=${encodeURIComponent(clubInfo.slug)}`
+        : origin;
 
     const message = useMemo(() => {
         const lines = roster
@@ -49,7 +54,7 @@ const BulkInviteModal = ({ teamId, teamName, onClose }) => {
             .map(r => `  • ${r.first_name} ${r.last_name} — ${r.guardian_code}`)
             .join('\n');
 
-        const club = brand.name || 'Our Club';
+        const club = clubInfo.name || 'Our Club';
         const tn = teamName || 'Our Team';
         // Avoid "Rock City FC — Rock City FC (Gold)" when the team name already
         // contains the club name.
@@ -57,7 +62,7 @@ const BulkInviteModal = ({ teamId, teamName, onClose }) => {
         return (
 `${title.toUpperCase()}: family app setup
 
-Hi parents! Our team is now set up in the ${brand.name} app. Each player has a unique 6-character code below — find your kid, then:
+Hi parents! Our team is now set up in the ${club} app. Each player has a unique 6-character code below — find your kid, then:
 
 1) Open the app on your phone: ${appUrl}
 2) Sign up as a FAMILY account (your email + a password)
@@ -70,11 +75,11 @@ ${lines || '  (Roster loading — try again in a sec)'}
 ADD IT TO YOUR HOME SCREEN (one-time, takes 10 seconds):
 • iPhone (Safari): tap the Share button (square + up arrow) at the bottom → scroll down → "Add to Home Screen" → Add
 • Android (Chrome): tap the ⋮ menu top-right → "Add to Home screen" or "Install app" → Add
-After that, the ${brand.name} icon launches it like a real app — full-screen, no browser bar.
+After that, the ${club} icon launches it like a real app — full-screen, no browser bar.
 
 Both parents/guardians can use the same code — each one signs up with their own account so we have separate contact info for everyone. Reach out with any questions. Thanks!`
         );
-    }, [roster, teamName, appUrl, brand.name]);
+    }, [roster, teamName, appUrl, clubInfo.name]);
 
     const handleCopy = async () => {
         try {
@@ -89,9 +94,9 @@ Both parents/guardians can use the same code — each one signs up with their ow
 
     const encoded = encodeURIComponent(message);
     const smsHref = `sms:?body=${encoded}`;
-    const mailSubject = (teamName || '').toLowerCase().includes((brand.name || '').toLowerCase())
+    const mailSubject = (teamName || '').toLowerCase().includes((clubInfo.name || '').toLowerCase())
         ? `${teamName} app setup`
-        : `${brand.name} app setup — ${teamName || 'our team'}`;
+        : `${clubInfo.name} app setup — ${teamName || 'our team'}`;
     const mailHref = `mailto:?subject=${encodeURIComponent(mailSubject)}&body=${encoded}`;
 
     const missingCodes = roster.filter(r => !r.guardian_code).length;

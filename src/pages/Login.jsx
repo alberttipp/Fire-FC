@@ -7,6 +7,7 @@ import { friendlyAuthError } from '../utils/authErrors';
 import { Rocket, Shield, Users, User, ArrowRight, Lock, UserCircle, Mail } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useBranding } from '../context/BrandingContext';
+import { getPendingInvite } from '../utils/pendingInvite';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
 import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
 
@@ -19,8 +20,14 @@ const Login = () => {
     // Auth Modes
     const [authMode, setAuthMode] = useState('standard'); // 'standard' (Coach/Parent) or 'player'
 
+    // A tap-to-join invite (?join=CODE, stashed at boot) means this is almost
+    // certainly a brand-new parent with NO credentials — open the form in
+    // SIGN-UP mode with a banner, instead of a login form that dead-ends them.
+    // The "Already have an account? Login" toggle still covers second parents.
+    const [pendingInvite] = useState(() => getPendingInvite());
+
     // Standard Auth State
-    const [isSignUp, setIsSignUp] = useState(false);
+    const [isSignUp, setIsSignUp] = useState(() => !!getPendingInvite());
     const [fullName, setFullName] = useState('');
     // Remember-me: lazily read the saved email on first render so it pre-fills.
     // We only persist the email (never the password). Default checked since
@@ -426,6 +433,17 @@ const Login = () => {
                 {/* --- STANDARD Login Flow (Coach/Parent) --- */}
                 {authMode === 'standard' && !magicSent && (
                     <form onSubmit={handleAuth} className="space-y-5 animate-fade-in">
+                        {/* Invited-parent banner — they arrived via a player's join
+                            link and have no account yet; tell them exactly what
+                            this form does so the login screen isn't a dead end. */}
+                        {pendingInvite && (
+                            <div className="rounded-xl border border-brand-green/40 bg-brand-green/10 px-4 py-3 text-sm text-gray-200">
+                                <span className="font-bold text-brand-green">🎉 You're invited!</span>{' '}
+                                {isSignUp
+                                    ? <>Create your free family account below — you'll be connected to your player automatically.</>
+                                    : <>Log in and you'll be connected to your player automatically.</>}
+                            </div>
+                        )}
                         {isSignUp && (
                             <div>
                                 <label className="block text-brand-green text-xs font-bold uppercase tracking-widest mb-2 ml-1">Full Name</label>
