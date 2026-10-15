@@ -4,7 +4,7 @@ import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
 import useBackGuard from '../hooks/useBackGuard';
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
-import { LayoutDashboard, Users, User, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy } from 'lucide-react';
+import { LayoutDashboard, Users, User, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy, ShieldCheck } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import TeamSwitcher from '../components/TeamSwitcher';
 import { supabase } from '../supabaseClient';
@@ -55,6 +55,14 @@ const Dashboard = () => {
     const hasEvals = useFeature('evaluations');
     const hasGallery = useFeature('gallery');
     const hasLive = useFeature('live_scoring');
+    // Platform owner (Albert) gets an always-visible Admin entry in the top
+    // nav. RPC self-checks; everyone else resolves false and sees nothing.
+    const [isOwner, setIsOwner] = useState(false);
+    useEffect(() => {
+        let alive = true;
+        supabase.rpc('is_platform_owner').then(({ data }) => { if (alive && data === true) setIsOwner(true); }, () => {});
+        return () => { alive = false; };
+    }, []);
     const [currentView, setCurrentView] = useState('club');
     // Deep link from a push notification: ?view=&conv=&event=
     const [deepLink] = useState(() => {
@@ -431,6 +439,15 @@ const Dashboard = () => {
                             </button>
                             {/* Alerts removed from nav (the top-right bell covers it);
                                 Tryouts hidden (season passed; the club uses BYGA for it). */}
+                            {isOwner && (
+                                <button
+                                    onClick={() => navigate('/admin')}
+                                    className="px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 text-brand-gold hover:bg-brand-gold/10 border border-brand-gold/40 ml-1"
+                                    title="Platform Admin — all clubs, features, fees & settings"
+                                >
+                                    <ShieldCheck className="w-3 h-3" /> Admin
+                                </button>
+                            )}
                         </div>
 
                         {(isManager || hasFamily) && (
@@ -474,12 +491,13 @@ const Dashboard = () => {
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
                                             { id: 'rules', label: 'Rules' },
+                                            ...(isOwner ? [{ id: 'admin', label: 'Admin' }] : []),
                                             // Player Plans / Private / Live / Gallery pruned from nav
                                             // (0-usage per the Aug audit); routes still exist.
                                         ].map(tab => (
                                             <button
                                                 key={tab.id}
-                                                onClick={() => { pickView(tab.id); setMobileMenuOpen(false); }}
+                                                onClick={() => { if (tab.id === 'admin') { navigate('/admin'); } else { pickView(tab.id); } setMobileMenuOpen(false); }}
                                                 className={`block w-full text-left px-4 py-2.5 text-sm uppercase ${currentView === tab.id ? 'text-brand-green bg-brand-green/10 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
                                             >
                                                 {tab.label}
@@ -548,6 +566,7 @@ const Dashboard = () => {
                     // Alerts kept here for phones (the top-right bell hides on small screens);
                     // Tryouts hidden (season passed; club uses BYGA).
                     { id: 'notifications', label: 'Alerts', icon: Bell },
+                    ...(isOwner ? [{ id: 'platform_admin', label: 'Admin', icon: ShieldCheck, action: () => navigate('/admin') }] : []),
                 ]}
             />
 
