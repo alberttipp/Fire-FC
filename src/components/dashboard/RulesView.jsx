@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../supabaseClient';
 import EcnlU11Rules from './EcnlU11Rules';
 import EcnlU18Rules from './EcnlU18Rules';
+import FutsalRules from './FutsalRules';
 import { formationSizeForAgeGroup } from '../coach-hq/lineup/formations';
 
 // League-rules viewer. Team-aware: ECNL teams get native rules (9v9 Pre-ECNL for
@@ -24,12 +25,18 @@ const RulesView = () => {
     useEffect(() => {
         let active = true;
         if (!profile?.team_id) { setTeam({}); return; }
-        supabase.from('teams').select('name, age_group, programs(league_name)').eq('id', profile.team_id).maybeSingle()
+        supabase.from('teams').select('name, age_group, programs(league_name), organizations(slug, name)').eq('id', profile.team_id).maybeSingle()
             .then(({ data }) => { if (active) setTeam(data || {}); });
         return () => { active = false; };
     }, [profile?.team_id]);
 
     if (team === null) return null; // brief loading; avoids flashing the wrong ruleset
+    // Futsal clubs get the FIFA futsal laws. Checked BEFORE the ECNL branch —
+    // that one catch-alls age_group U11, which would misroute a U11 futsal team.
+    const orgText = `${team.organizations?.slug || ''} ${team.organizations?.name || ''}`;
+    if (/futsal/i.test(orgText) || /futsal/i.test(team.name || '')) {
+        return <FutsalRules />;
+    }
     // ECNL teams get native rules; pick 9v9 (U11/U12) vs 11v11 (U13+) by age.
     const leagueName = team.programs?.league_name || '';
     const isEcnl = /ecnl/i.test(leagueName) || /ecnl/i.test(team.name || '') || team.age_group === 'U11';
