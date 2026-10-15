@@ -15,6 +15,11 @@ export default function SubscribeGate({ orgId, onRefresh }) {
     const [quote, setQuote] = useState(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
+    const [couponOpen, setCouponOpen] = useState(false);
+    const [coupon, setCoupon] = useState('');
+    const [couponBusy, setCouponBusy] = useState(false);
+    const [couponError, setCouponError] = useState('');
+    const [couponDays, setCouponDays] = useState(null); // trial_days after a successful redeem
 
     useEffect(() => {
         if (!orgId) return;
@@ -46,6 +51,25 @@ export default function SubscribeGate({ orgId, onRefresh }) {
         } catch (e) {
             setError(e.message);
             setBusy(false);
+        }
+    };
+
+    // Coupon redemption — redeem_club_coupon starts a DB-side free trial
+    // (org_subscriptions.trial_ends_at), so the club unlocks without Stripe.
+    const applyCoupon = async () => {
+        if (!coupon.trim() || couponBusy) return;
+        setCouponBusy(true); setCouponError('');
+        try {
+            const { data, error } = await supabase.rpc('redeem_club_coupon', { p_org_id: orgId, p_code: coupon });
+            if (error) throw new Error(error.message || 'Could not apply that code.');
+            setCouponDays(data?.trial_days || null);
+            // Let the success note render, then re-run the subscription check —
+            // the gate unmounts once the org resolves active.
+            setTimeout(() => onRefresh?.(), 1200);
+        } catch (e) {
+            // Supabase surfaces the RAISE EXCEPTION text; strip any pg prefix.
+            setCouponError((e.message || 'Could not apply that code.').replace(/^.*?P0001:\s*/, ''));
+            setCouponBusy(false);
         }
     };
 
@@ -92,6 +116,41 @@ export default function SubscribeGate({ orgId, onRefresh }) {
                 <button onClick={startCheckout} disabled={busy} className="btn-primary w-full disabled:opacity-60">
                     {busy ? 'Starting checkout…' : `Subscribe ${plan === 'annual' ? 'Annually' : 'Monthly'}`}
                 </button>
+
+                {/* Coupon code — unlocks a free trial without Stripe checkout */}
+                <div className="mt-4">
+                    {couponDays ? (
+                        <div className="text-sm text-brand-green bg-brand-green/10 border border-brand-green/30 rounded-lg px-4 py-2">
+                            Coupon applied — your club is free for {couponDays} days. Loading your app…
+                        </div>
+                    ) : !couponOpen ? (
+                        <button onClick={() => setCouponOpen(true)} className="text-xs text-gray-500 hover:text-gray-300 underline">
+                            Have a coupon code?
+                        </button>
+                    ) : (
+                        <div>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={coupon}
+                                    onChange={(e) => { setCoupon(e.target.value); setCouponError(''); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') applyCoupon(); }}
+                                    placeholder="Coupon code"
+                                    autoFocus
+                                    className="flex-1 bg-black/50 border border-white/10 rounded-lg py-2 px-3 text-white text-sm uppercase tracking-wider placeholder:normal-case placeholder:tracking-normal focus:border-brand-green focus:ring-1 focus:ring-brand-green outline-none"
+                                />
+                                <button
+                                    onClick={applyCoupon}
+                                    disabled={couponBusy || !coupon.trim()}
+                                    className="px-4 py-2 rounded-lg border border-brand-green/50 text-brand-green text-sm font-bold uppercase tracking-wider hover:bg-brand-green/10 transition-colors disabled:opacity-50"
+                                >
+                                    {couponBusy ? 'Applying…' : 'Apply'}
+                                </button>
+                            </div>
+                            {couponError && <div className="mt-2 text-sm text-red-400 text-left">{couponError}</div>}
+                        </div>
+                    )}
+                </div>
 
                 <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-500">
                     <button onClick={onRefresh} className="hover:text-gray-300 underline">Already subscribed? Refresh</button>
