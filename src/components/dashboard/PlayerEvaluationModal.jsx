@@ -1127,15 +1127,20 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
 
                     {!readOnly && ['eval', 'training', 'awards'].includes(activeTab) && (
                         <div className="p-3 md:p-6 md:pt-4 border-t border-white/10 bg-black/20 shrink-0 flex justify-between items-center gap-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
-                            <span className="text-xs text-gray-500 hidden sm:inline">
+                            {/* The no-position case stays visible on MOBILE too — a mute
+                                gray button with a desktop-only hint read as "won't save". */}
+                            <span className={`text-xs ${activeTab === 'eval' && !positionSet ? 'text-amber-300 font-semibold' : 'text-gray-500 hidden sm:inline'}`}>
                                 {activeTab === 'eval' && !positionSet ? 'Set position in Info to save' : activeTab === 'training' ? 'Edit training minutes' : activeTab === 'awards' ? 'Tap badges to award' : rosterIndex >= 0 ? `Player ${rosterIndex + 1} of ${roster.length}` : 'Adjust stats carefully'}
                             </span>
                             <div className="flex items-center gap-2 ml-auto">
+                                {/* Deliberately NOT disabled when position is unset — tapping
+                                    runs the handleSave guard, which explains why (toast) and
+                                    jumps to the Info tab. A dead disabled button explains nothing. */}
                                 <button
                                     onClick={activeTab === 'training' ? handleSaveTraining : () => handleSave(false)}
-                                    disabled={saving || (activeTab === 'eval' && !positionSet)}
+                                    disabled={saving}
                                     title={activeTab === 'eval' && !positionSet ? 'Set this player\'s position in the Info tab first' : undefined}
-                                    className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                                    className={`btn-primary flex items-center gap-2 disabled:opacity-50 ${activeTab === 'eval' && !positionSet ? 'opacity-60' : ''}`}
                                 >
                                     <Save className="w-4 h-4" /> {saving ? 'Saving...' : (
                                         activeTab === 'training' ? 'Save Training' :
@@ -1147,7 +1152,7 @@ const PlayerEvaluationModal = ({ player, onClose, readOnly = false, onTrainCateg
                                 {activeTab === 'eval' && nextPlayer && (
                                     <button
                                         onClick={() => handleSave(true)}
-                                        disabled={saving || !positionSet}
+                                        disabled={saving}
                                         className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-white text-sm font-bold hover:bg-white/15 transition-colors disabled:opacity-50"
                                         title={`Save and go to ${nextPlayer.name || 'next player'}`}
                                     >
