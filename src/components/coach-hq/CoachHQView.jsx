@@ -10,6 +10,7 @@ const TEAM_OVERVIEWS = {
 import { supabase } from '../../supabaseClient';
 import { trackEvent } from '../../utils/analytics';
 import { useAuth } from '../../context/AuthContext';
+import { useFeature } from '../../context/FeatureContext';
 import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import CoachHQTile from './CoachHQTile';
@@ -73,6 +74,16 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
     const [showScoutHub, setShowScoutHub] = useState(false);
     const [showShare, setShowShare] = useState(false);
     const [drilldown, setDrilldown] = useState(null); // 'practice' | 'game' | 'mins' | 'touches' | 'idp'
+
+    // White-label module flags — a Basic club's Coach HQ keeps the core ops
+    // surfaces (chat, attendance, share, adoption, sponsors, billing) and
+    // hides the development/engagement tooling.
+    const hasDev = useFeature('development');
+    const hasEvals = useFeature('evaluations');
+    const hasSkills = useFeature('skills_passport');
+    const hasPlaybook = useFeature('playbook');
+    const hasEngage = useFeature('engagement');
+    const hasScouting = useFeature('scouting');
 
     // "Send this week's solo challenge to the whole team" — assigns the weekly
     // solo set to every active player who doesn't already have this week's
@@ -159,21 +170,23 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 onAddRoster={onJumpToTeam}
                 onSetSchedule={onJumpToCalendar}
                 onInviteFamilies={onJumpToTeam}
-                onFirstTraining={handleSendChallenge}
+                onFirstTraining={hasDev ? handleSendChallenge : null}
             />
 
             {/* Scouting Reports — league table + tap any opponent to scout them */}
-            <button
-                type="button"
-                onClick={() => setShowScoutHub(true)}
-                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
-            >
-                <Swords className="w-5 h-5 text-brand-gold shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    Scouting Reports — league table &amp; opponent deep dives
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasScouting && (
+                <button
+                    type="button"
+                    onClick={() => setShowScoutHub(true)}
+                    className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+                >
+                    <Swords className="w-5 h-5 text-brand-gold shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Scouting Reports — league table &amp; opponent deep dives
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Share the app — hand the club-branded app + install link to
                 coaches and parents; opens roster-wide family invites too. */}
@@ -191,7 +204,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
 
             {/* Eval adoption nudge — marquee feature, get the cards built.
                 Hides itself once every player is rated. */}
-            <EvalNudgeBanner teamId={teamId} onStart={() => setShowEvalGrid(true)} />
+            {hasEvals && <EvalNudgeBanner teamId={teamId} onStart={() => setShowEvalGrid(true)} />}
 
             {/* Rollout setup-health tracker — onboarding progress + chase
                 list. Renders nothing for non-staff (RPC self-checks). */}
@@ -212,8 +225,8 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                 </button>
             )}
 
-            {/* 6 tiles */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {/* 6 tiles (Mins/Touches need Development; IDPs needs Evaluations) */}
+            <div className={`grid grid-cols-2 md:grid-cols-3 gap-2.5 ${hasDev && hasEvals ? 'lg:grid-cols-6' : 'lg:grid-cols-3'}`}>
                 <CoachHQTile
                     label="Unread"
                     value={unread}
@@ -241,60 +254,70 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
                     onClick={() => setDrilldown('game')}
                     loading={loading}
                 />
-                <CoachHQTile
-                    label="Mins"
-                    value={mins}
-                    sub="avg / week"
-                    icon={Clock}
-                    accent="blue"
-                    onClick={() => setDrilldown('mins')}
-                    loading={loading}
-                />
-                <CoachHQTile
-                    label="Touches"
-                    value={touches.toLocaleString()}
-                    sub="avg / week"
-                    icon={Activity}
-                    accent="purple"
-                    onClick={() => setDrilldown('touches')}
-                    loading={loading}
-                />
-                <CoachHQTile
-                    label="IDPs"
-                    value={`${idp.active}/${idp.total_players}`}
-                    sub={`${idp.avg_mastered_this_block} avg mastered`}
-                    icon={Target}
-                    accent="gold"
-                    onClick={() => setDrilldown('idp')}
-                    loading={loading}
-                />
+                {hasDev && (
+                    <CoachHQTile
+                        label="Mins"
+                        value={mins}
+                        sub="avg / week"
+                        icon={Clock}
+                        accent="blue"
+                        onClick={() => setDrilldown('mins')}
+                        loading={loading}
+                    />
+                )}
+                {hasDev && (
+                    <CoachHQTile
+                        label="Touches"
+                        value={touches.toLocaleString()}
+                        sub="avg / week"
+                        icon={Activity}
+                        accent="purple"
+                        onClick={() => setDrilldown('touches')}
+                        loading={loading}
+                    />
+                )}
+                {hasEvals && (
+                    <CoachHQTile
+                        label="IDPs"
+                        value={`${idp.active}/${idp.total_players}`}
+                        sub={`${idp.avg_mastered_this_block} avg mastered`}
+                        icon={Target}
+                        accent="gold"
+                        onClick={() => setDrilldown('idp')}
+                        loading={loading}
+                    />
+                )}
             </div>
 
             {/* Squad Eval Grid — rate the whole team & set positions in one place */}
-            <button
-                type="button"
-                onClick={() => setShowEvalGrid(true)}
-                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
-            >
-                <Star className="w-5 h-5 text-brand-gold shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    Squad Eval Grid — rate the whole team &amp; set positions
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasEvals && (
+                <button
+                    type="button"
+                    onClick={() => setShowEvalGrid(true)}
+                    className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+                >
+                    <Star className="w-5 h-5 text-brand-gold shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Squad Eval Grid — rate the whole team &amp; set positions
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Eval Card Views — which families have opened their player's card */}
-            <button
-                type="button"
-                onClick={() => setShowEvalViews(true)}
-                className="w-full glass-panel border-l-4 border-l-blue-500 p-3 flex items-center gap-3 hover:bg-blue-500/5 transition-colors"
-            >
-                <Activity className="w-5 h-5 text-blue-400 shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    Eval Card Views — who's opened their player's evaluation
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasEvals && (
+                <button
+                    type="button"
+                    onClick={() => setShowEvalViews(true)}
+                    className="w-full glass-panel border-l-4 border-l-blue-500 p-3 flex items-center gap-3 hover:bg-blue-500/5 transition-colors"
+                >
+                    <Activity className="w-5 h-5 text-blue-400 shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Eval Card Views — who's opened their player's evaluation
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Sponsors — add the club's sponsors across 3 tiers */}
             <button
@@ -338,85 +361,97 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
             )}
 
             {/* Send this week's solo challenge to the whole team */}
-            <button
-                type="button"
-                onClick={handleSendChallenge}
-                disabled={sendingChallenge || !teamId}
-                className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors disabled:opacity-50"
-            >
-                {sendingChallenge
-                    ? <Loader2 className="w-5 h-5 text-brand-green shrink-0 animate-spin" />
-                    : <Dumbbell className="w-5 h-5 text-brand-green shrink-0" />}
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    Send this week's solo challenge to the whole team
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasDev && (
+                <button
+                    type="button"
+                    onClick={handleSendChallenge}
+                    disabled={sendingChallenge || !teamId}
+                    className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors disabled:opacity-50"
+                >
+                    {sendingChallenge
+                        ? <Loader2 className="w-5 h-5 text-brand-green shrink-0 animate-spin" />
+                        : <Dumbbell className="w-5 h-5 text-brand-green shrink-0" />}
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Send this week's solo challenge to the whole team
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Competitive Standard — coach batch-verify grid (Station Day) */}
-            <button
-                type="button"
-                onClick={() => setShowSkills(true)}
-                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
-            >
-                <ShieldCheck className="w-5 h-5 text-brand-gold shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    Competitive Standard — verify skills (Station Day)
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasSkills && (
+                <button
+                    type="button"
+                    onClick={() => setShowSkills(true)}
+                    className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+                >
+                    <ShieldCheck className="w-5 h-5 text-brand-gold shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Competitive Standard — verify skills (Station Day)
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Juggling competition — standings, baseline review, Juggle-Off */}
-            <button
-                type="button"
-                onClick={() => setShowJuggle(true)}
-                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
-            >
-                <Trophy className="w-5 h-5 text-brand-gold shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    {COMPETITION_NAME} — standings, baselines &amp; Juggle-Off
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasEngage && (
+                <button
+                    type="button"
+                    onClick={() => setShowJuggle(true)}
+                    className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+                >
+                    <Trophy className="w-5 h-5 text-brand-gold shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        {COMPETITION_NAME} — standings, baselines &amp; Juggle-Off
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Golden Touch — coach sets the dates + sends it to the team */}
-            <button
-                type="button"
-                onClick={() => setShowGtSetup(true)}
-                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
-            >
-                <Trophy className="w-5 h-5 text-brand-gold shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    Set up the challenge — pick dates &amp; send to your team
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasEngage && (
+                <button
+                    type="button"
+                    onClick={() => setShowGtSetup(true)}
+                    className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+                >
+                    <Trophy className="w-5 h-5 text-brand-gold shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Set up the challenge — pick dates &amp; send to your team
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Team Pulse — engagement report + nightly insights & pointers */}
-            <button
-                type="button"
-                onClick={() => setShowPulse(true)}
-                className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors"
-            >
-                <Activity className="w-5 h-5 text-brand-green shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    Team Pulse — engagement report, trends &amp; nightly pointers
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasEngage && (
+                <button
+                    type="button"
+                    onClick={() => setShowPulse(true)}
+                    className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors"
+                >
+                    <Activity className="w-5 h-5 text-brand-green shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Team Pulse — engagement report, trends &amp; nightly pointers
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Player-created drills — review / recategorize / promote */}
-            <button
-                type="button"
-                onClick={() => setShowDrills(true)}
-                className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
-            >
-                <Dumbbell className="w-5 h-5 text-brand-gold shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    Player-created drills — review, recategorize &amp; promote to the library
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasDev && (
+                <button
+                    type="button"
+                    onClick={() => setShowDrills(true)}
+                    className="w-full glass-panel border-l-4 border-l-brand-gold p-3 flex items-center gap-3 hover:bg-brand-gold/5 transition-colors"
+                >
+                    <Dumbbell className="w-5 h-5 text-brand-gold shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        Player-created drills — review, recategorize &amp; promote to the library
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* Team Adoption — who's onboard, who needs a nudge */}
             <button
@@ -432,17 +467,19 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
             </button>
 
             {/* The Playbook — AI-built, per-position lessons for your formation */}
-            <button
-                type="button"
-                onClick={() => setShowPlaybook(true)}
-                className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors"
-            >
-                <BookOpen className="w-5 h-5 text-brand-green shrink-0" />
-                <span className="flex-1 text-left text-white text-sm font-medium">
-                    The Playbook — AI watches your videos &amp; writes a lesson for every position
-                </span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
+            {hasPlaybook && (
+                <button
+                    type="button"
+                    onClick={() => setShowPlaybook(true)}
+                    className="w-full glass-panel border-l-4 border-l-brand-green p-3 flex items-center gap-3 hover:bg-brand-green/5 transition-colors"
+                >
+                    <BookOpen className="w-5 h-5 text-brand-green shrink-0" />
+                    <span className="flex-1 text-left text-white text-sm font-medium">
+                        The Playbook — AI watches your videos &amp; writes a lesson for every position
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+            )}
 
             {/* About your app — the one-pager overview to review or share with families */}
             {TEAM_OVERVIEWS[teamId] && (
@@ -466,7 +503,7 @@ const CoachHQView = ({ onJumpToChat, onJumpToTeam, onJumpToCalendar }) => {
             <UpcomingWeek teamId={teamId} />
 
             {/* Team training leaderboard — each player's total effort (all teams + solo) */}
-            <Leaderboard teamId={teamId} />
+            {hasEngage && <Leaderboard teamId={teamId} />}
 
             {/* Drilldowns */}
             <Suspense fallback={null}>

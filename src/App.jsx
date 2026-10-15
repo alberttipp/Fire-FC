@@ -22,6 +22,7 @@ import { useVersionDrift } from './hooks/useVersionDrift';
 import { useTrackPageView } from './hooks/useTrackPageView';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
+import { FeatureProvider } from './context/FeatureContext';
 import { SponsorProvider } from './context/SponsorContext';
 import { VoiceCommandProvider } from './context/VoiceCommandContext';
 import AIAssistant from './components/AIAssistant';
@@ -148,6 +149,7 @@ function App() {
         <Router>
           <PageViewTracker />
           <BrandingProvider>
+          <FeatureProvider>
           <SponsorProvider>
           <AuthProvider>
             <VoiceCommandWrapper>
@@ -222,6 +224,7 @@ function App() {
             </VoiceCommandWrapper>
           </AuthProvider>
           </SponsorProvider>
+          </FeatureProvider>
           </BrandingProvider>
         </Router>
         </ConfirmDialogProvider>

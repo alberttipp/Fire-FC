@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, LayoutDashboard, Plus, Pencil, Trash2, Loader2, Megaphone } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { FEATURE_MODULES, FEATURE_PRESETS, moduleEnabled } from '../constants/features';
 
 // Platform Owner dashboard — ALL clubs + global settings + per-club fee/comp
 // controls. Data + mutations come from is_platform_owner()-gated RPCs, so this is
@@ -104,7 +105,8 @@ export default function PlatformAdmin() {
                         {clubs.map((c) => (
                             <ClubRow key={c.org_id} c={c}
                                 onComp={(v) => rpc('platform_set_comped', { p_org_id: c.org_id, p_comped: v })}
-                                onFee={(enabled, percent, flat) => rpc('platform_set_org_fee', { p_org_id: c.org_id, p_enabled: enabled, p_percent: percent, p_flat_cents: flat })} />
+                                onFee={(enabled, percent, flat) => rpc('platform_set_org_fee', { p_org_id: c.org_id, p_enabled: enabled, p_percent: percent, p_flat_cents: flat })}
+                                onFeatures={(features) => rpc('platform_set_org_features', { p_org_id: c.org_id, p_features: features })} />
                         ))}
                     </div>
                 </div>
@@ -151,11 +153,30 @@ function GlobalSettings({ settings, onSave }) {
     );
 }
 
-function ClubRow({ c, onComp, onFee }) {
+function ClubRow({ c, onComp, onFee, onFeatures }) {
     const [open, setOpen] = useState(false);
     const [enabled, setEnabled] = useState(c.fee_enabled);
     const [pct, setPct] = useState(c.fee_percent != null ? String(c.fee_percent) : '');
     const [flat, setFlat] = useState(c.fee_flat_cents != null ? String(c.fee_flat_cents / 100) : '');
+    // Feature modules — local draft of the club's features jsonb. A module is
+    // ON unless explicitly false (empty = everything, the grandfathered state).
+    const [mods, setMods] = useState(() =>
+        Object.fromEntries(FEATURE_MODULES.map((m) => [m.key, moduleEnabled(c.features, m.key)])));
+    const [savingFeat, setSavingFeat] = useState(false);
+    const allOn = Object.values(mods).every(Boolean);
+    const applyPreset = (name) => {
+        const preset = FEATURE_PRESETS[name];
+        setMods(Object.fromEntries(FEATURE_MODULES.map((m) => [m.key, preset.modules[m.key] !== false])));
+    };
+    const saveFeatures = async () => {
+        setSavingFeat(true);
+        // Persist only explicit "off" switches; all-on saves {} so the club
+        // stays on the "everything (including future modules)" default.
+        const off = Object.fromEntries(Object.entries(mods).filter(([, v]) => !v).map(([k]) => [k, false]));
+        await onFeatures({ preset: allOn ? 'all' : 'custom', modules: off });
+        setSavingFeat(false);
+    };
+    const offCount = Object.values(mods).filter((v) => !v).length;
 
     return (
         <div className="bg-white/5 border border-white/10 rounded-lg">
@@ -190,6 +211,33 @@ function ClubRow({ c, onComp, onFee }) {
                             className="text-xs px-3 py-2 rounded bg-brand-green text-brand-dark font-bold">Save fee</button>
                     </div>
                     <p className="text-[11px] text-gray-500">Leave Fee % blank to use the global default ({c.fee_enabled ? `currently ${Number(c.effective_fee_percent)}%` : 'off'}). Turn the checkbox off to take no fee from this club.</p>
+
+                    {/* Feature modules — what this club's app actually shows.
+                        Core (teams, calendar/RSVP, chat, invites, sponsors,
+                        registrations) is always on and not listed. */}
+                    <div className="border-t border-white/10 pt-3">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="text-gray-400 text-sm">Feature modules <span className="text-gray-600 text-xs">({offCount === 0 ? 'all on' : `${offCount} off`})</span></span>
+                            <div className="flex gap-2">
+                                <button onClick={() => applyPreset('all')} className="text-[11px] px-2 py-1 rounded bg-white/10 hover:bg-white/20">All features</button>
+                                <button onClick={() => applyPreset('basic')} className="text-[11px] px-2 py-1 rounded bg-white/10 hover:bg-white/20">Basic</button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                            {FEATURE_MODULES.map((m) => (
+                                <label key={m.key} className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer" title={m.desc}>
+                                    <input type="checkbox" className="mt-0.5" checked={mods[m.key]}
+                                        onChange={(e) => setMods((prev) => ({ ...prev, [m.key]: e.target.checked }))} />
+                                    <span>{m.label}</span>
+                                </label>
+                            ))}
+                        </div>
+                        <button onClick={saveFeatures} disabled={savingFeat}
+                            className="mt-3 text-xs px-3 py-2 rounded bg-brand-green text-brand-dark font-bold disabled:opacity-60">
+                            {savingFeat ? 'Saving…' : 'Save features'}
+                        </button>
+                        <p className="text-[11px] text-gray-500 mt-1.5">Basic = calendar, chat, team management, RSVP &amp; team adoption only. Changes apply on the club's next page load.</p>
+                    </div>
                 </div>
             )}
         </div>

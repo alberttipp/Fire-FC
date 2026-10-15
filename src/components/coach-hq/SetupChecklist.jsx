@@ -55,9 +55,11 @@ const SetupChecklist = ({ teamId, onAddRoster, onSetSchedule, onInviteFamilies, 
         { key: 'families', icon: UserPlus, label: 'Invite families', done: fams > 0,
           status: totalP > 0 ? `${fams} of ${totalP} player${totalP === 1 ? '' : 's'} have family linked` : 'Invite parents to join',
           cta: 'Invite / share link', onClick: onInviteFamilies },
-        { key: 'training', icon: Dumbbell, label: 'Send first training', done: training > 0,
+        // Training step only when the club has the Development module —
+        // a Basic club could never complete it, so the checklist would nag forever.
+        ...(onFirstTraining ? [{ key: 'training', icon: Dumbbell, label: 'Send first training', done: training > 0,
           status: training > 0 ? `${training} week${training === 1 ? '' : 's'} of training sent` : 'No training sent yet',
-          cta: 'Send a challenge', onClick: onFirstTraining },
+          cta: 'Send a challenge', onClick: onFirstTraining }] : []),
     ];
 
     const doneCount = items.filter((i) => i.done).length;

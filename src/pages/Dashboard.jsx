@@ -11,6 +11,7 @@ import { supabase } from '../supabaseClient';
 import { isStaff as isStaffRole } from '../constants/roles';
 import { trackScreen } from '../utils/analytics';
 import { useBranding } from '../context/BrandingContext';
+import { useFeature } from '../context/FeatureContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
 import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
 
@@ -48,6 +49,12 @@ const Dashboard = () => {
     const { user, profile, session, signOut } = useAuth(); // Added profile
     const navigate = useNavigate();
     const brand = useBranding();
+    // White-label module flags — a Basic club hides the development/engagement
+    // surfaces entirely (nav + views fall back to core).
+    const hasDev = useFeature('development');
+    const hasEvals = useFeature('evaluations');
+    const hasGallery = useFeature('gallery');
+    const hasLive = useFeature('live_scoring');
     const [currentView, setCurrentView] = useState('club');
     // Deep link from a push notification: ?view=&conv=&event=
     const [deepLink] = useState(() => {
@@ -236,13 +243,15 @@ const Dashboard = () => {
         switch (currentView) {
             case 'club': return <ClubView />;
             case 'team': return <TeamView />;
-            case 'practice': return <TrainingView />;
-            case 'idp': return <IDPHub />;
-            case 'private': return <PrivateTrainingView />;
+            // Gated views fall back to TeamView when the module is off for
+            // this club (covers stale deep links / saved views too).
+            case 'practice': return hasDev ? <TrainingView /> : <TeamView />;
+            case 'idp': return hasEvals ? <IDPHub /> : <TeamView />;
+            case 'private': return hasDev ? <PrivateTrainingView /> : <TeamView />;
             case 'chat': return <ChatView initialConversationId={deepLink.conv} />;
             case 'calendar': return <CalendarHub initialEventId={deepLink.event} />;
-            case 'gallery': return <GalleryView />;
-            case 'live': return <LiveScoringView />;
+            case 'gallery': return hasGallery ? <GalleryView /> : <TeamView />;
+            case 'live': return hasLive ? <LiveScoringView /> : <TeamView />;
             case 'carpool': return <CarpoolVolunteerView />;
             case 'rules': return <RulesView />;
             case 'notifications': return <NotificationsView />;
@@ -394,12 +403,14 @@ const Dashboard = () => {
                             >
                                 Team
                             </button>
-                            <button
-                                onClick={() => pickView('practice')}
-                                className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'practice' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                <Dumbbell className="w-3 h-3" /> Development
-                            </button>
+                            {hasDev && (
+                                <button
+                                    onClick={() => pickView('practice')}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'practice' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    <Dumbbell className="w-3 h-3" /> Development
+                                </button>
+                            )}
                             <button
                                 onClick={() => pickView('chat')}
                                 className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all ${currentView === 'chat' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
@@ -459,7 +470,7 @@ const Dashboard = () => {
                                             ...(isStaff ? [{ id: 'coach_hq', label: 'Coach HQ' }] : []),
                                             { id: 'club', label: 'Club' },
                                             { id: 'team', label: 'Team' },
-                                            { id: 'practice', label: 'Development' },
+                                            ...(hasDev ? [{ id: 'practice', label: 'Development' }] : []),
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
                                             { id: 'rules', label: 'Rules' },
@@ -506,7 +517,7 @@ const Dashboard = () => {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] md:pb-8">
                 {/* Title sponsor "presented by" strip — renders nothing until a sponsor exists */}
                 <SponsorSlot tier="title" placement="coach_dashboard" className="mb-4" />
-                {currentView !== 'live' && <LiveGameBanner onOpen={() => pickView('live')} />}
+                {currentView !== 'live' && hasLive && <LiveGameBanner onOpen={() => pickView('live')} />}
                 <Suspense fallback={<ViewLoader />}>
                     {renderView()}
                 </Suspense>
@@ -520,6 +531,18 @@ const Dashboard = () => {
                 currentView={currentView}
                 onViewChange={pickView}
                 onLogout={handleLogout}
+                mainItems={[
+                    { id: 'club', label: 'Club', icon: LayoutDashboard },
+                    { id: 'team', label: 'Team', icon: Users },
+                    ...(hasDev ? [{ id: 'practice', label: 'Development', icon: Dumbbell }] : []),
+                    { id: 'calendar', label: 'Schedule', icon: Calendar },
+                ]}
+                moreItems={[
+                    ...(hasEvals ? [{ id: 'idp', label: 'Player Plans', icon: Target }] : []),
+                    ...(hasDev ? [{ id: 'private', label: 'Private Training', icon: Briefcase }] : []),
+                    { id: 'chat', label: 'Messages', icon: MessageSquare },
+                    { id: 'rules', label: 'Rules', icon: FileText },
+                ]}
                 extraItems={[
                     ...(isStaff ? [{ id: 'coach_hq', label: 'Coach HQ', icon: LayoutDashboard }] : []),
                     // Alerts kept here for phones (the top-right bell hides on small screens);

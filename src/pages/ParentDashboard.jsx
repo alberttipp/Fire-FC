@@ -37,6 +37,7 @@ import TeamGoalBar from '../components/TeamGoalBar';
 import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 import { useBranding } from '../context/BrandingContext';
+import { useFeature } from '../context/FeatureContext';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
 import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
 import WeeklyProgressCard from '../components/WeeklyProgressCard';
@@ -75,6 +76,15 @@ const ParentDashboard = () => {
     const isAlsoStaff = (memberships || []).some((m) => STAFF_ROLES.has(m.role));
     const toast = useToast();
     const brand = useBranding();
+    // White-label module flags — a Basic club's family view is schedule +
+    // RSVP + chat + rules; the development/engagement cards hide entirely.
+    const hasDev = useFeature('development');
+    const hasEvals = useFeature('evaluations');
+    const hasSkills = useFeature('skills_passport');
+    const hasPlaybook = useFeature('playbook');
+    const hasEngage = useFeature('engagement');
+    const hasGallery = useFeature('gallery');
+    const hasLive = useFeature('live_scoring');
     const voiceCommand = useVoiceCommand();
     const [searchParams] = useSearchParams();
     const previewPlayerId = searchParams.get('preview');
@@ -779,7 +789,7 @@ const ParentDashboard = () => {
             case 'messages':
                 return <ChatView initialConversationId={deepConv} />;
             case 'gallery':
-                return <GalleryView />;
+                return hasGallery ? <GalleryView /> : <CalendarHub initialEventId={deepEvent} />;
             case 'rules':
                 return <RulesView />;
             case 'notifications':
@@ -801,7 +811,7 @@ const ParentDashboard = () => {
                     </div>
                 );
             case 'live':
-                return <LiveScoringView />;
+                return hasLive ? <LiveScoringView /> : <CalendarHub initialEventId={deepEvent} />;
             case 'carpool':
                 return <CarpoolVolunteerView />;
             case 'billing':
@@ -874,7 +884,7 @@ const ParentDashboard = () => {
                         )}
 
                         {/* Weekly progress snapshot for the selected child — renders nothing until there's data */}
-                        <WeeklyProgressCard playerId={selectedChild?.id} className="mb-4" />
+                        {hasDev && <WeeklyProgressCard playerId={selectedChild?.id} className="mb-4" />}
 
                         {/* 2. Upcoming Events */}
                         <div className="glass-panel p-5">
@@ -974,7 +984,7 @@ const ParentDashboard = () => {
                                 <p className="text-brand-green font-bold">✨ You're all set — {justLinkedName} is connected! Add a photo below and tap the card to explore their report, training &amp; schedule.</p>
                             </div>
                         )}
-                        {selectedChild && !selectedChild.avatar_url && (
+                        {hasDev && selectedChild && !selectedChild.avatar_url && (
                             <div className="max-w-xl mx-auto mb-3 px-4 py-2.5 rounded-xl bg-brand-green/10 border border-brand-green/40 text-center">
                                 <p className="text-sm text-brand-green font-bold">📸 Add a photo of {selectedChild.first_name} to bring their player card to life — tap “Photo” below.</p>
                             </div>
@@ -991,10 +1001,11 @@ const ParentDashboard = () => {
                             />
                         )}
 
-                        {/* 3. Player Card. The "Invite another parent" action
-                             moved to the More menu (mobile) + a small icon in
-                             the top header (desktop) so the overview isn't
-                             cluttered with a button right above the card. */}
+                        {/* 3. Player Card (Development module — the card is the face
+                             of the training/eval system). The "Invite another parent"
+                             action moved to the More menu (mobile) + a small icon in
+                             the top header (desktop). */}
+                        {hasDev && (<>
                         <div className="group cursor-pointer relative max-w-xl mx-auto" onClick={() => setShowDetails(true)}>
                             <div className="absolute -top-5 left-0 w-full text-center text-brand-green text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                                 Tap for Report Card
@@ -1040,6 +1051,7 @@ const ParentDashboard = () => {
                                 onStartRoutine={(r) => { setBuilderPreload(r); setShowFamilyBuilder(true); }}
                             />
                         )}
+                        </>)}
                         {heroOpen && selectedChild?.id && (
                             <HeroModeModal
                                 playerId={selectedChild.id}
@@ -1066,7 +1078,7 @@ const ParentDashboard = () => {
                         )}
 
                         {/* 4. IDP */}
-                        {selectedChild?.id && (
+                        {hasEvals && selectedChild?.id && (
                             <PlayerIDPCard
                                 playerId={selectedChild.id}
                                 teamId={selectedChild.team_id || null}
@@ -1075,22 +1087,24 @@ const ParentDashboard = () => {
                         )}
 
                         {/* Competitive Standard skills passport (rung ladders + coach-verify) */}
-                        {selectedChild?.id && (
+                        {hasSkills && selectedChild?.id && (
                             <CompetitiveStandardCard
                                 playerId={selectedChild.id}
                                 playerName={selectedChild.first_name || ''}
                             />
                         )}
 
-                        <DevelopmentPassportCard
-                            badges={playerBadges}
-                            stats={{
-                                weekly_minutes: practiceMins.weekly,
-                                weekly_touches: practiceMins.weeklyTouches,
-                                career_touches: practiceMins.careerTouches,
-                            }}
-                            playerName={`${selectedChild?.first_name || ''} ${selectedChild?.last_name || ''}`.trim()}
-                        />
+                        {hasDev && (
+                            <DevelopmentPassportCard
+                                badges={playerBadges}
+                                stats={{
+                                    weekly_minutes: practiceMins.weekly,
+                                    weekly_touches: practiceMins.weeklyTouches,
+                                    career_touches: practiceMins.careerTouches,
+                                }}
+                                playerName={`${selectedChild?.first_name || ''} ${selectedChild?.last_name || ''}`.trim()}
+                            />
+                        )}
 
                         {/* 5. Private Training badge stays here when applicable.
                              Vacation moved to the More menu / its own view to
@@ -1104,7 +1118,8 @@ const ParentDashboard = () => {
 
                         {/* 6. Tiles: Challenge % | Attendance | Training Minutes */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Challenge Progress */}
+                            {/* Challenge Progress (Development module) */}
+                            {hasDev && (
                             <div className="glass-panel p-5 flex flex-col">
                                 <h4 className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-3 flex items-center gap-1.5">
                                     <Target className="w-3.5 h-3.5 text-brand-gold" /> Coach Challenge
@@ -1138,6 +1153,7 @@ const ParentDashboard = () => {
                                     </div>
                                 </div>
                             </div>
+                            )}
 
                             {/* Attendance */}
                             <div className="glass-panel p-5 flex flex-col">
@@ -1177,11 +1193,11 @@ const ParentDashboard = () => {
                              front was duplicating. Tap the player card to flip
                              for the full breakdown. */}
 
-                        {selectedChild?.team_id && <TeamCelebrationBanner teamId={selectedChild.team_id} />}
-                        {selectedChild?.team_id && <TeamGoalBar teamId={selectedChild.team_id} />}
+                        {hasEngage && selectedChild?.team_id && <TeamCelebrationBanner teamId={selectedChild.team_id} />}
+                        {hasEngage && selectedChild?.team_id && <TeamGoalBar teamId={selectedChild.team_id} />}
 
                         {/* Juggling competition (see constants/competition) */}
-                        {selectedChild?.id && (
+                        {hasEngage && selectedChild?.id && (
                             <JuggleChallengeCard
                                 playerId={selectedChild.id}
                                 teamId={selectedChild.team_id || null}
@@ -1191,19 +1207,24 @@ const ParentDashboard = () => {
 
                         {/* Playbook — learn your position in the team's shape (renders
                             nothing unless the team has a published playbook). */}
-                        <PlaybookView
-                            teamId={selectedChild?.team_id || null}
-                            playerId={selectedChild?.id || null}
-                            position={selectedChild?.position || null}
-                        />
+                        {hasPlaybook && (
+                            <PlaybookView
+                                teamId={selectedChild?.team_id || null}
+                                playerId={selectedChild?.id || null}
+                                position={selectedChild?.position || null}
+                            />
+                        )}
 
                         {/* 7. Leaderboard — scoped to the selected child's team. */}
-                        <Leaderboard teamId={selectedChild?.team_id || null} teamName={selectedChild?.teams?.name || null} />
+                        {hasEngage && <Leaderboard teamId={selectedChild?.team_id || null} teamName={selectedChild?.teams?.name || null} />}
 
                         {/* Premier sponsor row — renders nothing until a sponsor exists */}
                         <SponsorSlot tier="premier" placement="parent_dashboard_feed" className="my-4" />
 
-                        {/* 8. Coach Challenge */}
+                        {/* 8-10: Coach Challenge / My Training / Player Link — all
+                            Development-module surfaces (drills + the player's own
+                            training dashboard). */}
+                        {hasDev && (<>
                         <div className="glass-panel p-5 border-l-4 border-l-blue-500">
                             <div className="flex items-center justify-between mb-4">
                                 <h4 className="text-blue-400 text-xs uppercase font-bold flex items-center gap-2">
@@ -1402,6 +1423,7 @@ const ParentDashboard = () => {
                                 </div>
                             )}
                         </div>
+                        </>)}
 
                     </div>
                 );
@@ -1537,17 +1559,17 @@ const ParentDashboard = () => {
                             {[
                                 { id: 'overview',      label: 'Overview', icon: LayoutDashboard },
                                 { id: 'schedule',      label: 'Schedule', icon: Calendar },
-                                { id: 'live',          label: 'Live',     icon: Trophy },
+                                hasLive ? { id: 'live', label: 'Live', icon: Trophy } : null,
                                 { id: 'messages',      label: 'Messages', icon: MessageSquare },
                                 { id: 'notifications', label: 'Alerts',   icon: Bell },
                                 { id: 'vacation',      label: 'Vacation', icon: Plane },
-                                { id: 'gallery',       label: 'Gallery',  icon: Camera },
+                                hasGallery ? { id: 'gallery', label: 'Gallery', icon: Camera } : null,
                                 { id: 'rules',         label: 'Rules',    icon: FileText },
-                                // Live / Carpool / Billing still hidden until each is
+                                // Carpool / Billing still hidden until each is
                                 // tested with a real team. Components and routing
                                 // (case statements above) are intact so re-adding is
                                 // a one-line change here.
-                            ].map(tab => (
+                            ].filter(Boolean).map(tab => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setCurrentView(tab.id)}
@@ -1670,10 +1692,10 @@ const ParentDashboard = () => {
                     { id: 'messages', label: 'Messages', icon: MessageSquare },
                 ]}
                 moreItems={[
-                    { id: 'live',          label: 'Live', icon: Trophy },
+                    hasLive ? { id: 'live', label: 'Live', icon: Trophy } : null,
                     { id: 'notifications', label: 'Alerts', icon: Bell },
                     { id: 'vacation',      label: 'Vacation', icon: Plane },
-                    { id: 'gallery',       label: 'Gallery',  icon: Camera },
+                    hasGallery ? { id: 'gallery', label: 'Gallery', icon: Camera } : null,
                     { id: 'rules',         label: 'Rules',    icon: FileText },
                     // Action item — fires the FamilyInviteModal directly from
                     // the More sheet instead of switching views.
