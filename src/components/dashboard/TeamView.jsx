@@ -682,15 +682,15 @@ const TeamView = () => {
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            {allTeams.filter((t) => t.season === myTeam?.season && t.id !== selectedTeamId).length > 0 && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setMovePlayer(player); }}
-                                                    className="p-2 rounded-full bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border border-purple-500/30 transition-colors"
-                                                    title="Move to another team"
-                                                >
-                                                    <ArrowRightLeft className="w-4 h-4" />
-                                                </button>
-                                            )}
+                                            {/* Always available — the modal offers other teams (when any)
+                                                plus the tryouts/waitlist destinations. */}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setMovePlayer(player); }}
+                                                className="p-2 rounded-full bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 border border-purple-500/30 transition-colors"
+                                                title="Move to another team, tryouts, or waitlist"
+                                            >
+                                                <ArrowRightLeft className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setContactsPlayer(player); }}
                                                 className="p-2 rounded-full bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30 transition-colors"
@@ -769,6 +769,24 @@ function MovePlayerModal({ player, fromTeamId, teams, onClose, onMoved }) {
         }
     };
 
+    // Off the roster, into the club's TryoutHub pool. 'pending' = waitlist,
+    // 'scheduled' = tryout scheduled. One atomic staff-checked RPC: the player
+    // row (stats, family links) is kept; only the roster spot flips to former.
+    const moveToWaitlist = async (status) => {
+        setErr('');
+        setBusy(true);
+        try {
+            const { error } = await supabase.rpc('move_player_to_waitlist', {
+                p_player_id: player.id, p_team_id: fromTeamId, p_status: status,
+            });
+            if (error) throw new Error(error.message);
+            onMoved();
+        } catch (e) {
+            setErr(e.message || 'Could not move player.');
+            setBusy(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-brand-dark border border-white/10 rounded-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
@@ -790,6 +808,28 @@ function MovePlayerModal({ player, fromTeamId, teams, onClose, onMoved }) {
                         ))}
                     </div>
                 )}
+                {/* Off-roster destinations: Tryouts & Waitlist (TryoutHub pool). */}
+                <div className="mt-5 pt-4 border-t border-white/10">
+                    <p className="text-[10px] text-brand-gold uppercase tracking-widest font-bold mb-1">Or move off the roster</p>
+                    <p className="text-gray-500 text-[11px] mb-3">Removes {player.name} from the active roster and adds them to Tryouts &amp; Waitlist. Their stats, history &amp; family link are kept.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            disabled={busy}
+                            onClick={() => moveToWaitlist('scheduled')}
+                            className="px-3 py-3 rounded-lg bg-brand-gold/10 hover:bg-brand-gold/20 border border-brand-gold/40 text-brand-gold text-sm font-bold disabled:opacity-50 transition-colors"
+                        >
+                            → Tryouts
+                        </button>
+                        <button
+                            disabled={busy}
+                            onClick={() => moveToWaitlist('pending')}
+                            className="px-3 py-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/15 text-gray-200 text-sm font-bold disabled:opacity-50 transition-colors"
+                        >
+                            → Waitlist
+                        </button>
+                    </div>
+                </div>
+
                 {err && <p className="text-red-400 text-sm mt-3">{err}</p>}
                 <button onClick={onClose} disabled={busy} className="mt-4 text-xs text-gray-400 hover:text-white disabled:opacity-50">
                     {busy ? 'Moving…' : 'Cancel'}
