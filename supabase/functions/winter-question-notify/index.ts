@@ -21,7 +21,9 @@ const cors = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Rock City FC <onboarding@resend.dev>'
+// Sender NAME follows the club whose page got the question; only the
+// ADDRESS comes from config (white-label: never a fixed club name).
+const RESEND_FROM_ADDR = (Deno.env.get('RESEND_FROM_EMAIL') ?? 'onboarding@resend.dev').replace(/^.*<|>.*$/g, '').trim()
 const NOTIFY_TO = Deno.env.get('WINTER_NOTIFY_EMAIL') ?? 'alberttipp@gmail.com'
 
 const json = (body: unknown, status = 200) =>
@@ -71,7 +73,7 @@ serve(async (req) => {
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: RESEND_FROM, to: [NOTIFY_TO], subject, html, text, reply_to: contact || undefined }),
+      body: JSON.stringify({ from: `${clubName} <${RESEND_FROM_ADDR}>`, to: [NOTIFY_TO], subject, html, text, reply_to: contact || undefined }),
     })
     if (!resp.ok) {
       const errText = await resp.text()

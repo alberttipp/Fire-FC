@@ -52,6 +52,11 @@ const SIGNUPS_OPEN = true;
 export default function WinterSignup() {
     const brand = useBranding();
     const { user, signOut } = useAuth();
+    // ROCK CITY ONLY. This portal's copy (pillars, fees, uniform, Venmo
+    // deposit) is Rock City's winter program — rendering it under another
+    // club's ?club= slug mixes clubs. White-label clubs get a neutral
+    // hand-off to their own branded login instead.
+    const isRockCity = !brand.slug || brand.slug === 'rock-city-fc';
     const [teams, setTeams] = useState(null);      // null = loading
     const [modalTeam, setModalTeam] = useState(null); // card config when committing
     const [coachModal, setCoachModal] = useState(false); // "interested in coaching" capture
@@ -143,6 +148,21 @@ export default function WinterSignup() {
         welcomesYounger: false,
         coachCta: true,
     });
+
+    if (!isRockCity) {
+        return (
+            <div className="min-h-screen text-white flex items-center justify-center p-6" style={{ background: 'radial-gradient(120% 90% at 50% -10%, #16305c 0%, #0b1a33 55%)' }}>
+                <div className="max-w-md w-full text-center space-y-4">
+                    <img src={brand.logoUrl} alt={brand.name} className="w-16 h-16 object-contain mx-auto" />
+                    <h1 className="text-2xl font-display font-bold uppercase tracking-wider">{brand.name}</h1>
+                    <p className="text-gray-300 text-sm">This sign-up page isn't used by {brand.shortName || brand.name}. To join, use the invite link from your coach — or head to the club app:</p>
+                    <a href={`/login?club=${encodeURIComponent(brand.slug)}`} className="inline-block px-6 py-3 rounded-lg bg-brand-green text-brand-dark font-display font-bold uppercase tracking-wider">
+                        Open the {brand.shortName || brand.name} app
+                    </a>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen text-white" style={{ background: 'radial-gradient(120% 90% at 50% -10%, #16305c 0%, #0b1a33 55%)' }}>

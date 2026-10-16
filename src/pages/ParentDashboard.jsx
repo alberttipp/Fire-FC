@@ -38,6 +38,7 @@ import useBackGuard from '../hooks/useBackGuard';
 import { getPlayerAvatarPath } from '../utils/playerAvatar';
 import { useBranding } from '../context/BrandingContext';
 import { useFeature } from '../context/FeatureContext';
+import { useTeamClubInfo } from '../hooks/useTeamClubInfo';
 import SponsorSlot from '../components/sponsors/SponsorSlot';
 import NetworkSponsorSlot from '../components/sponsors/NetworkSponsorSlot';
 import WeeklyProgressCard from '../components/WeeklyProgressCard';
@@ -141,6 +142,9 @@ const ParentDashboard = () => {
     // Real data state
     const [children, setChildren] = useState([]);
     const [selectedChild, setSelectedChild] = useState(null);
+    // The selected child's CLUB (from their team, not the viewer's ambient
+    // brand) — gates club-specific surfaces like Rock City's winter checklist.
+    const childClub = useTeamClubInfo(selectedChild?.team_id || null);
     // Invite-link linking for a parent who ALREADY has a kid (so the inline
     // onboarding gate never renders): auto-open the linking flow so the new kid
     // actually links. New parents (no kids) still use the inline gate below.
@@ -990,8 +994,11 @@ const ParentDashboard = () => {
                             </div>
                         )}
 
-                        {/* Parent setup checklist — jersey size, deposit, photo, waiver. */}
-                        {selectedChild?.id && (
+                        {/* Parent setup checklist — jersey size, deposit, photo, waiver.
+                            ROCK CITY ONLY: the deposit step is a hardcoded "Rock City FC
+                            winter deposit" Venmo link — must never render for a
+                            white-label club's families. */}
+                        {childClub.slug === 'rock-city-fc' && selectedChild?.id && (
                             <ParentSetupChecklist
                                 player={selectedChild}
                                 onPlayerChange={(patch) => {

@@ -27,7 +27,10 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 // Configure this once a custom domain is verified. Until then, Resend allows
 // sending from onboarding@resend.dev only to the account owner's email — fine
 // for testing, not for production.
-const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Fire FC Coach <onboarding@resend.dev>'
+// WHITE-LABEL: the sender NAME is resolved from the player's club at send
+// time ("<Club> Coach"); only the ADDRESS comes from config. A fixed
+// "Fire FC Coach" sender was reaching tenant clubs' families.
+const RESEND_FROM_ADDR = (Deno.env.get('RESEND_FROM_EMAIL') ?? 'onboarding@resend.dev').replace(/^.*<|>.*$/g, '').trim()
 
 interface RequestBody {
   playerId?: string
@@ -120,6 +123,16 @@ serve(async (req) => {
       return json({ error: 'You are not a coach/manager on this team.' }, 403)
     }
 
+    // Resolve the player's CLUB so the email sender wears the right brand.
+    const { data: teamRow } = await admin
+      .from('teams')
+      .select('org_id, organizations(display_name, name)')
+      .eq('id', player.team_id)
+      .maybeSingle()
+    const orgBrand = (teamRow?.organizations as { display_name?: string; name?: string } | null)
+    const clubName = orgBrand?.display_name || orgBrand?.name || 'Your Club'
+    const RESEND_FROM = `${clubName} Coach <${RESEND_FROM_ADDR}>`
+
     // Look up guardians. family_members.user_id points at auth.users.id; we
     // need the auth.users row to get the verified email.
     const { data: family, error: famErr } = await admin
@@ -199,7 +212,7 @@ serve(async (req) => {
       + `<p>Hi${recipients[0].full_name ? ' ' + recipients[0].full_name.split(' ')[0] : ''},</p>`
       + polishedText.split(/\n\s*\n/).map(p => `<p style="margin:0 0 14px">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('')
       + `<hr style="border:none;border-top:1px solid #eee;margin:24px 0">`
-      + `<p style="font-size:12px;color:#888;margin:0">Sent from the Fire FC coach app</p>`
+      + `<p style="font-size:12px;color:#888;margin:0">Sent from the ${clubName} coach app</p>`
       + `</div>`
 
     const sentTo: string[] = []

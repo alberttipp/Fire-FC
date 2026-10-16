@@ -3,6 +3,7 @@ import { User, Activity, Clock, Mic, Users, Trophy, Plus, Copy, Check, Rocket, P
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
+import { useTeamClubInfo } from '../../hooks/useTeamClubInfo';
 import PlayerEvaluationModal from './PlayerEvaluationModal';
 import DrillLibraryModal from './DrillLibraryModal';
 import AIFeedbackModal from './AIFeedbackModal';
@@ -23,6 +24,10 @@ const TeamView = () => {
     const { user, profile } = useAuth();
     const brand = useBranding();
     const [myTeam, setMyTeam] = useState(null);
+    // The TEAM's club (not the viewer's ambient brand) — gates club-specific
+    // recruiting surfaces like the Rock City winter portal.
+    const teamClub = useTeamClubInfo(myTeam?.id || null);
+    const isRockCityTeam = teamClub.slug === 'rock-city-fc';
     const [allTeams, setAllTeams] = useState([]);
     const [selectedTeamId, setSelectedTeamId] = useState(null);
     const [roster, setRoster] = useState([]);
@@ -63,7 +68,9 @@ const TeamView = () => {
     // Share the winter recruiting sign-up link via the phone's native share
     // sheet (falls back to copying the link to the clipboard on desktop).
     const shareSignupLink = async () => {
-        const url = `${window.location.origin}/winter-signup?club=${brand?.slug || 'rock-city-fc'}&invite=1`;
+        // Hard-pinned: the winter portal is Rock City's program (the button only
+        // renders for Rock City teams; never follow an ambient brand slug here).
+        const url = `${window.location.origin}/winter-signup?club=rock-city-fc&invite=1`;
         try {
             if (navigator.share) {
                 await navigator.share({ title: 'Rock City FC Winter Sign-Up', text: 'Join Rock City FC winter — sign up here:', url });
@@ -447,13 +454,19 @@ const TeamView = () => {
                             </button>
                         </div>
                     </div>
-                    <button
-                        onClick={shareSignupLink}
-                        className="px-4 py-2 rounded uppercase font-bold text-xs tracking-wider transition-all text-brand-dark bg-gradient-to-b from-brand-gold to-yellow-600 hover:brightness-110 flex items-center gap-1.5 whitespace-nowrap"
-                        title="Share the winter sign-up link to recruit a new family"
-                    >
-                        {linkCopied ? <><Check className="w-4 h-4" /> Link copied!</> : <>📲 Share Sign-Up Link</>}
-                    </button>
+                    {/* Winter portal is a ROCK CITY program — never surface it on a
+                        white-label club's team page (it was handing Raptors Futsal
+                        families a "Join Rock City FC winter" link). Other clubs
+                        recruit via Share-the-app + player invite codes. */}
+                    {isRockCityTeam && (
+                        <button
+                            onClick={shareSignupLink}
+                            className="px-4 py-2 rounded uppercase font-bold text-xs tracking-wider transition-all text-brand-dark bg-gradient-to-b from-brand-gold to-yellow-600 hover:brightness-110 flex items-center gap-1.5 whitespace-nowrap"
+                            title="Share the winter sign-up link to recruit a new family"
+                        >
+                            {linkCopied ? <><Check className="w-4 h-4" /> Link copied!</> : <>📲 Share Sign-Up Link</>}
+                        </button>
+                    )}
                     <button
                         onClick={() => setShowTeamSettings((s) => !s)}
                         className={`px-4 py-2 border rounded uppercase font-bold text-xs tracking-wider transition-colors ${showTeamSettings ? 'border-brand-green bg-brand-green/10 text-brand-green' : 'border-brand-green/30 text-brand-green hover:bg-brand-green/10'}`}

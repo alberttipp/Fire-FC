@@ -23,7 +23,10 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'Rock City FC <onboarding@resend.dev>'
+// WHITE-LABEL: the sender NAME must always be the signing-up club's — only
+// the ADDRESS comes from config. (A fixed "Rock City FC <...>" sender was
+// landing in tenant clubs' family inboxes.)
+const RESEND_FROM_ADDR = (Deno.env.get('RESEND_FROM_EMAIL') ?? 'onboarding@resend.dev').replace(/^.*<|>.*$/g, '').trim()
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -55,7 +58,7 @@ serve(async (req) => {
     // Anti-abuse: only email an address that matches a real, recent signup for this club.
     const { data: org } = await admin.from('organizations').select('id, display_name, name').eq('slug', orgSlug).maybeSingle()
     if (!org) return json({ error: 'Unknown club.' }, 404)
-    const clubName = (org.display_name || org.name || 'Rock City FC') as string
+    const clubName = (org.display_name || org.name || 'Your Club') as string
 
     const { data: match } = await admin
       .from('winter_signups')
@@ -92,7 +95,7 @@ serve(async (req) => {
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: RESEND_FROM, to: [email], subject, html, text }),
+      body: JSON.stringify({ from: `${clubName} <${RESEND_FROM_ADDR}>`, to: [email], subject, html, text }),
     })
     if (!resp.ok) {
       const errText = await resp.text()

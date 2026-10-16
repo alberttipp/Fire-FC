@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Shield, Loader2, CheckCircle, X, User, Phone, Heart, Users, ChevronRight, Check } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
+import { useBranding } from '../../context/BrandingContext';
 import { getPendingInvite, clearPendingInvite } from '../../utils/pendingInvite';
 
+// Rock City's public roster-picker team (Summer Squad). ROCK CITY ONLY —
+// loading it for a white-label club would show another club's kids' names
+// to brand-new parents. Other clubs onboard via invite links / codes.
 const PUBLIC_TEAM_ID = '57ea33d1-f8c8-4ed8-9749-37226e5780bb';
 
 // Family onboarding:
@@ -14,6 +18,8 @@ const PUBLIC_TEAM_ID = '57ea33d1-f8c8-4ed8-9749-37226e5780bb';
 // The component still calls join_player_family() under the hood so the
 // database writes stay consistent.
 const GuardianCodeEntry = ({ onSuccess, onClose }) => {
+    const brand = useBranding();
+    const isRockCity = brand.slug === 'rock-city-fc';
     const [step, setStep] = useState('profile');
     const [relationship, setRelationship] = useState('');
     const [fullName, setFullName] = useState('');
@@ -39,6 +45,9 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
         let cancelled = false;
 
         (async () => {
+            // White-label clubs never load Rock City's public roster — their
+            // parents link via invite links / guardian codes instead.
+            if (!isRockCity) { setRosterKids([]); setRosterLoading(false); return; }
             const { data, error: rosterError } = await supabase.rpc('get_public_team_roster_invites', {
                 p_team_id: PUBLIC_TEAM_ID,
             });
@@ -56,7 +65,9 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
         })();
 
         return () => { cancelled = true; };
-    }, []);
+        // brand.slug dependency: branding starts as the default (Rock City) and
+        // flips async for white-label clubs — re-running clears the roster.
+    }, [isRockCity]);
 
     const submitProfile = async (e) => {
         e.preventDefault();
@@ -74,7 +85,9 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
             return;
         }
 
-        setStep('children');
+        // White-label clubs have no public roster picker — go straight to the
+        // guardian-code step (their invite links auto-link anyway).
+        setStep(isRockCity ? 'children' : 'code');
     };
 
     // Link to a single player by code, then run the success/confetti path.
@@ -368,7 +381,7 @@ const GuardianCodeEntry = ({ onSuccess, onClose }) => {
                     ) : (
                         <form onSubmit={submitSelectedKids} className="space-y-4">
                             <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                                {rosterKids.length === 0 ? (
+                                {(!isRockCity || rosterKids.length === 0) ? (
                                     <p className="text-gray-500 text-sm">No players are available to select right now.</p>
                                 ) : rosterKids.map((kid) => {
                                     const isSelected = selectedKids.includes(kid.guardian_code);
