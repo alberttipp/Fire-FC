@@ -9,6 +9,7 @@ import PlayerAccessPage from './pages/PlayerAccessPage';
 import TryoutSignup from './pages/TryoutSignup';
 import Register from './pages/Register';
 import WinterSignup from './pages/WinterSignup';
+import PortugalTour from './pages/PortugalTour';
 import SponsorUs from './pages/SponsorUs';
 import ClubBilling from './pages/ClubBilling';
 import PlatformAdmin from './pages/PlatformAdmin';
@@ -160,6 +161,7 @@ function App() {
                 <Route path="/tryout-signup" element={<TryoutSignup />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/winter-signup" element={<WinterSignup />} />
+                <Route path="/portugal" element={<PortugalTour />} />
                 <Route path="/sponsor" element={<SponsorUs />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/dashboard" element={
