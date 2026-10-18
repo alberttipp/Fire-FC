@@ -1571,7 +1571,7 @@ const ParentDashboard = () => {
                                 { id: 'notifications', label: 'Alerts',   icon: Bell },
                                 { id: 'vacation',      label: 'Vacation', icon: Plane },
                                 hasGallery ? { id: 'gallery', label: 'Gallery', icon: Camera } : null,
-                                { id: 'rules',         label: 'Rules',    icon: FileText },
+                                { id: 'rules',         label: 'Rules & Docs',    icon: FileText },
                                 // Carpool / Billing still hidden until each is
                                 // tested with a real team. Components and routing
                                 // (case statements above) are intact so re-adding is
@@ -1703,7 +1703,7 @@ const ParentDashboard = () => {
                     { id: 'notifications', label: 'Alerts', icon: Bell },
                     { id: 'vacation',      label: 'Vacation', icon: Plane },
                     hasGallery ? { id: 'gallery', label: 'Gallery', icon: Camera } : null,
-                    { id: 'rules',         label: 'Rules',    icon: FileText },
+                    { id: 'rules',         label: 'Rules & Docs',    icon: FileText },
                     // Action item — fires the FamilyInviteModal directly from
                     // the More sheet instead of switching views.
                     selectedChild?.id ? { id: 'invite-parent', label: 'Invite Parent', icon: Link2, action: () => setInviteOpen(true) } : null,

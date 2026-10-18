@@ -27,14 +27,32 @@ const DOCS = [
 const RulesView = () => {
     const { profile } = useAuth();
     const [team, setTeam] = useState(null); // null = loading
+    // Staff-only waiver roster (list_waiver_signatures is staff-gated server-side;
+    // parents get an error which we swallow, so the panel simply never shows for them).
+    const [waivers, setWaivers] = useState(null);
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         let active = true;
         if (!profile?.team_id) { setTeam({}); return; }
         supabase.from('teams').select('name, age_group, programs(league_name), organizations(slug, name)').eq('id', profile.team_id).maybeSingle()
             .then(({ data }) => { if (active) setTeam(data || {}); });
+        supabase.rpc('list_waiver_signatures', { p_team_id: profile.team_id })
+            .then(({ data, error }) => { if (active && !error && Array.isArray(data)) setWaivers(data); });
         return () => { active = false; };
     }, [profile?.team_id]);
+
+    const copyWaiverList = async () => {
+        if (!waivers) return;
+        const signed = waivers.filter(w => w.signed);
+        const unsigned = waivers.filter(w => !w.signed);
+        const lines = [
+            `${team?.name || 'Team'} — Waiver status (${signed.length}/${waivers.length} signed)`, '',
+            'SIGNED:', ...signed.map(w => `  ${w.player_name} — ${w.signer_name} (${new Date(w.signed_at).toLocaleDateString()})`),
+            '', 'NOT SIGNED:', ...unsigned.map(w => `  ${w.player_name}`),
+        ];
+        try { await navigator.clipboard.writeText(lines.join('\n')); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch (_) { /* ignore */ }
+    };
 
     if (team === null) return null; // brief loading; avoids flashing the wrong ruleset
     // Futsal clubs get the FIFA futsal laws. Checked BEFORE the ECNL branch —
@@ -53,9 +71,33 @@ const RulesView = () => {
     return (
         <div className="max-w-5xl mx-auto px-4 md:px-6 pb-24 pt-6 space-y-6">
             <div>
-                <h1 className="text-3xl text-white font-display font-bold uppercase tracking-wider">League Rules</h1>
-                <p className="text-gray-400 text-sm mt-1">Official league documents — open in the viewer below or download a copy.</p>
+                <h1 className="text-3xl text-white font-display font-bold uppercase tracking-wider">Rules & Docs</h1>
+                <p className="text-gray-400 text-sm mt-1">Official league documents — open in the viewer below or download a copy. Families sign the waiver from their player checklist.</p>
             </div>
+
+            {waivers && waivers.length > 0 && (
+                <div className="glass-panel p-4 md:p-6 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                            <h2 className="text-white font-bold text-lg">Waiver status — {team.name}</h2>
+                            <p className="text-gray-500 text-xs uppercase tracking-widest mt-0.5">{waivers.filter(w => w.signed).length} of {waivers.length} signed</p>
+                        </div>
+                        <button onClick={copyWaiverList} className="px-3 py-2 bg-brand-green text-brand-dark rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-white">
+                            {copied ? '✓ Copied' : 'Copy list for league'}
+                        </button>
+                    </div>
+                    <div className="divide-y divide-white/5">
+                        {waivers.map(w => (
+                            <div key={w.player_id} className="flex items-center justify-between py-1.5 text-sm gap-2">
+                                <span className="text-white truncate">{w.player_name}</span>
+                                {w.signed
+                                    ? <span className="text-brand-green text-xs whitespace-nowrap">✓ {w.signer_name} · {new Date(w.signed_at).toLocaleDateString()}</span>
+                                    : <span className="text-gray-500 text-xs whitespace-nowrap">not signed</span>}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {DOCS.map(doc => (
                 <div key={doc.id} className="glass-panel p-4 md:p-6 space-y-4">
