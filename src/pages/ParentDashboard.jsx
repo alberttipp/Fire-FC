@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell, Trophy, Swords } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell, Trophy, Swords, ShoppingBag } from 'lucide-react';
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
 import { trackScreen } from '../utils/analytics';
@@ -58,6 +58,7 @@ const EventDetailModal = lazy(() => import('../components/dashboard/calendar/Eve
 const ScoutingReportModal = lazy(() => import('../components/scouting/ScoutingReportModal'));
 const LineupBuilder    = lazy(() => import('../components/coach-hq/lineup/LineupBuilder'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
+const StoreView = lazy(() => import('../components/dashboard/StoreView'));
 const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
 const DrillDetailModal = lazy(() => import('../components/player/DrillDetailModal'));
 
@@ -796,6 +797,8 @@ const ParentDashboard = () => {
                 return hasGallery ? <GalleryView /> : <CalendarHub initialEventId={deepEvent} />;
             case 'rules':
                 return <RulesView />;
+            case 'store':
+                return <StoreView />;
             case 'notifications':
                 return <NotificationsView />;
             case 'vacation':
@@ -1572,6 +1575,7 @@ const ParentDashboard = () => {
                                 { id: 'vacation',      label: 'Vacation', icon: Plane },
                                 hasGallery ? { id: 'gallery', label: 'Gallery', icon: Camera } : null,
                                 { id: 'rules',         label: 'Rules & Docs',    icon: FileText },
+                                { id: 'store',         label: 'Rock City Store', icon: ShoppingBag },
                                 // Carpool / Billing still hidden until each is
                                 // tested with a real team. Components and routing
                                 // (case statements above) are intact so re-adding is
@@ -1704,6 +1708,7 @@ const ParentDashboard = () => {
                     { id: 'vacation',      label: 'Vacation', icon: Plane },
                     hasGallery ? { id: 'gallery', label: 'Gallery', icon: Camera } : null,
                     { id: 'rules',         label: 'Rules & Docs',    icon: FileText },
+                    { id: 'store',         label: 'Rock City Store', icon: ShoppingBag },
                     // Action item — fires the FamilyInviteModal directly from
                     // the More sheet instead of switching views.
                     selectedChild?.id ? { id: 'invite-parent', label: 'Invite Parent', icon: Link2, action: () => setInviteOpen(true) } : null,
