@@ -452,7 +452,7 @@ const Login = () => {
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
                                     className={inputClass('fullName')}
-                                    placeholder="Coach Mike"
+                                    placeholder={pendingInvite ? 'Your full name (parent / guardian)' : 'Your full name'}
                                 />
                                 {errors.fullName && (
                                     <p className="text-red-400 text-xs mt-1 ml-1">{errors.fullName}</p>
