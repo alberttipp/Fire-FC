@@ -390,7 +390,7 @@ const Dashboard = () => {
                         {/* View Switcher Dropdown (Styled as buttons for now for simplicity/touch).
                             min-w-0 + overflow-x-auto: on narrower laptops the row scrolls
                             instead of overlapping the brand lockup. */}
-                        <div className="hidden lg:flex bg-white/5 rounded-lg p-1 border border-white/10 min-w-0 overflow-x-auto no-scrollbar [&>button]:whitespace-nowrap [&>button]:shrink-0">
+                        <div className="hidden lg:flex flex-wrap bg-white/5 rounded-lg p-1 border border-white/10 gap-0.5 [&>button]:whitespace-nowrap">
                             {isStaff && (
                                 <button
                                     onClick={() => pickView('coach_hq')}
@@ -435,7 +435,7 @@ const Dashboard = () => {
                                 onClick={() => pickView('rules')}
                                 className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'rules' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
                             >
-                                <FileText className="w-3 h-3" /> Rules
+                                <FileText className="w-3 h-3" /> Rules & Docs
                             </button>
                             {/* Alerts removed from nav (the top-right bell covers it);
                                 Tryouts hidden (season passed; the club uses BYGA for it). */}
@@ -490,7 +490,7 @@ const Dashboard = () => {
                                             ...(hasDev ? [{ id: 'practice', label: 'Development' }] : []),
                                             { id: 'chat', label: 'Chat' },
                                             { id: 'calendar', label: 'Schedule' },
-                                            { id: 'rules', label: 'Rules' },
+                                            { id: 'rules', label: 'Rules & Docs' },
                                             ...(isOwner ? [{ id: 'admin', label: 'Admin' }] : []),
                                             // Player Plans / Private / Live / Gallery pruned from nav
                                             // (0-usage per the Aug audit); routes still exist.

@@ -157,8 +157,8 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
                                 {/* Waiver — real electronic signature */}
                                 {item.key === 'waiver' && !item.done && (
                                     <div className="mt-2 pl-9 space-y-2">
-                                        <a href="/docs/2026-27-indoor-saturday-packet.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-green hover:underline">
-                                            <FileSignature className="w-3.5 h-3.5" /> Read the league waiver &amp; rules packet
+                                        <a href="/docs/2026-27-waiver.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-green hover:underline">
+                                            <FileSignature className="w-3.5 h-3.5" /> Read the waiver
                                         </a>
                                         <input
                                             type="text" value={waiverName} onChange={(e) => setWaiverName(e.target.value)}
