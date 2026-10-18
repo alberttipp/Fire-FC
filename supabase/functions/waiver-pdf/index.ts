@@ -9,15 +9,25 @@ const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const WAIVER_URL = 'https://firefcapp.com/docs/2026-27-waiver.pdf';
 
+// CORS — this function is called from the browser, so it must answer the
+// preflight and echo the allowed headers, or the fetch is silently blocked.
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+const err = (msg: string, status: number) => new Response(msg, { status, headers: CORS });
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
     const authHeader = req.headers.get('Authorization') || '';
     const authClient = createClient(SUPA_URL, ANON, { global: { headers: { Authorization: authHeader } } });
     const { data: { user } } = await authClient.auth.getUser();
-    if (!user) return new Response('unauthorized', { status: 401 });
+    if (!user) return err('unauthorized', 401);
 
     const { player_id, waiver_key } = await req.json().catch(() => ({}));
-    if (!player_id) return new Response('player_id required', { status: 400 });
+    if (!player_id) return err('player_id required', 400);
     const key = waiver_key || 'isl-indoor-2026-27';
     const svc = createClient(SUPA_URL, SERVICE);
 
@@ -33,10 +43,10 @@ Deno.serve(async (req) => {
       const { data: g } = await svc.from('family_members').select('id').eq('user_id', user.id).eq('player_id', player_id).limit(1);
       allowed = (g || []).length > 0;
     }
-    if (!allowed) return new Response('forbidden', { status: 403 });
+    if (!allowed) return err('forbidden', 403);
 
     const { data: sig } = await svc.from('waiver_signatures').select('signer_name, relationship, signed_at, user_agent').eq('player_id', player_id).eq('waiver_key', key).maybeSingle();
-    if (!sig) return new Response('no signature on file', { status: 404 });
+    if (!sig) return err('no signature on file', 404);
     const { data: pl } = await svc.from('players').select('first_name,last_name,birthdate').eq('id', player_id).maybeSingle();
     let teamName = '';
     if (teamIds.length) { const { data: t } = await svc.from('teams').select('name').eq('id', teamIds[0]).maybeSingle(); teamName = (t as any)?.name || ''; }
@@ -61,7 +71,7 @@ Deno.serve(async (req) => {
     let y = 744;
     const line = (t: string, f = font, s = 12, c = rgb(0.1, 0.1, 0.12)) => { page.drawText(t, { x: 56, y, size: s, font: f, color: c }); y -= s + 8; };
     const signedCt = new Date(sig.signed_at).toLocaleString('en-US', { timeZone: 'America/Chicago' });
-    line('ROCK CITY FC — ELECTRONIC WAIVER SIGNATURE', bold, 15, rgb(0.04, 0.1, 0.2)); y -= 6;
+    line('ROCK CITY FC - ELECTRONIC WAIVER SIGNATURE', bold, 15, rgb(0.04, 0.1, 0.2)); y -= 6;
     line('This certifies the league waiver, medical release & code of conduct was', font, 11);
     line('reviewed and agreed to electronically for the player below.', font, 11); y -= 12;
     line(`Player:          ${playerName}`, bold, 12);
@@ -78,8 +88,8 @@ Deno.serve(async (req) => {
 
     const bytes = await out.save();
     const fname = `waiver-${(playerName || 'player').replace(/[^a-z0-9]+/gi, '-')}.pdf`;
-    return new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${fname}"` } });
+    return new Response(bytes, { status: 200, headers: { ...CORS, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${fname}"` } });
   } catch (e) {
-    return new Response('error: ' + String(e), { status: 500 });
+    return err('error: ' + String(e), 500);
   }
 });
