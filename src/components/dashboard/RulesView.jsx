@@ -11,10 +11,16 @@ import { formationSizeForAgeGroup } from '../coach-hq/lineup/formations';
 // U11/U12, 11v11 ECNL for U13+); other teams get their bundled league PDF.
 const DOCS = [
     {
-        id: 'international-summer-2026',
-        title: '2026 International League — Rules & Schedule',
-        subtitle: 'Summer season',
-        path: '/docs/2026-international-rules-and-schedule-summer.pdf',
+        id: 'indoor-saturday-packet-2026-27',
+        title: '2026-27 Indoor League — Rules, Waiver & Packet',
+        subtitle: 'International Soccer League · Saturday indoor',
+        path: '/docs/2026-27-indoor-saturday-packet.pdf',
+    },
+    {
+        id: 'international-league-rockford',
+        title: 'International Soccer League — Rockford',
+        subtitle: 'League info & details',
+        path: '/docs/international-soccer-league-rockford.pdf',
     },
 ];
 
