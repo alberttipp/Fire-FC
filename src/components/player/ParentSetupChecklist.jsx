@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Shirt, Camera, DollarSign, FileSignature } from 'lucide-react';
+import WaiverFormModal from './WaiverFormModal';
 
 // ParentSetupChecklist — a live "get set up" checklist on the parent dashboard.
 // Some items auto-complete (photo added, jersey size chosen); others the parent
@@ -53,24 +54,8 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
         catch (_) { /* optimistic */ }
     };
 
-    // Electronic waiver signature — records the typed name + timestamp server-side
-    // (sign_waiver RPC) and alerts club staff. Not a plain checkbox.
-    const [waiverName, setWaiverName] = useState('');
-    const [waiverAgree, setWaiverAgree] = useState(false);
-    const [signing, setSigning] = useState(false);
-    const signWaiver = async () => {
-        if (!player?.id || !waiverName.trim() || !waiverAgree) return;
-        setSigning(true);
-        onPlayerChange?.({ parent_setup_checklist: { ...checklist, waiver: true } });  // optimistic
-        try {
-            const { error } = await supabase.rpc('sign_waiver', {
-                p_player_id: player.id, p_waiver_key: 'isl-indoor-2026-27', p_signer_name: waiverName.trim(),
-                p_relationship: null, p_user_agent: (typeof navigator !== 'undefined' ? navigator.userAgent : null),
-            });
-            if (error) throw error;
-        } catch (_) { /* optimistic; next load reconciles */ }
-        setSigning(false);
-    };
+    // Full IYSA waiver is completed + signed in a dedicated form (WaiverFormModal).
+    const [showWaiver, setShowWaiver] = useState(false);
 
     const venmoUrl = `https://venmo.com/?txn=pay&recipients=Albert-Tipp&amount=50&note=${encodeURIComponent(`Rock City FC winter deposit - ${player?.first_name || ''} ${player?.last_name || ''}`)}`;
 
@@ -154,32 +139,18 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
                                     </div>
                                 )}
 
-                                {/* Waiver — real electronic signature */}
+                                {/* Waiver — full IYSA form + electronic signature */}
                                 {item.key === 'waiver' && !item.done && (
-                                    <div className="mt-2 pl-9 space-y-2">
-                                        <a href="/docs/2026-27-waiver.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-green hover:underline">
-                                            <FileSignature className="w-3.5 h-3.5" /> Read the waiver
-                                        </a>
-                                        <input
-                                            type="text" value={waiverName} onChange={(e) => setWaiverName(e.target.value)}
-                                            placeholder="Type your full legal name"
-                                            className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-green focus:outline-none"
-                                        />
-                                        <label className="flex items-start gap-2 text-[12px] text-gray-300 cursor-pointer">
-                                            <input type="checkbox" checked={waiverAgree} onChange={(e) => setWaiverAgree(e.target.checked)} className="mt-0.5" />
-                                            <span>I have read and agree to the league <b>waiver, medical release &amp; code of conduct</b> on behalf of {name}.</span>
-                                        </label>
-                                        <button
-                                            type="button" onClick={signWaiver} disabled={signing || !waiverName.trim() || !waiverAgree}
-                                            className="px-4 py-2 rounded-lg font-bold text-sm text-brand-dark bg-brand-green hover:bg-white disabled:opacity-40"
-                                        >
-                                            {signing ? 'Signing…' : 'Sign electronically'}
+                                    <div className="mt-2 pl-9">
+                                        <button type="button" onClick={() => setShowWaiver(true)}
+                                            className="px-4 py-2 rounded-lg font-bold text-sm text-brand-dark bg-brand-green hover:bg-white flex items-center gap-1.5">
+                                            <FileSignature className="w-4 h-4" /> Fill out &amp; sign the waiver
                                         </button>
-                                        <p className="text-[11px] text-gray-500">Your typed name + today's date is recorded as your electronic signature and sent to the club.</p>
+                                        <p className="text-[11px] text-gray-500 mt-1">The full league medical release &amp; liability waiver — takes about 2 minutes.</p>
                                     </div>
                                 )}
                                 {item.key === 'waiver' && item.done && (
-                                    <p className="text-[11px] text-brand-green mt-1 pl-9">✓ Signed electronically — thank you.</p>
+                                    <p className="text-[11px] text-brand-green mt-1 pl-9">✓ Waiver completed &amp; signed — thank you.</p>
                                 )}
 
                                 {item.hint && !item.done && item.key !== 'deposit' && item.key !== 'waiver' && (
@@ -189,6 +160,13 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
                         );
                     })}
                 </div>
+            )}
+            {showWaiver && (
+                <WaiverFormModal
+                    player={player}
+                    onClose={() => setShowWaiver(false)}
+                    onSigned={() => onPlayerChange?.({ parent_setup_checklist: { ...checklist, waiver: true } })}
+                />
             )}
         </div>
     );
