@@ -34,24 +34,48 @@ const RulesView = () => {
 
     useEffect(() => {
         let active = true;
-        if (!profile?.team_id) { setTeam({}); return; }
-        supabase.from('teams').select('name, age_group, programs(league_name), organizations(slug, name)').eq('id', profile.team_id).maybeSingle()
-            .then(({ data }) => { if (active) setTeam(data || {}); });
-        supabase.rpc('list_waiver_signatures', { p_team_id: profile.team_id })
+        if (profile?.team_id) {
+            supabase.from('teams').select('name, age_group, programs(league_name), organizations(slug, name)').eq('id', profile.team_id).maybeSingle()
+                .then(({ data }) => { if (active) setTeam(data || {}); });
+        } else {
+            setTeam({});
+        }
+        // Waiver status across EVERY team the staff manages — works for managers
+        // who aren't pinned to a single team (that's why the panel was blank).
+        supabase.rpc('list_staff_waivers')
             .then(({ data, error }) => { if (active && !error && Array.isArray(data)) setWaivers(data); });
         return () => { active = false; };
     }, [profile?.team_id]);
 
     const copyWaiverList = async () => {
-        if (!waivers) return;
-        const signed = waivers.filter(w => w.signed);
-        const unsigned = waivers.filter(w => !w.signed);
-        const lines = [
-            `${team?.name || 'Team'} — Waiver status (${signed.length}/${waivers.length} signed)`, '',
-            'SIGNED:', ...signed.map(w => `  ${w.player_name} — ${w.signer_name} (${new Date(w.signed_at).toLocaleDateString()})`),
-            '', 'NOT SIGNED:', ...unsigned.map(w => `  ${w.player_name}`),
-        ];
+        if (!waivers?.length) return;
+        const byTeam = waivers.reduce((acc, w) => { (acc[w.team_name] = acc[w.team_name] || []).push(w); return acc; }, {});
+        const lines = [];
+        Object.entries(byTeam).forEach(([tname, rows]) => {
+            const signed = rows.filter(r => r.signed);
+            lines.push(`${tname} — Waiver status (${signed.length}/${rows.length} signed)`, '', 'SIGNED:',
+                ...signed.map(r => `  ${r.player_name} — ${r.signer_name} (${new Date(r.signed_at).toLocaleDateString()})`),
+                '', 'NOT SIGNED:', ...rows.filter(r => !r.signed).map(r => `  ${r.player_name}`), '');
+        });
         try { await navigator.clipboard.writeText(lines.join('\n')); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch (_) { /* ignore */ }
+    };
+
+    // Download a signed-waiver PDF (waiver pages + signature certificate) for one player.
+    const downloadWaiverPdf = async (playerId, playerName) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/waiver-pdf`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session?.access_token}`, 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player_id: playerId }),
+            });
+            if (!res.ok) return;
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `waiver-${(playerName || 'player').replace(/[^a-z0-9]+/gi, '-')}.pdf`;
+            document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
+        } catch (_) { /* ignore */ }
     };
 
     if (team === null) return null; // brief loading; avoids flashing the wrong ruleset
@@ -76,26 +100,36 @@ const RulesView = () => {
             </div>
 
             {waivers && waivers.length > 0 && (
-                <div className="glass-panel p-4 md:p-6 space-y-3">
+                <div className="glass-panel p-4 md:p-6 space-y-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
-                            <h2 className="text-white font-bold text-lg">Waiver status — {team.name}</h2>
-                            <p className="text-gray-500 text-xs uppercase tracking-widest mt-0.5">{waivers.filter(w => w.signed).length} of {waivers.length} signed</p>
+                            <h2 className="text-white font-bold text-lg">Waiver status</h2>
+                            <p className="text-gray-500 text-xs uppercase tracking-widest mt-0.5">{waivers.filter(w => w.signed).length} of {waivers.length} signed · tap PDF to download for the league</p>
                         </div>
                         <button onClick={copyWaiverList} className="px-3 py-2 bg-brand-green text-brand-dark rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-white">
                             {copied ? '✓ Copied' : 'Copy list for league'}
                         </button>
                     </div>
-                    <div className="divide-y divide-white/5">
-                        {waivers.map(w => (
-                            <div key={w.player_id} className="flex items-center justify-between py-1.5 text-sm gap-2">
-                                <span className="text-white truncate">{w.player_name}</span>
-                                {w.signed
-                                    ? <span className="text-brand-green text-xs whitespace-nowrap">✓ {w.signer_name} · {new Date(w.signed_at).toLocaleDateString()}</span>
-                                    : <span className="text-gray-500 text-xs whitespace-nowrap">not signed</span>}
+                    {Object.entries(waivers.reduce((acc, w) => { (acc[w.team_name] = acc[w.team_name] || []).push(w); return acc; }, {})).map(([tname, rows]) => (
+                        <div key={tname}>
+                            <p className="text-brand-gold text-xs font-bold uppercase tracking-widest mb-1">{tname} · {rows.filter(r => r.signed).length}/{rows.length} signed</p>
+                            <div className="divide-y divide-white/5">
+                                {rows.map(w => (
+                                    <div key={w.player_id} className="flex items-center justify-between py-1.5 text-sm gap-2">
+                                        <span className="text-white truncate flex-1">{w.player_name}</span>
+                                        {w.signed ? (
+                                            <>
+                                                <span className="text-brand-green text-xs whitespace-nowrap hidden sm:inline">✓ {w.signer_name} · {new Date(w.signed_at).toLocaleDateString()}</span>
+                                                <button onClick={() => downloadWaiverPdf(w.player_id, w.player_name)} className="shrink-0 px-2 py-1 rounded-md bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-brand-green hover:bg-white/10 flex items-center gap-1">
+                                                    <Download className="w-3 h-3" /> PDF
+                                                </button>
+                                            </>
+                                        ) : <span className="text-gray-500 text-xs whitespace-nowrap">not signed</span>}
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    ))}
                 </div>
             )}
 
