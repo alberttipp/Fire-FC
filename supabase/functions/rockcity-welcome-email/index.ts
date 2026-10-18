@@ -114,6 +114,12 @@ Deno.serve(async (req) => {
       return json({ ok: true, mode: 'live', total: list.length, sent, errors });
     }
 
+    if (mode === 'single') {
+      if (!body.email || !body.guardian_code) return json({ ok: false, error: 'email + guardian_code required' }, 400);
+      const res = await send(body.email, SUBJECT, body.player_first || 'your player', linkFor(body.guardian_code));
+      return json({ ok: res.ok, mode: 'single', email: body.email, send: res });
+    }
+
     return json({ ok: false, error: 'bad mode' }, 400);
   } catch (e) {
     return json({ ok: false, error: String(e) }, 500);

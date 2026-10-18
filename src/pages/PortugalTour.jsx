@@ -39,20 +39,21 @@ const daysLeft = () => {
 };
 
 const ROADMAP = [
-    ['Now → Nov 15', 'Commit your player', 'Spots are first-come. Commit below — the first 10 per team are locked, 11–12 fill the bench.'],
-    ['Mid-November', 'Kickoff meeting', 'Rosters announced, full cost breakdown, deposit collected, every question answered in one night.'],
-    ['December', 'Rosters locked + fundraising launch', 'Team fundraising kicks off to knock down the family cost. Flights booked as a group window.'],
+    ['Now → Nov 15', 'Declare your player', 'Throw your hat in below. Declaring says "we\'re 100% in if selected" — it costs nothing and gets you a tryout invite.'],
+    ['Mid–Late November', 'Tryouts + kickoff meeting', 'This is an invite-only event, so squads are selected by tryout/coach evaluation. Same window: full cost breakdown and every question answered in one night.'],
+    ['December', 'Rosters announced + deposits + fundraising', 'Selected players lock their spot with the deposit. Team fundraising kicks off to knock down the family cost. Flights booked as a group window.'],
     ['Jan → March', 'Train as a tournament squad', 'Regular sessions with THIS roster — set pieces, shape, chemistry. We arrive as a team, not a collection of kids.'],
     ['April 2027', 'Fly out & compete', 'São Miguel, Azores. We are not going for the experience — we are going to win it.'],
 ];
 
 const FAQ = [
-    ['Who is this for?', `Raptors ${TRIP.ageGroups.join(' & ')} players (and invited guest players). First ${TRIP.guaranteed} committed players per team are guaranteed the roster; max ${TRIP.maxRoster}.`],
+    ['Who is this for?', `Raptors ${TRIP.ageGroups.join(' & ')} players (and invited guest players). This is an invite-only tournament — declare by ${TRIP.deadlineLabel}, then squads (max ${TRIP.maxRoster} per team) are selected by tryout.`],
+    ['Is declaring the same as making the team?', `No — declaring means "we're 100% in if selected" and gets your player a tryout invite. Coaches pick the final ${TRIP.maxRoster}-player rosters after tryouts. No deposit is due unless your player is selected.`],
     ['What does the player fee cover?', 'Tournament participation, transportation in Portugal, and meals for the player. The flight is separate (see the flight guide above). The final fee number is presented at the kickoff meeting.'],
     ['Can the family come?', 'Absolutely — this is an unbelievable family trip. Families book their own flights, then either stay in the team hotel (small per-person fee set by the hotel) or grab an Airbnb, which is often cheaper for a whole family.'],
-    ['When is money due?', `A player deposit secures the roster spot (collected at/after the kickoff meeting). Any family members attending must also pay their deposit by the due date. Full payment schedule comes with the roster — no surprises.`],
-    ["What if we're not 100% sure yet?", 'Pick "Interested — tell me more" on the form. Zero obligation; you\'ll get every update and can convert to a full commit any time a spot is still open.'],
-    ['Why this page instead of club emails?', 'Past trips came together last-minute with info trickling out. This page is the single source of truth — live spot counts, the full plan, and one place to commit. Run like a program, not a scramble.'],
+    ['When is money due?', 'Nothing is due to declare. Once rosters are announced, a player deposit locks the spot, and any family members attending pay their deposit by the due date. Full payment schedule comes with the roster — no surprises.'],
+    ["What if we're not 100% sure yet?", 'Pick "Interested — tell me more" on the form. Zero obligation; you\'ll get every update and can upgrade to a full declaration any time before the deadline.'],
+    ['Why this page instead of club emails?', 'Past trips came together last-minute with info trickling out. This page is the single source of truth — live declaration counts, the full plan, and one place to sign up. Run like a program, not a scramble.'],
 ];
 
 export default function PortugalTour() {
@@ -98,7 +99,7 @@ export default function PortugalTour() {
 
     const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/portugal?club=${RAPTORS_SLUG}` : '';
     const share = async () => {
-        const data = { title: `${brand.name} — ${TRIP.title}`, text: `Commit your player for the Raptors trip to Portugal (April 2027):`, url: shareUrl };
+        const data = { title: `${brand.name} — ${TRIP.title}`, text: `Declare your player for the Raptors trip to Portugal (April 2027) — invite-only, squads picked at tryouts:`, url: shareUrl };
         try { if (navigator.share) { await navigator.share(data); return; } } catch { return; }
         try { await navigator.clipboard.writeText(shareUrl); setShareMsg('Link copied!'); setTimeout(() => setShareMsg(''), 2500); }
         catch { setShareMsg(shareUrl); }
@@ -153,10 +154,11 @@ export default function PortugalTour() {
                 <p className="text-gray-300 mt-3">
                     {TRIP.event} · {TRIP.location}<br />{TRIP.when}
                 </p>
+                <p className="text-xs uppercase tracking-wider text-[#ff9d5c] mt-2">Invite-only event · squads selected by tryout</p>
                 <div className="mt-4 inline-flex items-center gap-3 rounded-xl border border-[#f36721]/50 bg-[#f36721]/10 px-5 py-3">
                     <div className="text-3xl font-display font-bold text-[#ff9d5c]">{dLeft}</div>
                     <div className="text-left text-xs uppercase tracking-wider text-gray-300 leading-tight">
-                        days left to commit<br /><span className="text-white font-bold">deadline {TRIP.deadlineLabel}</span>
+                        days left to declare<br /><span className="text-white font-bold">deadline {TRIP.deadlineLabel}</span>
                     </div>
                 </div>
             </div>
@@ -166,34 +168,30 @@ export default function PortugalTour() {
 
             {/* Spot tracker + commit CTAs */}
             <div className="px-4 max-w-3xl mx-auto mb-10">
-                <h2 className="text-lg font-display uppercase tracking-wider text-[#ff9d5c] mb-3">Claim a roster spot</h2>
+                <h2 className="text-lg font-display uppercase tracking-wider text-[#ff9d5c] mb-3">Declare for the squad</h2>
                 <div className="grid md:grid-cols-2 gap-4">
-                    {spotCards.map(({ age, committed }) => {
-                        const left = Math.max(0, TRIP.maxRoster - committed);
-                        return (
-                            <div key={age} className="glass-panel p-5 flex flex-col">
-                                <div className="flex items-baseline justify-between">
-                                    <div className="text-xl font-display font-bold">{age} Squad</div>
-                                    <div className="text-xs text-[#ff9d5c]">{committed} of {TRIP.maxRoster} spots claimed</div>
-                                </div>
-                                <div className="h-2 rounded-full bg-white/10 mt-2 overflow-hidden">
-                                    <div className="h-full rounded-full bg-gradient-to-r from-[#f36721] to-[#ff9d5c]" style={{ width: `${Math.min(100, (committed / TRIP.maxRoster) * 100)}%` }} />
-                                </div>
-                                <p className="text-sm text-gray-300 mt-3 mb-4 leading-snug">
-                                    {age === 'U12'
-                                        ? `First ${TRIP.guaranteed} committed are locked in. The U12 squad goes if it fills — commit now to make it happen.`
-                                        : `First ${TRIP.guaranteed} committed are locked in; spots ${TRIP.guaranteed + 1}–${TRIP.maxRoster} round out the squad.`}
-                                    {left > 0 && left <= 4 && <span className="text-[#ff9d5c] font-semibold"> Only {left} left.</span>}
-                                </p>
-                                <button onClick={() => setModalAge(age)} className={`${CTA} w-full mt-auto`}>
-                                    {left === 0 ? 'Join the waitlist' : 'Commit my player'}
-                                </button>
+                    {spotCards.map(({ age, committed }) => (
+                        <div key={age} className="glass-panel p-5 flex flex-col">
+                            <div className="flex items-baseline justify-between">
+                                <div className="text-xl font-display font-bold">{age} Squad</div>
+                                <div className="text-xs text-[#ff9d5c]">{committed} declared · {TRIP.maxRoster} roster spots</div>
                             </div>
-                        );
-                    })}
+                            <div className="h-2 rounded-full bg-white/10 mt-2 overflow-hidden">
+                                <div className="h-full rounded-full bg-gradient-to-r from-[#f36721] to-[#ff9d5c]" style={{ width: `${Math.min(100, (committed / TRIP.maxRoster) * 100)}%` }} />
+                            </div>
+                            <p className="text-sm text-gray-300 mt-3 mb-4 leading-snug">
+                                {age === 'U12'
+                                    ? 'The U12 squad goes if enough players declare — raise your hand and make it happen.'
+                                    : `Declaring gets your player a tryout invite — coaches select the final ${TRIP.maxRoster} after tryouts.`}
+                            </p>
+                            <button onClick={() => setModalAge(age)} className={`${CTA} w-full mt-auto`}>
+                                Declare my player
+                            </button>
+                        </div>
+                    ))}
                 </div>
                 {Number(stats?.interested || 0) > 0 && (
-                    <p className="text-xs text-gray-400 mt-3 text-center">{stats.interested} more {Number(stats.interested) === 1 ? 'family is' : 'families are'} deciding — don't wait on a spot.</p>
+                    <p className="text-xs text-gray-400 mt-3 text-center">{stats.interested} more {Number(stats.interested) === 1 ? 'family is' : 'families are'} deciding — declare before the deadline.</p>
                 )}
             </div>
 
@@ -203,13 +201,15 @@ export default function PortugalTour() {
                     <div className="text-[#ff9d5c] font-display uppercase tracking-wider text-sm mb-2">The mission</div>
                     <p className="text-sm text-gray-200 leading-relaxed">
                         This trip has been an amazing experience in the past — but it always came together late, with
-                        information showing up at the last minute. Not this time. We're picking the squad <b>now</b>,
-                        locking the plan early, fundraising as a team, and training together all winter so we step off
-                        the plane in the Azores ready to <b>win the whole thing</b>.
+                        information showing up at the last minute. Not this time. This is an <b>invite-only</b> tournament
+                        and we're treating it that way: declare now, earn your spot at <b>tryouts</b>, lock the plan early,
+                        fundraise as a team, and train together all winter so we step off the plane in the Azores ready
+                        to <b>win the whole thing</b>.
                     </p>
                     <ul className="text-sm text-gray-300 mt-3 space-y-1.5">
                         <li>✅ One page with everything — no digging through email chains</li>
-                        <li>✅ Live roster count — you always know where the squad stands</li>
+                        <li>✅ Live declaration count — you always know where the squad stands</li>
+                        <li>✅ Squads earned at tryouts — the strongest roster gets on the plane</li>
                         <li>✅ Team fundraising to cut every family's cost</li>
                         <li>✅ A real training block with the tournament roster, Jan–March</li>
                     </ul>
@@ -222,11 +222,12 @@ export default function PortugalTour() {
                     <div className="text-[#ff9d5c] font-display uppercase tracking-wider text-sm mb-1">The details</div>
                     <Detail k="Event" v={`${TRIP.event} — ${TRIP.location}`} />
                     <Detail k="When" v={TRIP.when} />
-                    <Detail k="Teams" v={`${TRIP.ageGroups.join(' + ')} · first ${TRIP.guaranteed} players locked per team, max ${TRIP.maxRoster}`} />
+                    <Detail k="Teams" v={`${TRIP.ageGroups.join(' + ')} · max ${TRIP.maxRoster} players per team`} />
+                    <Detail k="Selection" v={`Invite-only event. Declare by ${TRIP.deadlineLabel} to get a tryout invite — coaches select the final rosters after tryouts. Declaring costs nothing.`} />
                     <Detail k="Player fee" v="Covers tournament participation, transportation in Portugal, and meals. Final number presented at the kickoff meeting — fundraising will bring it down." />
                     <Detail k="Not included" v="The flight (booked per family — full guide below) and family travel costs." />
                     <Detail k="Family" v="Families are welcome and encouraged! Stay in the team hotel (small per-person fee) or get an Airbnb — often cheaper for a whole crew." />
-                    <Detail k="Deposit" v="A player deposit secures the spot; family members attending pay their deposit by the due date. Amounts + schedule at the kickoff meeting." />
+                    <Detail k="Deposit" v="Due only once your player is selected — the deposit locks the roster spot. Family members attending pay their deposit by the due date. Amounts + schedule at the kickoff meeting." />
                 </div>
             </div>
 
@@ -290,10 +291,10 @@ export default function PortugalTour() {
             <div className="px-4 max-w-3xl mx-auto pb-24 text-center">
                 <div className="glass-panel p-6 border border-[#f36721]/40">
                     <div className="text-xl font-display font-bold uppercase tracking-wide mb-1">Don't get left behind</div>
-                    <p className="text-sm text-gray-300 mb-4">Commit by {TRIP.deadlineLabel} — the squad, the plan, and the plane are leaving either way.</p>
+                    <p className="text-sm text-gray-300 mb-4">Declare by {TRIP.deadlineLabel} — tryout invites only go to declared players, and the plane is leaving either way.</p>
                     <div className="flex flex-col md:flex-row gap-2 justify-center">
                         {TRIP.ageGroups.map((age) => (
-                            <button key={age} onClick={() => setModalAge(age)} className={CTA}>Commit — {age}</button>
+                            <button key={age} onClick={() => setModalAge(age)} className={CTA}>Declare — {age}</button>
                         ))}
                     </div>
                 </div>
@@ -336,8 +337,8 @@ function CommitModal({ age, brandName, onClose, onDone }) {
         setError('');
         if (!form.first.trim() || !form.last.trim()) return setError("Player's first and last name are required.");
         if (!form.contactName.trim() || !form.email.trim()) return setError('Your name and email are required.');
-        if (committed && !form.phone.trim()) return setError('A phone number is required for a full commit.');
-        if (committed && !form.ackPlayer) return setError('Please acknowledge the player deposit to commit.');
+        if (committed && !form.phone.trim()) return setError('A phone number is required to declare.');
+        if (committed && !form.ackPlayer) return setError('Please acknowledge the player deposit to declare.');
         if (committed && (Number(form.parents) + Number(form.siblings) + Number(form.other) > 0) && !form.ackFamily)
             return setError('Please acknowledge the family-member deposit (or set family travelers to 0).');
         setBusy(true);
@@ -379,8 +380,8 @@ function CommitModal({ age, brandName, onClose, onDone }) {
                         <h3 className="text-xl font-display font-bold uppercase tracking-wider mb-1">{committed ? "You're on the list!" : 'Got it!'}</h3>
                         <p className="text-gray-400 text-sm">
                             {committed
-                                ? `${form.first} is committed to the ${age} Portugal squad. Next step: the kickoff meeting (watch your email) — deposit collected there to lock the spot.`
-                                : `We'll send ${form.first ? `${form.first}'s family` : 'you'} every update. Convert to a full commit any time a spot is open.`}
+                                ? `${form.first} is declared for the ${age} Portugal squad. Next step: the tryout invite + kickoff meeting (watch your email). Deposit is only due if selected.`
+                                : `We'll send ${form.first ? `${form.first}'s family` : 'you'} every update. Upgrade to a full declaration any time before the deadline.`}
                         </p>
                         <button onClick={onDone} className={`${CTA} w-full mt-5`}>Done</button>
                     </div>
@@ -391,7 +392,7 @@ function CommitModal({ age, brandName, onClose, onDone }) {
                         <div className="space-y-3">
                             {/* Commitment level first — it drives what's required below */}
                             <div className="grid grid-cols-1 gap-2">
-                                {[['committed', "✅ 100% IN — hold our spot"], ['interested', '🤔 Interested — tell me more first']].map(([val, label]) => (
+                                {[['committed', "✅ 100% IN — declare for tryouts"], ['interested', '🤔 Interested — tell me more first']].map(([val, label]) => (
                                     <button key={val} onClick={() => setForm({ ...form, commitment: val })}
                                         className={`text-left text-sm rounded-lg border px-3 py-2.5 transition ${form.commitment === val ? 'border-[#f36721] bg-[#f36721]/15 text-white' : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'}`}>
                                         {label}
@@ -433,7 +434,7 @@ function CommitModal({ age, brandName, onClose, onDone }) {
                                 <div className="space-y-2 rounded-lg border border-[#f36721]/40 bg-[#f36721]/10 p-3">
                                     <label className="flex items-start gap-2 text-xs text-gray-200">
                                         <input type="checkbox" className="mt-0.5" checked={form.ackPlayer} onChange={set('ackPlayer')} />
-                                        <span>I understand a <b>player deposit</b> must be made to secure the roster spot. *</span>
+                                        <span>I understand that if my player is selected, a <b>player deposit</b> must be made to secure the roster spot. *</span>
                                     </label>
                                     <label className="flex items-start gap-2 text-xs text-gray-200">
                                         <input type="checkbox" className="mt-0.5" checked={form.ackFamily} onChange={set('ackFamily')} />
@@ -445,7 +446,7 @@ function CommitModal({ age, brandName, onClose, onDone }) {
                             <div className="flex gap-2 pt-1">
                                 <button onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm">Cancel</button>
                                 <button onClick={submit} disabled={busy} className={`${CTA} flex-1`}>
-                                    {busy ? 'Sending…' : committed ? 'Lock it in' : 'Keep me posted'}
+                                    {busy ? 'Sending…' : committed ? 'Declare my player' : 'Keep me posted'}
                                 </button>
                             </div>
                             <p className="text-[11px] text-gray-500 text-center">Your contact info stays private — only trip organizers see it.</p>
@@ -490,7 +491,7 @@ function StaffLogin({ brandName }) {
                             <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm">Cancel</button>
                             <button onClick={signIn} disabled={busy} className={`${CTA} flex-1`}>{busy ? 'Logging in…' : 'Log in'}</button>
                         </div>
-                        <p className="text-[11px] text-gray-500">Use your existing {brandName} login. Parents don't need to log in to commit a player.</p>
+                        <p className="text-[11px] text-gray-500">Use your existing {brandName} login. Parents don't need to log in to declare a player.</p>
                     </div>
                 </div>
             )}
@@ -555,9 +556,9 @@ function StaffPanel() {
     };
 
     const groups = [
-        { label: 'U11 — committed', kids: rows.filter((r) => r.age_group === 'U11' && r.commitment === 'committed') },
-        { label: 'U12 — committed', kids: rows.filter((r) => r.age_group === 'U12' && r.commitment === 'committed') },
-        { label: 'Interested (not committed yet)', kids: rows.filter((r) => r.commitment === 'interested') },
+        { label: 'U11 — declared', kids: rows.filter((r) => r.age_group === 'U11' && r.commitment === 'committed') },
+        { label: 'U12 — declared', kids: rows.filter((r) => r.age_group === 'U12' && r.commitment === 'committed') },
+        { label: 'Interested (not declared yet)', kids: rows.filter((r) => r.commitment === 'interested') },
     ];
 
     return (
@@ -571,7 +572,7 @@ function StaffPanel() {
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
                         <Stat label="Opens" value={stats.opens_total} />
                         <Stat label="Visitors" value={stats.unique_visitors} />
-                        <Stat label="Committed" value={stats.committed} />
+                        <Stat label="Declared" value={stats.committed} />
                         <Stat label="Interested" value={stats.interested} />
                         <Stat label="Deposits" value={stats.deposits_paid} />
                         <Stat label="Family going" value={stats.family_travelers} />
@@ -620,7 +621,8 @@ function StaffPanel() {
                                                 <select value={r.status} disabled={savingId === r.id}
                                                     onChange={(e) => save(r.id, { status: e.target.value })}
                                                     className="bg-[#0b1a33] border border-white/15 rounded px-2 py-1 text-xs text-white disabled:opacity-50">
-                                                    {['new', 'confirmed', 'waitlist', 'withdrawn'].map((s) => <option key={s} value={s}>{s}</option>)}
+                                                    {/* 'confirmed' in the DB = made the roster; shown as "selected" */}
+                                                    {[['new', 'new'], ['confirmed', 'selected ✓'], ['waitlist', 'alternate'], ['withdrawn', 'withdrawn']].map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
                                                 </select>
                                             </div>
                                             <div className="text-[11px] text-gray-500 mt-1">
