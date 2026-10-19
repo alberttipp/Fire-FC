@@ -10,6 +10,25 @@ import { trackEvent } from '../../utils/analytics';
 // signature, and stores it via sign_waiver (which also produces the signed PDF).
 const WAIVER_KEY = 'isl-indoor-2026-27';
 
+const inp = 'w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-green focus:outline-none';
+
+// NOTE: Field and Section MUST live at module scope. If they're defined inside
+// WaiverFormModal, every keystroke re-creates them as new component types, so
+// React remounts each input and focus is lost after one character.
+const Field = ({ l, k, req, type = 'text', half, f, set }) => (
+    <label className={`block ${half ? '' : 'col-span-2'}`}>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{l}{req && <span className="text-brand-gold"> *</span>}</span>
+        <input type={type} value={f[k]} onChange={set(k)} className={inp} />
+    </label>
+);
+
+const Section = ({ title, children }) => (
+    <div className="space-y-2">
+        <h3 className="text-brand-gold text-xs font-bold uppercase tracking-widest border-b border-white/10 pb-1">{title}</h3>
+        <div className="grid grid-cols-2 gap-2">{children}</div>
+    </div>
+);
+
 const WaiverFormModal = ({ player, onClose, onSigned }) => {
     const { user, profile } = useAuth();
     const guardianName = profile?.full_name || user?.user_metadata?.full_name || '';
@@ -55,20 +74,6 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
         } catch (e) { setErr('Could not save. Please try again.'); setBusy(false); }
     };
 
-    const inp = 'w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-green focus:outline-none';
-    const Field = ({ l, k, req, type = 'text', half }) => (
-        <label className={`block ${half ? '' : 'col-span-2'}`}>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{l}{req && <span className="text-brand-gold"> *</span>}</span>
-            <input type={type} value={f[k]} onChange={set(k)} className={inp} />
-        </label>
-    );
-    const Section = ({ title, children }) => (
-        <div className="space-y-2">
-            <h3 className="text-brand-gold text-xs font-bold uppercase tracking-widest border-b border-white/10 pb-1">{title}</h3>
-            <div className="grid grid-cols-2 gap-2">{children}</div>
-        </div>
-    );
-
     return (
         <div className="fixed inset-0 z-[80] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
             <div className="bg-brand-dark border border-white/10 w-full max-w-lg sm:rounded-2xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -91,7 +96,7 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
                     </a>
 
                     <Section title="Participant">
-                        <Field l="Full name" k="participant_name" req />
+                        <Field l="Full name" k="participant_name" req f={f} set={set} />
                         <label className="block">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Gender <span className="text-brand-gold">*</span></span>
                             <select value={f.gender} onChange={set('gender')} className={inp}>
@@ -101,42 +106,42 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
                                 <option value="Other" className="bg-gray-800">Other</option>
                             </select>
                         </label>
-                        <Field l="Birthdate" k="birthdate" type="date" req half />
-                        <Field l="Street address (no PO box)" k="street" req />
-                        <Field l="City" k="city" req half />
-                        <Field l="Zip" k="zip" req half />
-                        <Field l="Participant phone" k="participant_phone" type="tel" half />
-                        <Field l="Participant email" k="participant_email" type="email" half />
+                        <Field l="Birthdate" k="birthdate" type="date" req half f={f} set={set} />
+                        <Field l="Street address (no PO box)" k="street" req f={f} set={set} />
+                        <Field l="City" k="city" req half f={f} set={set} />
+                        <Field l="Zip" k="zip" req half f={f} set={set} />
+                        <Field l="Participant phone" k="participant_phone" type="tel" half f={f} set={set} />
+                        <Field l="Participant email" k="participant_email" type="email" half f={f} set={set} />
                     </Section>
 
                     <Section title="Parent / Guardian">
-                        <Field l="Guardian 1 name" k="g1_name" req />
-                        <Field l="Primary phone" k="g1_phone" type="tel" req half />
-                        <Field l="Other phone" k="g1_other" type="tel" half />
-                        <Field l="Guardian 2 name (optional)" k="g2_name" />
-                        <Field l="Guardian 2 phone" k="g2_phone" type="tel" half />
-                        <Field l="Email(s)" k="guardian_emails" />
+                        <Field l="Guardian 1 name" k="g1_name" req f={f} set={set} />
+                        <Field l="Primary phone" k="g1_phone" type="tel" req half f={f} set={set} />
+                        <Field l="Other phone" k="g1_other" type="tel" half f={f} set={set} />
+                        <Field l="Guardian 2 name (optional)" k="g2_name" f={f} set={set} />
+                        <Field l="Guardian 2 phone" k="g2_phone" type="tel" half f={f} set={set} />
+                        <Field l="Email(s)" k="guardian_emails" f={f} set={set} />
                     </Section>
 
                     <Section title="Emergency Contact">
-                        <Field l="Name" k="ec1_name" req />
-                        <Field l="Primary phone" k="ec1_phone" type="tel" req half />
-                        <Field l="Relationship" k="ec1_rel" req half />
-                        <Field l="Email" k="ec1_email" type="email" />
-                        <Field l="2nd contact name (optional)" k="ec2_name" />
-                        <Field l="2nd phone" k="ec2_phone" type="tel" half />
-                        <Field l="2nd relationship" k="ec2_rel" half />
+                        <Field l="Name" k="ec1_name" req f={f} set={set} />
+                        <Field l="Primary phone" k="ec1_phone" type="tel" req half f={f} set={set} />
+                        <Field l="Relationship" k="ec1_rel" req half f={f} set={set} />
+                        <Field l="Email" k="ec1_email" type="email" f={f} set={set} />
+                        <Field l="2nd contact name (optional)" k="ec2_name" f={f} set={set} />
+                        <Field l="2nd phone" k="ec2_phone" type="tel" half f={f} set={set} />
+                        <Field l="2nd relationship" k="ec2_rel" half f={f} set={set} />
                     </Section>
 
                     <Section title="Medical & Insurance">
-                        <Field l="Allergies" k="allergies" />
-                        <Field l="Other medical conditions / concerns" k="conditions" />
-                        <Field l="Physician" k="physician" half />
-                        <Field l="Physician phone" k="physician_phone" type="tel" half />
-                        <Field l="Insurance company" k="insurance_company" req />
-                        <Field l="Insurance phone" k="insurance_phone" type="tel" half />
-                        <Field l="Policy holder's name" k="policy_holder" req half />
-                        <Field l="Policy number" k="policy_number" />
+                        <Field l="Allergies" k="allergies" f={f} set={set} />
+                        <Field l="Other medical conditions / concerns" k="conditions" f={f} set={set} />
+                        <Field l="Physician" k="physician" half f={f} set={set} />
+                        <Field l="Physician phone" k="physician_phone" type="tel" half f={f} set={set} />
+                        <Field l="Insurance company" k="insurance_company" req f={f} set={set} />
+                        <Field l="Insurance phone" k="insurance_phone" type="tel" half f={f} set={set} />
+                        <Field l="Policy holder's name" k="policy_holder" req half f={f} set={set} />
+                        <Field l="Policy number" k="policy_number" f={f} set={set} />
                     </Section>
 
                     <div className="space-y-3 pt-1">
