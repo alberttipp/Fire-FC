@@ -1,12 +1,13 @@
-// Builds a COMPLETED, signed IYSA waiver PDF for one player from the stored
-// form data (all fields) + the league legal text + the electronic signature.
-// Staff or the player's guardian may download it. Returns application/pdf.
+// Fills the ACTUAL IYSA waiver form (the official 2-page PDF) with the player's
+// completed data + electronic signature, overlaid on each blank. Staff or the
+// player's guardian may download it. Returns application/pdf.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 
 const SUPA_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
+const WAIVER_URL = 'https://firefcapp.com/docs/2026-27-waiver.pdf';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -15,16 +16,30 @@ const CORS = {
 };
 const errResp = (msg: string, status: number) => new Response(msg, { status, headers: CORS });
 
-const LEGAL: string[] = [
-  'LIABILITY WAIVER — In consideration of being allowed to participate in any Illinois Youth Soccer Association (IYSA) program, related events, and activities, I, the undersigned, acknowledge, appreciate, and agree to the following on behalf of myself and the above-listed participant, if the participant is a minor:',
-  'The participant will be engaging in programs, activities and/or related events (the "Programs") that involve risk of serious injury, including permanent disability or death, and severe social and economic losses which might result from the participant\'s own actions or the actions, inaction, or negligence of others, the rules of play, or the condition of the premises or equipment. I assume all such risk and accept personal responsibility for the damages following any such injury. I hereby release, discharge, covenant to indemnify and not to sue the IYSA, its directors, officers, employees, coaches, managers, agents, sponsors, contractors, associated personnel and affiliated organizations, and the owners and lessors of premises (the "Releasees") from any and all liability for any claims resulting from the participant\'s involvement in the Programs and transportation to or from them.',
-  'I am aware there are risks of exposure to communicable disease, including COVID-19, and I voluntarily assume that risk and accept sole responsibility for any injury, illness, disability or death related to COVID-19 arising from participation. I certify the participant has received a physical examination and is physically capable of participating.',
-  'I consent to have an athletic trainer, coach and/or doctor provide the participant with medical assistance and/or treatment and agree to be financially responsible for the cost. I agree to hold harmless and indemnify the Releasees from all liability, loss, cost, claim or damage.',
-  'I consent to the Releasees\' use and display of the participant\'s name, likeness, image and biographical information in photographs, recordings and media for promotional and commercial purposes, and I release any claims relating to such use.',
-  'I, for the participant and on behalf of the participant\'s heirs and next of kin, HEREBY RELEASE, INDEMNIFY, AND HOLD HARMLESS THE ILLINOIS YOUTH SOCCER ASSOCIATION, its member leagues and clubs, directors, officers, employees, coaches, managers, agents, sponsors, contractors and premises owners from any and all claims, demands, losses and liability arising out of or related to any ILLNESS, INJURY, DISABILITY, OR DEATH, WHETHER ARISING FROM THE NEGLIGENCE OF THE RELEASEES OR OTHERWISE, to the fullest extent permitted by law. I understand this document may not be altered.',
-  'I HAVE READ THIS RELEASE OF LIABILITY AND ASSUMPTION OF RISK AGREEMENT, FULLY UNDERSTAND ITS TERMS, UNDERSTAND I HAVE GIVEN UP SUBSTANTIAL RIGHTS BY SIGNING IT, AND SIGN IT FREELY AND VOLUNTARILY.',
-  'CODE OF CONDUCT — I agree to set a good example and to create a positive and safe environment free from abuse, harassment, discrimination and bullying. I have read, understand, and agree to abide by the Program/League/Club Code of Conduct, and accept that I and the participant can be removed for improper conduct.',
-];
+// {page, x, y} overlay positions computed from the official form's text layout.
+const COORDS: Record<string, { p: number; x: number; y: number }> = {
+  participant_name: { p: 1, x: 55, y: 630 }, gender: { p: 1, x: 350, y: 630 }, birthdate: { p: 1, x: 462, y: 630 },
+  street: { p: 1, x: 113, y: 607 }, city: { p: 1, x: 319, y: 607 }, zip: { p: 1, x: 489, y: 607 },
+  participant_phone: { p: 1, x: 67, y: 583 }, participant_email: { p: 1, x: 216, y: 583 },
+  g1_name: { p: 1, x: 94, y: 540 }, g1_phone: { p: 1, x: 359, y: 540 }, g1_other: { p: 1, x: 511, y: 540 },
+  g2_name: { p: 1, x: 94, y: 526 }, g2_phone: { p: 1, x: 359, y: 526 },
+  guardian_emails: { p: 1, x: 48, y: 511 },
+  ec1_name: { p: 1, x: 60, y: 478 }, ec1_phone: { p: 1, x: 516, y: 478 }, ec1_rel: { p: 1, x: 121, y: 464 }, ec1_email: { p: 1, x: 298, y: 464 },
+  ec2_name: { p: 1, x: 69, y: 447 }, ec2_phone: { p: 1, x: 516, y: 447 }, ec2_rel: { p: 1, x: 123, y: 432 },
+  allergies: { p: 1, x: 8, y: 418 }, conditions: { p: 1, x: 189, y: 401 },
+  physician: { p: 1, x: 47, y: 386 }, physician_phone: { p: 1, x: 362, y: 386 },
+  insurance_company: { p: 1, x: 153, y: 372 }, insurance_phone: { p: 1, x: 470, y: 372 },
+  policy_holder: { p: 1, x: 94, y: 356 }, policy_number: { p: 1, x: 408, y: 356 },
+  sig_name: { p: 2, x: 202, y: 325 }, sig_date: { p: 2, x: 28, y: 314 },
+};
+
+const fmtDate = (s: any): string => {
+  if (!s) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+  if (m) return `${m[2]}/${m[3]}/${m[1]}`;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString('en-US', { timeZone: 'America/Chicago' });
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -51,68 +66,47 @@ Deno.serve(async (req) => {
     }
     if (!allowed) return errResp('forbidden', 403);
 
-    const { data: sig } = await svc.from('waiver_signatures').select('signer_name, relationship, signed_at, user_agent, form_data').eq('player_id', player_id).eq('waiver_key', key).maybeSingle();
+    const { data: sig } = await svc.from('waiver_signatures').select('signer_name, signed_at, form_data').eq('player_id', player_id).eq('waiver_key', key).maybeSingle();
     if (!sig) return errResp('no signature on file', 404);
     const { data: pl } = await svc.from('players').select('first_name,last_name,birthdate').eq('id', player_id).maybeSingle();
-    let teamName = '';
-    if (teamIds.length) { const { data: t } = await svc.from('teams').select('name').eq('id', teamIds[0]).maybeSingle(); teamName = (t as any)?.name || ''; }
     const d: any = sig.form_data || {};
     const playerName = d.participant_name || `${(pl as any)?.first_name || ''} ${(pl as any)?.last_name || ''}`.trim();
 
-    const pdf = await PDFDocument.create();
-    const font = await pdf.embedFont(StandardFonts.Helvetica);
-    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-    const M = 50, W = 612, H = 792, MAXW = W - M * 2;
-    let page = pdf.addPage([W, H]);
-    let y = H - M;
-    const space = (n: number) => { if (y - n < M) { page = pdf.addPage([W, H]); y = H - M; } };
-    const text = (t: string, size = 10, f = font, color = rgb(0.1, 0.1, 0.12)) => {
-      const words = String(t).split(/\s+/); let lineStr = '';
-      const flush = () => { if (lineStr) { space(size + 3); page.drawText(lineStr, { x: M, y, size, font: f, color }); y -= size + 3; lineStr = ''; } };
-      for (const w of words) {
-        const tryStr = lineStr ? lineStr + ' ' + w : w;
-        if (f.widthOfTextAtSize(tryStr, size) > MAXW) { flush(); lineStr = w; } else { lineStr = tryStr; }
-      }
-      flush();
+    const vals: Record<string, string> = {
+      participant_name: d.participant_name || playerName,
+      gender: d.gender || '', birthdate: fmtDate(d.birthdate || (pl as any)?.birthdate),
+      street: d.street || '', city: d.city || '', zip: d.zip || '',
+      participant_phone: d.participant_phone || '', participant_email: d.participant_email || '',
+      g1_name: d.g1_name || '', g1_phone: d.g1_phone || '', g1_other: d.g1_other || '',
+      g2_name: d.g2_name || '', g2_phone: d.g2_phone || '', guardian_emails: d.guardian_emails || '',
+      ec1_name: d.ec1_name || '', ec1_phone: d.ec1_phone || '', ec1_rel: d.ec1_rel || '', ec1_email: d.ec1_email || '',
+      ec2_name: d.ec2_name || '', ec2_phone: d.ec2_phone || '', ec2_rel: d.ec2_rel || '',
+      allergies: d.allergies || '', conditions: d.conditions || '',
+      physician: d.physician || '', physician_phone: d.physician_phone || '',
+      insurance_company: d.insurance_company || '', insurance_phone: d.insurance_phone || '',
+      policy_holder: d.policy_holder || '', policy_number: d.policy_number || '',
+      sig_name: sig.signer_name || '',
+      sig_date: new Date(sig.signed_at).toLocaleDateString('en-US', { timeZone: 'America/Chicago' }),
     };
-    const row = (label: string, val: any) => { if (val === undefined || val === null || String(val).trim() === '') return; space(15); page.drawText(label, { x: M, y, size: 10, font: bold, color: rgb(0.25, 0.25, 0.3) }); page.drawText(String(val), { x: M + 150, y, size: 10, font, color: rgb(0.05, 0.05, 0.08) }); y -= 15; };
-    const heading = (t: string) => { y -= 6; space(16); page.drawText(t, { x: M, y, size: 11, font: bold, color: rgb(0.04, 0.1, 0.2) }); y -= 16; };
 
-    page.drawText('IYSA Emergency Medical Release & Liability Waiver', { x: M, y, size: 15, font: bold, color: rgb(0.04, 0.1, 0.2) }); y -= 20;
-    text(`${teamName} · Rock City FC · Winter 2026-27 (ISL Indoor). Completed electronically.`, 9, font, rgb(0.4, 0.4, 0.45)); y -= 4;
-
-    heading('Participant');
-    row('Name', playerName); row('Gender', d.gender); row('Birthdate', d.birthdate || (pl as any)?.birthdate);
-    row('Street address', d.street); row('City', d.city); row('Zip', d.zip);
-    row('Primary phone', d.participant_phone); row('Email', d.participant_email);
-
-    heading('Parent / Guardian');
-    row('Guardian 1', d.g1_name); row('  Primary phone', d.g1_phone); row('  Other phone', d.g1_other);
-    row('Guardian 2', d.g2_name); row('  Phone', d.g2_phone); row('Email(s)', d.guardian_emails);
-
-    heading('Emergency Contacts');
-    row('Contact 1', d.ec1_name); row('  Phone', d.ec1_phone); row('  Relationship', d.ec1_rel); row('  Email', d.ec1_email);
-    row('Contact 2', d.ec2_name); row('  Phone', d.ec2_phone); row('  Relationship', d.ec2_rel);
-
-    heading('Medical & Insurance');
-    row('Allergies', d.allergies); row('Conditions', d.conditions);
-    row('Physician', d.physician); row('  Phone', d.physician_phone);
-    row('Insurance company', d.insurance_company); row('  Phone', d.insurance_phone);
-    row('Policy holder', d.policy_holder); row('Policy number', d.policy_number);
-
-    heading('Waiver & Code of Conduct');
-    for (const p of LEGAL) { text(p, 9); y -= 4; }
-
-    heading('Electronic Signature');
-    const signedCt = new Date(sig.signed_at).toLocaleString('en-US', { timeZone: 'America/Chicago' });
-    row('Signed by', `${sig.signer_name}${sig.relationship ? ` (${sig.relationship})` : ''}`);
-    row('Date & time', `${signedCt} (Central)`);
-    row('Method', 'Electronic signature via firefcapp.com');
-    if (sig.user_agent) { text(`Device: ${String(sig.user_agent).slice(0, 90)}`, 8, font, rgb(0.5, 0.5, 0.55)); }
-    y -= 4; text('By signing, the guardian confirmed they read and agreed to this waiver, medical release, media consent and code of conduct. Recorded and stored by Rock City FC.', 8, font, rgb(0.4, 0.4, 0.45));
+    const wres = await fetch(WAIVER_URL);
+    if (!wres.ok) return errResp('could not load waiver template', 502);
+    const pdf = await PDFDocument.load(new Uint8Array(await wres.arrayBuffer()));
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const ink = rgb(0.06, 0.1, 0.42);
+    const pages = pdf.getPages();
+    for (const [k, c] of Object.entries(COORDS)) {
+      const v = vals[k];
+      if (!v || !String(v).trim()) continue;
+      const pg = pages[c.p - 1];
+      if (!pg) continue;
+      // shrink if the value is long so it stays within the blank
+      const size = String(v).length > 34 ? 7 : 8.5;
+      pg.drawText(String(v), { x: c.x, y: c.y, size, font, color: ink });
+    }
 
     const bytes = await pdf.save();
-    const fname = `waiver-${(playerName || 'player').replace(/[^a-z0-9]+/gi, '-')}.pdf`;
+    const fname = `IYSA-waiver-${(playerName || 'player').replace(/[^a-z0-9]+/gi, '-')}.pdf`;
     return new Response(bytes, { status: 200, headers: { ...CORS, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${fname}"` } });
   } catch (e) {
     return errResp('error: ' + String(e), 500);
