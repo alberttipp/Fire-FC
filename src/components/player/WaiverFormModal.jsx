@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, FileSignature, ExternalLink, Loader2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { trackEvent } from '../../utils/analytics';
 
 // Full IYSA Emergency Medical Release & Liability Waiver — user-friendly fillable
 // form. Prefills what we know (participant from the player record, guardian from
@@ -40,6 +41,7 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
         if (!agree) { setErr('Please check the agreement box.'); return; }
         if (!sigName.trim()) { setErr('Please type your full legal name to sign.'); return; }
         setBusy(true); setErr('');
+        trackEvent('waiver_submit', { player_id: player.id }, { teamId: player.team_id });
         onSigned?.();  // optimistic — mark the checklist done
         try {
             const { error } = await supabase.rpc('sign_waiver', {
@@ -82,7 +84,9 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
                 </div>
 
                 <div className="overflow-y-auto p-4 space-y-5">
-                    <a href="/docs/2026-27-waiver.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-green hover:underline">
+                    <a href="/docs/2026-27-waiver.pdf" target="_blank" rel="noopener noreferrer"
+                        onClick={() => trackEvent('waiver_read_doc', { player_id: player.id }, { teamId: player.team_id })}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-green hover:underline">
                         <ExternalLink className="w-3.5 h-3.5" /> Read the full waiver document
                     </a>
 

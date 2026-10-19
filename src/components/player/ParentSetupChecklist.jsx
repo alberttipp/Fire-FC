@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Shirt, Camera, DollarSign, FileSignature } from 'lucide-react';
 import WaiverFormModal from './WaiverFormModal';
+import { trackEvent } from '../../utils/analytics';
 
 // ParentSetupChecklist — a live "get set up" checklist on the parent dashboard.
 // Some items auto-complete (photo added, jersey size chosen); others the parent
@@ -32,6 +33,7 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
 
     const setJersey = async (size) => {
         if (!player?.id) return;
+        trackEvent('jersey_size_set', { size, player_id: player.id }, { teamId: player.team_id });
         setSavingJersey(true);
         onPlayerChange?.({ jersey_size: size });            // optimistic
         try { await supabase.rpc('set_player_jersey_size', { p_player_id: player.id, p_size: size }); }
@@ -49,6 +51,7 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
 
     const toggleItem = async (key, next) => {
         if (!player?.id) return;
+        trackEvent('checklist_item', { item: key, done: next, player_id: player.id }, { teamId: player.team_id });
         onPlayerChange?.({ parent_setup_checklist: { ...checklist, [key]: next } });  // optimistic
         try { await supabase.rpc('set_parent_checklist_item', { p_player_id: player.id, p_key: key, p_done: next }); }
         catch (_) { /* optimistic */ }
@@ -132,6 +135,7 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
                                 {item.key === 'deposit' && !item.done && (
                                     <div className="mt-2 pl-9">
                                         <a href={venmoUrl} target="_blank" rel="noopener noreferrer"
+                                            onClick={() => trackEvent('deposit_pay_click', { player_id: player.id }, { teamId: player.team_id })}
                                             className="inline-block text-center px-4 py-2 rounded-lg font-bold text-sm text-white bg-[#008CFF] hover:brightness-110">
                                             Pay $50 on Venmo (@Albert-Tipp) →
                                         </a>

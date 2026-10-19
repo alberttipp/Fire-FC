@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Download, ExternalLink } from 'lucide-react';
+import { FileText, Download, ExternalLink, Activity } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../supabaseClient';
 import EcnlU11Rules from './EcnlU11Rules';
@@ -30,6 +30,7 @@ const RulesView = () => {
     // Staff-only waiver roster (list_waiver_signatures is staff-gated server-side;
     // parents get an error which we swallow, so the panel simply never shows for them).
     const [waivers, setWaivers] = useState(null);
+    const [activity, setActivity] = useState(null);
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
@@ -44,6 +45,10 @@ const RulesView = () => {
         // who aren't pinned to a single team (that's why the panel was blank).
         supabase.rpc('list_staff_waivers')
             .then(({ data, error }) => { if (active && !error && Array.isArray(data)) setWaivers(data); });
+        // Parent engagement (who clicked Venmo / opened the waiver / set a jersey) —
+        // staff-gated server-side, same scope as the waiver list.
+        supabase.rpc('winter_activity_overview')
+            .then(({ data, error }) => { if (active && !error && Array.isArray(data)) setActivity(data); });
         return () => { active = false; };
     }, [profile?.team_id]);
 
@@ -127,6 +132,46 @@ const RulesView = () => {
                                         ) : <span className="text-gray-500 text-xs whitespace-nowrap">not signed</span>}
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {activity && activity.length > 0 && (
+                <div className="glass-panel p-4 md:p-6 space-y-4">
+                    <div>
+                        <h2 className="text-white font-bold text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-brand-gold" /> Parent activity</h2>
+                        <p className="text-gray-500 text-xs uppercase tracking-widest mt-0.5">
+                            {activity.filter(a => a.deposit_paid).length}/{activity.length} paid · {activity.filter(a => a.waiver_signed).length} signed · {activity.filter(a => a.jersey_set).length} picked a jersey
+                        </p>
+                    </div>
+                    {Object.entries(activity.reduce((acc, a) => { (acc[a.team_name] = acc[a.team_name] || []).push(a); return acc; }, {})).map(([tname, rows]) => (
+                        <div key={tname}>
+                            <p className="text-brand-gold text-xs font-bold uppercase tracking-widest mb-1">{tname}</p>
+                            <div className="divide-y divide-white/5">
+                                {rows.map(a => {
+                                    const chip = (on, label) => (
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${on ? 'bg-brand-green/15 text-brand-green' : 'bg-white/5 text-gray-500'}`}>{on ? '✓ ' : ''}{label}</span>
+                                    );
+                                    return (
+                                        <div key={a.player_id} className="py-2 flex items-center justify-between gap-2 flex-wrap">
+                                            <div className="min-w-0">
+                                                <span className="text-white text-sm block truncate">{a.player_name}</span>
+                                                <span className="text-gray-500 text-[11px]">
+                                                    {a.deposit_clicks > 0 && `${a.deposit_clicks} Venmo tap${a.deposit_clicks > 1 ? 's' : ''} · `}
+                                                    {a.waiver_opens > 0 && `${a.waiver_opens} waiver open${a.waiver_opens > 1 ? 's' : ''} · `}
+                                                    {a.last_active ? `last active ${new Date(a.last_active).toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: 'numeric', day: 'numeric' })}` : 'not in app yet'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {chip(a.deposit_paid, 'Paid')}
+                                                {chip(a.waiver_signed, 'Waiver')}
+                                                {chip(a.jersey_set, 'Jersey')}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}

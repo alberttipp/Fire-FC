@@ -82,6 +82,43 @@ async function send(to: string, subject: string, player: string, link: string) {
   return { ok: false, status: r.status, body: await r.text().catch(() => '') };
 }
 
+async function sendRaw(to: string, subject: string, htmlStr: string, textStr: string) {
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: FROM, to: [to], subject, html: htmlStr, text: textStr }),
+  });
+  if (r.ok) return { ok: true };
+  return { ok: false, status: r.status, body: await r.text().catch(() => '') };
+}
+
+function reminderHtml(player: string, link: string): string {
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;line-height:1.55">
+  <div style="background:#0b1a33;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;font-weight:800;letter-spacing:1px;font-size:18px;text-transform:uppercase">⚽ Rock City FC — Winter</div>
+  <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:20px">
+    <p style="background:#fff7e6;border:1px solid #e6cd87;border-radius:8px;padding:10px 12px;margin:0 0 16px;font-weight:700">📱 Questions? Text or call Albert — 847.338.7700.</p>
+    <p>Just a quick nudge — <b>${player}</b> is on the Rock City FC winter roster, but we haven't seen you in the team app yet.</p>
+    <p>It takes about <b>60 seconds</b> — you'll get the schedule, team chat, your player's card, and can sign the league waiver.</p>
+    <p style="text-align:center;margin:22px 0"><a href="${link}" style="background:#e6cd87;color:#0b1a33;font-weight:800;text-decoration:none;padding:13px 24px;border-radius:10px;display:inline-block">Set up ${player}'s app →</a></p>
+    <p>Don't want you to miss anything as the season kicks off. Any trouble, just text me: 847.338.7700.</p>
+    <p style="font-weight:800;color:#0b1a33;margin-top:16px">Our city. Our club.</p>
+    <p style="color:#6b7280">— Albert &amp; the Rock City FC coaches</p>
+  </div>
+</div>`;
+}
+function reminderText(player: string, link: string): string {
+  return `Questions? Text or call Albert — 847.338.7700.
+
+Just a quick nudge — ${player} is on the Rock City FC winter roster, but we haven't seen you in the team app yet.
+
+It takes about 60 seconds — you'll get the schedule, team chat, your player's card, and can sign the league waiver.
+
+Set up ${player}'s app: ${link}
+
+Any trouble, just text me: 847.338.7700.
+— Albert & the Rock City FC coaches`;
+}
+
 const linkFor = (code: string) => `https://firefcapp.com/login?join=${code}`;
 
 Deno.serve(async (req) => {
@@ -112,6 +149,23 @@ Deno.serve(async (req) => {
         await new Promise((x) => setTimeout(x, 120)); // gentle pacing
       }
       return json({ ok: true, mode: 'live', total: list.length, sent, errors });
+    }
+
+    if (mode === 'reminders') {
+      if (body.confirm !== 'SEND-REMINDERS') return json({ ok: false, error: 'confirm token required' }, 400);
+      const { data: un, error: e2 } = await supa.rpc('list_winter_unsigned_recipients');
+      if (e2) return json({ ok: false, error: e2.message }, 500);
+      const rows = (un || []) as { first_name: string; guardian_code: string; email: string }[];
+      let sent = 0;
+      const errors: unknown[] = [];
+      for (const r of rows) {
+        const link = linkFor(r.guardian_code);
+        const res = await sendRaw(r.email, `Rock City FC — a quick nudge to get ${r.first_name} set up`, reminderHtml(r.first_name, link), reminderText(r.first_name, link));
+        if (res.ok) sent++;
+        else errors.push({ email: r.email, ...res });
+        await new Promise((x) => setTimeout(x, 120));
+      }
+      return json({ ok: true, mode: 'reminders', total: rows.length, sent, errors });
     }
 
     if (mode === 'single') {
