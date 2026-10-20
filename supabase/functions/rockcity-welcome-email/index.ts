@@ -119,6 +119,46 @@ Any trouble, just text me: 847.338.7700.
 — Albert & the Rock City FC coaches`;
 }
 
+function checklistHtml(player: string): string {
+  const app = 'https://firefcapp.com';
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;line-height:1.55">
+  <div style="background:#0b1a33;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;font-weight:800;letter-spacing:1px;font-size:18px;text-transform:uppercase">⚽ Rock City FC — Winter</div>
+  <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:20px">
+    <p style="background:#fff7e6;border:1px solid #e6cd87;border-radius:8px;padding:10px 12px;margin:0 0 16px;font-weight:700">📱 Questions or trouble logging in? Text or call Albert — 847.338.7700.</p>
+    <p><b>Thank you for signing ${player} up</b> for the Rock City FC winter season — we're fired up to get going!</p>
+    <p style="background:#eef6ef;border:1px solid #cfe8cf;border-radius:8px;padding:12px 14px;font-weight:700">🧵 We're ordering uniforms THIS WEEK — please lock in your jersey size &amp; number ASAP so ${player} gets the right kit.</p>
+    <p><b>Three quick things to finish in the app:</b></p>
+    <ol style="padding-left:18px">
+      <li style="margin-bottom:6px"><b>Pick a jersey size &amp; number</b> — on your player's setup checklist.</li>
+      <li style="margin-bottom:6px"><b>Sign the league waiver</b> — right from the checklist (takes about 2 minutes).</li>
+      <li style="margin-bottom:6px"><b>Pay the $50 deposit</b> — Venmo <b>@Albert-Tipp</b> (put ${player}'s name in the note).</li>
+    </ol>
+    <p style="text-align:center;margin:22px 0"><a href="${app}" style="background:#e6cd87;color:#0b1a33;font-weight:800;text-decoration:none;padding:13px 24px;border-radius:10px;display:inline-block">Open the app →</a></p>
+    <p style="color:#6b7280;font-size:13px">Already done some of these? Perfect — just finish whatever's left. Your checklist is right there when you log in.</p>
+    <p style="font-weight:800;color:#0b1a33;margin-top:16px">Our city. Our club.</p>
+    <p style="color:#6b7280">— Albert &amp; the Rock City FC coaches</p>
+  </div>
+</div>`;
+}
+function checklistText(player: string): string {
+  return `Questions or trouble logging in? Text or call Albert — 847.338.7700.
+
+Thank you for signing ${player} up for the Rock City FC winter season!
+
+We're ordering uniforms THIS WEEK — please lock in your jersey size & number ASAP so ${player} gets the right kit.
+
+Three quick things to finish in the app:
+1) Pick a jersey size & number (on your player's setup checklist).
+2) Sign the league waiver (right from the checklist, ~2 minutes).
+3) Pay the $50 deposit — Venmo @Albert-Tipp (put ${player}'s name in the note).
+
+Open the app: https://firefcapp.com
+
+Already done some of these? Great — just finish whatever's left.
+Our city. Our club.
+— Albert & the Rock City FC coaches`;
+}
+
 const linkFor = (code: string) => `https://firefcapp.com/login?join=${code}`;
 
 Deno.serve(async (req) => {
@@ -166,6 +206,25 @@ Deno.serve(async (req) => {
         await new Promise((x) => setTimeout(x, 120));
       }
       return json({ ok: true, mode: 'reminders', total: rows.length, sent, errors });
+    }
+
+    if (mode === 'checklist') {
+      const subject = '⚽ Rock City FC — jersey, waiver & deposit before we order uniforms';
+      if (body.test_email) {
+        const s = list[0] || { first_name: 'Bo' };
+        const res = await sendRaw(body.test_email, '[TEST] ' + subject, checklistHtml(s.first_name), checklistText(s.first_name));
+        return json({ ok: res.ok, mode: 'checklist', dry: true, recipients_total: list.length, send: res });
+      }
+      if (body.confirm !== 'SEND-CHECKLIST') return json({ ok: false, error: 'confirm token required' }, 400);
+      let sent = 0;
+      const errors: unknown[] = [];
+      for (const r of list) {
+        const res = await sendRaw(r.email, subject, checklistHtml(r.first_name), checklistText(r.first_name));
+        if (res.ok) sent++;
+        else errors.push({ email: r.email, ...res });
+        await new Promise((x) => setTimeout(x, 120));
+      }
+      return json({ ok: true, mode: 'checklist', total: list.length, sent, errors });
     }
 
     if (mode === 'single') {
