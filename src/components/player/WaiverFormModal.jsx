@@ -35,7 +35,7 @@ const REQUIRED_FIELDS = [
 // React remounts each input and focus is lost after one character.
 const Field = ({ l, k, req, type = 'text', half, f, set }) => (
     <label className={`block ${half ? '' : 'col-span-2'}`}>
-        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{l}{req && <span className="text-brand-gold"> *</span>}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{l}{req && <span className="text-red-400 font-bold"> *</span>}</span>
         <input type={type} value={f[k]} onChange={set(k)} className={inp} />
     </label>
 );
@@ -113,10 +113,14 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
                         <ExternalLink className="w-3.5 h-3.5" /> Read the full waiver document
                     </a>
 
+                    <div className="rounded-lg border border-red-400/30 bg-red-400/5 px-3 py-2">
+                        <p className="text-xs text-gray-300">Fields marked <span className="text-red-400 font-bold">*</span> are <b>required</b> — you can't submit until those are filled in. Everything else is optional.</p>
+                    </div>
+
                     <Section title="Participant">
                         <Field l="Full name" k="participant_name" req f={f} set={set} />
                         <label className="block">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Gender <span className="text-brand-gold">*</span></span>
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Gender <span className="text-red-400 font-bold">*</span></span>
                             <select value={f.gender} onChange={set('gender')} className={inp}>
                                 <option value="" className="bg-gray-800">Select…</option>
                                 <option value="Male" className="bg-gray-800">Male</option>
@@ -168,7 +172,7 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
                             <span>I have read and agree to the <b>Liability Waiver, Medical Release, media consent & Code of Conduct</b> on behalf of {player?.first_name || 'my player'}.</span>
                         </label>
                         <label className="block">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Type your full legal name to sign <span className="text-brand-gold">*</span></span>
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Type your full legal name to sign <span className="text-red-400 font-bold">*</span></span>
                             <input value={sigName} onChange={(e) => setSigName(e.target.value)} className={inp} placeholder="Your full legal name" />
                             <span className="text-[11px] text-gray-500">Signed electronically on {new Date().toLocaleDateString()}.</span>
                         </label>
