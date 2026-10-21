@@ -12,6 +12,24 @@ const WAIVER_KEY = 'isl-indoor-2026-27';
 
 const inp = 'w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-green focus:outline-none';
 
+// Required fields + friendly labels, so a blocked submit can say exactly what's
+// missing instead of a vague "fill in all required fields" the parent can't act on.
+const REQUIRED_FIELDS = [
+    ['participant_name', 'Participant full name'],
+    ['gender', 'Gender'],
+    ['birthdate', 'Birthdate'],
+    ['street', 'Street address'],
+    ['city', 'City'],
+    ['zip', 'Zip'],
+    ['g1_name', 'Guardian 1 name'],
+    ['g1_phone', 'Guardian 1 phone'],
+    ['ec1_name', 'Emergency contact name'],
+    ['ec1_phone', 'Emergency contact phone'],
+    ['ec1_rel', 'Emergency contact relationship'],
+    ['insurance_company', 'Insurance company'],
+    ['policy_holder', 'Policy holder name'],
+];
+
 // NOTE: Field and Section MUST live at module scope. If they're defined inside
 // WaiverFormModal, every keystroke re-creates them as new component types, so
 // React remounts each input and focus is lost after one character.
@@ -54,10 +72,10 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
 
     const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
 
-    const required = ['participant_name', 'gender', 'birthdate', 'street', 'city', 'zip', 'g1_name', 'g1_phone', 'ec1_name', 'ec1_phone', 'ec1_rel', 'insurance_company', 'policy_holder'];
     const submit = async () => {
-        for (const k of required) { if (!String(f[k] || '').trim()) { setErr('Please fill in all required (*) fields.'); return; } }
-        if (!agree) { setErr('Please check the agreement box.'); return; }
+        const missing = REQUIRED_FIELDS.filter(([k]) => !String(f[k] || '').trim());
+        if (missing.length) { setErr('Still needed: ' + missing.map(([, l]) => l).join(', ') + '.'); return; }
+        if (!agree) { setErr('Please check the “I agree” box to continue.'); return; }
         if (!sigName.trim()) { setErr('Please type your full legal name to sign.'); return; }
         setBusy(true); setErr('');
         trackEvent('waiver_submit', { player_id: player.id }, { teamId: player.team_id });
@@ -155,10 +173,10 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
                             <span className="text-[11px] text-gray-500">Signed electronically on {new Date().toLocaleDateString()}.</span>
                         </label>
                     </div>
-                    {err && <p className="text-red-400 text-sm">{err}</p>}
                 </div>
 
                 <div className="p-4 border-t border-white/10 shrink-0">
+                    {err && <p className="text-red-400 text-sm mb-2 text-center">{err}</p>}
                     <button onClick={submit} disabled={busy} className="w-full py-3 rounded-lg font-bold text-sm uppercase tracking-wider text-brand-dark bg-brand-green hover:bg-white disabled:opacity-50 flex items-center justify-center gap-2">
                         {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : 'Sign & submit waiver'}
                     </button>
