@@ -159,6 +159,60 @@ Our city. Our club.
 — Albert & the Rock City FC coaches`;
 }
 
+function practiceHtml(): string {
+  const app = 'https://firefcapp.com';
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;line-height:1.55">
+  <div style="background:#0b1a33;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;font-weight:800;letter-spacing:1px;font-size:18px;text-transform:uppercase">⚽ Rock City FC — Winter</div>
+  <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:20px">
+    <p style="background:#fff7e6;border:1px solid #e6cd87;border-radius:8px;padding:10px 12px;margin:0 0 16px;font-weight:700">📱 Questions? Text or call Albert anytime — 847.338.7700.</p>
+    <p>Rock City FC families — it's go time! Our first two sessions are set, and both are now on the <b>team calendar in the app</b>:</p>
+    <div style="background:#f3f4f6;border-radius:8px;padding:14px 16px;margin:14px 0">
+      <p style="margin:0 0 10px"><b>🗓️ This Thursday (Oct 29): 5:00–6:00 PM</b><br><span style="color:#b91c1c;font-weight:700">⚠️ OUTDOORS</span> — please dress for the weather.</p>
+      <p style="margin:0 0 10px"><b>🗓️ Next Thursday (Nov 5): 5:30–7:00 PM</b><br><span style="color:#0b1a33;font-weight:700">🏀 INDOORS on the gym floor</span> — please bring <b>indoor/flat shoes (no cleats)</b>.</p>
+      <p style="margin:0">📍 <b>Rock Valley College</b><br>3301 N. Mulford Rd, Rockford, IL 61114 <i>(both sessions)</i></p>
+    </div>
+    <p>Thursday's is a combined <b>practice + team meeting</b> for both squads — a great chance to meet the coaches and the team before the season.</p>
+    <p style="background:#eef6ef;border:1px solid #cfe8cf;border-radius:8px;padding:12px 14px"><b>📲 We're moving to the app as our main way to communicate going forward.</b> Please open the app, find each practice on the calendar, and <b>mark whether you can make it (RSVP) as soon as you know</b> — it really helps the coaches plan. Team chat and all updates will live there too.</p>
+    <p><b>A couple of season notes:</b></p>
+    <ul>
+      <li>I'll send <b>more details later today</b> on what we still need before the season starts. For the <b>U12 International League</b> team, the main item is getting a <b>team appointment for player cards</b> — specifics coming shortly.</li>
+      <li>For the <b>U13 Elite League</b> team, I'm still waiting on details from the new league and will share them the moment I have them.</li>
+    </ul>
+    <p>If you haven't finished your player's checklist (<b>jersey size &amp; number, waiver, deposit</b>), please knock it out this week.</p>
+    <p><b>Thank you all so much for your patience</b> getting everything set up — we're going to have a great season. See you Thursday!</p>
+    <p style="text-align:center;margin:22px 0"><a href="${app}" style="background:#e6cd87;color:#0b1a33;font-weight:800;text-decoration:none;padding:13px 24px;border-radius:10px;display:inline-block">Open the app &amp; RSVP →</a></p>
+    <p style="font-weight:800;color:#0b1a33;margin-top:16px">Our city. Our club.</p>
+    <p style="color:#6b7280">— Albert &amp; the Rock City FC coaches</p>
+  </div>
+</div>`;
+}
+function practiceText(): string {
+  return `Questions? Text or call Albert anytime — 847.338.7700.
+
+Rock City FC families — it's go time! Our first two sessions are set, and both are now on the team calendar in the app:
+
+THIS THURSDAY (Oct 29): 5:00–6:00 PM — OUTDOORS, please dress for the weather.
+NEXT THURSDAY (Nov 5): 5:30–7:00 PM — INDOORS on the gym floor, please bring indoor/flat shoes (no cleats).
+Location: Rock Valley College, 3301 N. Mulford Rd, Rockford, IL 61114 (both sessions).
+
+Thursday's is a combined practice + team meeting for both squads — come meet the coaches and the team.
+
+We're moving to the app as our main way to communicate going forward. Please open the app, find each practice on the calendar, and mark whether you can make it (RSVP) as soon as you know — it helps the coaches plan. Team chat and all updates live there too.
+
+Season notes:
+- More details coming later today. For the U12 International League team, the main item is getting a team appointment for player cards — specifics soon.
+- For the U13 Elite League team, I'm still waiting on details from the new league and will share them as soon as I have them.
+
+If you haven't finished your player's checklist (jersey size & number, waiver, deposit), please knock it out this week.
+
+Thank you all for your patience getting everything set up — it's going to be a great season. See you Thursday!
+
+Open the app & RSVP: https://firefcapp.com
+
+Our city. Our club.
+— Albert & the Rock City FC coaches`;
+}
+
 const linkFor = (code: string) => `https://firefcapp.com/login?join=${code}`;
 
 Deno.serve(async (req) => {
@@ -225,6 +279,24 @@ Deno.serve(async (req) => {
         await new Promise((x) => setTimeout(x, 120));
       }
       return json({ ok: true, mode: 'checklist', total: list.length, sent, errors });
+    }
+
+    if (mode === 'practice') {
+      const subject = '⚽ Rock City FC — First Practice Thursday + We\'re Moving to the App';
+      if (body.test_email) {
+        const res = await sendRaw(body.test_email, '[TEST] ' + subject, practiceHtml(), practiceText());
+        return json({ ok: res.ok, mode: 'practice', dry: true, recipients_total: list.length, send: res });
+      }
+      if (body.confirm !== 'SEND-PRACTICE') return json({ ok: false, error: 'confirm token required' }, 400);
+      let sent = 0;
+      const errors: unknown[] = [];
+      for (const r of list) {
+        const res = await sendRaw(r.email, subject, practiceHtml(), practiceText());
+        if (res.ok) sent++;
+        else errors.push({ email: r.email, ...res });
+        await new Promise((x) => setTimeout(x, 120));
+      }
+      return json({ ok: true, mode: 'practice', total: list.length, sent, errors });
     }
 
     if (mode === 'single') {
