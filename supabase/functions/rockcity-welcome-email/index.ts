@@ -92,6 +92,16 @@ async function sendRaw(to: string, subject: string, htmlStr: string, textStr: st
   return { ok: false, status: r.status, body: await r.text().catch(() => '') };
 }
 
+async function sendRawAtt(to: string, subject: string, htmlStr: string, textStr: string, attachments: unknown[]) {
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: FROM, to: [to], subject, html: htmlStr, text: textStr, attachments }),
+  });
+  if (r.ok) return { ok: true };
+  return { ok: false, status: r.status, body: await r.text().catch(() => '') };
+}
+
 function reminderHtml(player: string, link: string): string {
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;line-height:1.55">
   <div style="background:#0b1a33;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;font-weight:800;letter-spacing:1px;font-size:18px;text-transform:uppercase">⚽ Rock City FC — Winter</div>
@@ -213,6 +223,77 @@ Our city. Our club.
 — Albert & the Rock City FC coaches`;
 }
 
+function tonightHtml(): string {
+  const app = 'https://firefcapp.com';
+  const map = 'https://firefcapp.com/docs/rvc-campus-map.jpg';
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;line-height:1.55">
+  <div style="background:#0b1a33;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;font-weight:800;letter-spacing:1px;font-size:18px;text-transform:uppercase">⚽ Rock City FC — Winter</div>
+  <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:20px">
+    <p style="background:#fff7e6;border:1px solid #e6cd87;border-radius:8px;padding:10px 12px;margin:0 0 16px;font-weight:700">📱 Questions? Text or call Albert anytime — 847.338.7700.</p>
+    <p>Rock City FC — it's here. <b>First practice is TONIGHT and the season is right around the corner.</b> 🔥</p>
+    <div style="background:#fff7e6;border:1px solid #e6cd87;border-radius:8px;padding:12px 14px;margin:14px 0">
+      <p style="margin:0 0 6px;font-weight:800">🗓️ TONIGHT — Thursday, Oct 29 · 5:00–6:00 PM · OUTDOORS</p>
+      <p style="margin:0">📍 <b>Rock Valley College — 3301 N. Mulford Rd, Rockford, IL 61114</b><br>🅿️ <b>Park in Lot 10</b> (northwest corner, just inside the Mulford Rd entrance) — the <b>athletic fields are right there.</b> Dress for the weather! <i>(Campus map below &amp; attached.)</i></p>
+    </div>
+    <p style="background:#eef6ef;border:1px solid #cfe8cf;border-radius:8px;padding:12px 14px"><b>👉 Please update your status for tonight in the app</b> — tap the practice on the calendar and mark <b>Going / Can't Make It</b> so the coaches know who to expect. We're moving all communication to the app, so this is the place.</p>
+    <p style="font-weight:800;color:#0b1a33;margin:18px 0 6px">📅 The next few weeks</p>
+    <ul>
+      <li><b>Tonight (10/29):</b> Practice — RVC, outdoors, 5–6 PM</li>
+      <li><b>Thu 11/5:</b> Practice — RVC, <b>indoors on the gym floor</b>, 5:30–7:00 PM (bring <b>indoor/flat shoes</b>)</li>
+      <li><b>Next week:</b> Getting <b>player cards</b> sorted for everyone on the <b>U12 International</b> team — <b>main roster + backups</b> (more details coming)</li>
+      <li>🏆 <b>Sat 11/7: FIRST U12 International GAME!</b></li>
+      <li>🏆 <b>Sat 11/14: Elite Tournament</b> (U13)</li>
+      <li>🏆 <b>Sat 11/21: Elite League season starts</b> (U13)</li>
+    </ul>
+    <p style="font-weight:800;color:#0b1a33;margin:18px 0 6px">🥅 Friday-night futsal? Let's talk tonight</p>
+    <p>There's a chance to add <b>Raptors Futsal on Friday nights</b> — we'd <b>swap our weekly practice most weekends</b> so the kids can play futsal and rack up extra touches. <b>Come ready to chat tonight</b> and let us know if your player's interested.</p>
+    <div style="background:#f3f4f6;border-radius:8px;padding:12px 14px;margin:16px 0">
+      <p style="margin:0 0 4px;font-weight:800">💵 Please pay the $150 by Wednesday (Nov 4)</p>
+      <p style="margin:0">To lock in league fees + uniform, send the <b>$150</b> balance by <b>next Wednesday</b> — <b>Venmo @Albert-Tipp</b> (player's name in the note).</p>
+    </div>
+    <div style="background:#f3f4f6;border-radius:8px;padding:12px 14px;margin:16px 0">
+      <p style="margin:0 0 4px;font-weight:800">👕 Uniforms order in a few days — update your size NOW</p>
+      <p style="margin:0">We're ordering kits <b>this week</b>, so please open the app and <b>confirm your jersey size &amp; number</b> today so your player gets the right fit.</p>
+    </div>
+    <p style="text-align:center;margin:22px 0"><a href="${app}" style="background:#e6cd87;color:#0b1a33;font-weight:800;text-decoration:none;padding:13px 24px;border-radius:10px;display:inline-block">Open the app — RSVP &amp; update size →</a></p>
+    <p>See you tonight at Rock Valley — let's set the tone. 💪</p>
+    <p style="font-weight:800;color:#0b1a33;margin:18px 0 6px">📍 Rock Valley College — parking &amp; fields</p>
+    <img src="${map}" alt="Rock Valley College campus map — Parking Lot 10 and athletic fields" style="width:100%;max-width:560px;border-radius:10px;border:1px solid #e5e7eb" />
+    <p style="color:#6b7280;margin-top:16px">— Albert &amp; the Rock City FC coaches</p>
+  </div>
+</div>`;
+}
+function tonightText(): string {
+  return `Questions? Text or call Albert anytime — 847.338.7700.
+
+Rock City FC — it's here. First practice is TONIGHT and the season is right around the corner!
+
+TONIGHT — Thursday, Oct 29 — 5:00-6:00 PM — OUTDOORS
+Rock Valley College, 3301 N. Mulford Rd, Rockford, IL 61114.
+Park in Lot 10 (northwest corner, just inside the Mulford Rd entrance) — the athletic fields are right there. Dress for the weather. (Campus map attached.)
+
+Please update your status for tonight in the app — tap the practice on the calendar and mark Going / Can't Make It. We're moving all communication to the app.
+
+The next few weeks:
+- Tonight (10/29): Practice — RVC, outdoors, 5-6 PM
+- Thu 11/5: Practice — RVC, indoors on the gym floor, 5:30-7:00 PM (bring indoor/flat shoes)
+- Next week: Getting player cards sorted for everyone on the U12 International team — main roster + backups (more details coming)
+- Sat 11/7: FIRST U12 International GAME!
+- Sat 11/14: Elite Tournament (U13)
+- Sat 11/21: Elite League season starts (U13)
+
+Friday-night futsal? Let's talk tonight. There's a chance to add Raptors Futsal on Friday nights — we'd swap our weekly practice most weekends so the kids can play futsal. Come ready to chat tonight and let us know if your player's interested.
+
+Please pay the $150 by Wednesday (Nov 4) — Venmo @Albert-Tipp (player's name in the note).
+
+Uniforms order in a few days — please open the app and confirm your jersey size & number today.
+
+Open the app: https://firefcapp.com
+
+See you tonight at Rock Valley — let's set the tone.
+— Albert & the Rock City FC coaches`;
+}
+
 const linkFor = (code: string) => `https://firefcapp.com/login?join=${code}`;
 
 Deno.serve(async (req) => {
@@ -297,6 +378,36 @@ Deno.serve(async (req) => {
         await new Promise((x) => setTimeout(x, 120));
       }
       return json({ ok: true, mode: 'practice', total: list.length, sent, errors });
+    }
+
+    if (mode === 'tonight') {
+      const subject = '⚽ Rock City FC — Practice TONIGHT 🔥 + Games, Cards & Uniforms Ahead';
+      // Fetch the campus map once and attach it to every email.
+      let attachments: unknown[] = [];
+      try {
+        const mres = await fetch('https://firefcapp.com/docs/rvc-campus-map.jpg');
+        if (mres.ok) {
+          const bytes = new Uint8Array(await mres.arrayBuffer());
+          let bin = '';
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          attachments = [{ filename: 'RockValleyCollege-Map.jpg', content: btoa(bin) }];
+        }
+      } catch (_) { /* map optional */ }
+
+      if (body.test_email) {
+        const res = await sendRawAtt(body.test_email, '[TEST] ' + subject, tonightHtml(), tonightText(), attachments);
+        return json({ ok: res.ok, mode: 'tonight', dry: true, recipients_total: list.length, map_attached: attachments.length > 0, send: res });
+      }
+      if (body.confirm !== 'SEND-TONIGHT') return json({ ok: false, error: 'confirm token required' }, 400);
+      let sent = 0;
+      const errors: unknown[] = [];
+      for (const r of list) {
+        const res = await sendRawAtt(r.email, subject, tonightHtml(), tonightText(), attachments);
+        if (res.ok) sent++;
+        else errors.push({ email: r.email, ...res });
+        await new Promise((x) => setTimeout(x, 150));
+      }
+      return json({ ok: true, mode: 'tonight', total: list.length, sent, map_attached: attachments.length > 0, errors });
     }
 
     if (mode === 'single') {
