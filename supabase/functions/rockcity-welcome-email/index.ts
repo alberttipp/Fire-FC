@@ -332,6 +332,48 @@ Open the app: https://firefcapp.com
 — Albert & the Rock City FC coaches`;
 }
 
+function tournamentHtml(): string {
+  const app = 'https://firefcapp.com';
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;line-height:1.55">
+  <div style="background:#0b1a33;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;font-weight:800;letter-spacing:1px;font-size:18px;text-transform:uppercase">⚽ Rock City FC — U13</div>
+  <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:20px">
+    <p style="background:#fff7e6;border:1px solid #e6cd87;border-radius:8px;padding:10px 12px;margin:0 0 16px;font-weight:700">📱 Questions? Text or call Albert — 847.338.7700.</p>
+    <p><b>U13 families — who wants in on a tournament?</b> 🏆</p>
+    <p>We're putting together a squad for the tournament at <b>Elite Sports Center on Saturday, Nov 14</b>. A few details:</p>
+    <ul>
+      <li>📅 <b>All-day event</b> (exact schedule TBD)</li>
+      <li>🏟️ <b>Elite Sports Center</b></li>
+      <li>🧩 We'll <b>likely enter as a U12</b> team</li>
+      <li>💵 <b>Team entry is $390</b> — split among the players who play, so the more kids who join, the lower the cost per player</li>
+    </ul>
+    <p>We're aiming for about <b>10 players</b>. If your player wants in:</p>
+    <p style="background:#eef6ef;border:1px solid #cfe8cf;border-radius:8px;padding:12px 14px;font-weight:700">👉 Open the app → <b>Calendar</b> → <b>“Elite Tournament — who's in?”</b> → tap <b>GOING</b>.</p>
+    <p style="text-align:center;margin:22px 0"><a href="${app}" style="background:#e6cd87;color:#0b1a33;font-weight:800;text-decoration:none;padding:13px 24px;border-radius:10px;display:inline-block">Open the app &amp; tap Going →</a></p>
+    <p>Please respond soon so we can lock in the roster and register. Thanks!</p>
+    <p style="color:#6b7280;margin-top:16px">— Albert &amp; the Rock City FC coaches</p>
+  </div>
+</div>`;
+}
+function tournamentText(): string {
+  return `Questions? Text or call Albert — 847.338.7700.
+
+U13 families — who wants in on a tournament?
+
+We're putting together a squad for the tournament at Elite Sports Center on Saturday, Nov 14. Details:
+- All-day event (exact schedule TBD)
+- Elite Sports Center
+- We'll likely enter as a U12 team
+- Team entry is $390 — split among the players who play, so the more kids who join, the lower the cost per player
+
+We're aiming for about 10 players. If your player wants in:
+Open the app -> Calendar -> "Elite Tournament — who's in?" -> tap GOING.
+
+Open the app: https://firefcapp.com
+
+Please respond soon so we can lock in the roster and register. Thanks!
+— Albert & the Rock City FC coaches`;
+}
+
 const linkFor = (code: string) => `https://firefcapp.com/login?join=${code}`;
 
 Deno.serve(async (req) => {
@@ -446,6 +488,28 @@ Deno.serve(async (req) => {
         await new Promise((x) => setTimeout(x, 150));
       }
       return json({ ok: true, mode: 'tonight', total: list.length, sent, map_attached: attachments.length > 0, errors });
+    }
+
+    if (mode === 'tournament') {
+      const U13 = '545cc936-ad24-4068-bd55-feaca1640f45';
+      const { data: rows, error: e3 } = await supa.rpc('list_team_guardian_emails', { p_team_id: U13 });
+      if (e3) return json({ ok: false, error: e3.message }, 500);
+      const emails = (rows || []).map((r: { email: string }) => r.email);
+      const subject = "⚽ Rock City FC U13 — Who's in for the Nov 14 Tournament?";
+      if (body.test_email) {
+        const res = await sendRaw(body.test_email, '[TEST] ' + subject, tournamentHtml(), tournamentText());
+        return json({ ok: res.ok, mode: 'tournament', dry: true, recipients_total: emails.length, send: res });
+      }
+      if (body.confirm !== 'SEND-TOURNAMENT') return json({ ok: false, error: 'confirm token required' }, 400);
+      let sent = 0;
+      const errors: unknown[] = [];
+      for (const em of emails) {
+        const res = await sendRaw(em, subject, tournamentHtml(), tournamentText());
+        if (res.ok) sent++;
+        else errors.push({ email: em, ...res });
+        await new Promise((x) => setTimeout(x, 150));
+      }
+      return json({ ok: true, mode: 'tournament', total: emails.length, sent, errors });
     }
 
     if (mode === 'loginhelp') {
