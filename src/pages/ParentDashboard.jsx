@@ -150,6 +150,7 @@ const ParentDashboard = () => {
     // onboarding gate never renders): auto-open the linking flow so the new kid
     // actually links. New parents (no kids) still use the inline gate below.
     const [showLinkFlow, setShowLinkFlow] = useState(false);
+    const [loadError, setLoadError] = useState(false);
     const [justLinkedName, setJustLinkedName] = useState('');
     useEffect(() => {
         // Existing parent (already has >=1 kid) who opened an invite link:
@@ -270,6 +271,7 @@ const ParentDashboard = () => {
 
     const fetchChildrenData = async () => {
         setLoading(true);
+        setLoadError(false);
         try {
             // Preview mode (coach/manager previewing parent view): bypass the
             // family_members lookup and pull the requested player directly.
@@ -279,25 +281,29 @@ const ParentDashboard = () => {
             if (isPreview && previewPlayerId) {
                 playerIds = [previewPlayerId];
             } else {
-                // Get linked children via family_members table
-                const { data: links } = await supabase
+                // Get linked children via family_members table. CHECK the error:
+                // a transient/RLS failure must NOT look like "no kids" (which would
+                // throw an established parent to the Welcome/onboarding gate).
+                const { data: links, error: linksError } = await supabase
                     .from('family_members')
                     .select('player_id')
                     .eq('user_id', user.id)
-                    .in('relationship', ['guardian', 'fan']);
+                    .in('relationship', ['guardian', 'fan', 'parent']);
+                if (linksError) { setLoadError(true); setLoading(false); return; }
 
                 playerIds = links?.map(l => l.player_id) || [];
             }
 
             if (playerIds.length > 0) {
                 // Fetch full player data
-                const { data: players } = await supabase
+                const { data: players, error: playersError } = await supabase
                     .from('players')
                     .select(`
                         *,
                         teams:team_id (name, age_group)
                     `)
                     .in('id', playerIds);
+                if (playersError) { setLoadError(true); setLoading(false); return; }
 
                 if (players && players.length > 0) {
                     setChildren(players);
@@ -311,6 +317,7 @@ const ParentDashboard = () => {
             setLoading(false);
         } catch (err) {
             console.error('Error fetching children:', err);
+            setLoadError(true);
             setLoading(false);
         }
     };
@@ -1003,6 +1010,7 @@ const ParentDashboard = () => {
                             white-label club's families. */}
                         {childClub.slug === 'rock-city-fc' && selectedChild?.id && (
                             <ParentSetupChecklist
+                                key={selectedChild.id}
                                 player={selectedChild}
                                 onPlayerChange={(patch) => {
                                     setSelectedChild((prev) => prev ? { ...prev, ...patch } : prev);
@@ -1447,6 +1455,31 @@ const ParentDashboard = () => {
     // mode (coach/manager viewing as parent) bypasses since the player
     // is already injected via ?preview=. Loading state also passes
     // through so we don't flash the gate before children are fetched.
+    // A failed fetch (network/RLS) must NOT masquerade as "no kids linked" — show
+    // a retry, so an established parent is never told their child vanished.
+    if (!loading && !isPreview && loadError && children.length === 0) {
+        return (
+            <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4">
+                <div className="max-w-md w-full text-center">
+                    <div className="w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                        <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
+                    </div>
+                    <h1 className="text-xl text-white font-display uppercase font-bold tracking-wider">Couldn't load your family</h1>
+                    <p className="text-gray-400 text-sm mt-2">Check your connection and try again — your player is still here.</p>
+                    <button
+                        onClick={() => fetchChildrenData()}
+                        className="mt-5 px-5 py-2.5 rounded-lg bg-brand-green text-brand-dark font-bold text-sm uppercase tracking-wider hover:bg-white"
+                    >
+                        Retry
+                    </button>
+                    <div className="mt-6">
+                        <button onClick={async () => { await signOut(); navigate('/login'); }} className="text-xs text-gray-500 hover:text-gray-300 underline">Sign out</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!loading && !isPreview && children.length === 0) {
         return (
             <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4">

@@ -218,11 +218,27 @@ const useCalendarEvents = ({ user, profile, dateRange, rsvpPlayerId }) => {
     }, [user?.id, fetchEvents]);
 
     const handleRsvp = async (eventId, status) => {
-        // Targets: every kid this user can write for who is on the event's team.
-        // Without an event object handy here we use all linkedPlayers — RLS
-        // blocks writes for kids not on the team anyway, so worst case is one
-        // upsert silently no-ops (and the toast still reports the rest).
-        const targets = linkedPlayers;
+        let targets = linkedPlayers;
+        // Scope multi-kid families to only the kid(s) actually on THIS event's
+        // team. The event_rsvps RLS checks guardianship but NOT event→team, so
+        // without this a dual-team parent tapping Going on Team A's event would
+        // also write a bogus RSVP for their Team B kid (inflating headcounts).
+        if (linkedPlayers.length > 1) {
+            const ev = events.find(e => e.id === eventId);
+            if (ev?.team_id) {
+                const { data: onTeam, error: scopeErr } = await supabase
+                    .from('player_teams')
+                    .select('player_id')
+                    .eq('team_id', ev.team_id)
+                    .eq('status', 'active')
+                    .in('player_id', linkedPlayers.map(p => p.id));
+                if (!scopeErr && onTeam) {
+                    const allowed = new Set(onTeam.map(r => r.player_id));
+                    const scoped = linkedPlayers.filter(p => allowed.has(p.id));
+                    if (scoped.length > 0) targets = scoped; // keep all only if lookup is unexpectedly empty
+                }
+            }
+        }
         if (targets.length === 0) {
             if (profile?.role === 'parent') {
                 toast?.warning("Can't RSVP — your account isn't linked to a player yet. Enter your guardian code.");

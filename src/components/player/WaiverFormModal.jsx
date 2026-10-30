@@ -79,7 +79,6 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
         if (!sigName.trim()) { setErr('Please type your full legal name to sign.'); return; }
         setBusy(true); setErr('');
         trackEvent('waiver_submit', { player_id: player.id }, { teamId: player.team_id });
-        onSigned?.();  // optimistic — mark the checklist done
         try {
             const { error } = await supabase.rpc('sign_waiver', {
                 p_player_id: player.id, p_waiver_key: WAIVER_KEY,
@@ -88,12 +87,13 @@ const WaiverFormModal = ({ player, onClose, onSigned }) => {
                 p_form_data: f,
             });
             if (error) throw error;
+            onSigned?.();   // mark the checklist done ONLY after the signature actually saved
             onClose?.();
-        } catch (e) { setErr('Could not save. Please try again.'); setBusy(false); }
+        } catch (e) { setErr(e?.message ? `Could not save — ${e.message}. Please try again.` : 'Could not save. Please try again.'); setBusy(false); }
     };
 
     return (
-        <div className="fixed inset-0 z-[80] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-[110] bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
             <div className="bg-brand-dark border border-white/10 w-full max-w-lg sm:rounded-2xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-white/10 shrink-0">
                     <div className="flex items-center gap-2">

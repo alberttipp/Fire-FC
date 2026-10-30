@@ -21,6 +21,7 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
     const [savingJersey, setSavingJersey] = useState(false);
     const [numberDraft, setNumberDraft] = useState(player?.jersey_number ?? '');
     const [collapsed, setCollapsed] = useState(false);
+    const [saveErr, setSaveErr] = useState('');
 
     const items = [
         { key: 'photo', icon: Camera, label: `Add ${name}'s photo`, done: !!player?.avatar_url, auto: true, hint: 'Tap “Photo” under the card below.' },
@@ -31,30 +32,37 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
     const doneCount = items.filter((i) => i.done).length;
     const allDone = doneCount === items.length;
 
+    // supabase.rpc() resolves with { error } and does NOT throw, so a try/catch
+    // is dead code — we must inspect error and REVERT the optimistic update,
+    // or the parent sees "done ✓" for a write that never saved.
     const setJersey = async (size) => {
         if (!player?.id) return;
+        const prev = player.jersey_size || '';
         trackEvent('jersey_size_set', { size, player_id: player.id }, { teamId: player.team_id });
-        setSavingJersey(true);
+        setSavingJersey(true); setSaveErr('');
         onPlayerChange?.({ jersey_size: size });            // optimistic
-        try { await supabase.rpc('set_player_jersey_size', { p_player_id: player.id, p_size: size }); }
-        catch (_) { /* optimistic; next load reconciles */ }
+        const { error } = await supabase.rpc('set_player_jersey_size', { p_player_id: player.id, p_size: size });
+        if (error) { onPlayerChange?.({ jersey_size: prev }); setSaveErr("Couldn't save your jersey size — check your connection and try again."); }
         setSavingJersey(false);
     };
 
     const saveNumber = async () => {
         if (!player?.id) return;
+        const prev = player.jersey_number ?? null;
         const n = numberDraft === '' ? null : Math.max(0, Math.min(99, parseInt(numberDraft, 10) || 0));
+        setSaveErr('');
         onPlayerChange?.({ jersey_number: n });             // optimistic
-        try { await supabase.rpc('set_player_jersey_number', { p_player_id: player.id, p_number: n }); }
-        catch (_) { /* optimistic */ }
+        const { error } = await supabase.rpc('set_player_jersey_number', { p_player_id: player.id, p_number: n });
+        if (error) { setNumberDraft(prev ?? ''); onPlayerChange?.({ jersey_number: prev }); setSaveErr("Couldn't save the number — try again."); }
     };
 
     const toggleItem = async (key, next) => {
         if (!player?.id) return;
         trackEvent('checklist_item', { item: key, done: next, player_id: player.id }, { teamId: player.team_id });
+        setSaveErr('');
         onPlayerChange?.({ parent_setup_checklist: { ...checklist, [key]: next } });  // optimistic
-        try { await supabase.rpc('set_parent_checklist_item', { p_player_id: player.id, p_key: key, p_done: next }); }
-        catch (_) { /* optimistic */ }
+        const { error } = await supabase.rpc('set_parent_checklist_item', { p_player_id: player.id, p_key: key, p_done: next });
+        if (error) { onPlayerChange?.({ parent_setup_checklist: { ...checklist, [key]: !next } }); setSaveErr("Couldn't save that — check your connection and try again."); }
     };
 
     // Full IYSA waiver is completed + signed in a dedicated form (WaiverFormModal).
@@ -85,6 +93,7 @@ const ParentSetupChecklist = ({ player, onPlayerChange }) => {
 
             {!collapsed && (
                 <div className="px-4 pb-4 space-y-2">
+                    {saveErr && <p className="text-red-400 text-xs bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">{saveErr}</p>}
                     {items.map((item) => {
                         const Icon = item.icon;
                         return (

@@ -35,6 +35,13 @@ const PATTERNS = [
         text: "New signups aren't open right now. Contact your club admin.",
     },
 
+    // --- email send rate limit (project-wide sender quota, NOT the user's fault) ---
+    // Must come BEFORE the generic rate-limit pattern below.
+    {
+        match: /email rate limit|over_email_send_rate_limit|email send rate|error sending/i,
+        text: "We can't send sign-in or reset emails right now. Please log in with your password instead — or text your team manager for help.",
+    },
+
     // --- rate limits ---
     {
         match: /rate limit|too many requests/i,
@@ -66,11 +73,15 @@ const PATTERNS = [
 
 export function friendlyAuthError(err) {
     if (!err) return 'Something went wrong. Try again.';
+    // Match against message + code together — Supabase sometimes carries the
+    // signal (e.g. over_email_send_rate_limit) in .code, not .message.
     const message = typeof err === 'string' ? err : (err.message || '');
-    if (!message) return 'Something went wrong. Try again.';
+    const code = typeof err === 'object' && err ? (err.code || '') : '';
+    const haystack = `${message} ${code}`.trim();
+    if (!haystack) return 'Something went wrong. Try again.';
 
     for (const { match, text } of PATTERNS) {
-        if (match.test(message)) return text;
+        if (match.test(haystack)) return text;
     }
 
     // Fall back to the raw message but make sure it starts with a capital

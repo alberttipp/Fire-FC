@@ -129,6 +129,18 @@ const Login = () => {
 
                 if (error) throw error;
 
+                // Supabase does NOT error when the email already exists (with email
+                // confirmation on) — it returns an obfuscated user with no session and
+                // an EMPTY identities array. Detect that so we never show a fake
+                // "Account created! Check your email" to someone who already has an
+                // account (the core signup-vs-login trap for pre-created accounts).
+                if (data?.user && !data?.session && ((data.user.identities?.length ?? 0) === 0)) {
+                    setAuthError({ message: 'An account with that email already exists — log in instead.', kind: 'exists' });
+                    toast.error('That email already has an account — log in instead.');
+                    setIsSignUp(false);
+                    return; // finally{} clears loading
+                }
+
                 if (joinCode && data?.user) {
                     try {
                         const { data: joinResult, error: joinError } = await supabase.rpc('join_team_via_code', {
@@ -221,7 +233,9 @@ const Login = () => {
             const { error } = await supabase.auth.signInWithOtp({
                 email: email.trim(),
                 options: {
-                    shouldCreateUser: true,
+                    // Don't silently create a ghost account from a typo'd email on
+                    // the login screen — if there's no account they should Sign Up.
+                    shouldCreateUser: false,
                     emailRedirectTo: `${window.location.origin}/parent-dashboard`,
                 },
             });
@@ -560,35 +574,33 @@ const Login = () => {
                             )}
                         </button>
 
-                        {/* Passwordless alternative — email a one-tap login link.
-                            Works for new and existing parents; clicking the link
-                            also verifies their email, so we keep confirmation on. */}
-                        <div className="flex items-center gap-3">
-                            <div className="flex-1 h-px bg-white/10" />
-                            <span className="text-[10px] uppercase tracking-widest text-gray-600">or</span>
-                            <div className="flex-1 h-px bg-white/10" />
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleMagicLink}
-                            disabled={magicLoading || loading}
-                            className="w-full py-2.5 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-sm font-bold hover:bg-white/10 hover:border-brand-green/40 flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
-                        >
-                            <Mail className="w-4 h-4" />
-                            {magicLoading ? 'Sending link…' : 'Email me a login link'}
-                        </button>
-
-                        {/* Forgot Password Link */}
-                        {!isSignUp && (
-                            <div className="text-center">
+                        {/* Email-based sign-in (magic link / password reset) is
+                            DE-EMPHASIZED on purpose: the email sender is currently
+                            rate-limited, so the password above is the reliable path.
+                            Kept as small secondary links so a stuck parent isn't
+                            steered into a dead end. */}
+                        <p className="text-center text-[11px] text-gray-500 pt-1">
+                            Trouble signing in? Use your <b className="text-gray-300">password</b> above — or text your team manager for help.
+                        </p>
+                        <div className="flex items-center justify-center gap-4">
+                            <button
+                                type="button"
+                                onClick={handleMagicLink}
+                                disabled={magicLoading || loading}
+                                className="text-gray-500 hover:text-brand-green text-[11px] uppercase tracking-wider disabled:opacity-50 flex items-center gap-1 transition-colors"
+                            >
+                                <Mail className="w-3 h-3" />
+                                {magicLoading ? 'Sending…' : 'Email me a link'}
+                            </button>
+                            {!isSignUp && (
                                 <Link
                                     to="/reset-password"
-                                    className="text-gray-500 hover:text-brand-green text-xs uppercase tracking-wider transition-colors"
+                                    className="text-gray-500 hover:text-brand-green text-[11px] uppercase tracking-wider transition-colors"
                                 >
-                                    Forgot Password?
+                                    Forgot password?
                                 </Link>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
                         <div className="text-center pt-2">
                             <button
