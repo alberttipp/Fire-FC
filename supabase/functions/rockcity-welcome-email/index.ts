@@ -294,6 +294,44 @@ See you tonight at Rock Valley — let's set the tone.
 — Albert & the Rock City FC coaches`;
 }
 
+function loginHelpHtml(email: string, pw: string, player: string): string {
+  const app = 'https://firefcapp.com';
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;line-height:1.55">
+  <div style="background:#0b1a33;color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;font-weight:800;letter-spacing:1px;font-size:18px;text-transform:uppercase">⚽ Rock City FC — Winter</div>
+  <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:20px">
+    <p style="background:#fff7e6;border:1px solid #e6cd87;border-radius:8px;padding:10px 12px;margin:0 0 16px;font-weight:700">📱 Any trouble? Text or call Albert — 847.338.7700.</p>
+    <p>Hi! I got your login squared away${player ? ` for <b>${player}</b>` : ''}. Here's how to get into the Rock City FC app:</p>
+    <div style="background:#f3f4f6;border-radius:8px;padding:14px 16px;margin:14px 0">
+      <p style="margin:0 0 6px">1️⃣ Go to <b><a href="${app}" style="color:#0b1a33">firefcapp.com</a></b></p>
+      <p style="margin:0 0 6px">2️⃣ Tap <b>“Log In”</b> (not Sign Up)</p>
+      <p style="margin:0 0 6px">3️⃣ Email: <b>${email}</b></p>
+      <p style="margin:0">4️⃣ Password: <b>${pw}</b></p>
+    </div>
+    <p style="background:#eef6ef;border:1px solid #cfe8cf;border-radius:8px;padding:12px 14px"><b>Important:</b> please use the <b>password</b> above to log in. <b>Don't</b> tap “email me a link” or “forgot password” — those aren't working right now and will just say “too many attempts.” The password gets you straight in.</p>
+    <p>Once you're in you can see the team roster, schedule (practice tonight!), chat, your player's card, sign the waiver, and RSVP. You can change the password anytime in the app.</p>
+    <p style="text-align:center;margin:22px 0"><a href="${app}" style="background:#e6cd87;color:#0b1a33;font-weight:800;text-decoration:none;padding:13px 24px;border-radius:10px;display:inline-block">Open the app →</a></p>
+    <p style="color:#6b7280;margin-top:16px">— Albert &amp; the Rock City FC coaches</p>
+  </div>
+</div>`;
+}
+function loginHelpText(email: string, pw: string, player: string): string {
+  return `Any trouble? Text or call Albert — 847.338.7700.
+
+Hi! I got your login squared away${player ? ` for ${player}` : ''}. Here's how to get into the Rock City FC app:
+
+1) Go to firefcapp.com
+2) Tap "Log In" (not Sign Up)
+3) Email: ${email}
+4) Password: ${pw}
+
+Important: please use the PASSWORD above to log in. Don't tap "email me a link" or "forgot password" — those aren't working right now and will just say "too many attempts." The password gets you straight in.
+
+Once you're in you can see the roster, schedule (practice tonight!), chat, your player's card, sign the waiver, and RSVP. You can change the password anytime in the app.
+
+Open the app: https://firefcapp.com
+— Albert & the Rock City FC coaches`;
+}
+
 const linkFor = (code: string) => `https://firefcapp.com/login?join=${code}`;
 
 Deno.serve(async (req) => {
@@ -408,6 +446,13 @@ Deno.serve(async (req) => {
         await new Promise((x) => setTimeout(x, 150));
       }
       return json({ ok: true, mode: 'tonight', total: list.length, sent, map_attached: attachments.length > 0, errors });
+    }
+
+    if (mode === 'loginhelp') {
+      if (!body.email || !body.password) return json({ ok: false, error: 'email + password required' }, 400);
+      const subject = 'Your Rock City FC app login';
+      const res = await sendRaw(body.email, subject, loginHelpHtml(body.email, body.password, body.player_first || ''), loginHelpText(body.email, body.password, body.player_first || ''));
+      return json({ ok: res.ok, mode: 'loginhelp', email: body.email, send: res });
     }
 
     if (mode === 'single') {
