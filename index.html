@@ -82,13 +82,9 @@
               });
             }
           } catch (_) {}
-          try {
-            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
-              navigator.serviceWorker.getRegistrations().then(function (regs) {
-                regs.forEach(function (reg) { try { reg.unregister(); } catch (_) {} });
-              });
-            }
-          } catch (_) {}
+          // NOTE: we deliberately do NOT unregister the service worker here —
+          // sw.js is push-only (caches nothing), so unregistering gains zero
+          // freshness and would destroy the user's push subscription.
           var url = location.pathname
             + (location.search ? location.search + '&' : '?')
             + '__r=' + Date.now()
@@ -140,7 +136,15 @@
         // no error fires, and the watchdog can't catch it (because the
         // surrounding chrome renders into #root). But if a route was
         // added since (e.g. /about), it's not in the cached bundle's
-        // router → blank page for that path.
+        // router -> blank page for that path.
+        //
+        // LANDMINE DEFUSED: the fresh-HTML regex below is anchored to the real
+        // <script src="/assets/index-...">  tag (not a loose /assets/ match), so
+        // it can never match a literal path written inside a comment. Also note
+        // this block currently no-ops in the built HTML because the bundle tag
+        // is parsed AFTER this inline head script runs (querySelector returns
+        // null). Do NOT "fix" that timing without keeping this anchored regex,
+        // or every boot would compare against a bogus hash and reload-loop.
         //
         // Fix: on boot, fetch the current server HTML and compare the
         // bundle hash referenced there against the one we're about to
@@ -161,7 +165,7 @@
               .then(function (res) { return res.ok ? res.text() : ''; })
               .then(function (html) {
                 if (!html) return;
-                var freshMatch = html.match(/\/assets\/(index-[^."?]+\.js)/);
+                var freshMatch = html.match(/<script[^>]*src="\/assets\/(index-[^"]+\.js)"/);
                 if (!freshMatch) return;
                 var freshBundle = freshMatch[1];
                 if (freshBundle !== currentBundle) {
