@@ -4,7 +4,7 @@ import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate } from 'react-router-dom';
 import useBackGuard from '../hooks/useBackGuard';
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
-import { LayoutDashboard, Users, User, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy, ShieldCheck, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, Users, User, Dumbbell, ChevronDown, LogOut, MessageSquare, Calendar, ClipboardCheck, Mic, Bell, Briefcase, FileText, Loader2, Eye, Target, Camera, Trophy, ShieldCheck, ShoppingBag, Lock } from 'lucide-react';
 import MobileBottomNav from '../components/MobileBottomNav';
 import TeamSwitcher from '../components/TeamSwitcher';
 import { supabase } from '../supabaseClient';
@@ -35,6 +35,7 @@ const LiveScoringView = lazy(() => import('../components/dashboard/LiveScoringVi
 const CarpoolVolunteerView = lazy(() => import('../components/dashboard/CarpoolVolunteerView'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
 const StoreView = lazy(() => import('../components/dashboard/StoreView'));
+const TreasuryView = lazy(() => import('../components/dashboard/TreasuryView'));
 const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
 const NotificationPanel = lazy(() => import('../components/dashboard/NotificationPanel'));
 const IDPHub = lazy(() => import('../components/dashboard/IDPHub'));
@@ -264,6 +265,7 @@ const Dashboard = () => {
             case 'carpool': return <CarpoolVolunteerView />;
             case 'rules': return <RulesView />;
             case 'store': return <StoreView />;
+            case 'treasury': return isOwner ? <TreasuryView /> : <StoreView />;
             case 'notifications': return <NotificationsView />;
             case 'financial': return <FinancialView />;
             case 'tryouts': return <TryoutHub />;
@@ -445,6 +447,14 @@ const Dashboard = () => {
                             >
                                 <ShoppingBag className="w-3 h-3" /> Store
                             </button>
+                            {isOwner && (
+                                <button
+                                    onClick={() => pickView('treasury')}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-display uppercase tracking-wider transition-all flex items-center gap-1 ${currentView === 'treasury' ? 'bg-brand-green text-brand-dark font-bold shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    <Lock className="w-3 h-3" /> Treasury
+                                </button>
+                            )}
                             {/* Alerts removed from nav (the top-right bell covers it);
                                 Tryouts hidden (season passed; the club uses BYGA for it). */}
                             {isOwner && (
@@ -500,7 +510,7 @@ const Dashboard = () => {
                                             { id: 'calendar', label: 'Schedule' },
                                             { id: 'rules', label: 'Rules & Docs' },
                                             { id: 'store', label: 'Rock City Store' },
-                                            ...(isOwner ? [{ id: 'admin', label: 'Admin' }] : []),
+                                            ...(isOwner ? [{ id: 'treasury', label: 'Treasury' }, { id: 'admin', label: 'Admin' }] : []),
                                             // Player Plans / Private / Live / Gallery pruned from nav
                                             // (0-usage per the Aug audit); routes still exist.
                                         ].map(tab => (
@@ -575,6 +585,7 @@ const Dashboard = () => {
                     // Alerts kept here for phones (the top-right bell hides on small screens);
                     // Tryouts hidden (season passed; club uses BYGA).
                     { id: 'notifications', label: 'Alerts', icon: Bell },
+                    ...(isOwner ? [{ id: 'treasury', label: 'Treasury', icon: Lock }] : []),
                     ...(isOwner ? [{ id: 'platform_admin', label: 'Admin', icon: ShieldCheck, action: () => navigate('/admin') }] : []),
                 ]}
             />
