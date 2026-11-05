@@ -11,6 +11,7 @@ import { Plus, Trash2, TrendingUp, TrendingDown, Wallet, CalendarClock, Lock, Us
 const U12 = '0920ff23-1294-4ff3-84c9-7c0f82687386';
 const U13 = '545cc936-ad24-4068-bd55-feaca1640f45';
 const TEAMS = [{ id: U12, label: 'U12 — International' }, { id: U13, label: 'U13 — Elite' }];
+const SEASON_FEE = 200; // flat per-player season fee (same for everyone right now); players.season_fee overrides (0 = waived)
 const teamShort = (id) => (id === U12 ? 'U12' : id === U13 ? 'U13' : '—');
 const fmt = (n) => '$' + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const nameOf = (r) => r?.players ? `${r.players.first_name} ${r.players.last_name || ''}`.trim() : null;
@@ -53,14 +54,14 @@ const TreasuryView = () => {
         (async () => {
             const { data } = await supabase
                 .from('player_teams')
-                .select('player_id, team_id, players(first_name,last_name)')
+                .select('player_id, team_id, players(first_name,last_name,season_fee)')
                 .in('team_id', [U12, U13])
                 .eq('status', 'active');
             if (!alive) return;
             const map = {};
             (data || []).forEach((r) => {
                 if (!r.players) return;
-                map[r.player_id] = map[r.player_id] || { id: r.player_id, name: `${r.players.first_name} ${r.players.last_name || ''}`.trim(), teamIds: [] };
+                map[r.player_id] = map[r.player_id] || { id: r.player_id, name: `${r.players.first_name} ${r.players.last_name || ''}`.trim(), teamIds: [], fee: r.players.season_fee };
                 if (!map[r.player_id].teamIds.includes(r.team_id)) map[r.player_id].teamIds.push(r.team_id);
             });
             setPlayers(Object.values(map).sort((a, b) => a.name.localeCompare(b.name)));
@@ -69,6 +70,22 @@ const TreasuryView = () => {
     }, []);
 
     const dualPlayers = useMemo(() => players.filter((p) => p.teamIds.length > 1), [players]);
+
+    // Income collected per (team, player) — drives the per-team Paid/Owes roster.
+    const paidByPlayerTeam = useMemo(() => {
+        const m = {};
+        for (const r of rows) {
+            if (r.kind !== 'income' || !r.player_id) continue;
+            const key = `${r.team_id || 'none'}|${r.player_id}`;
+            m[key] = (m[key] || 0) + (Number(r.amount) || 0);
+        }
+        return m;
+    }, [rows]);
+    const rosterFor = (tid) => players.filter((p) => p.teamIds.includes(tid)).map((p) => {
+        const fee = p.fee == null ? SEASON_FEE : Number(p.fee);
+        const paid = paidByPlayerTeam[`${tid}|${p.id}`] || 0;
+        return { ...p, fee, paid, owes: Math.max(0, fee - paid), dual: p.teamIds.length > 1 };
+    }).sort((a, b) => a.name.localeCompare(b.name));
 
     // When a single-team player is picked, auto-tag the entry to their team.
     const onPickPlayer = (pid) => {
@@ -128,6 +145,37 @@ const TreasuryView = () => {
         );
     };
 
+    const TeamRoster = ({ id, label }) => {
+        const roster = rosterFor(id);
+        const collected = roster.reduce((s, r) => s + r.paid, 0);
+        const expected = roster.reduce((s, r) => s + r.fee, 0);
+        const outstanding = roster.reduce((s, r) => s + r.owes, 0);
+        return (
+            <div className="glass-panel p-4 md:p-5">
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                    <h2 className="text-white font-bold">{label}</h2>
+                    <div className="text-[11px] text-gray-400">Collected <b className="text-brand-green">{fmt(collected)}</b> · Expected <b className="text-white">{fmt(expected)}</b> · Still owed <b className="text-brand-gold">{fmt(outstanding)}</b></div>
+                </div>
+                <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-[10px] text-gray-500 uppercase tracking-widest border-b border-white/10 pb-1 mb-1">
+                    <span>Player</span><span className="text-right">Paid</span><span className="text-right">Owes</span>
+                </div>
+                <div className="divide-y divide-white/5">
+                    {roster.map((r) => (
+                        <div key={r.id} className="grid grid-cols-[1fr_auto_auto] gap-x-4 py-1.5 text-sm items-center">
+                            <span className="text-white truncate">
+                                {r.name}
+                                {r.dual && <span className="text-brand-gold text-[10px] font-bold ml-1">· 2 TEAMS</span>}
+                                {r.fee === 0 && <span className="text-gray-500 text-[10px] ml-1">· WAIVED</span>}
+                            </span>
+                            <span className="text-right tabular-nums text-brand-green">{r.paid > 0 ? fmt(r.paid) : '—'}</span>
+                            <span className={`text-right tabular-nums font-bold ${r.owes > 0 ? 'text-brand-gold' : 'text-gray-600'}`}>{r.owes > 0 ? fmt(r.owes) : '✓'}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="max-w-4xl mx-auto px-4 md:px-6 pb-24 pt-6 space-y-6">
             <div className="flex items-center gap-2">
@@ -159,6 +207,11 @@ const TreasuryView = () => {
                     <p className="text-gray-500 text-xs mt-1">Their deposit is tagged to one team above. Decide each one's total and add an "Expected" (what they still owe) or an extra Income entry for the 2nd league so both teams reconcile.</p>
                 </div>
             )}
+
+            {/* Per-team Paid / Owes roster */}
+            <div className="space-y-3">
+                {TEAMS.map((t) => <TeamRoster key={t.id} id={t.id} label={t.label} />)}
+            </div>
 
             {/* Add entry */}
             <div className="glass-panel p-4 md:p-5 space-y-3">
