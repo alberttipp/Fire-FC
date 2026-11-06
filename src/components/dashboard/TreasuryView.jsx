@@ -89,6 +89,9 @@ const TreasuryView = () => {
         return { ...p, fee, paid, owes: Math.max(0, fee - paid), dual: p.teamIds.length > 1 };
     }).sort((a, b) => a.name.localeCompare(b.name));
 
+    // Expected income still coming in = unpaid fees across both teams.
+    const totalOwed = TEAMS.reduce((s, t) => s + rosterFor(t.id).reduce((a, r) => a + r.owes, 0), 0);
+
     const onPickPlayer = (pid) => {
         setPlayerId(pid);
         const p = players.find((x) => x.id === pid);
@@ -206,6 +209,8 @@ const TreasuryView = () => {
                         <span className={`font-bold tabular-nums ${Math.abs(diff) < 0.005 ? 'text-brand-green' : 'text-red-400'}`}>{fmt(diff)}</span>
                     </div>
                     {Math.abs(diff) >= 0.005 && <p className="text-gray-500 text-[11px]">A non-zero difference means money in the bank isn't all logged here (or vice-versa) — add the missing entries.</p>}
+                    <div className="flex items-center justify-between pt-2 mt-1 border-t border-white/10"><span className="text-gray-400">+ Expected income (fees not yet paid)</span><span className="text-brand-gold tabular-nums pr-3">{fmt(totalOwed)}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-white font-bold">= Projected cash once all fees are in</span><span className="text-white font-bold tabular-nums pr-3">{fmt(expectedCash + totalOwed)}</span></div>
                 </div>
             </div>
 
