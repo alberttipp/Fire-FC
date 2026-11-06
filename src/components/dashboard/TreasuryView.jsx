@@ -54,15 +54,16 @@ const TreasuryView = () => {
         (async () => {
             const { data } = await supabase
                 .from('player_teams')
-                .select('player_id, team_id, players(first_name,last_name,season_fee)')
+                .select('player_id, team_id, fee, players(first_name,last_name)')
                 .in('team_id', [U12, U13])
                 .eq('status', 'active');
             if (!alive) return;
             const map = {};
             (data || []).forEach((r) => {
                 if (!r.players) return;
-                map[r.player_id] = map[r.player_id] || { id: r.player_id, name: `${r.players.first_name} ${r.players.last_name || ''}`.trim(), teamIds: [], fee: r.players.season_fee };
+                map[r.player_id] = map[r.player_id] || { id: r.player_id, name: `${r.players.first_name} ${r.players.last_name || ''}`.trim(), teamIds: [], feeByTeam: {} };
                 if (!map[r.player_id].teamIds.includes(r.team_id)) map[r.player_id].teamIds.push(r.team_id);
+                map[r.player_id].feeByTeam[r.team_id] = r.fee; // null = default fee
             });
             setPlayers(Object.values(map).sort((a, b) => a.name.localeCompare(b.name)));
         })();
@@ -82,7 +83,8 @@ const TreasuryView = () => {
         return m;
     }, [rows]);
     const rosterFor = (tid) => players.filter((p) => p.teamIds.includes(tid)).map((p) => {
-        const fee = p.fee == null ? SEASON_FEE : Number(p.fee);
+        const raw = p.feeByTeam ? p.feeByTeam[tid] : null;
+        const fee = raw == null ? SEASON_FEE : Number(raw);
         const paid = paidByPlayerTeam[`${tid}|${p.id}`] || 0;
         return { ...p, fee, paid, owes: Math.max(0, fee - paid), dual: p.teamIds.length > 1 };
     }).sort((a, b) => a.name.localeCompare(b.name));

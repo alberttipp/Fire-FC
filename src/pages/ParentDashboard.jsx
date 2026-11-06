@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVoiceCommand } from '../context/VoiceCommandContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell, Trophy, Swords, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, Calendar, MessageSquare, CreditCard, LogOut, User, Loader2, Clock, CheckCircle, AlertCircle, Link2, Copy, RefreshCw, QrCode, Camera, Tv, Car, Dumbbell, Target, Zap, ChevronRight, FileText, Plane, Bell, Trophy, Swords, ShoppingBag, Users } from 'lucide-react';
 import LiveGameBanner from '../components/dashboard/LiveGameBanner';
 import { supabase } from '../supabaseClient';
 import { trackScreen } from '../utils/analytics';
@@ -59,6 +59,7 @@ const ScoutingReportModal = lazy(() => import('../components/scouting/ScoutingRe
 const LineupBuilder    = lazy(() => import('../components/coach-hq/lineup/LineupBuilder'));
 const RulesView = lazy(() => import('../components/dashboard/RulesView'));
 const StoreView = lazy(() => import('../components/dashboard/StoreView'));
+const RosterView = lazy(() => import('../components/dashboard/RosterView'));
 const NotificationsView = lazy(() => import('../components/notifications/NotificationsView'));
 const DrillDetailModal = lazy(() => import('../components/player/DrillDetailModal'));
 
@@ -806,6 +807,8 @@ const ParentDashboard = () => {
                 return <RulesView />;
             case 'store':
                 return <StoreView />;
+            case 'roster':
+                return <RosterView player={selectedChild} />;
             case 'notifications':
                 return <NotificationsView />;
             case 'vacation':
@@ -1601,6 +1604,7 @@ const ParentDashboard = () => {
                         <div className="hidden md:flex bg-white/5 rounded-lg p-1 border border-white/10 min-w-0 overflow-x-auto no-scrollbar [&>button]:whitespace-nowrap [&>button]:shrink-0">
                             {[
                                 { id: 'overview',      label: 'Overview', icon: LayoutDashboard },
+                                { id: 'roster',        label: 'Roster',   icon: Users },
                                 { id: 'schedule',      label: 'Schedule', icon: Calendar },
                                 hasLive ? { id: 'live', label: 'Live', icon: Trophy } : null,
                                 { id: 'messages',      label: 'Messages', icon: MessageSquare },
@@ -1732,6 +1736,7 @@ const ParentDashboard = () => {
                 onLogout={handleLogout}
                 mainItems={[
                     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+                    { id: 'roster', label: 'Roster', icon: Users },
                     { id: 'schedule', label: 'Schedule', icon: Calendar },
                     { id: 'messages', label: 'Messages', icon: MessageSquare },
                 ]}
