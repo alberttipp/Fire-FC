@@ -60,6 +60,13 @@ const CalendarHub = ({ initialEventId = null }) => {
         dateRange,
     });
 
+    // Only blank the calendar for the FIRST load. Background refetches (the
+    // realtime RSVP subscription + the 60s safety poll) also flip `loading`,
+    // and gating the grid on raw `loading` made the whole view vanish to a
+    // spinner on every RSVP — which reads as "the schedule keeps resetting"
+    // while you're using it. Once events are in hand, refresh underneath.
+    const initialLoading = loading && (events?.length || 0) === 0;
+
     const isCoach = isStaff(profile?.role);
     // Families with 2+ kids on the team can't use the inline one-tap cluster
     // (it would RSVP every child the same). Route them to the per-child
@@ -155,15 +162,15 @@ const CalendarHub = ({ initialEventId = null }) => {
                 </div>
             </div>
 
-            {/* Loading */}
-            {loading && viewMode !== 'week' && (
+            {/* Loading — first load only; background refetches update in place */}
+            {initialLoading && viewMode !== 'week' && (
                 <div className="flex items-center justify-center py-12">
                     <div className="w-8 h-8 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />
                 </div>
             )}
 
             {/* Views */}
-            {!loading && viewMode === 'month' && (
+            {!initialLoading && viewMode === 'month' && (
                 <MonthGrid
                     viewDate={viewDate}
                     events={events}
@@ -178,7 +185,7 @@ const CalendarHub = ({ initialEventId = null }) => {
 
             {viewMode === 'week' && <UpcomingWeek />}
 
-            {!loading && viewMode === 'list' && (
+            {!initialLoading && viewMode === 'list' && (
                 <AgendaList
                     viewDate={viewDate}
                     events={events}
