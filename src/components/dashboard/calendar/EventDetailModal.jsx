@@ -7,6 +7,7 @@ import { useToast } from '../../Toast';
 import { getEventConfig } from './constants';
 import RsvpSummary from './RsvpSummary';
 import ParentRsvpControls from './ParentRsvpControls';
+import EventGuestInvite from './EventGuestInvite';
 import { isStaff } from '../../../constants/roles';
 import { useBranding } from '../../../context/BrandingContext';
 import { kitSwatchColor } from '../../../constants/kits';
@@ -257,6 +258,12 @@ const EventDetailModal = ({ event: initialEvent, onClose, onStartSession, onEven
 
                     {/* Attendance — visible to everyone (Byga-style). */}
                     <RsvpSummary eventId={event.id} teamId={event.team_id} />
+
+                    {/* Guest call-ups — coach-only: invite a player from the sister
+                        team to play in THIS game (per-game, cap 16, re-pick weekly). */}
+                    {isCoach && (
+                        <EventGuestInvite eventId={event.id} teamId={event.team_id} />
+                    )}
 
                     {/* Practice Sessions */}
                     <div className="border-t border-white/10 pt-4">
